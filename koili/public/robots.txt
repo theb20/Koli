@@ -1,0 +1,41 @@
+# ================================================================
+# DROPSHIP — robots.txt
+# Domaine : https://dropshipp.fr
+# ================================================================
+
+User-agent: *
+
+# ── Pages publiques : autorisées ─────────────────────────────────
+Allow: /
+Allow: /shop
+Allow: /catalogue
+Allow: /nouveautes
+Allow: /ventes-flash
+Allow: /blog
+Allow: /about
+Allow: /contact
+Allow: /aide
+Allow: /cgu
+Allow: /legal
+Allow: /privacy
+
+# ── Pages privées / fonctionnelles : exclues ─────────────────────
+Disallow: /login
+Disallow: /register
+Disallow: /commandes
+Disallow: /panier
+Disallow: /suivi
+Disallow: /compte
+Disallow: /admin
+
+# ── Assets techniques : exclues ──────────────────────────────────
+Disallow: /assets/
+Disallow: /*.js$
+Disallow: /*.css$
+Disallow: /*.json$
+
+# ── Crawl-delay (optionnel — allège la charge serveur) ───────────
+Crawl-delay: 1
+
+# ── Sitemap ──────────────────────────────────────────────────────
+Sitemap: https://dropshipp.fr/sitemap.xml

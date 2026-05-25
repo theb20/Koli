@@ -1,0 +1,175 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap');
+
+@import "tailwindcss";
+
+@theme {
+  --color-brand:       #3b9c3c;
+  --color-brand-dark:  #2d7a2d;
+  --color-brand-hero:  #063c28;
+  --color-brand-light: #e8f5e9;
+  --color-deal:        #fb6c08;
+  --color-deal-light:  #fff3e0;
+  --color-ink:         #151515;
+  --color-muted:       #686e7d;
+  --color-surface:     #FFFFFF;
+  --color-base:        #f5f5f5;
+  --color-border:      #e0e0e0;
+}
+
+*, *::before, *::after { box-sizing: border-box;}
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #151515;
+  background: #f5f5f5;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root { width: 100%; min-height: 100vh; }
+
+:focus-visible { outline: 2px solid #ffffff00; outline-offset: 2px; }
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: #f5f5f5; }
+::-webkit-scrollbar-thumb { background: #c8c8c8; border-radius: 99px; }
+
+.max-w-screen-custom {
+  margin: 0 100px;
+ }
+
+/* ─── PAGE LOADER ─────────────────────────── */
+.loader-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 180px;
+  height: 180px;
+  font-family: "Inter", "Poppins", sans-serif;
+  font-size: 1.2em;
+  font-weight: 300;
+  color: white;
+  border-radius: 50%;
+  background-color: transparent;
+  user-select: none;
+}
+
+.loader {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  background-color: transparent;
+  animation: loader-rotate 2s linear infinite;
+  z-index: 0;
+}
+
+@keyframes loader-rotate {
+  0% {
+    transform: rotate(90deg);
+    box-shadow:
+      0 10px 20px 0 #fff inset,
+      0 20px 30px 0 #ad5fff inset,
+      0 60px 60px 0 #471eec inset;
+  }
+  50% {
+    transform: rotate(270deg);
+    box-shadow:
+      0 10px 20px 0 #fff inset,
+      0 20px 10px 0 #d60a47 inset,
+      0 40px 60px 0 #311e80 inset;
+  }
+  100% {
+    transform: rotate(450deg);
+    box-shadow:
+      0 10px 20px 0 #fff inset,
+      0 20px 30px 0 #ad5fff inset,
+      0 60px 60px 0 #471eec inset;
+  }
+}
+
+.loader-letter {
+  display: inline-block;
+  opacity: 0.4;
+  transform: translateY(0);
+  animation: loader-letter-anim 2s infinite;
+  z-index: 1;
+}
+
+.loader-letter:nth-child(1)  { animation-delay: 0s; }
+.loader-letter:nth-child(2)  { animation-delay: 0.1s; }
+.loader-letter:nth-child(3)  { animation-delay: 0.2s; }
+.loader-letter:nth-child(4)  { animation-delay: 0.3s; }
+.loader-letter:nth-child(5)  { animation-delay: 0.4s; }
+.loader-letter:nth-child(6)  { animation-delay: 0.5s; }
+.loader-letter:nth-child(7)  { animation-delay: 0.6s; }
+.loader-letter:nth-child(8)  { animation-delay: 0.7s; }
+.loader-letter:nth-child(9)  { animation-delay: 0.8s; }
+.loader-letter:nth-child(10) { animation-delay: 0.9s; }
+
+@keyframes loader-letter-anim {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: translateY(0);
+  }
+  20% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+  40% {
+    opacity: 0.7;
+    transform: translateY(0);
+  }
+}
+
+/* Overlay plein écran */
+.page-loader-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  transition: opacity 0.5s ease;
+}
+
+.page-loader-overlay.hide {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ─── FOOTER WATERMARK SHIMMER ──────────── */
+@keyframes watermark-shimmer {
+  0%   { background-position: -100% center; }
+  100% { background-position: 250% center; }
+}
+
+.watermark-shimmer {
+  background: linear-gradient(
+    105deg,
+    #d1d5db 0%,
+    #d1d5db 38%,
+    #e5e7eb 44%,
+    #f9fafb 48%,
+    #ffffff 50%,
+    #f9fafb 52%,
+    #e5e7eb 56%,
+    #d1d5db 62%,
+    #d1d5db 100%
+  );
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: watermark-shimmer 3s ease-in-out infinite;
+}
