@@ -1,5 +1,5 @@
 import { Link, NavLink } from 'react-router-dom'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import {
   Menu, X, ChevronDown, ChevronRight, ShoppingCart,
@@ -7,6 +7,7 @@ import {
   Zap, AlignJustify, HelpCircle, MapPin, Search,
 } from 'lucide-react'
 import SearchBar from '../ui/Search'
+import { useCart } from '../../contexts/CartContext'
 
 /* ─────────────────────────────────────────
    TYPES
@@ -264,45 +265,22 @@ function SimpleNavLink({ item }: { item: NavItem }) {
    CATEGORIES BUTTON (desktop)
 ───────────────────────────────────────── */
 function CategoriesBtn() {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const h = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', h)
-    return () => document.removeEventListener('mousedown', h)
-  }, [])
-
   return (
-    <div ref={ref} className="relative shrink-0">
-      <button
-        onClick={() => setOpen(v => !v)}
-        className="flex items-center gap-2 px-4 py-2 rounded-full border-2 border-gray-800 text-sm font-semibold text-gray-800 hover:bg-gray-800 hover:text-white transition-all"
-      >
-        <AlignJustify size={15} />
-        Explorer
-        <ChevronRight size={13} className={`transition-transform ${open ? 'rotate-90' : ''}`} />
-      </button>
-      {open && (
-        <div className="absolute top-full left-0 mt-2 w-56 bg-white border border-gray-100 rounded-2xl shadow-xl py-2 z-50">
-          {CATEGORIES_DROPDOWN.map(cat => (
-            <Link key={cat.href} to={cat.href} onClick={() => setOpen(false)}
-              className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-black transition-colors">
-              <span>{cat.icon}</span><span>{cat.label}</span>
-            </Link>
-          ))}
-        </div>
-      )}
-    </div>
+    <Link
+      to="/magasin"
+      className="flex items-center gap-2 px-4 py-2 rounded-full border-2 border-gray-800 text-sm font-semibold text-gray-800 hover:bg-gray-800 hover:text-white transition-all shrink-0"
+    >
+      <AlignJustify size={15} />
+      Explorer
+      <ChevronRight size={13} />
+    </Link>
   )
 }
 
 /* ─────────────────────────────────────────
    MOBILE MENU — pro light
 ───────────────────────────────────────── */
-function MobileOverlay({ open, onClose }: { open: boolean; onClose: () => void }) {
+function MobileOverlay({ open, onClose, onOpenCart }: { open: boolean; onClose: () => void; onOpenCart: () => void }) {
   const [searchVal, setSearchVal] = useState('')
 
   useEffect(() => { if (!open) setSearchVal('') }, [open])
@@ -440,20 +418,17 @@ function MobileOverlay({ open, onClose }: { open: boolean; onClose: () => void }
 
               {/* Compte + Panier */}
               <div className="grid grid-cols-2 gap-2.5">
-                <Link to="/login" onClick={onClose}
+                <Link to="/profil" onClick={onClose}
                   className="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold text-gray-700 bg-gray-50 border border-gray-200 hover:border-gray-300 hover:bg-gray-100 active:scale-[0.97] transition-all">
                   <User size={15} className="text-gray-500" />
                   Mon Compte
                 </Link>
-                <Link to="/panier" onClick={onClose}
+                <button onClick={() => { onClose(); onOpenCart() }}
                   className="relative flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold text-white active:scale-[0.97] transition-all"
                   style={{ background: GREEN }}>
                   <ShoppingCart size={15} />
                   Panier
-                  <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-1">
-                    0
-                  </span>
-                </Link>
+                </button>
               </div>
 
               {/* Icônes rapides */}
@@ -491,6 +466,10 @@ function MobileOverlay({ open, onClose }: { open: boolean; onClose: () => void }
 export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [megaOpen,   setMegaOpen]   = useState(false)
+  const { totalItems, totalPrice, toggleCart } = useCart()
+  const cartLabel = totalPrice > 0
+    ? (totalPrice / 100).toLocaleString('fr-FR', { minimumFractionDigits: 0 }) + ' FCFA'
+    : '0 FCFA'
 
   /* Ferme le menu mobile si on passe en desktop */
   useEffect(() => {
@@ -530,10 +509,24 @@ export function Header() {
 
           {/* Icons (desktop) */}
           <div className="hidden md:flex items-center gap-5 lg:gap-6 ml-2">
-            <ActionIcon icon={<User size={22}/>}         label="Bonjour, Identifiez-vous" sublabel="Mon Compte" href="/login"      />
+            <ActionIcon icon={<User size={22}/>}         label="Bonjour, Identifiez-vous" sublabel="Mon Compte" href="/profil"     />
             <ActionIcon icon={<Package size={22}/>}      label="Mes"                      sublabel="Commandes"  href="/commandes"  />
             <ActionIcon icon={<Bell size={22}/>}         label="Nouveautés"               sublabel="Produits"   badge={5} href="/nouveautes"/>
-            <ActionIcon icon={<ShoppingCart size={22}/>} label="Mon Panier"               sublabel="0 FCFA"     badge={0} href="/panier"   />
+            <button onClick={toggleCart} className="flex items-center gap-2.5 group shrink-0">
+              <div className="relative">
+                <ShoppingCart size={22} className="text-gray-500 group-hover:text-gray-900 transition-colors" />
+                {totalItems > 0 && (
+                  <span style={{ background: GREEN }}
+                    className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 rounded-full text-white text-[10px] font-bold flex items-center justify-center px-1">
+                    {totalItems}
+                  </span>
+                )}
+              </div>
+              <div className="hidden lg:block">
+                <p className="text-[11px] text-gray-400 leading-none">Mon Panier</p>
+                <p className="text-sm font-semibold text-gray-800 leading-tight">{cartLabel}</p>
+              </div>
+            </button>
           </div>
 
           {/* Mobile — panier + burger */}
@@ -542,11 +535,11 @@ export function Header() {
             <AnimatePresence>
               {!mobileOpen && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                  <Link to="/panier" className="relative p-2.5 text-gray-600 hover:text-gray-900 transition-colors">
+                  <button onClick={toggleCart} className="relative p-2.5 text-gray-600 hover:text-gray-900 transition-colors">
                     <ShoppingCart size={22} />
-                    <span className="absolute top-6 right-0.5 min-w-[14px] h-[15px] rounded-full text-white text-[9px] font-bold flex items-center justify-center"
-                      style={{ background: GREEN }}>0</span>
-                  </Link>
+                    <span className="absolute top-1 right-0.5 min-w-[14px] h-[14px] rounded-full text-white text-[9px] font-bold flex items-center justify-center"
+                      style={{ background: GREEN }}>{totalItems}</span>
+                  </button>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -577,10 +570,9 @@ export function Header() {
         </div>
       </div>
 
-      {/* 3 · Nav bar (desktop) */}
+      {/* 3 · Nav bar (desktop) style={{ background: 'linear-gradient(to top, transparent 0%, #ffffffff 60%)' }} */}
       <div
-        className="relative hidden md:block"
-        style={{ background: 'linear-gradient(to top, transparent 0%, #ffffffff 60%)' }}
+        className="relative hidden md:block bg-white"
         onMouseLeave={() => setMegaOpen(false)}
       >
         <div className="max-w-7xl mx-auto px-4 lg:px-8 h-12 flex items-center justify-between gap-6">
@@ -611,7 +603,7 @@ export function Header() {
     </header>
 
     {/* Full-screen overlay mobile */}
-    <MobileOverlay open={mobileOpen} onClose={() => setMobileOpen(false)} />
+    <MobileOverlay open={mobileOpen} onClose={() => setMobileOpen(false)} onOpenCart={toggleCart} />
     </>
   )
 }

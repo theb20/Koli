@@ -1,8 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
-import { Plus, Minus, MessageCircle, ArrowRight } from 'lucide-react'
-import { Link } from 'react-router-dom'
-import Btn from '../ui/btnStyle'
+import { Plus, Minus } from 'lucide-react'
 import BorderGlow from '../ui/BorderGlow'
 
 /* ─────────────────────────────────────────

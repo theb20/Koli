@@ -1,143 +1,19 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { motion, AnimatePresence } from 'motion/react'
 import { ShoppingCart, Heart, ArrowRight, TrendingUp } from 'lucide-react'
-
-/* ─────────────────────────────────────────
-   TYPES
-───────────────────────────────────────── */
-type Product = {
-  id: number
-  name: string
-  category: string
-  price: number
-  oldPrice?: number
-  rating: number
-  reviews: number
-  image: string
-  badge?: { label: string; type: 'hot' | 'new' | 'sale' | 'top' }
-  sold?: number
-  stock?: number
-  href: string
-}
+import { PRODUCTS, type Product } from '../../data/products'
+import { useCart } from '../../contexts/CartContext'
 
 /* ─────────────────────────────────────────
    DATA
 ───────────────────────────────────────── */
 const TABS = [
-  { id: 'all',     label: 'Tout',      icon: <TrendingUp size={13} /> },
-  { id: 'tech',    label: 'High-Tech', icon: null },
-  { id: 'maison',  label: 'Maison',    icon: null },
-  { id: 'beaute',  label: 'Beauté',    icon: null },
-  { id: 'sport',   label: 'Sport',     icon: null },
-]
-
-const PRODUCTS: Product[] = [
-  {
-    id: 1,
-    name: 'Montre Connectée Pro X7',
-    category: 'tech',
-    price: 29990,
-    oldPrice: 49990,
-    rating: 4.8,
-    reviews: 2341,
-    image: '/flyers/1.png',
-    badge: { label: '🔥 Top vente', type: 'hot' },
-    sold: 1240,
-    stock: 12,
-    href: '/catalogue',
-  },
-  {
-    id: 2,
-    name: 'Bande LED RGB Ambiance 5M',
-    category: 'maison',
-    price: 15990,
-    oldPrice: 24990,
-    rating: 4.6,
-    reviews: 876,
-    image: '/flyers/1.png',
-    badge: { label: 'Nouveau', type: 'new' },
-    sold: 534,
-    href: '/catalogue',
-  },
-  {
-    id: 3,
-    name: 'Pistolet de Massage Musculaire',
-    category: 'sport',
-    price: 34990,
-    oldPrice: 59990,
-    rating: 4.9,
-    reviews: 1105,
-    image: '/flyers/1.png',
-    badge: { label: '-41%', type: 'sale' },
-    sold: 788,
-    stock: 5,
-    href: '/catalogue',
-  },
-  {
-    id: 4,
-    name: "Humidificateur d'Air Ultrasonique",
-    category: 'maison',
-    price: 19990,
-    oldPrice: 29990,
-    rating: 4.7,
-    reviews: 643,
-    image: '/flyers/1.png',
-    badge: { label: 'Top noté', type: 'top' },
-    sold: 412,
-    href: '/catalogue',
-  },
-  {
-    id: 5,
-    name: 'Set 15 Pinceaux Maquillage Pro',
-    category: 'beaute',
-    price: 12990,
-    oldPrice: 19990,
-    rating: 4.5,
-    reviews: 452,
-    image: '/flyers/1.png',
-    sold: 328,
-    href: '/catalogue',
-  },
-  {
-    id: 6,
-    name: 'Support Téléphone Voiture 360°',
-    category: 'tech',
-    price: 9990,
-    oldPrice: 14990,
-    rating: 4.6,
-    reviews: 1873,
-    image: '/flyers/1.png',
-    badge: { label: '🔥 Top vente', type: 'hot' },
-    sold: 2100,
-    href: '/catalogue',
-  },
-  {
-    id: 7,
-    name: 'Lampe Bureau LED Architecte',
-    category: 'maison',
-    price: 22990,
-    oldPrice: 34990,
-    rating: 4.8,
-    reviews: 391,
-    image: '/flyers/1.png',
-    badge: { label: '-34%', type: 'sale' },
-    sold: 267,
-    stock: 8,
-    href: '/catalogue',
-  },
-  {
-    id: 8,
-    name: 'Tapis de Yoga Antidérapant 6mm',
-    category: 'sport',
-    price: 18990,
-    oldPrice: 27990,
-    rating: 4.7,
-    reviews: 724,
-    image: '/flyers/1.png',
-    badge: { label: 'Nouveau', type: 'new' },
-    sold: 390,
-    href: '/catalogue',
-  },
+  { id: 'all',      label: 'Tout',      icon: <TrendingUp size={13} /> },
+  { id: 'hightech', label: 'High-Tech', icon: null },
+  { id: 'maison',   label: 'Maison',    icon: null },
+  { id: 'beaute',   label: 'Beauté',    icon: null },
+  { id: 'sport',    label: 'Sport',     icon: null },
 ]
 
 /* ─────────────────────────────────────────
@@ -147,7 +23,7 @@ function formatPrice(n: number) {
   return (n / 100).toLocaleString('fr-FR', { minimumFractionDigits: 0 }) + ' FCFA'
 }
 
-function discount(price: number, old: number) {
+function discountPct(price: number, old: number) {
   return Math.round(((old - price) / old) * 100)
 }
 
@@ -161,12 +37,30 @@ const BADGE_STYLES: Record<string, string> = {
   top:  'bg-blue-600 text-white',
 }
 
+function badgeLabel(badge: NonNullable<Product['badge']>, disc: number): string {
+  if (badge === 'hot')  return '🔥 Top vente'
+  if (badge === 'new')  return 'Nouveau'
+  if (badge === 'sale') return `-${disc}%`
+  return 'Top noté'
+}
+
 /* ─────────────────────────────────────────
    PRODUCT CARD
 ───────────────────────────────────────── */
 function ProductCard({ product, rank }: { product: Product; rank: number }) {
+  const { addItem } = useCart()
+  const [imgIdx, setImgIdx] = useState(0)
   const [wished, setWished] = useState(false)
-  const disc = product.oldPrice ? discount(product.price, product.oldPrice) : 0
+  const [added,  setAdded]  = useState(false)
+  const disc = product.oldPrice ? discountPct(product.price, product.oldPrice) : 0
+  const href = `/catalogue/${product.id}`
+
+  const handleAdd = (e: React.MouseEvent) => {
+    e.preventDefault()
+    addItem({ productId: product.id, name: product.name, brand: product.brand, price: product.price, oldPrice: product.oldPrice, image: product.images[0] })
+    setAdded(true)
+    setTimeout(() => setAdded(false), 1800)
+  }
 
   return (
     <div className="group bg-white rounded-2xl overflow-hidden border border-gray-100 hover:border-gray-200 hover:shadow-xl transition-all duration-300 flex flex-col">
@@ -175,43 +69,69 @@ function ProductCard({ product, rank }: { product: Product; rank: number }) {
       <div className="relative overflow-hidden bg-gray-50" style={{ aspectRatio: '4/3' }}>
 
         {/* Rank badge */}
-        <div className="absolute top-3 left-3 z-10 w-7 h-7 rounded-full bg-gray-900 text-white text-xs  flex items-center justify-center">
+        <div className="absolute top-3 left-3 z-10 w-7 h-7 rounded-full bg-gray-900 text-white text-xs flex items-center justify-center">
           #{rank}
         </div>
 
         {/* Badge */}
         {product.badge && (
-          <div className={`absolute top-3 right-3 z-10 px-2 py-0.5 rounded-full text-[10px] ${BADGE_STYLES[product.badge.type]}`}>
-            {product.badge.label}
+          <div className={`absolute top-3 right-3 z-10 px-2 py-0.5 rounded-full text-[10px] ${BADGE_STYLES[product.badge]}`}>
+            {badgeLabel(product.badge, disc)}
           </div>
         )}
 
         {/* Wishlist */}
         <button
           onClick={() => setWished(w => !w)}
-          className="absolute bottom-3 right-3 z-10 w-8 h-8 rounded-full bg-white shadow-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110 active:scale-95"
+          className="absolute bottom-14 right-3 z-20 w-8 h-8 rounded-full bg-white shadow-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110 active:scale-95"
         >
-          <Heart
-            size={15}
-            className={wished ? 'fill-red-500 text-red-500' : 'text-gray-400'}
-          />
+          <Heart size={15} className={wished ? 'fill-red-500 text-red-500' : 'text-gray-400'} />
         </button>
 
-        {/* Product image */}
-        <Link to={product.href}>
-          <img
-            src={product.image}
-            alt={product.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          />
+        {/* Main image — crossfade entre les 4 */}
+        <Link to={href} className="block absolute inset-0 z-[1]">
+          <AnimatePresence mode="popLayout" initial={false}>
+            <motion.img
+              key={imgIdx}
+              src={product.images[imgIdx]}
+              alt={product.name}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.22 }}
+              className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              loading="lazy"
+            />
+          </AnimatePresence>
         </Link>
+
+        {/* Thumbnail strip — 4 images au survol */}
+        <div className="absolute bottom-0 inset-x-0 flex items-end justify-center gap-1.5 px-2 pb-2 pt-8
+                        bg-gradient-to-t from-black/55 to-transparent
+                        opacity-0 group-hover:opacity-100 transition-opacity duration-200
+                        pointer-events-none group-hover:pointer-events-auto" style={{ zIndex: 15 }}>
+          {product.images.map((img, i) => (
+            <button
+              key={i}
+              onMouseEnter={() => setImgIdx(i)}
+              onClick={e => { e.preventDefault(); setImgIdx(i) }}
+              className={`shrink-0 overflow-hidden rounded-md border-[2px] transition-all duration-150 ${
+                i === imgIdx
+                  ? 'border-white scale-110 shadow-lg w-9 h-9'
+                  : 'border-white/30 opacity-70 hover:opacity-100 hover:border-white/70 w-7 h-7'
+              }`}
+            >
+              <img src={img} alt="" className="w-full h-full object-cover" loading="lazy" />
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Content */}
       <div className="p-4 flex flex-col flex-1">
 
         {/* Name */}
-        <Link to={product.href}>
+        <Link to={href}>
           <p className="text-sm font-medium text-gray-800 leading-snug mb-2 line-clamp-2 group-hover:text-gray-900">
             {product.name}
           </p>
@@ -234,17 +154,15 @@ function ProductCard({ product, rank }: { product: Product; rank: number }) {
         </div>
 
         {/* Sold count */}
-        {product.sold && (
-          <div className="flex items-center gap-1 mt-1.5">
-            <div className="w-16 h-1 rounded-full bg-gray-100 overflow-hidden">
-              <div
-                className="h-full rounded-full bg-orange-400"
-                style={{ width: `${Math.min((product.sold / 2500) * 100, 100)}%` }}
-              />
-            </div>
-            <span className="text-[11px] text-gray-400">{product.sold.toLocaleString('fr-FR')} vendus</span>
+        <div className="flex items-center gap-1 mt-1.5">
+          <div className="w-16 h-1 rounded-full bg-gray-100 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-orange-400"
+              style={{ width: `${Math.min((product.sold / 2500) * 100, 100)}%` }}
+            />
           </div>
-        )}
+          <span className="text-[11px] text-gray-400">{product.sold.toLocaleString('fr-FR')} vendus</span>
+        </div>
 
         {/* Stock warning */}
         {product.stock && product.stock <= 10 && (
@@ -271,9 +189,14 @@ function ProductCard({ product, rank }: { product: Product; rank: number }) {
           </div>
 
           {/* Add to cart */}
-          <button className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 active:scale-95 transition-all">
+          <button
+            onClick={handleAdd}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold active:scale-95 transition-all ${
+              added ? 'bg-emerald-500 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
+          >
             <ShoppingCart size={13} />
-            Ajouter
+            {added ? 'Ajouté !' : 'Ajouter'}
           </button>
         </div>
       </div>
@@ -287,9 +210,14 @@ function ProductCard({ product, rank }: { product: Product; rank: number }) {
 export function BestSellersSection() {
   const [activeTab, setActiveTab] = useState('all')
 
-  const filtered = activeTab === 'all'
-    ? PRODUCTS
-    : PRODUCTS.filter(p => p.category === activeTab)
+  const filtered = (
+    activeTab === 'all'
+      ? PRODUCTS
+      : PRODUCTS.filter(p => p.category === activeTab)
+  )
+    .slice()
+    .sort((a, b) => b.sold - a.sold)
+    .slice(0, 8)
 
   return (
     <section className="py-10 sm:py-14 bg-white">
@@ -298,13 +226,11 @@ export function BestSellersSection() {
         {/* ── Header ── */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
           <div>
-            {/* Eyebrow */}
             <div className="flex items-center gap-2 mb-2">
               <span className="text-xs uppercase tracking-widest text-orange-500">
                 Tendances du moment
               </span>
             </div>
-            {/* Title */}
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight">
               Meilleures ventes
             </h2>
@@ -313,7 +239,6 @@ export function BestSellersSection() {
             </p>
           </div>
 
-          {/* View all CTA */}
           <Link
             to="/catalogue"
             className="group inline-flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-700 shrink-0"
