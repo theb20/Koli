@@ -1,15 +1,17 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useQuery, useQueries } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'motion/react'
 import {
   ShoppingCart, ChevronRight, ChevronLeft, Trash2, Plus, Minus,
   MapPin, Phone, User, Tag, CreditCard, Smartphone, Banknote,
   CheckCircle2, Package, Shield, Truck, Clock, Copy, Check,
   ArrowLeft, AlertCircle, Edit2, Star, Zap, Gift, Info,
-  MessageCircle, RotateCcw,
+  MessageCircle, RotateCcw, Mail, Loader2,
 } from 'lucide-react'
 import { useCart, fmtCart, type CartItem } from '../contexts/CartContext'
-import { PRODUCTS } from '../data/products'
+import { useAuth } from '../contexts/AuthContext'
+import { createOrder, fetchPromo, fetchProducts, fetchProduct, mapApiProduct, fetchDefaultTax } from '../lib/api'
 
 /* ═══════════════════════════════════════════════════════════════
    TYPES & CONSTANTES
@@ -17,7 +19,7 @@ import { PRODUCTS } from '../data/products'
 type Step = 'cart' | 'livraison' | 'paiement' | 'confirmation' | 'succes'
 
 type DeliveryInfo = {
-  prenom: string; nom: string; telephone: string
+  prenom: string; nom: string; email: string; telephone: string
   ville: string; quartier: string; adresse: string; notes: string
   methode: 'standard' | 'express'
 }
@@ -52,22 +54,65 @@ const PAYMENT_OPTIONS = [
   },
 ]
 
-const VILLES = [
-  'Douala', 'Yaoundé', 'Bafoussam', 'Bamenda', 'Garoua',
-  'Maroua', 'Ngaoundéré', 'Bertoua', 'Ebolowa', 'Kribi',
-  'Limbé', 'Buéa', 'Kumba', 'Nkongsamba', 'Loum', 'Édéa',
-]
+/* ── Côte d'Ivoire : communes d'Abidjan + villes principales ── */
+const VILLES_CI = {
+  'Abidjan — Communes': [
+    'Abidjan – Abobo',
+    'Abidjan – Adjamé',
+    'Abidjan – Attécoubé',
+    'Abidjan – Cocody',
+    'Abidjan – Koumassi',
+    'Abidjan – Marcory',
+    'Abidjan – Plateau',
+    'Abidjan – Port-Bouët',
+    'Abidjan – Treichville',
+    'Abidjan – Yopougon',
+    'Abidjan – Bingerville',
+    'Abidjan – Anyama',
+    'Abidjan – Songon',
+    'Abidjan – Grand-Bassam',
+    'Abidjan – Jacqueville',
+  ],
+  'Autres villes': [
+    'Yamoussoukro',
+    'Bouaké',
+    'Daloa',
+    'Korhogo',
+    'San-Pédro',
+    'Man',
+    'Gagnoa',
+    'Abengourou',
+    'Divo',
+    'Soubré',
+    'Dimbokro',
+    'Agboville',
+    'Bondoukou',
+    'Ferkessédougou',
+    'Odienné',
+    'Séguéla',
+    'Touba',
+    'Bouna',
+    'Bangolo',
+    'Issia',
+    'Oumé',
+    'Daoukro',
+    'Bongouanou',
+    'Adzopé',
+    'Tiassalé',
+    'Guiglo',
+    'Duékoué',
+    'Tabou',
+  ],
+}
+
 
 const EMPTY_DELIVERY: DeliveryInfo = {
-  prenom: '', nom: '', telephone: '', ville: '', quartier: '',
+  prenom: '', nom: '', email: '', telephone: '', ville: '', quartier: '',
   adresse: '', notes: '', methode: 'standard',
 }
 
-function generateOrderId() {
-  const d = new Date()
-  const date = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`
-  return `KLI-${date}-${Math.floor(1000 + Math.random() * 9000)}`
-}
+// generateOrderId supprimé — l'ID est maintenant généré côté serveur
+
 
 /* ═══════════════════════════════════════════════════════════════
    STEP BAR
@@ -113,16 +158,35 @@ function SummarySidebar({
   items: CartItem[]; totalPrice: number; promoCode: string
   promoDiscount: number; onPromoApply: (code: string) => void; shipping: number
 }) {
-  const [input, setInput]   = useState('')
-  const [error, setError]   = useState('')
-  const totalSaved = items.reduce((s, i) => i.oldPrice ? s + (i.oldPrice - i.price) * i.qty : s, 0)
-  const total      = totalPrice - promoDiscount + shipping
+  const [input,   setInput]   = useState('')
+  const [error,   setError]   = useState('')
+  const [loading, setLoading] = useState(false)
 
-  const applyPromo = () => {
+  // Taux TVA par défaut
+  const { data: taxData } = useQuery({
+    queryKey: ['default-tax'],
+    queryFn:  fetchDefaultTax,
+    staleTime: 300_000,
+  })
+  const taxRate    = taxData?.data?.tax?.rate ?? 0
+  const taxAmount  = Math.round(totalPrice * taxRate / 100)
+
+  const totalSaved = items.reduce((s, i) => i.oldPrice ? s + (i.oldPrice - i.price) * i.qty : s, 0)
+  const total      = totalPrice + taxAmount - promoDiscount + shipping
+
+  const applyPromo = async () => {
     const code = input.trim().toUpperCase()
     if (!code) { setError('Entrez un code'); return }
-    if (code === 'KOLI10' || code === 'BIENVENUE') { onPromoApply(code); setError('') }
-    else setError('Code invalide ou expiré')
+    setLoading(true)
+    setError('')
+    try {
+      await fetchPromo(code)
+      onPromoApply(code)
+    } catch {
+      setError('Code invalide ou expiré')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -183,48 +247,85 @@ function SummarySidebar({
                 className="w-full pl-8 pr-3 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-gray-400 bg-white"
               />
             </div>
-            <button onClick={applyPromo}
-              className="px-3 py-2.5 rounded-xl bg-gray-900 text-white text-xs font-semibold hover:bg-gray-800 transition-colors whitespace-nowrap">
-              Appliquer
+            <button onClick={applyPromo} disabled={loading}
+              className="px-3 py-2.5 rounded-xl bg-gray-900 text-white text-xs font-semibold hover:bg-gray-800 transition-colors whitespace-nowrap flex items-center gap-1 disabled:opacity-60">
+              {loading ? <Loader2 size={12} className="animate-spin"/> : 'Appliquer'}
             </button>
           </div>
         )}
         {error && <p className="text-red-400 text-[10px] mt-1.5 flex items-center gap-1"><AlertCircle size={10} />{error}</p>}
       </div>
 
-      {/* Totals */}
-      <div className="border-t border-gray-100 px-5 py-4 space-y-2.5">
+      {/* Totals — détail complet */}
+      <div className="border-t border-gray-100 px-5 py-4 space-y-2">
+        {/* Sous-total HT */}
         <div className="flex justify-between text-sm text-gray-500">
-          <span>Sous-total ({items.reduce((s,i)=>s+i.qty,0)} article{items.reduce((s,i)=>s+i.qty,0)>1?'s':''})</span>
-          <span className="font-medium text-gray-800">{fmtCart(totalPrice)}</span>
+          <span>
+            Sous-total HT
+            <span className="ml-1 text-[10px] text-gray-400">
+              ({items.reduce((s,i)=>s+i.qty,0)} article{items.reduce((s,i)=>s+i.qty,0)>1?'s':''})
+            </span>
+          </span>
+          <span className="font-medium text-gray-700">{fmtCart(totalPrice)}</span>
         </div>
-        {promoDiscount > 0 && (
-          <div className="flex justify-between text-sm">
-            <span className="text-emerald-600">Code promo ({promoCode})</span>
-            <span className="font-semibold text-emerald-600">−{fmtCart(promoDiscount)}</span>
-          </div>
-        )}
+
+        {/* Économies sur prix barrés */}
         {totalSaved > 0 && (
           <div className="flex justify-between text-sm">
-            <span className="text-blue-600">Économies promotions</span>
+            <span className="text-blue-600 flex items-center gap-1">
+              <Tag size={11} /> Réductions articles
+            </span>
             <span className="font-semibold text-blue-600">−{fmtCart(totalSaved)}</span>
           </div>
         )}
+
+        {/* Code promo */}
+        {promoDiscount > 0 && (
+          <div className="flex justify-between text-sm">
+            <span className="text-emerald-600 flex items-center gap-1">
+              <Gift size={11} /> Code promo <span className="font-mono text-[10px] bg-emerald-100 px-1 rounded">{promoCode}</span>
+            </span>
+            <span className="font-semibold text-emerald-600">−{fmtCart(promoDiscount)}</span>
+          </div>
+        )}
+
+        {/* Livraison */}
         <div className="flex justify-between text-sm text-gray-500">
-          <span>Livraison</span>
-          <span className={shipping === 0 ? 'font-semibold text-emerald-600' : 'font-medium text-gray-800'}>
+          <span className="flex items-center gap-1">
+            <Truck size={11} /> Livraison
+          </span>
+          <span className={shipping === 0 ? 'font-semibold text-emerald-600' : 'font-medium text-gray-700'}>
             {shipping === 0 ? '🎉 Gratuite' : fmtCart(shipping)}
           </span>
         </div>
-        <div className="flex justify-between items-baseline pt-3 border-t border-gray-100">
-          <span className="text-base font-bold text-gray-900">Total TTC</span>
-          <div className="text-right">
-            <p className="text-xl font-bold text-gray-900">{fmtCart(total)}</p>
-            {(promoDiscount > 0 || totalSaved > 0) && (
-              <p className="text-[10px] text-emerald-600 font-medium">
-                Vous économisez {fmtCart(promoDiscount + totalSaved)} 🎉
-              </p>
-            )}
+
+        {/* TVA */}
+        {taxRate > 0 && (
+          <div className="flex justify-between text-sm text-gray-500">
+            <span className="flex items-center gap-1">
+              <Info size={11} /> TVA ({taxRate.toFixed(0)}%)
+            </span>
+            <span className="font-medium text-gray-700">{fmtCart(taxAmount)}</span>
+          </div>
+        )}
+
+        {/* Séparateur + Total TTC */}
+        <div className="pt-3 mt-1 border-t border-gray-200">
+          <div className="flex justify-between items-center">
+            <div>
+              <p className="text-base font-bold text-gray-900">Total TTC</p>
+              {taxRate > 0 && (
+                <p className="text-[10px] text-gray-400 mt-0.5">TVA {taxRate.toFixed(0)}% incluse</p>
+              )}
+            </div>
+            <div className="text-right">
+              <p className="text-xl font-black text-gray-900">{fmtCart(total)}</p>
+              {(promoDiscount > 0 || totalSaved > 0) && (
+                <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">
+                  Vous économisez {fmtCart(promoDiscount + totalSaved)} 🎉
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -249,24 +350,40 @@ function SummarySidebar({
 /* ═══════════════════════════════════════════════════════════════
    ÉTAPE 1 — PANIER
 ═══════════════════════════════════════════════════════════════ */
-function StepCart({ items, totalPrice, onNext, promoCode, promoDiscount, onPromoApply, shipping }: {
+function StepCart({ items, totalPrice, onNext, promoCode, promoDiscount, onPromoApply, shipping, outOfStockIds }: {
   items: CartItem[]; totalPrice: number; onNext: () => void
   promoCode: string; promoDiscount: number; onPromoApply: (c: string) => void; shipping: number
+  outOfStockIds: Set<number>
 }) {
   const { removeItem, updateQty } = useCart()
-  const [promoInput, setPromoInput] = useState('')
-  const [promoError, setPromoError] = useState('')
+  const [promoInput,   setPromoInput]   = useState('')
+  const [promoError,   setPromoError]   = useState('')
+  const [promoLoading, setPromoLoading] = useState(false)
+  const hasOutOfStock = items.some(i => outOfStockIds.has(i.productId))
 
-  const applyPromo = () => {
+  const applyPromo = async () => {
     const code = promoInput.trim().toUpperCase()
     if (!code) { setPromoError('Entrez un code'); return }
-    if (code === 'KOLI10' || code === 'BIENVENUE') { onPromoApply(code); setPromoError('') }
-    else setPromoError('Code invalide ou expiré')
+    setPromoLoading(true)
+    setPromoError('')
+    try {
+      await fetchPromo(code)
+      onPromoApply(code)
+    } catch {
+      setPromoError('Code invalide ou expiré')
+    } finally {
+      setPromoLoading(false)
+    }
   }
+
+  // TVA (cache partagé avec SummarySidebar)
+  const { data: taxData } = useQuery({ queryKey: ['default-tax'], queryFn: fetchDefaultTax, staleTime: 300_000 })
+  const taxRate   = taxData?.data?.tax?.rate ?? 0
+  const taxAmount = Math.round(totalPrice * taxRate / 100)
 
   const progressPct = Math.min((totalPrice / SHIPPING_FREE) * 100, 100)
   const totalSaved  = items.reduce((s, i) => i.oldPrice ? s + (i.oldPrice - i.price) * i.qty : s, 0)
-  const total       = totalPrice - promoDiscount + shipping
+  const total       = totalPrice + taxAmount - promoDiscount + shipping
 
   if (items.length === 0) {
     return (
@@ -377,8 +494,16 @@ function StepCart({ items, totalPrice, onNext, promoCode, promoDiscount, onPromo
                       </button>
                     </div>
 
+                    {/* Badge rupture de stock */}
+                    {outOfStockIds.has(item.productId) && (
+                      <div className="mt-2 flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-50 border border-red-100 w-fit">
+                        <AlertCircle size={11} className="text-red-500 shrink-0" />
+                        <span className="text-[11px] font-bold text-red-600">Rupture de stock — retirez cet article</span>
+                      </div>
+                    )}
+
                     {/* Prix + quantité */}
-                    <div className="flex items-end justify-between mt-3">
+                    <div className={`flex items-end justify-between mt-3 ${outOfStockIds.has(item.productId) ? 'opacity-40' : ''}`}>
                       <div>
                         <p className="text-lg font-bold text-gray-900">{fmtCart(item.price * item.qty)}</p>
                         {disc > 0 && (
@@ -393,14 +518,18 @@ function StepCart({ items, totalPrice, onNext, promoCode, promoDiscount, onPromo
                       </div>
 
                       {/* Qty controls */}
-                      <div className="flex items-center gap-1 bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
+                      <div className={`flex items-center gap-1 rounded-xl border overflow-hidden ${
+                        outOfStockIds.has(item.productId) ? 'bg-gray-100 border-gray-200' : 'bg-gray-50 border-gray-200'
+                      }`}>
                         <button onClick={() => updateQty(item.productId, item.qty - 1)}
-                          className="w-9 h-9 flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors">
+                          disabled={outOfStockIds.has(item.productId)}
+                          className="w-9 h-9 flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors disabled:cursor-not-allowed">
                           <Minus size={13} />
                         </button>
                         <span className="w-9 text-center text-sm font-bold text-gray-900">{item.qty}</span>
                         <button onClick={() => updateQty(item.productId, item.qty + 1)}
-                          className="w-9 h-9 flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors">
+                          disabled={outOfStockIds.has(item.productId)}
+                          className="w-9 h-9 flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors disabled:cursor-not-allowed">
                           <Plus size={13} />
                         </button>
                       </div>
@@ -429,39 +558,83 @@ function StepCart({ items, totalPrice, onNext, promoCode, promoDiscount, onPromo
                 onKeyDown={e => e.key === 'Enter' && applyPromo()}
                 placeholder="Entrez votre code promo…"
                 className="flex-1 px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-gray-400 bg-white" />
-              <button onClick={applyPromo}
-                className="px-4 py-3 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-800 transition-colors">
-                OK
+              <button onClick={applyPromo} disabled={promoLoading}
+                className="px-4 py-3 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-800 transition-colors flex items-center gap-1.5 disabled:opacity-60">
+                {promoLoading ? <Loader2 size={14} className="animate-spin"/> : 'OK'}
               </button>
             </div>
             {promoError && <p className="text-red-400 text-xs mt-1.5">{promoError}</p>}
-            <p className="text-[10px] text-gray-400 mt-2">Essayez le code <strong>KOLI10</strong> pour -10%</p>
           </>
         )}
       </div>
 
       {/* Récap prix mobile */}
-      <div className="lg:hidden bg-white rounded-2xl border border-gray-100 p-4 space-y-2">
-        <div className="flex justify-between text-sm text-gray-500"><span>Sous-total</span><span className="font-medium text-gray-800">{fmtCart(totalPrice)}</span></div>
-        {promoDiscount > 0 && <div className="flex justify-between text-sm text-emerald-600"><span>Promo ({promoCode})</span><span className="font-semibold">-{fmtCart(promoDiscount)}</span></div>}
+      <div className="lg:hidden bg-white rounded-2xl border border-gray-100 p-4 space-y-2.5">
+        <p className="text-sm font-bold text-gray-900 flex items-center gap-2 mb-1">
+          <ShoppingCart size={14} /> Récapitulatif
+        </p>
+        <div className="flex justify-between text-sm text-gray-500">
+          <span>Sous-total HT</span>
+          <span className="font-medium text-gray-700">{fmtCart(totalPrice)}</span>
+        </div>
+        {totalSaved > 0 && (
+          <div className="flex justify-between text-sm text-blue-600">
+            <span>Réductions articles</span>
+            <span className="font-semibold">−{fmtCart(totalSaved)}</span>
+          </div>
+        )}
+        {promoDiscount > 0 && (
+          <div className="flex justify-between text-sm text-emerald-600">
+            <span>Code promo ({promoCode})</span>
+            <span className="font-semibold">−{fmtCart(promoDiscount)}</span>
+          </div>
+        )}
         <div className="flex justify-between text-sm text-gray-500">
           <span>Livraison</span>
-          <span className={shipping === 0 ? 'text-emerald-600 font-semibold' : 'text-gray-800 font-medium'}>
+          <span className={shipping === 0 ? 'text-emerald-600 font-semibold' : 'text-gray-700 font-medium'}>
             {shipping === 0 ? '🎉 Gratuite' : fmtCart(shipping)}
           </span>
         </div>
-        <div className="flex justify-between font-bold text-base pt-2 border-t border-gray-100">
-          <span className="text-gray-900">Total</span><span className="text-gray-900">{fmtCart(total)}</span>
+        {taxRate > 0 && (
+          <div className="flex justify-between text-sm text-gray-500">
+            <span>TVA ({taxRate.toFixed(0)}%)</span>
+            <span className="font-medium text-gray-700">{fmtCart(taxAmount)}</span>
+          </div>
+        )}
+        <div className="flex justify-between font-black text-base pt-2 border-t border-gray-200 mt-1">
+          <div>
+            <span className="text-gray-900">Total TTC</span>
+            {taxRate > 0 && <p className="text-[10px] text-gray-400 font-normal">TVA {taxRate.toFixed(0)}% incluse</p>}
+          </div>
+          <span className="text-gray-900">{fmtCart(total)}</span>
         </div>
       </div>
 
       {/* Produits suggérés */}
       <SuggestedProducts currentIds={items.map(i => i.productId)} />
 
+      {/* Alerte rupture de stock */}
+      {hasOutOfStock && (
+        <div className="flex items-start gap-3 p-4 rounded-2xl bg-red-50 border border-red-100">
+          <AlertCircle size={16} className="text-red-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-bold text-red-700">Produits en rupture de stock</p>
+            <p className="text-xs text-red-500 mt-0.5">
+              Retirez les articles indisponibles pour continuer votre commande.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* CTA */}
-      <button onClick={onNext}
-        className="w-full py-4 rounded-2xl bg-gray-900 text-white font-bold text-base flex items-center justify-center gap-2 hover:bg-gray-800 active:scale-[0.98] transition-all shadow-lg shadow-gray-900/10">
-        Continuer vers la livraison <ChevronRight size={17} />
+      <button onClick={hasOutOfStock ? undefined : onNext}
+        disabled={hasOutOfStock}
+        className={`w-full py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all ${
+          hasOutOfStock
+            ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+            : 'bg-gray-900 text-white hover:bg-gray-800 active:scale-[0.98] shadow-lg shadow-gray-900/10'
+        }`}>
+        {hasOutOfStock ? 'Panier indisponible' : <>Continuer vers la livraison <ChevronRight size={17} /></>}
       </button>
 
       {/* Garanties */}
@@ -485,9 +658,15 @@ function StepCart({ items, totalPrice, onNext, promoCode, promoDiscount, onPromo
 /* ─── Suggestions ─── */
 function SuggestedProducts({ currentIds }: { currentIds: number[] }) {
   const { addItem } = useCart()
-  const suggested = PRODUCTS
+  const { data } = useQuery({
+    queryKey: ['suggested-products'],
+    queryFn:  () => fetchProducts({ sort: 'popular', limit: 8 }),
+    staleTime: 120_000,
+  })
+
+  const suggested = (data?.data.products ?? [])
+    .map(mapApiProduct)
     .filter(p => !currentIds.includes(p.id))
-    .sort(() => Math.random() - 0.5)
     .slice(0, 4)
 
   if (!suggested.length) return null
@@ -538,8 +717,15 @@ function StepLivraison({ delivery, setDelivery, onNext, onBack, totalPrice }: {
     const e: typeof errors = {}
     if (!delivery.prenom.trim())    e.prenom    = 'Champ requis'
     if (!delivery.nom.trim())       e.nom       = 'Champ requis'
+    if (!delivery.email.trim())     e.email     = 'Champ requis'
+    else if (!/\S+@\S+\.\S+/.test(delivery.email)) e.email = 'Email invalide'
     if (!delivery.telephone.trim()) e.telephone = 'Champ requis'
-    else if (delivery.telephone.replace(/\s/g,'').length < 9) e.telephone = 'Numéro invalide'
+    else {
+      /* CI : 10 chiffres (0X XX XX XX XX) ou 9 chiffres (sans le 0 initial) */
+      const digits = delivery.telephone.replace(/[\s\-().]/g, '')
+      if (!/^(0[0-9]{9}|[0-9]{9})$/.test(digits))
+        e.telephone = 'Numéro ivoirien invalide (ex: 07 00 00 00 00)'
+    }
     if (!delivery.ville.trim())     e.ville     = 'Champ requis'
     if (!delivery.adresse.trim())   e.adresse   = 'Champ requis'
     setErrors(e)
@@ -622,6 +808,13 @@ function StepLivraison({ delivery, setDelivery, onNext, onBack, totalPrice }: {
               placeholder="Dupont" error={errors.nom} />
           </div>
 
+          {/* Email */}
+          <InputField
+            label="Email" value={delivery.email} onChange={set('email')}
+            placeholder="jean@exemple.com" error={errors.email}
+            icon={<Mail size={14} />}
+          />
+
           {/* Téléphone */}
           <div>
             <label className="text-xs font-semibold text-gray-700 block mb-1.5">
@@ -630,16 +823,17 @@ function StepLivraison({ delivery, setDelivery, onNext, onBack, totalPrice }: {
             <div className={`flex items-center rounded-xl border-2 transition-all overflow-hidden ${
               errors.telephone ? 'border-red-300' : 'border-gray-200 focus-within:border-gray-400'
             }`}>
-              <div className="flex items-center gap-1.5 px-3.5 py-3 bg-gray-50 border-r border-gray-200 shrink-0">
-                <span className="text-base">🇨🇲</span>
-                <span className="text-sm font-semibold text-gray-700">+237</span>
+              <div className="flex items-center gap-1.5 px-3.5 py-3 bg-gray-50 border-r border-gray-200 shrink-0 select-none">
+                <span className="text-base">🇨🇮</span>
+                <span className="text-sm font-semibold text-gray-700">+225</span>
               </div>
               <input
                 type="tel"
                 value={delivery.telephone}
                 onChange={e => set('telephone')(e.target.value)}
-                placeholder="6XX XXX XXX"
-                maxLength={12}
+                placeholder="07 00 00 00 00"
+                maxLength={14}
+                inputMode="tel"
                 className="flex-1 px-3.5 py-3 text-sm bg-white focus:outline-none placeholder:text-gray-300" />
             </div>
             {errors.telephone && <p className="text-red-400 text-[11px] mt-1 flex items-center gap-1"><AlertCircle size={10}/>{errors.telephone}</p>}
@@ -656,8 +850,12 @@ function StepLivraison({ delivery, setDelivery, onNext, onBack, totalPrice }: {
               <MapPin size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
               <select value={delivery.ville} onChange={e => set('ville')(e.target.value)}
                 className={`w-full pl-9 pr-8 py-3 text-sm bg-white focus:outline-none appearance-none ${!delivery.ville ? 'text-gray-300' : 'text-gray-800'}`}>
-                <option value="">Sélectionner votre ville</option>
-                {VILLES.map(v => <option key={v} value={v}>{v}</option>)}
+                <option value="">Sélectionner votre ville / commune</option>
+                {Object.entries(VILLES_CI).map(([groupe, villes]) => (
+                  <optgroup key={groupe} label={groupe}>
+                    {villes.map(v => <option key={v} value={v}>{v}</option>)}
+                  </optgroup>
+                ))}
               </select>
               <ChevronRight size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none rotate-90" />
             </div>
@@ -665,8 +863,8 @@ function StepLivraison({ delivery, setDelivery, onNext, onBack, totalPrice }: {
           </div>
 
           {/* Quartier */}
-          <InputField label="Quartier / Arrondissement" value={delivery.quartier}
-            onChange={set('quartier')} placeholder="Akwa, Bonanjo, Ngousso…" required={false} />
+          <InputField label="Quartier / Zone" value={delivery.quartier}
+            onChange={set('quartier')} placeholder="Zone 4, Riviera, Deux-Plateaux, Adjamé 220 Lgts…" required={false} />
 
           {/* Adresse */}
           <div>
@@ -675,7 +873,7 @@ function StepLivraison({ delivery, setDelivery, onNext, onBack, totalPrice }: {
             </label>
             <textarea rows={3} value={delivery.adresse}
               onChange={e => set('adresse')(e.target.value)}
-              placeholder="Rue, numéro de porte, immeuble, repère géographique…"
+              placeholder="Rue, N° de villa/immeuble, carrefour, repère géographique…"
               className={`w-full px-4 py-3 rounded-xl border-2 text-sm focus:outline-none transition-all bg-white resize-none placeholder:text-gray-300 ${
                 errors.adresse ? 'border-red-300' : 'border-gray-200 focus:border-gray-400'
               }`} />
@@ -780,45 +978,45 @@ function StepPaiement({ selected, onSelect, onNext, onBack }: {
             <AlertCircle size={14} /> Veuillez sélectionner un mode de paiement
           </div>
         )}
-
-        {/* Instructions contextuelles */}
-        <AnimatePresence>
-          {selected && (
-            <motion.div key={selected} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-              className={`mt-4 p-4 rounded-xl border ${
-                selected === 'cash'
-                  ? 'bg-green-50 border-green-100 text-green-800'
-                  : 'bg-blue-50 border-blue-100 text-blue-800'
-              }`}>
-              {selected === 'cash' ? (
-                <>
-                  <p className="text-sm font-bold mb-2 flex items-center gap-2"><Banknote size={14} /> Paiement à la livraison</p>
-                  <ul className="space-y-1.5 text-xs text-green-700">
-                    <li className="flex items-start gap-2"><span className="mt-0.5">✓</span> Préparez le montant exact en espèces</li>
-                    <li className="flex items-start gap-2"><span className="mt-0.5">✓</span> Le livreur vous appellera avant de se déplacer</li>
-                    <li className="flex items-start gap-2"><span className="mt-0.5">✓</span> Aucun paiement en ligne requis</li>
-                  </ul>
-                </>
-              ) : (
-                <>
-                  <p className="text-sm font-bold mb-2 flex items-center gap-2">
-                    <Smartphone size={14} />
-                    {PAYMENT_OPTIONS.find(p=>p.id===selected)?.logo && (
-                      <img src={PAYMENT_OPTIONS.find(p=>p.id===selected)!.logo} alt="" className="w-4 h-4 object-contain" />
-                    )}
-                    Paiement {PAYMENT_OPTIONS.find(p=>p.id===selected)?.label}
-                  </p>
-                  <ol className="space-y-1.5 text-xs text-blue-700">
-                    <li className="flex items-start gap-2"><span className="w-4 h-4 rounded-full bg-blue-200 text-blue-800 font-bold flex items-center justify-center shrink-0 text-[9px]">1</span>Après confirmation, une demande de paiement sera envoyée sur votre téléphone</li>
-                    <li className="flex items-start gap-2"><span className="w-4 h-4 rounded-full bg-blue-200 text-blue-800 font-bold flex items-center justify-center shrink-0 text-[9px]">2</span>Entrez votre code secret pour valider le paiement</li>
-                    <li className="flex items-start gap-2"><span className="w-4 h-4 rounded-full bg-blue-200 text-blue-800 font-bold flex items-center justify-center shrink-0 text-[9px]">3</span>Votre commande est préparée dès confirmation du paiement</li>
-                  </ol>
-                </>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
+
+      {/* Instructions contextuelles */}
+      <AnimatePresence>
+        {selected && (
+          <motion.div key={selected} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            className={`p-4 rounded-xl border ${
+              selected === 'cash'
+                ? 'bg-green-50 border-green-100 text-green-800'
+                : 'bg-blue-50 border-blue-100 text-blue-800'
+            }`}>
+            {selected === 'cash' ? (
+              <>
+                <p className="text-sm font-bold mb-2 flex items-center gap-2"><Banknote size={14} /> Paiement à la livraison</p>
+                <ul className="space-y-1.5 text-xs text-green-700">
+                  <li className="flex items-start gap-2"><span className="mt-0.5">✓</span> Préparez le montant exact en espèces</li>
+                  <li className="flex items-start gap-2"><span className="mt-0.5">✓</span> Le livreur vous appellera avant de se déplacer</li>
+                  <li className="flex items-start gap-2"><span className="mt-0.5">✓</span> Aucun paiement en ligne requis</li>
+                </ul>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-bold mb-2 flex items-center gap-2">
+                  <Smartphone size={14} />
+                  {PAYMENT_OPTIONS.find(p=>p.id===selected)?.logo && (
+                    <img src={PAYMENT_OPTIONS.find(p=>p.id===selected)!.logo} alt="" className="w-4 h-4 object-contain" />
+                  )}
+                  Paiement {PAYMENT_OPTIONS.find(p=>p.id===selected)?.label}
+                </p>
+                <ol className="space-y-1.5 text-xs text-blue-700">
+                  <li className="flex items-start gap-2"><span className="w-4 h-4 rounded-full bg-blue-200 text-blue-800 font-bold flex items-center justify-center shrink-0 text-[9px]">1</span>Après confirmation, une demande de paiement sera envoyée sur votre téléphone</li>
+                  <li className="flex items-start gap-2"><span className="w-4 h-4 rounded-full bg-blue-200 text-blue-800 font-bold flex items-center justify-center shrink-0 text-[9px]">2</span>Entrez votre code secret pour valider le paiement</li>
+                  <li className="flex items-start gap-2"><span className="w-4 h-4 rounded-full bg-blue-200 text-blue-800 font-bold flex items-center justify-center shrink-0 text-[9px]">3</span>Votre commande est préparée dès confirmation du paiement</li>
+                </ol>
+              </>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Sécurité */}
       <div className="bg-white rounded-2xl border border-gray-100 p-4">
@@ -847,7 +1045,10 @@ function StepConfirmation({ items, delivery, paymentMethod, totalPrice, promoDis
 }) {
   const shipping = delivery.methode === 'express' ? SHIPPING_EXP
     : totalPrice >= SHIPPING_FREE ? 0 : SHIPPING_STD
-  const total = totalPrice - promoDiscount + shipping
+  const { data: taxDataConf } = useQuery({ queryKey: ['default-tax'], queryFn: fetchDefaultTax, staleTime: 300_000 })
+  const taxRateConf   = taxDataConf?.data?.tax?.rate ?? 0
+  const taxAmountConf = Math.round(totalPrice * taxRateConf / 100)
+  const total = totalPrice + taxAmountConf - promoDiscount + shipping
   const pm    = PAYMENT_OPTIONS.find(p => p.id === paymentMethod)!
 
   return (
@@ -871,7 +1072,7 @@ function StepConfirmation({ items, delivery, paymentMethod, totalPrice, promoDis
           <div>
             <p className="text-xs text-gray-400 mb-0.5">Destinataire</p>
             <p className="font-semibold text-gray-900">{delivery.prenom} {delivery.nom}</p>
-            <p className="text-gray-500 mt-0.5">+237 {delivery.telephone}</p>
+            <p className="text-gray-500 mt-0.5">+225 {delivery.telephone}</p>
           </div>
           <div>
             <p className="text-xs text-gray-400 mb-0.5">Adresse</p>
@@ -928,17 +1129,36 @@ function StepConfirmation({ items, delivery, paymentMethod, totalPrice, promoDis
           ))}
         </div>
 
-        {/* Totaux */}
+        {/* Totaux détaillés */}
         <div className="mt-5 pt-4 border-t border-gray-100 space-y-2">
-          <div className="flex justify-between text-sm text-gray-500"><span>Sous-total</span><span>{fmtCart(totalPrice)}</span></div>
-          {promoDiscount > 0 && <div className="flex justify-between text-sm text-emerald-600"><span>Code promo</span><span>-{fmtCart(promoDiscount)}</span></div>}
+          <div className="flex justify-between text-sm text-gray-500">
+            <span>Sous-total HT</span>
+            <span className="font-medium text-gray-700">{fmtCart(totalPrice)}</span>
+          </div>
+          {promoDiscount > 0 && (
+            <div className="flex justify-between text-sm text-emerald-600">
+              <span>Code promo</span>
+              <span className="font-semibold">−{fmtCart(promoDiscount)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-sm text-gray-500">
             <span>Livraison {delivery.methode === 'express' ? '(Express)' : '(Standard)'}</span>
-            <span className={shipping === 0 ? 'text-emerald-600 font-semibold' : ''}>{shipping === 0 ? '🎉 Gratuite' : fmtCart(shipping)}</span>
+            <span className={shipping === 0 ? 'text-emerald-600 font-semibold' : 'text-gray-700 font-medium'}>
+              {shipping === 0 ? '🎉 Gratuite' : fmtCart(shipping)}
+            </span>
           </div>
-          <div className="flex justify-between font-bold text-lg pt-3 border-t border-gray-100">
-            <span className="text-gray-900">Total à payer</span>
-            <span className="text-gray-900">{fmtCart(total)}</span>
+          {taxRateConf > 0 && (
+            <div className="flex justify-between text-sm text-gray-500">
+              <span>TVA ({taxRateConf.toFixed(0)}%)</span>
+              <span className="font-medium text-gray-700">{fmtCart(taxAmountConf)}</span>
+            </div>
+          )}
+          <div className="flex justify-between items-center pt-3 border-t border-gray-100">
+            <div>
+              <p className="font-bold text-lg text-gray-900">Total TTC</p>
+              {taxRateConf > 0 && <p className="text-[10px] text-gray-400">TVA {taxRateConf.toFixed(0)}% incluse</p>}
+            </div>
+            <span className="font-black text-xl text-gray-900">{fmtCart(total)}</span>
           </div>
         </div>
       </div>
@@ -1085,11 +1305,11 @@ function StepSucces({ orderId, paymentMethod, delivery }: {
           className="w-full bg-white rounded-2xl border border-gray-100 p-4">
           <p className="text-xs text-gray-400 text-center mb-3">Besoin d'aide avec votre commande ?</p>
           <div className="flex gap-3">
-            <a href="https://wa.me/237600000000" target="_blank" rel="noopener noreferrer"
+            <a href="https://wa.me/2250700000000" target="_blank" rel="noopener noreferrer"
               className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-500 text-white text-sm font-semibold hover:bg-emerald-600 transition-colors">
               <MessageCircle size={15} /> WhatsApp SAV
             </a>
-            <a href="tel:+237600000000"
+            <a href="tel:+2250700000000"
               className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-sm font-semibold hover:border-gray-300 transition-colors">
               <Phone size={15} /> Appeler
             </a>
@@ -1134,6 +1354,7 @@ function NavButtons({ onBack, onNext, nextLabel }: { onBack: () => void; onNext:
 ═══════════════════════════════════════════════════════════════ */
 export default function PanierPage() {
   const { items, totalPrice, clearCart } = useCart()
+  const { user, token } = useAuth()
   const [step,          setStep]          = useState<Step>('cart')
   const [delivery,      setDelivery]      = useState<DeliveryInfo>(EMPTY_DELIVERY)
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null)
@@ -1141,9 +1362,38 @@ export default function PanierPage() {
   const [promoDiscount, setPromoDiscount] = useState(0)
   const [orderId,       setOrderId]       = useState('')
   const [loading,       setLoading]       = useState(false)
+  const [orderError,    setOrderError]    = useState('')
+
+  /* Pré-remplir email depuis le compte connecté */
+  useEffect(() => {
+    if (user) {
+      setDelivery(d => ({
+        ...d,
+        prenom: d.prenom || user.prenom,
+        nom:    d.nom    || user.nom,
+        email:  d.email  || user.email,
+      }))
+    }
+  }, [user])
 
   const shipping = delivery.methode === 'express' ? SHIPPING_EXP
     : totalPrice >= SHIPPING_FREE ? 0 : SHIPPING_STD
+
+  // Vérification stock en temps réel pour tous les articles du panier
+  const stockQueries = useQueries({
+    queries: items.map(item => ({
+      queryKey: ['stock-check', item.productId],
+      queryFn:  () => fetchProduct(item.productId),
+      staleTime: 30_000,
+      enabled:  step === 'cart',
+    })),
+  })
+  const outOfStockIds = new Set<number>(
+    stockQueries
+      .map((q, i) => ({ productId: items[i]?.productId, stock: q.data?.data?.product?.stock }))
+      .filter(r => r.stock === 0)
+      .map(r => r.productId!)
+  )
 
   const goNext = () => {
     const i = STEP_ORDER.indexOf(step)
@@ -1154,19 +1404,57 @@ export default function PanierPage() {
     if (i > 0) setStep(STEP_ORDER[i - 1])
   }
 
-  const handlePromoApply = (code: string) => {
-    setPromoCode(code)
-    setPromoDiscount(Math.round(totalPrice * 0.1))
+  const handlePromoApply = async (code: string) => {
+    try {
+      const res = await fetchPromo(code)
+      setPromoCode(code)
+      // Calculer la remise selon le type de promo retourné par l'API
+      const promo = res.data
+      if (promo.type === 'percent') {
+        setPromoDiscount(Math.round(totalPrice * promo.value / 100))
+      } else {
+        setPromoDiscount(promo.value)
+      }
+    } catch { /* erreur gérée dans l'enfant */ }
   }
 
   const handleConfirm = async () => {
+    if (!paymentMethod) return
     setLoading(true)
-    await new Promise(r => setTimeout(r, 1800))
-    const id = generateOrderId()
-    setOrderId(id)
-    clearCart()
-    setLoading(false)
-    setStep('succes')
+    setOrderError('')
+    try {
+      const res = await createOrder(
+        {
+          clientPrenom:    delivery.prenom,
+          clientNom:       delivery.nom,
+          clientEmail:     delivery.email,
+          clientTelephone: delivery.telephone,
+          deliveryMethod:  delivery.methode,
+          shippingAddress: {
+            ville:        delivery.ville,
+            quartier:     delivery.quartier || undefined,
+            adresse:      delivery.adresse,
+            instructions: delivery.notes   || undefined,
+          },
+          paymentMethod,
+          items: items.map(i => ({
+            productId: i.productId,
+            qty:       i.qty,
+            color:     i.color,
+          })),
+          promoCode: promoCode || undefined,
+          notes:     delivery.notes || undefined,
+        },
+        token,
+      )
+      setOrderId(res.data.orderNumber)
+      clearCart()
+      setStep('succes')
+    } catch (err) {
+      setOrderError(err instanceof Error ? err.message : 'Erreur lors de la commande. Réessayez.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -1226,7 +1514,7 @@ export default function PanierPage() {
                   {step === 'cart' && (
                     <StepCart items={items} totalPrice={totalPrice} shipping={shipping}
                       promoCode={promoCode} promoDiscount={promoDiscount} onPromoApply={handlePromoApply}
-                      onNext={goNext} />
+                      onNext={goNext} outOfStockIds={outOfStockIds} />
                   )}
                   {step === 'livraison' && (
                     <StepLivraison delivery={delivery} setDelivery={setDelivery}
@@ -1237,9 +1525,17 @@ export default function PanierPage() {
                       onNext={goNext} onBack={goBack} />
                   )}
                   {step === 'confirmation' && (
-                    <StepConfirmation items={items} delivery={delivery} paymentMethod={paymentMethod!}
-                      totalPrice={totalPrice} promoDiscount={promoDiscount}
-                      onConfirm={handleConfirm} onBack={goBack} loading={loading} />
+                    <>
+                      {orderError && (
+                        <div className="mb-4 flex items-start gap-2 p-4 rounded-xl bg-red-50 border border-red-100">
+                          <AlertCircle size={15} className="text-red-500 shrink-0 mt-0.5" />
+                          <p className="text-sm text-red-600">{orderError}</p>
+                        </div>
+                      )}
+                      <StepConfirmation items={items} delivery={delivery} paymentMethod={paymentMethod!}
+                        totalPrice={totalPrice} promoDiscount={promoDiscount}
+                        onConfirm={handleConfirm} onBack={goBack} loading={loading} />
+                    </>
                   )}
                 </motion.div>
               </AnimatePresence>

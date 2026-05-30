@@ -1,14 +1,20 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'motion/react'
 import {
   ChevronLeft, ChevronRight, Heart, ShoppingCart, Star,
   Shield, Truck, RotateCcw, Zap, Share2, Check,
-  ChevronDown, ArrowLeft, Package, ThumbsUp,
+  ChevronDown, ArrowLeft, Package, ThumbsUp, Loader2,
 } from 'lucide-react'
 import { PageMeta } from '../components/seo/PageMeta'
-import { getProduct, getRelated, type Product } from '../data/products'
 import { useCart } from '../contexts/CartContext'
+import { useAuth } from '../contexts/AuthContext'
+import {
+  fetchProduct, fetchProducts, fetchReviews,
+  mapApiProduct, toggleWishlist, submitReview,
+  API_BASE, type ApiReview,
+} from '../lib/api'
 
 /* ═══════════════════════════════════════════════════════════════
    CONSTANTS
@@ -28,47 +34,31 @@ const BADGE_STYLE: Record<string, string> = {
   top: 'bg-blue-600 text-white',
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   FAKE REVIEWS DATA
-═══════════════════════════════════════════════════════════════ */
+/* ─── Types locaux ────────────────────────────────────────────── */
+export type Product = ReturnType<typeof mapApiProduct>
+
 type Review = {
-  id: number; author: string; avatar: string; rating: number
-  date: string; title: string; body: string; helpful: number
+  id: string; author: string; avatar: string; rating: number
+  date: string; title: string; body?: string | null; helpful: number
   verified: boolean
 }
 
-const REVIEWS_BASE: Review[] = [
-  {
-    id: 1, author: 'Kouamé A.', avatar: 'KA', rating: 5,
-    date: '12 mai 2025', title: 'Exactement ce que je cherchais !',
-    body: 'Livraison rapide, produit conforme à la description. La qualité est vraiment au rendez-vous et l\'emballage était parfait. Je recommande fortement ce vendeur.',
-    helpful: 24, verified: true,
-  },
-  {
-    id: 2, author: 'Fatima D.', avatar: 'FD', rating: 4,
-    date: '3 avril 2025', title: 'Très bon rapport qualité-prix',
-    body: 'Produit de bonne qualité pour ce prix. La mise en route est simple et le manuel est clair. Je retire une étoile car la notice est uniquement en anglais.',
-    helpful: 11, verified: true,
-  },
-  {
-    id: 3, author: 'Jean-Marc B.', avatar: 'JB', rating: 5,
-    date: '28 mars 2025', title: 'Bluffant !',
-    body: 'Je suis agréablement surpris par la qualité de fabrication. Beaucoup mieux que les photos. L\'autonomie est exactement celle annoncée. Parfait.',
-    helpful: 18, verified: false,
-  },
-  {
-    id: 4, author: 'Aïssatou K.', avatar: 'AK', rating: 3,
-    date: '15 mars 2025', title: 'Bien mais quelques défauts',
-    body: 'Le produit fonctionne correctement mais j\'ai eu un problème de charge la première semaine. Le SAV a été réactif et a résolu le problème rapidement.',
-    helpful: 7, verified: true,
-  },
-  {
-    id: 5, author: 'Thierry M.', avatar: 'TM', rating: 5,
-    date: '2 mars 2025', title: 'Achat parfait',
-    body: 'Second achat sur ce site, toujours aussi satisfait. Le produit est top, la livraison express J+1 à Abidjan c\'est vraiment un plus. Merci !',
-    helpful: 31, verified: true,
-  },
-]
+/** Convertit un ApiReview vers le type Review local */
+function mapReview(r: ApiReview): Review {
+  const prenom = r.user?.prenom ?? 'Anonyme'
+  const nom    = r.user?.nom ?? ''
+  return {
+    id:       r.id,
+    author:   `${prenom} ${nom ? nom[0] + '.' : ''}`.trim(),
+    avatar:   `${prenom[0] ?? ''}${nom[0] ?? ''}`.toUpperCase(),
+    rating:   r.rating,
+    date:     new Date(r.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }),
+    title:    r.title ?? '',
+    body:     r.body,
+    helpful:  r.helpful,
+    verified: r.verified,
+  }
+}
 
 /* ═══════════════════════════════════════════════════════════════
    STAR RATING BAR
@@ -123,8 +113,17 @@ function RatingBreakdown({ reviews }: { reviews: Review[] }) {
    REVIEW CARD
 ═══════════════════════════════════════════════════════════════ */
 function ReviewCard({ review }: { review: Review }) {
-  const [helped, setHelped] = useState(false)
-  const count = helped ? review.helpful + 1 : review.helpful
+  const [helped,    setHelped]    = useState(false)
+  const [helpCount, setHelpCount] = useState(review.helpful)
+
+  const handleHelpful = async () => {
+    if (helped) return          // un seul vote par session
+    setHelped(true)
+    setHelpCount(c => c + 1)
+    try {
+      await fetch(`${API_BASE}/api/reviews/${review.id}/helpful`, { method: 'POST' })
+    } catch { /* déjà mis à jour localement, pas critique */ }
+  }
 
   return (
     <div className="py-6 border-b border-gray-100 last:border-0">
@@ -161,15 +160,16 @@ function ReviewCard({ review }: { review: Review }) {
           {/* Body */}
           <p className="text-sm text-gray-500 leading-relaxed">{review.body}</p>
 
-          {/* Helpful */}
+          {/* Helpful — persiste en base */}
           <button
-            onClick={() => setHelped(h => !h)}
-            className={`mt-3 inline-flex items-center gap-1.5 text-xs transition-colors ${
+            onClick={handleHelpful}
+            disabled={helped}
+            className={`mt-3 inline-flex items-center gap-1.5 text-xs transition-colors disabled:cursor-default ${
               helped ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'
             }`}
           >
             <ThumbsUp size={12} strokeWidth={helped ? 0 : 1.5} className={helped ? 'fill-blue-600' : ''} />
-            Utile ({count})
+            Utile ({helpCount})
           </button>
         </div>
       </div>
@@ -180,19 +180,55 @@ function ReviewCard({ review }: { review: Review }) {
 /* ═══════════════════════════════════════════════════════════════
    LEAVE A REVIEW FORM
 ═══════════════════════════════════════════════════════════════ */
-function ReviewForm({ onSubmit }: { onSubmit: () => void }) {
-  const [hover, setHover] = useState(0)
+function ReviewForm({ productId, onSubmit }: { productId: number; onSubmit: () => void }) {
+  const { token, isAuthenticated, user } = useAuth()
+  const navigate    = useNavigate()
+  const queryClient = useQueryClient()
+  const [hover,  setHover]  = useState(0)
   const [picked, setPicked] = useState(0)
-  const [name, setName]   = useState('')
-  const [title, setTitle] = useState('')
-  const [body, setBody]   = useState('')
-  const [sent, setSent]   = useState(false)
+  const [title,  setTitle]  = useState('')
+  const [body,   setBody]   = useState('')
+  const [sent,   setSent]   = useState(false)
+  const [error,  setError]  = useState('')
+  const [loading, setLoading] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  /* ── Utilisateur non connecté → invite à se connecter ── */
+  if (!isAuthenticated || !user) {
+    return (
+      <div className="flex flex-col items-center gap-4 py-8 text-center">
+        <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center">
+          <Star size={22} className="text-gray-300" />
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-gray-800">Connectez-vous pour laisser un avis</p>
+          <p className="text-xs text-gray-400 mt-1">Seuls les utilisateurs connectés peuvent publier un avis.</p>
+        </div>
+        <button
+          onClick={() => navigate('/login')}
+          className="px-5 py-2.5 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-800 transition-colors"
+        >
+          Se connecter
+        </button>
+      </div>
+    )
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!picked || !name.trim() || !body.trim()) return
-    setSent(true)
-    setTimeout(onSubmit, 1800)
+    if (!picked) { setError('Choisissez une note.'); return }
+    if (body.trim().length < 10) { setError('Votre commentaire doit faire au moins 10 caractères.'); return }
+    setError('')
+    setLoading(true)
+    try {
+      await submitReview({ productId, rating: picked, title: title.trim() || undefined, body: body.trim() }, token!)
+      setSent(true)
+      queryClient.invalidateQueries({ queryKey: ['reviews', productId] })
+      setTimeout(onSubmit, 1800)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de la soumission.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   if (sent) {
@@ -211,13 +247,28 @@ function ReviewForm({ onSubmit }: { onSubmit: () => void }) {
     )
   }
 
+  const initials = `${user.prenom?.[0] ?? ''}${user.nom?.[0] ?? ''}`.toUpperCase()
+
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+
+      {/* Auteur — affiché automatiquement */}
+      <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100">
+        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+          {user.avatar
+            ? <img src={user.avatar} alt={user.prenom} className="w-full h-full object-cover rounded-full" />
+            : initials}
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-gray-800">{user.prenom} {user.nom}</p>
+          <p className="text-[11px] text-gray-400">Votre avis sera publié sous ce nom</p>
+        </div>
+      </div>
 
       {/* Star picker */}
       <div>
         <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">
-          Votre note
+          Votre note <span className="text-red-400">*</span>
         </label>
         <div className="flex items-center gap-1">
           {[1,2,3,4,5].map(i => (
@@ -246,18 +297,6 @@ function ReviewForm({ onSubmit }: { onSubmit: () => void }) {
         </div>
       </div>
 
-      {/* Name */}
-      <div>
-        <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">
-          Votre prénom
-        </label>
-        <input
-          type="text" value={name} onChange={e => setName(e.target.value)}
-          placeholder="Ex : Kouamé A."
-          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
-        />
-      </div>
-
       {/* Title */}
       <div>
         <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">
@@ -266,6 +305,7 @@ function ReviewForm({ onSubmit }: { onSubmit: () => void }) {
         <input
           type="text" value={title} onChange={e => setTitle(e.target.value)}
           placeholder="Ex : Très bon rapport qualité-prix"
+          maxLength={100}
           className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
         />
       </div>
@@ -273,23 +313,38 @@ function ReviewForm({ onSubmit }: { onSubmit: () => void }) {
       {/* Body */}
       <div>
         <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">
-          Votre commentaire
+          Votre commentaire <span className="text-red-400">*</span>
         </label>
         <textarea
-          value={body} onChange={e => setBody(e.target.value)} rows={4}
-          placeholder="Décrivez votre expérience : qualité, livraison, utilisation..."
-          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition resize-none"
+          value={body} onChange={e => { setBody(e.target.value); if (error) setError('') }} rows={4}
+          placeholder="Décrivez votre expérience : qualité, livraison, utilisation... (min. 10 caractères)"
+          maxLength={2000}
+          className={`w-full rounded-xl border bg-gray-50 px-4 py-2.5 text-sm text-gray-800 placeholder-gray-400 outline-none transition resize-none ${
+            error && body.trim().length < 10 ? 'border-red-300 focus:border-red-400' : 'border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100'
+          }`}
         />
+        <div className="flex items-center justify-between mt-1">
+          <span className={`text-[11px] ${body.trim().length < 10 && body.length > 0 ? 'text-red-400' : 'text-gray-400'}`}>
+            {body.length}/2000 {body.trim().length < 10 && body.length > 0 ? `(encore ${10 - body.trim().length} car.)` : ''}
+          </span>
+        </div>
       </div>
+
+      {error && (
+        <p className="text-xs text-red-500 bg-red-50 rounded-xl px-4 py-2.5 flex items-center gap-2">
+          ⚠ {error}
+        </p>
+      )}
 
       <button
         type="submit"
-        disabled={!picked || !name.trim() || !body.trim()}
-        className="w-full py-3 rounded-xl text-sm font-semibold transition-all
+        disabled={!picked || body.trim().length < 10 || loading}
+        className="w-full py-3 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2
           bg-gray-900 text-white hover:bg-gray-800 active:scale-[0.98]
           disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-900"
       >
-        Publier mon avis
+        {loading && <Loader2 size={14} className="animate-spin" />}
+        {loading ? 'Publication…' : 'Publier mon avis'}
       </button>
     </form>
   )
@@ -404,7 +459,7 @@ function ImageGallery({ images, name }: { images: [string,string,string,string];
 /* ═══════════════════════════════════════════════════════════════
    RELATED PRODUCT CARD
 ═══════════════════════════════════════════════════════════════ */
-function RelatedCard({ product }: { product: Product }) {
+function RelatedCard({ product }: { product: ReturnType<typeof mapApiProduct> }) {
   const [imgIdx, setImgIdx] = useState(0)
   const d = product.oldPrice ? disc(product.price, product.oldPrice) : 0
   return (
@@ -469,14 +524,42 @@ type Tab = typeof TABS[number]
 export default function ProductPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const product = getProduct(Number(id))
-  const related = product ? getRelated(product, 4) : []
-
+  const { token, isAuthenticated } = useAuth()
   const { addItem } = useCart()
 
-  /* local state */
+  /* ── Data fetching ── */
+  const { data: productData, isLoading, isError } = useQuery({
+    queryKey: ['product', id],
+    queryFn:  () => fetchProduct(id!, token),
+    enabled:  !!id,
+  })
+
+  // Le backend retourne { product, similar, inWishlist }
+  const product    = productData?.data?.product ? mapApiProduct(productData.data.product) : null
+  const inWishlist = productData?.data?.inWishlist ?? false
+
+  const { data: reviewsData } = useQuery({
+    queryKey: ['reviews', id ? Number(id) : 0],
+    queryFn:  () => fetchReviews(id!),
+    enabled:  !!id,
+  })
+
+  const { data: relatedData } = useQuery({
+    queryKey: ['products-related', product?.category],
+    queryFn:  () => fetchProducts({ category: product?.category, limit: 5 }, token),
+    enabled:  !!product?.category,
+  })
+
+  const reviews = (reviewsData?.data.reviews ?? []).map(mapReview)
+  // Utilise d'abord les similaires renvoyés par /api/products/:id, sinon la requête séparée
+  const similar = (productData?.data?.similar ?? []).map(mapApiProduct).filter(p => p.id !== product?.id)
+  const related = similar.length
+    ? similar.slice(0, 4)
+    : (relatedData?.data.products ?? []).map(mapApiProduct).filter(p => p.id !== product?.id).slice(0, 4)
+
+  /* ── Local state ── */
   const [qty, setQty]             = useState(1)
-  const [wished, setWished]       = useState(false)
+  const [wished, setWished]       = useState(inWishlist)
   const [addedCart, setAddedCart] = useState(false)
   const [activeTab, setActiveTab] = useState<Tab>('Description')
   const [showReviewForm, setShowReviewForm] = useState(false)
@@ -484,8 +567,19 @@ export default function ProductPage() {
   const [shared, setShared]       = useState(false)
   const reviewRef = useRef<HTMLDivElement>(null)
 
-  /* 404 */
-  if (!product) {
+  // Synchronise l'état wishlist dès que la réponse API arrive
+  useEffect(() => { setWished(inWishlist) }, [inWishlist])
+
+  /* ── Loading / Error / 404 ── */
+  if (isLoading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <Loader2 size={32} className="animate-spin text-gray-300" />
+      </div>
+    )
+  }
+
+  if (isError || !product) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 px-4">
         <p className="text-6xl">😕</p>
@@ -499,6 +593,18 @@ export default function ProductPage() {
     )
   }
 
+  /* Wishlist handler */
+  const handleWish = async () => {
+    if (!isAuthenticated || !token) return
+    const next = !wished
+    setWished(next)
+    try {
+      await toggleWishlist(product.id, token, !next)
+    } catch {
+      setWished(!next)
+    }
+  }
+
   const d = product.oldPrice ? disc(product.price, product.oldPrice) : 0
 
   const handleAddCart = () => {
@@ -510,6 +616,7 @@ export default function ProductPage() {
       oldPrice: product.oldPrice,
       image: product.images[0],
       color: product.colors?.[color],
+      stock: product.stock ?? undefined,
     }, qty)
     setAddedCart(true)
     setTimeout(() => setAddedCart(false), 2200)
@@ -638,7 +745,7 @@ export default function ProductPage() {
                 {product.oldPrice && (
                   <div className="flex flex-col items-start pb-1">
                     <span className="text-sm text-gray-400 line-through leading-none">{fmt(product.oldPrice)}</span>
-                    <span className="text-sm text-red-500 leading-tight">-{d}%</span>
+                    <span className="text-sm text-red-500 leading-tight">{d}%</span>
                   </div>
                 )}
               </div>
@@ -690,9 +797,14 @@ export default function ProductPage() {
                       className="w-10 h-10 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition text-lg font-light"
                     >+</button>
                   </div>
-                  {product.stock && product.stock <= 10 && (
-                    <p className="text-xs text-red-500 font-semibold">
+                  {product.stock !== null && product.stock > 0 && product.stock <= 10 && (
+                    <p className="text-xs text-orange-500 font-semibold">
                       ⚠ Plus que {product.stock} en stock
+                    </p>
+                  )}
+                  {product.stock !== null && product.stock === 0 && (
+                    <p className="text-xs text-red-600 font-bold">
+                      ✕ Rupture de stock
                     </p>
                   )}
                 </div>
@@ -702,13 +814,16 @@ export default function ProductPage() {
               <div className="flex gap-3 mb-5">
                 <motion.button
                   onClick={handleAddCart}
+                  disabled={product.stock !== null && product.stock === 0}
                   whileTap={{ scale: 0.97 }}
                   className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm transition-all ${
-                    addedCart
-                      ? 'bg-emerald-500 text-white'
-                      : 'text-white hover:opacity-90'
+                    product.stock !== null && product.stock === 0
+                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      : addedCart
+                        ? 'bg-emerald-500 text-white'
+                        : 'text-white hover:opacity-90'
                   }`}
-                  style={{ background: addedCart ? undefined : BLUE }}
+                  style={{ background: (product.stock !== null && product.stock === 0) || addedCart ? undefined : BLUE }}
                 >
                   <AnimatePresence mode="wait" initial={false}>
                     {addedCart ? (
@@ -734,7 +849,7 @@ export default function ProductPage() {
                 </motion.button>
 
                 <button
-                  onClick={() => setWished(w => !w)}
+                  onClick={handleWish}
                   className={`w-12 h-12 rounded-2xl border-2 flex items-center justify-center transition-all hover:scale-105 active:scale-95 ${
                     wished ? 'border-red-200 bg-red-50' : 'border-gray-200 hover:border-gray-300'
                   }`}
@@ -763,12 +878,31 @@ export default function ProductPage() {
               </div>
 
               {/* Buy now */}
-              <button
-                className="w-full py-3.5 rounded-2xl border-2 border-gray-900 text-sm text-gray-900 hover:bg-gray-900 hover:text-white transition-all mb-6"
-              >
-                <Zap size={14} className="inline mr-1.5" />
-                Acheter maintenant
-              </button>
+              {product.stock !== null && product.stock === 0 ? (
+                <div className="w-full py-3.5 rounded-2xl border-2 border-gray-200 text-sm font-semibold text-gray-400 mb-6 flex items-center justify-center gap-2 bg-gray-50 cursor-not-allowed select-none">
+                  Rupture de stock
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    addItem({
+                      productId: product.id,
+                      name:      product.name,
+                      brand:     product.brand,
+                      price:     product.price,
+                      oldPrice:  product.oldPrice,
+                      image:     product.images[0],
+                      color:     product.colors?.[color],
+                      stock:     product.stock ?? undefined,
+                    }, qty)
+                    navigate('/panier')
+                  }}
+                  className="w-full py-3.5 rounded-2xl border-2 border-gray-900 text-sm font-semibold text-gray-900 hover:bg-gray-900 hover:text-white transition-all mb-6 flex items-center justify-center gap-2"
+                >
+                  <Zap size={14} />
+                  Acheter maintenant
+                </button>
+              )}
 
               {/* Trust badges */}
               <div className="grid grid-cols-2 gap-3">
@@ -905,9 +1039,11 @@ export default function ProductPage() {
                   <div className="max-w-3xl">
 
                     {/* Rating overview */}
-                    <div className="p-6 rounded-2xl bg-gray-50 mb-8">
-                      <RatingBreakdown reviews={REVIEWS_BASE} />
-                    </div>
+                    {reviews.length > 0 && (
+                      <div className="p-6 rounded-2xl bg-gray-50 mb-8">
+                        <RatingBreakdown reviews={reviews} />
+                      </div>
+                    )}
 
                     {/* Write review toggle */}
                     <div className="mb-8">
@@ -933,7 +1069,7 @@ export default function ProductPage() {
                             className="overflow-hidden"
                           >
                             <div className="mt-5 p-6 rounded-2xl border border-gray-100 bg-white">
-                              <ReviewForm onSubmit={() => setShowReviewForm(false)} />
+                              <ReviewForm productId={product.id} onSubmit={() => setShowReviewForm(false)} />
                             </div>
                           </motion.div>
                         )}
@@ -941,16 +1077,18 @@ export default function ProductPage() {
                     </div>
 
                     {/* Review list */}
-                    <div>
-                      {REVIEWS_BASE.map(r => (
-                        <ReviewCard key={r.id} review={r} />
-                      ))}
-                    </div>
-
-                    {/* Load more */}
-                    <button className="mt-6 w-full py-3 rounded-xl border border-gray-200 text-sm font-medium text-gray-500 hover:border-gray-300 hover:text-gray-700 transition-all">
-                      Afficher plus d'avis ({product.reviews - REVIEWS_BASE.length})
-                    </button>
+                    {reviews.length === 0 ? (
+                      <div className="text-center py-12 text-gray-400">
+                        <Star size={32} className="mx-auto mb-3 text-gray-200" />
+                        <p className="text-sm">Aucun avis pour l'instant. Soyez le premier !</p>
+                      </div>
+                    ) : (
+                      <div>
+                        {reviews.map(r => (
+                          <ReviewCard key={r.id} review={r} />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 

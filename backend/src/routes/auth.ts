@@ -1,21 +1,22 @@
 import { Router } from 'express'
 import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'
-import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../lib/jwt'
+import { signAccessToken, signRefreshToken, verifyRefreshToken, signMagicToken, verifyMagicToken } from '../lib/jwt'
 import { validate, zPassword } from '../middleware/validate'
-import { requireAuth } from '../middleware/auth'
-import { sendWelcomeEmail } from '../lib/mailer'
+import { requireAuth, requireAdmin } from '../middleware/auth'
+import { sendWelcomeEmail, sendMagicLinkEmail } from '../lib/mailer'
 
 const router = Router()
 
 /* ── Schemas ─────────────────────────────────────────────────── */
 
 const registerSchema = z.object({
-  prenom:    z.string().min(2, 'Prénom trop court').max(50),
-  nom:       z.string().min(2, 'Nom trop court').max(50),
+  prenom:    z.string().min(1).max(50),
+  nom:       z.string().min(1).max(50),
   email:     z.string().email('Email invalide'),
-  password:  zPassword,
+  password:  zPassword.optional(),   // optionnel — inscription sans mot de passe
   telephone: z.string().optional(),
 })
 
@@ -30,7 +31,7 @@ const updateProfileSchema = z.object({
   telephone: z.string().optional(),
   genre:     z.enum(['Homme', 'Femme', 'Autre']).optional(),
   naissance: z.string().optional(),
-  avatar:    z.string().url().optional(),
+  avatar:    z.string().optional(),   // URL ou base64
 })
 
 const changePasswordSchema = z.object({
@@ -54,22 +55,43 @@ function setAuthCookies(res: import('express').Response, accessToken: string, re
 
 /* ─────────────────────────────────────────────────────────────
    POST /api/auth/register
+   • Avec password : inscription classique → connexion immédiate
+   • Sans password : inscription sans mot de passe → magic link envoyé
 ───────────────────────────────────────────────────────────── */
 router.post('/register', validate(registerSchema), async (req, res) => {
   try {
-    const { prenom, nom, email, password, telephone } = req.body as z.infer<typeof registerSchema>
+    const { prenom, nom, email, telephone } = req.body as z.infer<typeof registerSchema>
+    const rawPassword: string | undefined = req.body.password
 
-    const exists = await prisma.user.findUnique({ where: { email } })
+    const exists = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } })
     if (exists) {
       res.status(409).json({ success: false, message: 'Un compte existe déjà avec cet email' })
       return
     }
 
-    const hashed = await bcrypt.hash(password, 12)
+    // Mot de passe : fourni ou aléatoire (inscription sans mot de passe)
+    const passwordToHash = rawPassword ?? crypto.randomBytes(32).toString('hex')
+    const hashed = await bcrypt.hash(passwordToHash, 12)
+
     const user = await prisma.user.create({
-      data: { prenom, nom, email, password: hashed, telephone },
+      data: { prenom, nom, email: email.toLowerCase().trim(), password: hashed, telephone },
     })
 
+    /* ── Mode sans mot de passe : envoyer un magic link ── */
+    if (!rawPassword) {
+      const token = signMagicToken(user.id, user.email)
+      const link  = `${process.env.FRONTEND_URL}/auth/magic?token=${token}&new=1`
+      sendMagicLinkEmail(user.email, user.prenom, link).catch(err => console.error('[register magic-link]', err))
+
+      res.status(201).json({
+        success:     true,
+        passwordless: true,
+        message:     'Compte créé ! Vérifiez votre boîte mail pour vous connecter.',
+      })
+      return
+    }
+
+    /* ── Mode classique (avec mot de passe) : connexion immédiate ── */
     const accessToken  = signAccessToken({ userId: user.id, email: user.email, role: user.role })
     const refreshToken = signRefreshToken({ userId: user.id })
 
@@ -83,7 +105,6 @@ router.post('/register', validate(registerSchema), async (req, res) => {
       },
     })
 
-    // Email de bienvenue (sans bloquer la réponse)
     sendWelcomeEmail(email, prenom).catch(() => {})
 
     setAuthCookies(res, accessToken, refreshToken)
@@ -91,7 +112,7 @@ router.post('/register', validate(registerSchema), async (req, res) => {
       success: true,
       message: 'Compte créé avec succès',
       data: {
-        user: { id: user.id, prenom, nom, email, role: user.role },
+        user: { id: user.id, prenom, nom, email: user.email, role: user.role },
         accessToken,
       },
     })
@@ -214,6 +235,7 @@ router.get('/me', requireAuth, async (req, res) => {
         id: true, prenom: true, nom: true, email: true,
         telephone: true, avatar: true, genre: true, naissance: true,
         role: true, isVerified: true, createdAt: true,
+        subscribedToNewsletter: true,
         _count: { select: { orders: true, wishlist: true, reviews: true } },
       },
     })
@@ -282,6 +304,23 @@ router.put('/password', requireAuth, validate(changePasswordSchema), async (req,
 })
 
 /* ─────────────────────────────────────────────────────────────
+   DELETE /api/auth/account — Suppression définitive du compte
+───────────────────────────────────────────────────────────── */
+router.delete('/account', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user!.userId
+    // Cascade: sessions, addresses, orders FK handled by Prisma relations
+    await prisma.session.deleteMany({ where: { userId } })
+    await prisma.user.delete({ where: { id: userId } })
+    res.clearCookie('access_token')
+    res.clearCookie('refresh_token')
+    res.json({ success: true, message: 'Compte supprimé définitivement' })
+  } catch {
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/* ─────────────────────────────────────────────────────────────
    GET /api/auth/sessions
 ───────────────────────────────────────────────────────────── */
 router.get('/sessions', requireAuth, async (req, res) => {
@@ -306,6 +345,378 @@ router.delete('/sessions/:id', requireAuth, async (req, res) => {
       where: { id: req.params['id'], userId: req.user!.userId },
     })
     res.json({ success: true, message: 'Session révoquée' })
+  } catch {
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/* ─────────────────────────────────────────────────────────────
+   POST /api/auth/google  — Connexion / inscription via Google
+   Reçoit les infos Firebase, crée ou trouve le compte
+───────────────────────────────────────────────────────────── */
+router.post('/google', async (req, res) => {
+  try {
+    const schema = z.object({
+      email:       z.string().email(),
+      prenom:      z.string().min(1),
+      nom:         z.string().min(1),
+      avatar:      z.string().url().nullable().optional(),
+      firebaseUid: z.string().min(1),
+    })
+    const body = schema.parse(req.body)
+
+    // Chercher un compte existant avec cet email
+    let user = await prisma.user.findUnique({ where: { email: body.email } })
+
+    if (!user) {
+      // Créer un nouveau compte (pas de mot de passe pour les comptes Google)
+      user = await prisma.user.create({
+        data: {
+          email:      body.email,
+          prenom:     body.prenom,
+          nom:        body.nom,
+          avatar:     body.avatar ?? null,
+          password:   '',          // compte Google — pas de mot de passe local
+          isVerified: true,        // email vérifié par Google
+        },
+      })
+      // Email de bienvenue
+      sendWelcomeEmail(user.email, user.prenom).catch(() => {})
+    } else {
+      // Mettre à jour l'avatar si on en a un nouveau
+      if (body.avatar && !user.avatar) {
+        await prisma.user.update({ where: { id: user.id }, data: { avatar: body.avatar } })
+        user = { ...user, avatar: body.avatar }
+      }
+    }
+
+    const accessToken  = signAccessToken({ userId: user.id, email: user.email, role: user.role })
+    const refreshToken = signRefreshToken({ userId: user.id })
+
+    await prisma.session.create({
+      data: {
+        userId:       user.id,
+        refreshToken,
+        userAgent:    req.headers['user-agent'],
+        ipAddress:    req.ip,
+        expiresAt:    new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      },
+    })
+
+    setAuthCookies(res, accessToken, refreshToken)
+    res.json({
+      success: true,
+      data: {
+        user: {
+          id:     user.id,
+          prenom: user.prenom,
+          nom:    user.nom,
+          email:  user.email,
+          avatar: user.avatar,
+          role:   user.role,
+        },
+        accessToken,
+      },
+    })
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ success: false, message: 'Données invalides', errors: err.flatten().fieldErrors })
+      return
+    }
+    console.error(err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/* ─────────────────────────────────────────────────────────────
+   GET /api/auth/users  [ADMIN] — Liste des utilisateurs
+───────────────────────────────────────────────────────────── */
+router.get('/users', requireAdmin, async (req, res) => {
+  try {
+    const page    = parseInt(req.query['page'] as string) || 1
+    const limit   = parseInt(req.query['limit'] as string) || 20
+    const q       = req.query['q'] as string | undefined
+    const role    = req.query['role'] as string | undefined
+    const banned  = req.query['banned'] as string | undefined
+
+    const where: Record<string, unknown> = {}
+    if (role)   where['role']     = role
+    if (banned === 'true')  where['isBanned'] = true
+    if (banned === 'false') where['isBanned'] = false
+    if (q) where['OR'] = [
+      { prenom: { contains: q } },
+      { nom:    { contains: q } },
+      { email:  { contains: q } },
+    ]
+
+    const [total, users, totalAll, totalBanned, totalAdmins] = await Promise.all([
+      prisma.user.count({ where }),
+      prisma.user.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true, prenom: true, nom: true, email: true,
+          telephone: true, avatar: true, role: true, isBanned: true,
+          isVerified: true, createdAt: true,
+          _count: { select: { orders: true } },
+        },
+      }),
+      prisma.user.count(),
+      prisma.user.count({ where: { isBanned: true } }),
+      prisma.user.count({ where: { role: 'admin' } }),
+    ])
+
+    res.json({
+      success: true,
+      data: {
+        users,
+        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+        stats: { total: totalAll, banned: totalBanned, admins: totalAdmins },
+      },
+    })
+  } catch {
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/* ── PATCH /api/auth/users/:id/role  [ADMIN] ─────────────────── */
+router.patch('/users/:id/role', requireAdmin, async (req, res) => {
+  try {
+    const { id }   = req.params
+    const { role } = req.body
+    if (!['admin', 'customer'].includes(role)) {
+      res.status(400).json({ success: false, message: 'Rôle invalide' })
+      return
+    }
+    const user = await prisma.user.update({ where: { id }, data: { role } })
+    res.json({ success: true, data: { user } })
+  } catch {
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/* ── PATCH /api/auth/users/:id/ban  [ADMIN] ──────────────────── */
+router.patch('/users/:id/ban', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params
+    const existing = await prisma.user.findUnique({ where: { id } })
+    if (!existing) {
+      res.status(404).json({ success: false, message: 'Utilisateur introuvable' })
+      return
+    }
+    const user = await prisma.user.update({ where: { id }, data: { isBanned: !existing.isBanned } })
+    if (user.isBanned) {
+      // Invalider toutes les sessions de cet utilisateur
+      await prisma.session.deleteMany({ where: { userId: id } })
+    }
+    res.json({ success: true, data: { isBanned: user.isBanned } })
+  } catch {
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/* ── PUT /api/auth/users/:id  [ADMIN] ────────────────────────── */
+router.put('/users/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params
+    const schema = z.object({
+      prenom:    z.string().min(1).optional(),
+      nom:       z.string().min(1).optional(),
+      email:     z.string().email().optional(),
+      telephone: z.string().optional(),
+      isVerified: z.boolean().optional(),
+    })
+    const data = schema.parse(req.body)
+    const user = await prisma.user.update({
+      where: { id },
+      data,
+      select: {
+        id: true, prenom: true, nom: true, email: true,
+        telephone: true, role: true, isVerified: true, isBanned: true, createdAt: true,
+      },
+    })
+    res.json({ success: true, data: user })
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ success: false, message: 'Données invalides' })
+      return
+    }
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/* ── DELETE /api/auth/users/:id  [ADMIN] ─────────────────────── */
+router.delete('/users/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params
+    // Empêche de supprimer son propre compte
+    if (id === req.user!.userId) {
+      res.status(400).json({ success: false, message: 'Vous ne pouvez pas supprimer votre propre compte' })
+      return
+    }
+    await prisma.session.deleteMany({ where: { userId: id } })
+    await prisma.user.delete({ where: { id } })
+    res.json({ success: true, message: 'Utilisateur supprimé' })
+  } catch {
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/* ─────────────────────────────────────────────────────────────
+   POST /api/auth/magic-link  — envoie un lien de connexion par email
+───────────────────────────────────────────────────────────── */
+router.post('/magic-link', async (req, res) => {
+  try {
+    const { email } = req.body
+    if (!email || typeof email !== 'string') {
+      res.status(400).json({ success: false, message: 'Email requis' })
+      return
+    }
+
+    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } })
+
+    if (user) {
+      const token = signMagicToken(user.id, user.email)
+      const link  = `${process.env.FRONTEND_URL}/auth/magic?token=${token}`
+      sendMagicLinkEmail(user.email, user.prenom, link).catch(err => console.error('[magic-link email]', err))
+    }
+
+    // Toujours renvoyer success (ne pas révéler si l'email existe)
+    res.json({ success: true })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/* ─────────────────────────────────────────────────────────────
+   POST /api/auth/magic-link/verify  — valide le token et connecte
+───────────────────────────────────────────────────────────── */
+router.post('/magic-link/verify', async (req, res) => {
+  try {
+    const { token } = req.body
+    if (!token) {
+      res.status(400).json({ success: false, message: 'Token requis' })
+      return
+    }
+
+    let payload: { userId: string; email: string; type: string }
+    try {
+      payload = verifyMagicToken(token)
+    } catch {
+      res.status(401).json({ success: false, message: 'Lien invalide ou expiré' })
+      return
+    }
+
+    if (payload.type !== 'magic') {
+      res.status(401).json({ success: false, message: 'Token invalide' })
+      return
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: payload.userId } })
+    if (!user) {
+      res.status(401).json({ success: false, message: 'Compte introuvable' })
+      return
+    }
+
+    const accessToken  = signAccessToken({ userId: user.id, email: user.email, role: user.role })
+    const refreshToken = signRefreshToken({ userId: user.id })
+
+    await prisma.session.create({
+      data: {
+        userId:    user.id,
+        refreshToken,
+        userAgent: req.headers['user-agent'],
+        ipAddress: req.ip,
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      },
+    })
+
+    setAuthCookies(res, accessToken, refreshToken)
+    res.json({
+      success: true,
+      data: {
+        user: { id: user.id, prenom: user.prenom, nom: user.nom, email: user.email, role: user.role, avatar: user.avatar },
+        accessToken,
+      },
+    })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/* ── GET /api/auth/users/:id  [ADMIN] ────────────────────────── */
+router.get('/users/:id', requireAdmin, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.params['id'] },
+      select: {
+        id: true, prenom: true, nom: true, email: true,
+        telephone: true, avatar: true, genre: true, naissance: true,
+        role: true, isVerified: true, isBanned: true, createdAt: true,
+        _count: { select: { orders: true, reviews: true, wishlist: true } },
+        orders: {
+          take: 5,
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true, orderNumber: true, status: true, total: true,
+            createdAt: true,
+            items: { take: 1, select: { name: true, image: true } },
+          },
+        },
+      },
+    })
+    if (!user) {
+      res.status(404).json({ success: false, message: 'Utilisateur introuvable' })
+      return
+    }
+    res.json({ success: true, data: user })
+  } catch {
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/* ── PUT /api/auth/me  [AUTH] ───────────────────────────────── */
+router.put('/me', requireAuth, async (req, res) => {
+  try {
+    const { prenom, nom, email } = req.body
+    const user = await prisma.user.update({
+      where: { id: req.user!.userId },
+      data: { prenom, nom, email },
+    })
+    res.json({ success: true, data: { user } })
+  } catch {
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/* ── PATCH /api/auth/newsletter  [AUTH] ─────────────────────── */
+/* Toggle l'abonnement newsletter de l'utilisateur connecté      */
+router.patch('/newsletter', requireAuth, async (req, res) => {
+  try {
+    const current = await prisma.user.findUnique({
+      where:  { id: req.user!.userId },
+      select: { subscribedToNewsletter: true },
+    })
+    if (!current) {
+      res.status(404).json({ success: false, message: 'Utilisateur introuvable' })
+      return
+    }
+    const updated = await prisma.user.update({
+      where: { id: req.user!.userId },
+      data:  { subscribedToNewsletter: !current.subscribedToNewsletter },
+      select: { subscribedToNewsletter: true },
+    })
+    res.json({
+      success: true,
+      data: { subscribedToNewsletter: updated.subscribedToNewsletter },
+      message: updated.subscribedToNewsletter
+        ? 'Vous êtes maintenant abonné(e) à la newsletter.'
+        : 'Vous vous êtes désabonné(e) de la newsletter.',
+    })
   } catch {
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }

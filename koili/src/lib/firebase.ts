@@ -1,5 +1,6 @@
 import { initializeApp, getApps } from 'firebase/app'
 import { getAnalytics, setAnalyticsCollectionEnabled, isSupported } from 'firebase/analytics'
+import { getAuth, GoogleAuthProvider } from 'firebase/auth'
 
 /* ─────────────────────────────────────────
    CONFIG — valeurs dans .env
@@ -22,24 +23,28 @@ export const app = getApps().length === 0
   : getApps()[0]
 
 /* ─────────────────────────────────────────
+   AUTH
+───────────────────────────────────────── */
+export const auth = getAuth(app)
+
+export const googleProvider = new GoogleAuthProvider()
+googleProvider.addScope('email')
+googleProvider.addScope('profile')
+googleProvider.setCustomParameters({ prompt: 'select_account' })
+
+/* ─────────────────────────────────────────
    ANALYTICS — désactivé par défaut (RGPD)
-   Activé uniquement si l'utilisateur consent
 ───────────────────────────────────────── */
 let analyticsInstance: Awaited<ReturnType<typeof getAnalytics>> | null = null
 
-/** Appeler après le consentement cookie → active la collecte */
 export async function enableAnalytics() {
   if (typeof window === 'undefined') return
   const supported = await isSupported()
   if (!supported) return
-
-  if (!analyticsInstance) {
-    analyticsInstance = getAnalytics(app)
-  }
+  if (!analyticsInstance) analyticsInstance = getAnalytics(app)
   setAnalyticsCollectionEnabled(analyticsInstance, true)
 }
 
-/** Appeler si l'utilisateur refuse → désactive la collecte */
 export async function disableAnalytics() {
   if (!analyticsInstance) return
   setAnalyticsCollectionEnabled(analyticsInstance, false)

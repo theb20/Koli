@@ -18,21 +18,21 @@ const ORANGE     = '#fb6c08'
    DATA
 ───────────────────────────────────────── */
 const STATS = [
-  { icon: ShoppingBag, value: 10000, suffix: '+', label: 'Clients actifs',    href: '/about'   },
-  { icon: TrendingUp,  value: 500,   suffix: '+', label: 'Produits gagnants', href: '/shop'    },
-  { icon: Star,        value: 98,    suffix: '%', label: 'Satisfaction',      href: '/about'   },
-  { icon: Headphones,  value: 24,    suffix: 'h', label: 'Support dispo',     href: '/contact' },
+  { icon: ShoppingBag, value: 10000, suffix: '+', label: 'Clients actifs',    href: '/about'      },
+  { icon: TrendingUp,  value: 500,   suffix: '+', label: 'Produits gagnants', href: '/catalogue'  },
+  { icon: Star,        value: 98,    suffix: '%', label: 'Satisfaction',      href: '/about'      },
+  { icon: Headphones,  value: 24,    suffix: 'h', label: 'Support dispo',     href: '/contact'    },
 ]
 
 const COLUMNS = [
   {
     title: 'Navigation',
     links: [
-      { label: 'Catalogue',         href: '/shop'          },
-      { label: 'Meilleures ventes', href: '/shop'          },
-      { label: 'Nouveautés',        href: '/shop'          },
-      { label: 'Offres flash',      href: '/shop'          },
-      { label: 'Blog',              href: '/blog'          },
+      { label: 'Catalogue',         href: '/catalogue'          },
+      { label: 'Meilleures ventes', href: '/catalogue?sort=sold' },
+      { label: 'Nouveautés',        href: '/catalogue?badge=new' },
+      { label: 'Offres flash',      href: '/catalogue?badge=hot' },
+      { label: 'Blog',              href: '/blog'               },
     ],
   },
   {
@@ -152,19 +152,38 @@ function AnimatedCounter({ target, suffix, inView }: { target: number; suffix: s
 /* ─────────────────────────────────────────
    FOOTER
 ───────────────────────────────────────── */
+const API = import.meta.env.VITE_API_URL ?? 'http://localhost:4000'
+
 export function Footer() {
   const [email, setEmail]       = useState('')
   const [sent, setSent]         = useState(false)
+  const [sending, setSending]   = useState(false)
+  const [error, setError]       = useState('')
   const [focused, setFocused]   = useState(false)
   const statsRef                = useRef<HTMLDivElement>(null)
   const statsInView             = useInView(statsRef, { once: true, margin: '-80px' })
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    if (!email) return
-    setSent(true)
-    setEmail('')
-    setTimeout(() => setSent(false), 4000)
+    if (!email || sending) return
+    setSending(true)
+    setError('')
+    try {
+      const res = await fetch(`${API}/api/newsletter/subscribe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.message ?? 'Erreur')
+      setSent(true)
+      setEmail('')
+      setTimeout(() => setSent(false), 5000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur, réessayez')
+    } finally {
+      setSending(false)
+    }
   }
 
   return (
@@ -266,15 +285,19 @@ export function Footer() {
                     />
                     <motion.button
                       type="submit"
+                      disabled={sending}
                       whileTap={{ scale: 0.95 }}
                       whileHover={{ scale: 1.02 }}
-                      className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold shrink-0 transition-all"
+                      className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold shrink-0 transition-all disabled:opacity-60"
                       style={{ background: `linear-gradient(135deg, ${GREEN}, #22c55e)` }}
                     >
-                      <Send size={14} />
-                      S'inscrire
+                      <Send size={14} className={sending ? 'animate-pulse' : ''} />
+                      {sending ? 'Envoi…' : "S'inscrire"}
                     </motion.button>
                   </div>
+                  {error && (
+                    <p className="text-red-400 text-xs font-medium">⚠ {error}</p>
+                  )}
                   <p className="text-white/25 text-xs">
                     Pas de spam. Désabonnement en 1 clic. Voir notre{' '}
                     <Link to="/privacy" className="underline hover:text-white/50 transition-colors">

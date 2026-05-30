@@ -7,6 +7,8 @@ import { TestimonialsSection } from '../components/sections/TestimonialsSection'
 import PubImg from '../components/sections/PubImg'
 import { PageMeta } from '../components/seo/PageMeta'
 import { FaqSection } from '../components/sections/FaqSection'
+import { FlashSalesSection } from '../components/sections/FlashSalesSection'
+import { RecentlyViewedSection } from '../components/sections/RecentlyViewedSection'
 
 export function HomePage() {
   return (
@@ -19,13 +21,14 @@ export function HomePage() {
       />
       <PackifyHero />
       <DropShopSection />
+      <FlashSalesSection />
       <BestSellersSection />
+      <RecentlyViewedSection />
       <WhyKoliSection />
       <TestimonialsSection />
       <PubImg />
       <PromoPairs />
       <FaqSection />
-      
     </>
   )
 }

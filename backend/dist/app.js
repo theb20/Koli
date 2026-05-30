@@ -24,10 +24,24 @@ const blog_1 = __importDefault(require("./routes/blog"));
 const app = (0, express_1.default)();
 /* ── Sécurité ───────────────────────────────────────────────── */
 app.use((0, helmet_1.default)());
+const ALLOWED_ORIGINS = [
+    process.env.FRONTEND_URL ?? 'http://localhost:5173',
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:5173',
+];
 app.use((0, cors_1.default)({
-    origin: process.env.FRONTEND_URL ?? 'http://localhost:5173',
+    origin: (origin, callback) => {
+        // allow requests with no origin (mobile apps, curl, Postman)
+        if (!origin)
+            return callback(null, true);
+        if (ALLOWED_ORIGINS.includes(origin))
+            return callback(null, true);
+        return callback(new Error(`CORS: origin ${origin} not allowed`));
+    },
     credentials: true, // cookies cross-origin
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 /* ── Rate Limiting ──────────────────────────────────────────── */

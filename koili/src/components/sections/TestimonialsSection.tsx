@@ -1,10 +1,12 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { AnimatedTooltip } from '../ui/animated-tooltip'
 import { CardStack, Highlight } from '../ui/card-stack'
 import FlipText from '../ui/FlipText'
 import { CommentModal } from '../ui/fromComment'
+import { fetchLatestReviews, type ApiReview } from '../../lib/api'
 import {
   motion,
   useInView,
@@ -342,8 +344,8 @@ function RatingBar({
 /* ─────────────────────────────────────────
    COMPONENT : Featured testimonial — CardStack
 ───────────────────────────────────────── */
-function FeaturedTestimonial() {
-  const cards = REVIEWS.map(r => ({
+function FeaturedTestimonial({ reviews }: { reviews: Review[] }) {
+  const cards = reviews.map(r => ({
     id: r.id,
     name: r.name,
     designation: `${r.location} · ${r.date}`,
@@ -570,6 +572,43 @@ function FilterChip({
 }
 
 /* ─────────────────────────────────────────
+   Normalise un ApiReview vers le type Review local
+───────────────────────────────────────── */
+const AVATAR_COLORS = ['#4F46E5', '#059669', '#DC2626', '#D97706', '#7C3AED', '#0891B2', '#BE185D', '#065F46']
+
+function normalizeApiReview(r: ApiReview, index: number): Review {
+  const prenom    = r.user?.prenom ?? 'Client'
+  const nom       = r.user?.nom ?? ''
+  const fullName  = `${prenom} ${nom ? nom[0] + '.' : ''}`.trim()
+  const createdAt = new Date(r.createdAt)
+  const daysAgo   = Math.floor((Date.now() - createdAt.getTime()) / 86_400_000)
+  const dateStr   = daysAgo === 0 ? "Aujourd'hui"
+    : daysAgo === 1 ? 'Il y a 1 jour'
+    : daysAgo < 7   ? `Il y a ${daysAgo} jours`
+    : daysAgo < 14  ? 'Il y a 1 semaine'
+    : daysAgo < 60  ? `Il y a ${Math.floor(daysAgo / 7)} semaines`
+    : `Il y a ${Math.floor(daysAgo / 30)} mois`
+  const avatar = `${prenom[0] ?? ''}${nom[0] ?? ''}`.toUpperCase() || '??'
+
+  return {
+    id:        10_000 + index,
+    name:      fullName,
+    location:  'Côte d\'Ivoire',
+    avatar,
+    color:     AVATAR_COLORS[index % AVATAR_COLORS.length],
+    rating:    r.rating,
+    date:      dateStr,
+    daysAgo,
+    text:      r.body ?? '',
+    verified:  r.verified,
+    product:   r.product?.name,
+    helpful:   r.helpful,
+    photos:    0,
+    recommend: r.rating >= 4,
+  }
+}
+
+/* ─────────────────────────────────────────
    MAIN SECTION
 ───────────────────────────────────────── */
 export function TestimonialsSection() {
@@ -578,8 +617,22 @@ export function TestimonialsSection() {
   const [sortOpen, setSortOpen] = useState(false)
   const [commentOpen, setCommentOpen] = useState(false)
 
+  // Récupère les vrais avis depuis l'API
+  const { data: latestData } = useQuery({
+    queryKey: ['reviews-latest'],
+    queryFn:  () => fetchLatestReviews(9),
+    staleTime: 60_000,
+  })
+
+  const apiReviews: Review[] = (latestData?.data?.reviews ?? []).map(normalizeApiReview)
+
+  // Avis API en premier, puis avis statiques en complément (évite doublons par id)
+  const allReviews: Review[] = apiReviews.length > 0
+    ? [...apiReviews, ...REVIEWS.slice(Math.max(0, REVIEWS.length - (6 - Math.min(apiReviews.length, 6))))]
+    : REVIEWS
+
   // Filter + sort
-  const filteredReviews = REVIEWS.filter(r =>
+  const filteredReviews = allReviews.filter(r =>
     filter === 'all' ? true : r.rating === filter
   ).sort((a, b) => {
     switch (sort) {
@@ -695,7 +748,7 @@ export function TestimonialsSection() {
           </motion.div>
 
           {/* Featured testimonial */}
-          <FeaturedTestimonial />
+          <FeaturedTestimonial reviews={allReviews} />
         </motion.div>
 
         {/* ═══ Keywords cloud ═══ */}

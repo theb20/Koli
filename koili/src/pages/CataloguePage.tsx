@@ -1,14 +1,17 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'motion/react'
 import {
   SlidersHorizontal, X, ChevronDown, LayoutGrid, LayoutList,
   Heart, ShoppingCart, Star, Search, ChevronLeft, ChevronRight,
   Sparkles, TrendingUp, Zap, RotateCcw, Check, Grid2X2, Grid3X3,
+  Loader2,
 } from 'lucide-react'
 import { PageMeta } from '../components/seo/PageMeta'
 import { useCart } from '../contexts/CartContext'
-import { PRODUCTS, type Badge, type Product } from '../data/products'
+import { useAuth } from '../contexts/AuthContext'
+import { fetchProducts, mapApiProduct, toggleWishlist, fetchCategories, type ApiCategory } from '../lib/api'
 
 /* ═══════════════════════════════════════════════════════════════
    CONSTANTS & TYPES
@@ -16,23 +19,26 @@ import { PRODUCTS, type Badge, type Product } from '../data/products'
 const BLUE = '#0421ff'
 const PRICE_MAX_LIMIT = 200000
 
-/* ─── Categories ─── */
-const CATEGORIES = [
-  { id: 'all',      label: 'Tout le catalogue', icon: '🛍️' },
-  { id: 'hightech', label: 'High-Tech',          icon: '📱' },
-  { id: 'maison',   label: 'Maison & Décoration',icon: '🏠' },
-  { id: 'beaute',   label: 'Beauté & Soins',     icon: '✨' },
-  { id: 'sport',    label: 'Sport & Fitness',     icon: '💪' },
-  { id: 'mode',     label: 'Mode & Accessoires',  icon: '👗' },
-  { id: 'jeux',     label: 'Jeux & Loisirs',      icon: '🎮' },
+export type Badge = 'hot' | 'new' | 'sale' | 'top'
+export type Product = ReturnType<typeof mapApiProduct>
+
+/* ─── Categories — fallback statique utilisé pendant le chargement ─── */
+const FALLBACK_CATEGORIES: ApiCategory[] = [
+  { id: 0,  slug: 'all',      name: 'Tout le catalogue', icon: '🛍️', image: null, description: null, tag: null, position: -1, isActive: true },
+  { id: 1,  slug: 'hightech', name: 'High-Tech',          icon: '📱', image: null, description: null, tag: null, position: 0,  isActive: true },
+  { id: 2,  slug: 'maison',   name: 'Maison & Décoration',icon: '🏠', image: null, description: null, tag: null, position: 1,  isActive: true },
+  { id: 3,  slug: 'beaute',   name: 'Beauté & Soins',     icon: '✨', image: null, description: null, tag: null, position: 2,  isActive: true },
+  { id: 4,  slug: 'sport',    name: 'Sport & Fitness',    icon: '💪', image: null, description: null, tag: null, position: 3,  isActive: true },
+  { id: 5,  slug: 'mode',     name: 'Mode & Accessoires', icon: '👗', image: null, description: null, tag: null, position: 4,  isActive: true },
+  { id: 6,  slug: 'jeux',     name: 'Jeux & Loisirs',     icon: '🎮', image: null, description: null, tag: null, position: 5,  isActive: true },
 ]
 
 const SORT_OPTIONS = [
-  { id: 'popular',   label: 'Popularité',  icon: TrendingUp },
-  { id: 'newest',    label: 'Nouveautés',  icon: Sparkles   },
-  { id: 'price-asc', label: 'Prix ↑',      icon: null       },
-  { id: 'price-desc',label: 'Prix ↓',      icon: null       },
-  { id: 'rating',    label: 'Mieux notés', icon: Star       },
+  { id: 'popular',    label: 'Popularité',  icon: TrendingUp },
+  { id: 'newest',     label: 'Nouveautés',  icon: Sparkles   },
+  { id: 'price_asc',  label: 'Prix ↑',      icon: null       },
+  { id: 'price_desc', label: 'Prix ↓',      icon: null       },
+  { id: 'rating',     label: 'Mieux notés', icon: Star       },
 ]
 
 const BADGE_FILTERS: { id: Badge; label: string; color: string; bg: string }[] = [
@@ -49,10 +55,21 @@ const BADGE_STYLE: Record<Badge, string> = {
   top:  'bg-blue-600 text-white',
 }
 
+const PER_PAGE = 12
+
 /* ─── Helpers ─── */
-const fmt  = (n: number) => (n / 100).toLocaleString('fr-FR', { minimumFractionDigits: 0 }) + ' FCFA'
+const fmt  = (n: number) => Math.round(n / 100).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
 const disc = (p: number, o: number) => Math.round(((o - p) / o) * 100)
-const catCount = (id: string) => id === 'all' ? PRODUCTS.length : PRODUCTS.filter(p => p.category === id).length
+
+/* ─── Map sort ID frontend → backend ─── */
+const VALID_SORTS = new Set(['popular', 'newest', 'price_asc', 'price_desc', 'rating'])
+function mapSort(id: string): string {
+  if (id === 'price-asc')  return 'price_asc'
+  if (id === 'price-desc') return 'price_desc'
+  if (id === 'new')        return 'newest'   // legacy URL compat
+  if (VALID_SORTS.has(id)) return id
+  return 'popular'  // fallback sécurisé pour toute valeur inconnue
+}
 
 /* ═══════════════════════════════════════════════════════════════
    PRICE RANGE SLIDER
@@ -88,12 +105,13 @@ function PriceSlider({ min, max, onChange }: { min: number; max: number; onChang
 ═══════════════════════════════════════════════════════════════ */
 function FilterPanel({
   category, setCategory, priceMin, priceMax, setPriceRange,
-  minRating, setMinRating, badges, toggleBadge, onReset,
+  minRating, setMinRating, badges, toggleBadge, onReset, categories,
 }: {
   category: string; setCategory: (c: string) => void
   priceMin: number; priceMax: number; setPriceRange: (mn: number, mx: number) => void
   minRating: number; setMinRating: (r: number) => void
   badges: Badge[]; toggleBadge: (b: Badge) => void; onReset: () => void
+  categories: ApiCategory[]
 }) {
   return (
     <div className="space-y-7">
@@ -101,18 +119,18 @@ function FilterPanel({
       <div>
         <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-300 mb-3">Catégories</p>
         <div className="space-y-0.5">
-          {CATEGORIES.map(cat => {
-            const active = category === cat.id
+          {categories.map(cat => {
+            const active = category === cat.slug
             return (
-              <button key={cat.id} onClick={() => setCategory(cat.id)}
-                className={`w-full flex items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition-all duration-150 ${active?'font-semibold text-gray-900':'text-gray-500 hover:bg-gray-50 hover:text-gray-800'}`}
+              <button key={cat.slug} onClick={() => setCategory(cat.slug)}
+                className={`w-full flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm transition-all duration-150 ${active?'font-semibold text-gray-900':'text-gray-500 hover:bg-gray-50 hover:text-gray-800'}`}
                 style={{ background: active?`${BLUE}0D`:'' }}
               >
-                <span className="flex items-center gap-2.5"><span className="text-base leading-none">{cat.icon}</span>{cat.label}</span>
-                <span className="text-[11px] font-bold rounded-full px-1.5 py-0.5 min-w-[22px] text-center"
-                  style={{ background:active?`${BLUE}18`:'#f3f4f6', color:active?BLUE:'#9ca3af' }}>
-                  {catCount(cat.id)}
-                </span>
+                {cat.image
+                  ? <img src={cat.image} alt="" className="w-5 h-5 rounded-md object-cover shrink-0" />
+                  : <span className="text-base leading-none shrink-0">{cat.icon ?? '📦'}</span>
+                }
+                {cat.name}
               </button>
             )
           })}
@@ -168,7 +186,7 @@ function FilterPanel({
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   IMAGE GALLERY THUMBNAIL STRIP — partagé par Grid & List
+   IMAGE GALLERY THUMBNAIL STRIP
 ═══════════════════════════════════════════════════════════════ */
 function ThumbStrip({ images, active, onHover }: { images: string[]; active: number; onHover: (i: number) => void }) {
   return (
@@ -199,6 +217,7 @@ function ThumbStrip({ images, active, onHover }: { images: string[]; active: num
 ═══════════════════════════════════════════════════════════════ */
 function GridCard({ p, idx }: { p: Product; idx: number }) {
   const { addItem } = useCart()
+  const { token, isAuthenticated } = useAuth()
   const [imgIdx, setImgIdx] = useState(0)
   const [wished, setWished] = useState(false)
   const [added,  setAdded]  = useState(false)
@@ -207,9 +226,22 @@ function GridCard({ p, idx }: { p: Product; idx: number }) {
 
   const handleAdd = (e: React.MouseEvent) => {
     e.preventDefault()
-    addItem({ productId: p.id, name: p.name, brand: p.brand, price: p.price, oldPrice: p.oldPrice, image: p.images[0] })
+    if (p.stock === 0) return
+    addItem({ productId: p.id, name: p.name, brand: p.brand, price: p.price, oldPrice: p.oldPrice, image: p.images[0], stock: p.stock ?? undefined })
     setAdded(true)
     setTimeout(() => setAdded(false), 1800)
+  }
+
+  const handleWish = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    if (!isAuthenticated || !token) return
+    const next = !wished
+    setWished(next)
+    try {
+      await toggleWishlist(p.id, token, !next)
+    } catch {
+      setWished(!next) // rollback
+    }
   }
 
   return (
@@ -221,35 +253,34 @@ function GridCard({ p, idx }: { p: Product; idx: number }) {
                  hover:border-transparent hover:shadow-[0_8px_40px_-8px_rgba(0,0,0,0.15)]
                  transition-all duration-300 flex flex-col overflow-hidden"
     >
-      {/* Full-card link overlay — sits below all interactive elements */}
       <Link to={`/catalogue/${p.id}`} className="absolute inset-0 z-[1]" aria-label={p.name} />
 
       {/* ── Image area ── */}
       <div className="relative overflow-hidden bg-gray-50" style={{ aspectRatio:'1/1' }}>
-
-        {/* Badges */}
         <div className="absolute top-3 left-3 z-10 flex flex-col gap-1">
           {p.badge && (
             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${BADGE_STYLE[p.badge]}`}>
               {p.badge==='hot'?'🔥 Top':p.badge==='new'?'✨ Nouveau':p.badge==='sale'?`-${discount}%`:'⭐ Top noté'}
             </span>
           )}
-          {p.stock && p.stock<=5 && (
+          {p.stock !== null && p.stock !== undefined && p.stock === 0 ? (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-200 text-gray-500">
+              Rupture de stock
+            </span>
+          ) : p.stock !== undefined && p.stock > 0 && p.stock <= 5 ? (
             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-600">
               ⚡ {p.stock} restants
             </span>
-          )}
+          ) : null}
         </div>
 
-        {/* Wishlist */}
-        <button onClick={() => setWished(w => !w)}
+        <button onClick={handleWish}
           className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-white/90 shadow-sm
                      flex items-center justify-center opacity-0 group-hover:opacity-100
                      transition-all hover:scale-110 active:scale-95">
           <Heart size={14} className={wished?'fill-red-500 text-red-500':'text-gray-400'}/>
         </button>
 
-        {/* Main image — crossfade entre les 4 */}
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.img
             key={imgIdx}
@@ -265,16 +296,24 @@ function GridCard({ p, idx }: { p: Product; idx: number }) {
           />
         </AnimatePresence>
 
-        {/* 4 thumbnails — apparaissent au survol */}
         <ThumbStrip images={p.images} active={imgIdx} onHover={setImgIdx} />
 
-        {/* Add-to-cart overlay */}
         <div className="absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300"
              style={{ zIndex: 20 }}>
-          <button onClick={handleAdd}
-            className="w-full py-3 flex items-center justify-center gap-2 text-sm font-semibold text-white transition-colors"
-            style={{ background: added?'#10b981':BLUE }}>
-            {added?<><Check size={15} strokeWidth={2.5}/> Ajouté !</>:<><ShoppingCart size={15}/> Ajouter au panier</>}
+          <button
+            onClick={p.stock !== null && p.stock === 0 ? undefined : handleAdd}
+            disabled={p.stock !== null && p.stock === 0}
+            className={`w-full py-3 flex items-center justify-center gap-2 text-sm font-semibold transition-colors ${
+              p.stock !== null && p.stock === 0
+                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                : 'text-white'
+            }`}
+            style={p.stock !== null && p.stock === 0 ? {} : { background: added ? '#10b981' : BLUE }}
+          >
+            {p.stock !== null && p.stock === 0
+              ? 'Rupture de stock'
+              : added ? <><Check size={15} strokeWidth={2.5}/> Ajouté !</> : <><ShoppingCart size={15}/> Ajouter au panier</>
+            }
           </button>
         </div>
       </div>
@@ -284,7 +323,6 @@ function GridCard({ p, idx }: { p: Product; idx: number }) {
         <p className="text-[10px] font-bold uppercase tracking-widest text-gray-300 mb-1">{p.brand}</p>
         <p className="text-sm font-semibold text-gray-800 leading-snug line-clamp-2 flex-1 mb-2">{p.name}</p>
 
-        {/* Stars */}
         <div className="flex items-center gap-1 mb-2">
           {Array.from({length:5}).map((_,i) => (
             <Star key={i} size={11} className={i<Math.round(p.rating)?'fill-yellow-400 text-yellow-400':'fill-gray-100 text-gray-100'}/>
@@ -292,7 +330,6 @@ function GridCard({ p, idx }: { p: Product; idx: number }) {
           <span className="text-[11px] text-gray-400 ml-0.5">{p.rating} ({p.reviews.toLocaleString('fr-FR')})</span>
         </div>
 
-        {/* Sold progress */}
         <div className="flex items-center gap-2 mb-3">
           <div className="flex-1 h-1 rounded-full bg-gray-100 overflow-hidden">
             <div className="h-full rounded-full bg-orange-400" style={{ width:`${soldPct}%` }}/>
@@ -300,7 +337,6 @@ function GridCard({ p, idx }: { p: Product; idx: number }) {
           <span className="text-[10px] text-gray-400 shrink-0">{p.sold.toLocaleString('fr-FR')} vendus</span>
         </div>
 
-        {/* Price */}
         <div className="flex items-end justify-between mt-auto">
           <div>
             <p className="text-base font-black text-gray-900 leading-none">{fmt(p.price)}</p>
@@ -318,15 +354,29 @@ function GridCard({ p, idx }: { p: Product; idx: number }) {
 ═══════════════════════════════════════════════════════════════ */
 function ListCard({ p, idx }: { p: Product; idx: number }) {
   const { addItem } = useCart()
+  const { token, isAuthenticated } = useAuth()
   const [imgIdx, setImgIdx] = useState(0)
   const [wished, setWished] = useState(false)
   const [added,  setAdded]  = useState(false)
   const discount = p.oldPrice ? disc(p.price, p.oldPrice) : 0
 
   const handleAdd = () => {
-    addItem({ productId: p.id, name: p.name, brand: p.brand, price: p.price, oldPrice: p.oldPrice, image: p.images[0] })
+    if (p.stock === 0) return
+    addItem({ productId: p.id, name: p.name, brand: p.brand, price: p.price, oldPrice: p.oldPrice, image: p.images[0], stock: p.stock ?? undefined })
     setAdded(true)
     setTimeout(() => setAdded(false), 1800)
+  }
+
+  const handleWish = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    if (!isAuthenticated || !token) return
+    const next = !wished
+    setWished(next)
+    try {
+      await toggleWishlist(p.id, token, !next)
+    } catch {
+      setWished(!next)
+    }
   }
 
   return (
@@ -338,10 +388,8 @@ function ListCard({ p, idx }: { p: Product; idx: number }) {
                  hover:border-transparent hover:shadow-[0_4px_30px_-6px_rgba(0,0,0,0.12)]
                  transition-all duration-300 p-3 sm:p-4"
     >
-      {/* Full-card link overlay */}
       <Link to={`/catalogue/${p.id}`} className="absolute inset-0 z-[1] rounded-2xl" aria-label={p.name} />
 
-      {/* Image + thumbnails */}
       <div className="flex flex-col gap-2 shrink-0">
         <div className="relative w-28 h-28 sm:w-36 sm:h-36 rounded-xl overflow-hidden bg-gray-50">
           {p.badge && (
@@ -359,7 +407,6 @@ function ListCard({ p, idx }: { p: Product; idx: number }) {
           </AnimatePresence>
         </div>
 
-        {/* 4 mini-thumbnails sous l'image principale */}
         <div className="flex gap-1 w-28 sm:w-36">
           {p.images.map((img, i) => (
             <button key={i}
@@ -375,7 +422,6 @@ function ListCard({ p, idx }: { p: Product; idx: number }) {
         </div>
       </div>
 
-      {/* Content */}
       <div className="flex-1 min-w-0 flex flex-col">
         <p className="text-[10px] font-bold uppercase tracking-widest text-gray-300">{p.brand}</p>
         <p className="text-sm sm:text-base font-semibold text-gray-800 leading-snug mt-0.5 line-clamp-2">{p.name}</p>
@@ -387,9 +433,11 @@ function ListCard({ p, idx }: { p: Product; idx: number }) {
           <span className="text-[11px] text-gray-400 ml-1">{p.rating} · {p.reviews.toLocaleString('fr-FR')} avis</span>
         </div>
 
-        {p.stock && p.stock<=10 && (
+        {p.stock !== null && p.stock !== undefined && p.stock === 0 ? (
+          <span className="mt-1.5 text-[11px] font-bold text-gray-400">✕ Rupture de stock</span>
+        ) : p.stock !== undefined && p.stock > 0 && p.stock <= 10 ? (
           <span className="mt-1.5 text-[11px] font-medium text-red-500">⚡ Plus que {p.stock} en stock</span>
-        )}
+        ) : null}
 
         <div className="flex items-center justify-between mt-auto pt-2">
           <div>
@@ -402,18 +450,45 @@ function ListCard({ p, idx }: { p: Product; idx: number }) {
             )}
           </div>
           <div className="relative z-[2] flex items-center gap-2">
-            <button onClick={()=>setWished(w=>!w)} className="w-9 h-9 rounded-xl border border-gray-100 flex items-center justify-center hover:border-red-200 transition-colors">
+            <button onClick={handleWish} className="w-9 h-9 rounded-xl border border-gray-100 flex items-center justify-center hover:border-red-200 transition-colors">
               <Heart size={15} className={wished?'fill-red-500 text-red-500':'text-gray-400'}/>
             </button>
-            <button onClick={handleAdd}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-colors"
-              style={{ background:added?'#10b981':BLUE }}>
-              {added?<><Check size={13}/> Ajouté</>:<><ShoppingCart size={13}/> Ajouter</>}
+            <button
+              onClick={p.stock !== null && p.stock === 0 ? undefined : handleAdd}
+              disabled={p.stock !== null && p.stock === 0}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                p.stock !== null && p.stock === 0
+                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  : 'text-white'
+              }`}
+              style={p.stock !== null && p.stock === 0 ? {} : { background: added ? '#10b981' : BLUE }}
+            >
+              {p.stock !== null && p.stock === 0
+                ? 'Épuisé'
+                : added ? <><Check size={13}/> Ajouté</> : <><ShoppingCart size={13}/> Ajouter</>
+              }
             </button>
           </div>
         </div>
       </div>
     </motion.div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SKELETON CARDS
+═══════════════════════════════════════════════════════════════ */
+function SkeletonCard() {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden animate-pulse">
+      <div className="aspect-square bg-gray-100" />
+      <div className="p-4 space-y-2">
+        <div className="h-2.5 bg-gray-100 rounded w-1/3" />
+        <div className="h-3.5 bg-gray-100 rounded w-4/5" />
+        <div className="h-3.5 bg-gray-100 rounded w-3/5" />
+        <div className="h-5 bg-gray-100 rounded w-1/2 mt-3" />
+      </div>
+    </div>
   )
 }
 
@@ -439,6 +514,7 @@ function EmptyState({ onReset }: { onReset: () => void }) {
 ═══════════════════════════════════════════════════════════════ */
 export default function CataloguePage() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const { token } = useAuth()
 
   const [category,  setCategory]  = useState(searchParams.get('cat')    ?? 'all')
   const [sortBy,    setSortBy]    = useState(searchParams.get('sort')   ?? 'popular')
@@ -452,9 +528,9 @@ export default function CataloguePage() {
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const [sortOpen,  setSortOpen]  = useState(false)
   const [page,      setPage]      = useState(1)
-  const PER_PAGE = 12
   const sortRef = useRef<HTMLDivElement>(null)
 
+  /* ── Sync URL ── */
   useEffect(() => {
     const p: Record<string,string> = {}
     if (category!=='all')          p.cat    = category
@@ -490,37 +566,56 @@ export default function CataloguePage() {
     setMinRating(0); setBadges([]); setSearch('')
   }, [])
 
-  const filtered = useMemo(() => {
-    let list = PRODUCTS
-    if (category!=='all') list = list.filter(p => p.category===category)
-    if (search)           list = list.filter(p => p.name.toLowerCase().includes(search.toLowerCase())||p.brand.toLowerCase().includes(search.toLowerCase()))
-    list = list.filter(p => p.price>=priceMin && p.price<=priceMax)
-    if (minRating>0)      list = list.filter(p => p.rating>=minRating)
-    if (badges.length)    list = list.filter(p => p.badge && badges.includes(p.badge))
-    switch (sortBy) {
-      case 'price-asc':  return [...list].sort((a,b)=>a.price-b.price)
-      case 'price-desc': return [...list].sort((a,b)=>b.price-a.price)
-      case 'rating':     return [...list].sort((a,b)=>b.rating-a.rating)
-      case 'newest':     return [...list].sort((a,b)=>(b.isNew?1:0)-(a.isNew?1:0))
-      default:           return [...list].sort((a,b)=>b.sold-a.sold)
-    }
-  }, [category, search, priceMin, priceMax, minRating, badges, sortBy])
+  /* ── Categories query ── */
+  const { data: catData } = useQuery({
+    queryKey: ['categories-public'],
+    queryFn: fetchCategories,
+    staleTime: 5 * 60_000,
+    placeholderData: { success: true, data: FALLBACK_CATEGORIES },
+  })
+  // Prepend "all" entry then the active API categories
+  const allCatEntry: ApiCategory = { id: 0, slug: 'all', name: 'Tout le catalogue', icon: '🛍️', image: null, description: null, tag: null, position: -1, isActive: true }
+  // Filtrer slug='all' depuis l'API pour éviter la clé dupliquée
+  const apiCats = (catData?.data ?? FALLBACK_CATEGORIES).filter(c => c.slug !== 'all')
+  const categories: ApiCategory[] = [allCatEntry, ...apiCats]
 
-  const totalPages = Math.ceil(filtered.length/PER_PAGE)
-  const paginated  = filtered.slice((page-1)*PER_PAGE, page*PER_PAGE)
+  /* ── API query ── */
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['products', category, sortBy, priceMin, priceMax, minRating, badges, search, page],
+    queryFn: () => fetchProducts({
+      page,
+      limit: PER_PAGE,
+      category: category !== 'all' ? category : undefined,
+      sort: mapSort(sortBy),
+      minPrice: priceMin > 0 ? priceMin : undefined,
+      maxPrice: priceMax < PRICE_MAX_LIMIT ? priceMax : undefined,
+      badge: badges.length === 1 ? badges[0] : undefined,
+      q: search || undefined,
+    }, token),
+    staleTime: 30_000,
+    placeholderData: prev => prev,
+  })
+
+  const products   = (data?.data.products ?? []).map(mapApiProduct)
+  const pagination = data?.data.pagination
+  const totalPages = pagination?.totalPages ?? 1
+  const totalCount = pagination?.total ?? 0
+
+  /* Filter by rating client-side (API ne supporte pas minRating directement) */
+  const filtered = minRating > 0 ? products.filter(p => p.rating >= minRating) : products
 
   const activeFilterCount = [
     category!=='all', priceMin>0||priceMax<PRICE_MAX_LIMIT,
     minRating>0, badges.length>0, search.length>0,
   ].filter(Boolean).length
 
-  const currentCat = CATEGORIES.find(c=>c.id===category) ?? CATEGORIES[0]
+  const currentCat = categories.find(c => c.slug === category) ?? categories[0]
   const sortLabel  = SORT_OPTIONS.find(s=>s.id===sortBy)?.label ?? 'Popularité'
 
   return (
     <>
       <PageMeta
-        title={`Catalogue${category!=='all'?` — ${currentCat.label}`:''}`}
+        title={`Catalogue${category!=='all'?` — ${currentCat.name}`:''}`}
         description="Explorez notre catalogue complet : high-tech, maison, beauté, sport, mode et jeux. Filtrez par prix, note et promotion."
         path="/catalogue"
       />
@@ -528,35 +623,92 @@ export default function CataloguePage() {
       <div className="min-h-screen bg-gray-50/50">
 
         {/* ── Hero banner ── */}
-        <div className="relative overflow-hidden bg-gray-900">
-          <div className="absolute inset-0">
-            <div className="absolute inset-0 bg-gradient-to-r from-gray-900 via-gray-900/95 to-transparent z-10"/>
-            {category!=='all' && (
-              <img src={PRODUCTS.find(p=>p.category===category)?.images[0]} alt=""
-                className="w-full h-full object-cover opacity-30"/>
-            )}
-          </div>
-          <div className="relative z-20 mx-auto max-w-7xl px-4 sm:px-6 lg:px-10 py-8 sm:py-10">
-            <nav className="flex items-center gap-2 text-xs text-gray-400 mb-4">
-              <span className="hover:text-white cursor-pointer transition-colors" onClick={()=>setCategory('all')}>Catalogue</span>
-              {category!=='all'&&<><span>/</span><span className="text-white">{currentCat.label}</span></>}
-            </nav>
-            <div className="flex items-end gap-6">
-              <div>
-                <span className="text-4xl mb-3 block">{currentCat.icon}</span>
-                <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">{currentCat.label}</h1>
-                <p className="text-gray-400 text-sm mt-1">{filtered.length} produit{filtered.length!==1?'s':''} disponible{filtered.length!==1?'s':''}</p>
-              </div>
-              <div className="hidden md:flex items-center gap-2 flex-wrap ml-auto">
-                {CATEGORIES.slice(1).map(cat=>(
-                  <button key={cat.id} onClick={()=>setCategory(cat.id)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${category===cat.id?'bg-white text-gray-900':'bg-white/10 text-white/70 hover:bg-white/20'}`}>
-                    {cat.icon} {cat.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+       <div className="relative overflow-hidden flex flex-col items-start justify-center h-[400px] bg-gray-900">
+
+    {/* Background Image */}
+    <div className="absolute inset-0">
+      {currentCat?.image && (
+        <img
+          src={currentCat.image}
+          alt={currentCat.name}
+          className="w-full h-full object-cover scale-105"
+        />
+      )}
+
+      {/* Dark Overlay */}
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" />
+
+      {/* Gradient Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/40 to-transparent" />
+    </div>
+
+    {/* Content */}
+    <div className="relative z-20 mx-auto max-w-7xl px-4 sm:px-6 lg:px-10 py-8 sm:py-10 w-full">
+
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-2 text-xs text-gray-400 mb-4">
+        <span
+          className="hover:text-white cursor-pointer transition-colors"
+          onClick={() => setCategory('all')}
+        >
+          Catalogue
+        </span>
+
+        {category !== 'all' && (
+          <>
+            <span>/</span>
+            <span className="text-white">
+              {currentCat.name}
+            </span>
+          </>
+        )}
+      </nav>
+
+    {/* Header */}
+    <div className="flex items-end gap-6">
+
+      <div>
+        <div className="mb-3">
+          {currentCat?.image
+            ? <img src={currentCat.image} alt={currentCat.name} className="w-14 h-14 rounded-2xl object-cover shadow-lg ring-2 ring-white/20" />
+            : <span className="text-4xl block">{currentCat?.icon ?? '🛍️'}</span>
+          }
+        </div>
+
+        <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+          {currentCat.name}
+        </h1>
+
+        <p className="text-gray-300 text-sm mt-1">
+          {isLoading
+            ? '…'
+            : `${totalCount} produit${totalCount !== 1 ? 's' : ''} disponible${totalCount !== 1 ? 's' : ''}`}
+        </p>
+      </div>
+
+      {/* Categories */}
+      <div className="hidden md:flex items-center gap-2 flex-wrap ml-auto">
+        {categories.slice(1).map((cat) => (
+          <button
+            key={cat.slug}
+            onClick={() => setCategory(cat.slug)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all backdrop-blur-md border border-white/10 ${
+              category === cat.slug
+                ? 'bg-white text-gray-900'
+                : 'bg-white/10 text-white/70 hover:bg-white/20'
+            }`}
+          >
+            {cat.image
+              ? <img src={cat.image} alt="" className="w-4 h-4 rounded-full object-cover" />
+              : <span>{cat.icon}</span>
+            }
+            {cat.name}
+          </button>
+        ))}
+      </div>
+
+    </div>
+  </div>
         </div>
 
         {/* ── Sticky search ── */}
@@ -565,7 +717,7 @@ export default function CataloguePage() {
             <div className="relative">
               <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"/>
               <input type="text" value={search} onChange={e=>setSearch(e.target.value)}
-                placeholder={`Rechercher dans ${currentCat.label.toLowerCase()}…`}
+                placeholder={`Rechercher dans ${currentCat.name.toLowerCase()}…`}
                 className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-gray-100 bg-gray-50 outline-none focus:border-gray-300 focus:bg-white transition-all"/>
               {search && <button onClick={()=>setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2"><X size={14} className="text-gray-400 hover:text-gray-600"/></button>}
             </div>
@@ -585,7 +737,8 @@ export default function CataloguePage() {
                 <FilterPanel category={category} setCategory={setCategory}
                   priceMin={priceMin} priceMax={priceMax} setPriceRange={setPriceRange}
                   minRating={minRating} setMinRating={setMinRating}
-                  badges={badges} toggleBadge={toggleBadge} onReset={resetFilters}/>
+                  badges={badges} toggleBadge={toggleBadge} onReset={resetFilters}
+                  categories={categories} />
               </div>
             </aside>
 
@@ -595,8 +748,9 @@ export default function CataloguePage() {
               {/* Toolbar */}
               <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm font-semibold text-gray-900">
-                    {filtered.length} <span className="font-normal text-gray-400">produits</span>
+                  <span className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                    {isLoading && <Loader2 size={14} className="animate-spin text-gray-400"/>}
+                    {totalCount} <span className="font-normal text-gray-400">produits</span>
                   </span>
                   {search&&<span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-100 text-xs text-gray-600">«{search}»<button onClick={()=>setSearch('')}><X size={11}/></button></span>}
                   {(priceMin>0||priceMax<PRICE_MAX_LIMIT)&&<span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-100 text-xs text-gray-600">{fmt(priceMin)} – {fmt(priceMax)}<button onClick={()=>setPriceRange(0,PRICE_MAX_LIMIT)}><X size={11}/></button></span>}
@@ -609,14 +763,12 @@ export default function CataloguePage() {
                 </div>
 
                 <div className="flex items-center gap-2 ml-auto">
-                  {/* Mobile filters */}
                   <button onClick={()=>setMobileFiltersOpen(true)}
                     className="lg:hidden flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:border-gray-300 transition-colors">
                     <SlidersHorizontal size={14}/> Filtres
                     {activeFilterCount>0&&<span className="h-4 w-4 rounded-full text-[10px] font-bold text-white flex items-center justify-center" style={{background:BLUE}}>{activeFilterCount}</span>}
                   </button>
 
-                  {/* Sort */}
                   <div ref={sortRef} className="relative">
                     <button onClick={()=>setSortOpen(v=>!v)}
                       className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-700 hover:border-gray-300 transition-colors bg-white">
@@ -641,7 +793,6 @@ export default function CataloguePage() {
                     </AnimatePresence>
                   </div>
 
-                  {/* View mode */}
                   <div className="hidden sm:flex items-center gap-1 p-1 rounded-xl border border-gray-100 bg-white">
                     {(['grid','list'] as const).map(m=>(
                       <button key={m} onClick={()=>setViewMode(m)}
@@ -652,7 +803,6 @@ export default function CataloguePage() {
                     ))}
                   </div>
 
-                  {/* Grid density */}
                   {viewMode==='grid'&&(
                     <div className="hidden lg:flex items-center gap-1 p-1 rounded-xl border border-gray-100 bg-white">
                       {([3,4] as const).map(c=>(
@@ -669,22 +819,33 @@ export default function CataloguePage() {
 
               {/* Grid / List */}
               <AnimatePresence mode="wait">
-                {paginated.length===0?(
-                  <EmptyState key="empty" onReset={resetFilters}/>
-                ):viewMode==='grid'?(
-                  <motion.div key={`grid-${category}-${page}`}
-                    className={`grid gap-4 sm:gap-5 grid-cols-2 ${gridCols===4?'lg:grid-cols-4':'lg:grid-cols-3'}`}>
-                    {paginated.map((p,i)=><GridCard key={p.id} p={p} idx={i}/>)}
+                {isLoading ? (
+                  <div className={`grid gap-4 sm:gap-5 grid-cols-2 ${gridCols===4?'lg:grid-cols-4':'lg:grid-cols-3'}`}>
+                    {Array.from({length: PER_PAGE}).map((_,i) => <SkeletonCard key={i}/>)}
+                  </div>
+                ) : isError ? (
+                  <motion.div key="error" initial={{opacity:0}} animate={{opacity:1}}
+                    className="flex flex-col items-center py-24 text-center gap-3">
+                    <span className="text-5xl">⚠️</span>
+                    <p className="font-semibold text-gray-700">Impossible de charger les produits</p>
+                    <p className="text-sm text-gray-400">Vérifiez votre connexion ou réessayez.</p>
                   </motion.div>
-                ):(
-                  <motion.div key={`list-${category}-${page}`} className="space-y-3">
-                    {paginated.map((p,i)=><ListCard key={p.id} p={p} idx={i}/>)}
+                ) : filtered.length===0 ? (
+                  <EmptyState key="empty" onReset={resetFilters}/>
+                ) : viewMode==='grid' ? (
+                  <motion.div key={`grid-p${page}`}
+                    className={`grid gap-4 sm:gap-5 grid-cols-2 ${gridCols===4?'lg:grid-cols-4':'lg:grid-cols-3'}`}>
+                    {filtered.map((p,i)=><GridCard key={p.id} p={p} idx={i}/>)}
+                  </motion.div>
+                ) : (
+                  <motion.div key={`list-p${page}`} className="space-y-3">
+                    {filtered.map((p,i)=><ListCard key={p.id} p={p} idx={i}/>)}
                   </motion.div>
                 )}
               </AnimatePresence>
 
               {/* Pagination */}
-              {totalPages>1&&(
+              {!isLoading && totalPages>1 && (
                 <div className="flex items-center justify-center gap-2 mt-10">
                   <button onClick={()=>{setPage(p=>Math.max(1,p-1));window.scrollTo({top:0,behavior:'smooth'})}} disabled={page===1}
                     className="flex items-center gap-1 px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-500 disabled:opacity-30 hover:border-gray-300 transition-all">
@@ -739,12 +900,13 @@ export default function CataloguePage() {
                   priceMin={priceMin} priceMax={priceMax} setPriceRange={setPriceRange}
                   minRating={minRating} setMinRating={setMinRating}
                   badges={badges} toggleBadge={toggleBadge}
-                  onReset={()=>{resetFilters();setMobileFiltersOpen(false)}}/>
+                  onReset={()=>{resetFilters();setMobileFiltersOpen(false)}}
+                  categories={categories} />
               </div>
               <div className="sticky bottom-0 bg-white border-t border-gray-100 px-5 py-4">
                 <button onClick={()=>setMobileFiltersOpen(false)}
                   className="w-full py-3.5 rounded-2xl text-sm font-bold text-white" style={{background:BLUE}}>
-                  Voir {filtered.length} produit{filtered.length!==1?'s':''}
+                  Voir {totalCount} produit{totalCount!==1?'s':''}
                 </button>
               </div>
             </motion.div>

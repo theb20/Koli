@@ -158,5 +158,27 @@ router.post('/:id/helpful', async (req, res) => {
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });
+/* ── GET /api/reviews/admin/all  [ADMIN] ───────────────────── */
+router.get('/admin/all', auth_1.requireAdmin, async (req, res) => {
+    try {
+        const page = parseInt(req.query['page']) || 1;
+        const limit = parseInt(req.query['limit']) || 20;
+        const [total, reviews] = await Promise.all([
+            prisma_1.prisma.review.count(),
+            prisma_1.prisma.review.findMany({
+                orderBy: { createdAt: 'desc' },
+                skip: (page - 1) * limit, take: limit,
+                include: {
+                    product: { select: { name: true } },
+                    user: { select: { prenom: true, nom: true } },
+                },
+            }),
+        ]);
+        res.json({ success: true, data: { reviews, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } } });
+    }
+    catch {
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
 exports.default = router;
 //# sourceMappingURL=reviews.js.map

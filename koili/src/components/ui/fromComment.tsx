@@ -1,7 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
-import { X, Star, CheckCircle2, Camera, Search, XCircle } from 'lucide-react'
+import { X, Star, CheckCircle2, Camera, Search, XCircle, Loader2, LogIn, AlertCircle } from 'lucide-react'
 import { ShimmeringText } from './FlipText'
+import { useAuth } from '../../contexts/AuthContext'
+import { submitReview, fetchProducts } from '../../lib/api'
+import { useNavigate } from 'react-router-dom'
 
 /* ─────────────────────────────────────────
    STAR PICKER
@@ -47,29 +50,23 @@ function StarPicker({ value, onChange }: { value: number; onChange: (n: number) 
 }
 
 /* ─────────────────────────────────────────
-   PRODUCT SEARCH INPUT
+   PRODUCT SEARCH — connecté à l'API
 ───────────────────────────────────────── */
-const PRODUCTS = [
-  'Montre Connectée Pro X7',
-  'Bande LED RGB Ambiance 5M',
-  'Pistolet de Massage Musculaire',
-  "Humidificateur d'Air Ultrasonique",
-  'Set 15 Pinceaux Maquillage Pro',
-  'Support Téléphone Voiture 360°',
-  'Lampe Bureau LED Architecte',
-  'Tapis de Yoga Antidérapant 6mm',
-]
+type ProductOption = { id: number; name: string }
 
-function ProductSearch({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const [query, setQuery] = useState('')
-  const [open, setOpen] = useState(false)
+function ProductSearch({
+  selected,
+  onSelect,
+}: {
+  selected: ProductOption | null
+  onSelect: (p: ProductOption | null) => void
+}) {
+  const [query,   setQuery]   = useState('')
+  const [open,    setOpen]    = useState(false)
+  const [results, setResults] = useState<ProductOption[]>([])
+  const [loading, setLoading] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
-  const filtered = PRODUCTS.filter(p =>
-    p.toLowerCase().includes(query.toLowerCase())
-  )
-
-  // Ferme le dropdown si clic en dehors
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
@@ -78,68 +75,84 @@ function ProductSearch({ value, onChange }: { value: string; onChange: (v: strin
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  function select(p: string) {
-    onChange(p)
-    setQuery(p)
+  useEffect(() => {
+    if (query.trim().length < 2) { setResults([]); return }
+    const timer = setTimeout(async () => {
+      setLoading(true)
+      try {
+        const res = await fetchProducts({ q: query, limit: 8 })
+        setResults(res.data.products.map(p => ({ id: p.id, name: p.name })))
+      } catch {
+        setResults([])
+      } finally {
+        setLoading(false)
+      }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [query])
+
+  function select(p: ProductOption) {
+    onSelect(p)
+    setQuery(p.name)
     setOpen(false)
   }
 
   function clear() {
-    onChange('')
+    onSelect(null)
     setQuery('')
+    setResults([])
     setOpen(false)
   }
 
   return (
-    <div className="flex flex-col gap-1.5" ref={ref}>
+    <div className="flex flex-col gap-1.5 relative" ref={ref}>
       <label className="text-xs font-semibold text-gray-700">
-        Produit concerné <span className="text-gray-400 font-normal">(optionnel)</span>
+        Produit concerné <span className="text-red-400">*</span>
       </label>
 
-      {/* Input */}
       <div className="relative">
-        <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none" />
+        {loading
+          ? <Loader2 size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 animate-spin" />
+          : <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none" />
+        }
         <input
           type="text"
-          value={query}
-          placeholder="Rechercher un produit…"
-          onChange={e => { setQuery(e.target.value); onChange(''); setOpen(true) }}
-          onFocus={() => setOpen(true)}
+          value={selected ? selected.name : query}
+          placeholder="Tapez le nom d'un produit…"
+          onChange={e => { onSelect(null); setQuery(e.target.value); setOpen(true) }}
+          onFocus={() => { if (!selected) setOpen(true) }}
           className="w-full pl-9 pr-9 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-gray-300"
         />
-        {query && (
+        {(selected || query) && (
           <button type="button" onClick={clear} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition-colors">
             <XCircle size={15} />
           </button>
         )}
       </div>
 
-      {/* Dropdown */}
       <AnimatePresence>
-        {open && filtered.length > 0 && (
+        {open && results.length > 0 && (
           <motion.ul
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.15 }}
-            className="border border-gray-100 rounded-xl shadow-lg bg-white overflow-hidden max-h-44 overflow-y-auto divide-y divide-gray-50"
+            className="absolute top-full left-0 right-0 z-20 border border-gray-100 rounded-xl shadow-lg bg-white overflow-hidden max-h-44 overflow-y-auto divide-y divide-gray-50"
           >
-            {filtered.map(p => (
-              <li key={p}>
+            {results.map(p => (
+              <li key={p.id}>
                 <button
                   type="button"
                   onClick={() => select(p)}
-                  className={`w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-blue-50 hover:text-blue-700 ${
-                    value === p ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
-                  }`}
+                  className="w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-blue-50 hover:text-blue-700 text-gray-700"
                 >
-                  {p}
+                  {p.name}
                 </button>
               </li>
             ))}
           </motion.ul>
         )}
-        {open && query && filtered.length === 0 && (
+        {open && query.length >= 2 && results.length === 0 && !loading && (
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -155,25 +168,44 @@ function ProductSearch({ value, onChange }: { value: string; onChange: (v: strin
 }
 
 /* ─────────────────────────────────────────
-   MODAL CONTENT
+   MODAL
 ───────────────────────────────────────── */
 export function CommentModal({ onClose }: { onClose: () => void }) {
-  const [rating, setRating] = useState(0)
-  const [name, setName] = useState('')
-  const [product, setProduct] = useState('')
-  const [text, setText] = useState('')
+  const { user, token, isAuthenticated } = useAuth()
+  const navigate = useNavigate()
+
+  const [rating,    setRating]    = useState(0)
+  const [product,   setProduct]   = useState<ProductOption | null>(null)
+  const [text,      setText]      = useState('')
+  const [loading,   setLoading]   = useState(false)
+  const [error,     setError]     = useState('')
   const [submitted, setSubmitted] = useState(false)
 
-  const canSubmit = rating > 0 && name.trim().length >= 2 && text.trim().length >= 10
+  const displayName = user
+    ? `${user.prenom ?? ''} ${user.nom ?? ''}`.trim()
+    : ''
+  const initials = displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  const canSubmit = rating > 0 && !!product && text.trim().length >= 10 && !loading
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    if (!canSubmit) return
-    setSubmitted(true)
+    if (!canSubmit || !token || !product) return
+    if (text.trim().length < 10) { setError('Minimum 10 caractères.'); return }
+
+    setLoading(true)
+    setError('')
+    try {
+      await submitReview({ productId: product.id, rating, body: text }, token)
+      setSubmitted(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur lors de l'envoi. Réessayez.")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
-    /* Backdrop */
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -181,10 +213,8 @@ export function CommentModal({ onClose }: { onClose: () => void }) {
       className="fixed inset-0 z-[999] flex items-end sm:items-center justify-center p-0 sm:p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
-      {/* Blur layer */}
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
 
-      {/* Panel */}
       <motion.div
         initial={{ opacity: 0, y: 60, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -207,8 +237,34 @@ export function CommentModal({ onClose }: { onClose: () => void }) {
         </div>
 
         <AnimatePresence mode="wait">
-          {submitted ? (
-            /* ── Success state ── */
+
+          {/* ── Non connecté ── */}
+          {!isAuthenticated ? (
+            <motion.div
+              key="login"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex flex-col items-center text-center gap-5 px-6 py-12"
+            >
+              <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center">
+                <LogIn size={28} className="text-blue-500" />
+              </div>
+              <div>
+                <p className="text-base font-bold text-gray-900">Connexion requise</p>
+                <p className="text-sm text-gray-400 mt-1.5 max-xs mx-auto">
+                  Vous devez être connecté pour laisser un avis.
+                </p>
+              </div>
+              <button
+                onClick={() => { onClose(); navigate('/login') }}
+                className="px-8 py-3 bg-gray-900 text-white text-sm font-bold rounded-full hover:bg-gray-700 transition-colors"
+              >
+                Se connecter
+              </button>
+            </motion.div>
+
+          /* ── Succès ── */
+          ) : submitted ? (
             <motion.div
               key="success"
               initial={{ opacity: 0, scale: 0.9 }}
@@ -219,9 +275,9 @@ export function CommentModal({ onClose }: { onClose: () => void }) {
                 <CheckCircle2 size={32} className="text-emerald-500" />
               </div>
               <div className="text-center">
-                <p className="text-lg font-bold text-gray-900">Merci {name} !</p>
+                <p className="text-lg font-bold text-gray-900">Merci {user?.prenom} !</p>
                 <p className="text-sm text-gray-500 mt-1">
-                  Votre avis a été soumis et sera publié après vérification.
+                  Votre avis sera publié après vérification.
                 </p>
               </div>
               <button
@@ -231,52 +287,62 @@ export function CommentModal({ onClose }: { onClose: () => void }) {
                 Fermer
               </button>
             </motion.div>
+
+          /* ── Formulaire ── */
           ) : (
-            /* ── Form ── */
             <motion.form
               key="form"
               onSubmit={handleSubmit}
-              className="flex flex-col gap-5 px-6 py-5"
+              className="flex flex-col gap-5 px-6 py-5 max-h-[70vh] overflow-y-auto"
             >
-              {/* Star rating */}
+              {/* Auteur connecté */}
+              <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 rounded-xl border border-gray-100">
+                <div className="w-9 h-9 rounded-full bg-gray-900 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                  {initials}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">{displayName}</p>
+                  <p className="text-[11px] text-gray-400">Vous publierez sous ce nom</p>
+                </div>
+              </div>
+
+              {/* Note */}
               <div className="flex flex-col items-center gap-1 py-2">
                 <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">
-                  Note globale
+                  Note globale <span className="text-red-400">*</span>
                 </p>
                 <StarPicker value={rating} onChange={setRating} />
               </div>
 
-              {/* Name */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-700">Votre prénom *</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  placeholder="Ex : Amara"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-gray-300"
-                />
-              </div>
+              {/* Produit */}
+              <ProductSearch selected={product} onSelect={setProduct} />
 
-              {/* Product search */}
-              <ProductSearch value={product} onChange={setProduct} />
-
-              {/* Comment */}
+              {/* Commentaire */}
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-gray-700">
-                  Votre avis *
-                  <span className="ml-1 text-gray-400 font-normal">({text.length}/500)</span>
+                  Votre avis <span className="text-red-400">*</span>
+                  <span className="ml-1 text-gray-400 font-normal">
+                    ({text.length}/500
+                    {text.length > 0 && text.length < 10 && (
+                      <span className="text-red-400"> · encore {10 - text.length} car.</span>
+                    )}
+                    )
+                  </span>
                 </label>
                 <textarea
                   value={text}
-                  onChange={e => setText(e.target.value.slice(0, 500))}
+                  onChange={e => { setText(e.target.value.slice(0, 500)); setError('') }}
                   rows={4}
                   placeholder="Partagez votre expérience : qualité du produit, livraison, service client…"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all resize-none placeholder:text-gray-300 leading-relaxed"
+                  className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none transition-all resize-none placeholder:text-gray-300 leading-relaxed ${
+                    text.length > 0 && text.length < 10
+                      ? 'border-red-200 focus:border-red-400 focus:ring-2 focus:ring-red-100'
+                      : 'border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100'
+                  }`}
                 />
               </div>
 
-              {/* Photo hint */}
+              {/* Photo — futur */}
               <button
                 type="button"
                 className="flex items-center gap-2 text-xs text-gray-400 hover:text-gray-600 transition-colors w-fit"
@@ -285,17 +351,28 @@ export function CommentModal({ onClose }: { onClose: () => void }) {
                 Ajouter des photos <span className="text-gray-300">(bientôt disponible)</span>
               </button>
 
+              {/* Erreur */}
+              {error && (
+                <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-100 rounded-xl">
+                  <AlertCircle size={14} className="text-red-500 shrink-0 mt-0.5" />
+                  <p className="text-xs text-red-600">{error}</p>
+                </div>
+              )}
+
               {/* Submit */}
               <button
                 type="submit"
                 disabled={!canSubmit}
-                className={`w-full py-3.5 rounded-full text-sm font-bold transition-all ${
+                className={`w-full py-3.5 rounded-full text-sm font-bold transition-all flex items-center justify-center gap-2 ${
                   canSubmit
                     ? 'bg-gray-900 text-white hover:bg-gray-700 active:scale-[0.98]'
                     : 'bg-gray-100 text-gray-300 cursor-not-allowed'
                 }`}
               >
-                Publier mon avis
+                {loading
+                  ? <><Loader2 size={16} className="animate-spin" /> Envoi en cours…</>
+                  : 'Publier mon avis'
+                }
               </button>
 
               <p className="text-center text-[11px] text-gray-400 -mt-1 pb-1">
@@ -317,7 +394,6 @@ export function FromComment({ className = '' }: { className?: string }) {
 
   return (
     <>
-      {/* Trigger button */}
       <button
         onClick={() => setOpen(true)}
         className={`inline-flex items-center gap-2 px-6 py-3 rounded-full border-2 border-gray-200 text-sm font-semibold text-gray-700 hover:border-gray-900 hover:bg-gray-900 hover:text-white transition-all group ${className}`}
@@ -332,7 +408,6 @@ export function FromComment({ className = '' }: { className?: string }) {
         />
       </button>
 
-      {/* Modal */}
       <AnimatePresence>
         {open && <CommentModal onClose={() => setOpen(false)} />}
       </AnimatePresence>

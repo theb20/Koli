@@ -15,6 +15,7 @@ export type CartItem = {
   image: string   // première image du produit
   qty: number
   color?: string  // hex couleur choisie
+  stock?: number  // stock disponible au moment de l'ajout
 }
 
 type CartState = {
@@ -39,14 +40,16 @@ function cartReducer(state: CartState, action: CartAction): CartState {
 
     case 'ADD': {
       const qty = action.qty ?? 1
+      const maxStock = (action.item.stock != null && action.item.stock > 0) ? action.item.stock : undefined
+      const clamp = (n: number) => maxStock ? Math.min(n, maxStock) : n
       const exists = state.items.find(i => i.productId === action.item.productId)
       const items = exists
         ? state.items.map(i =>
             i.productId === action.item.productId
-              ? { ...i, qty: i.qty + qty }
+              ? { ...i, qty: clamp(i.qty + qty), stock: action.item.stock ?? i.stock }
               : i
           )
-        : [...state.items, { ...action.item, qty }]
+        : [...state.items, { ...action.item, qty: clamp(qty) }]
       return { ...state, items }
     }
 
@@ -164,4 +167,4 @@ export function useCart(): CartContextValue {
 
 /* ─── Helpers ─── */
 export const fmtCart = (n: number) =>
-  (n / 100).toLocaleString('fr-FR', { minimumFractionDigits: 0 }) + ' FCFA'
+  Math.round(n / 100).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'

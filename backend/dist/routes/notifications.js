@@ -63,5 +63,23 @@ router.delete('/:id', auth_1.requireAuth, async (req, res) => {
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });
+/* ── POST /api/notifications/broadcast  [ADMIN] ─────────────── */
+router.post('/broadcast', auth_1.requireAdmin, async (req, res) => {
+    try {
+        const { title, message, type = 'info' } = req.body;
+        if (!title || !message) {
+            res.status(400).json({ success: false, message: 'Titre et message requis' });
+            return;
+        }
+        const users = await prisma_1.prisma.user.findMany({ select: { id: true } });
+        await prisma_1.prisma.notification.createMany({
+            data: users.map(u => ({ userId: u.id, title, body: message, type })),
+        });
+        res.json({ success: true, message: `Notification envoyée à ${users.length} utilisateurs` });
+    }
+    catch {
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
 exports.default = router;
 //# sourceMappingURL=notifications.js.map

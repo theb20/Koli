@@ -8,6 +8,7 @@ import {
   RotateCcw, Star, Headphones, X,
 } from 'lucide-react'
 import { PageMeta } from '../components/seo/PageMeta'
+import { postContact } from '../lib/api'
 
 /* ═══════════════════════════════════════════════════════════════
    DONNÉES
@@ -89,10 +90,11 @@ export function ContactPage() {
     prenom: '', nom: '', email: '', telephone: '',
     sujet: '', message: '', rgpd: false,
   })
-  const [errors,   setErrors]   = useState<Partial<Record<keyof typeof form, string>>>({})
-  const [file,     setFile]     = useState<File | null>(null)
-  const [loading,  setLoading]  = useState(false)
-  const [success,  setSuccess]  = useState(false)
+  const [errors,      setErrors]      = useState<Partial<Record<keyof typeof form, string>>>({})
+  const [file,        setFile]        = useState<File | null>(null)
+  const [loading,     setLoading]     = useState(false)
+  const [success,     setSuccess]     = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   const set = (k: keyof typeof form) => (v: string | boolean) =>
     setForm(f => ({ ...f, [k]: v }))
@@ -113,9 +115,22 @@ export function ContactPage() {
     e.preventDefault()
     if (!validate()) return
     setLoading(true)
-    await new Promise(r => setTimeout(r, 1800))
-    setLoading(false)
-    setSuccess(true)
+    setSubmitError(null)
+    try {
+      await postContact({
+        prenom:    form.prenom,
+        nom:       form.nom,
+        email:     form.email,
+        telephone: form.telephone || undefined,
+        sujet:     form.sujet,
+        message:   form.message,
+      })
+      setSuccess(true)
+    } catch {
+      setSubmitError('Une erreur est survenue. Veuillez réessayer ou nous contacter via WhatsApp.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -172,7 +187,16 @@ export function ContactPage() {
       />
 
       {/* ── HERO ── */}
-      <section className="relative bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white overflow-hidden">
+      <section 
+      style={{
+          backgroundImage: `
+            linear-gradient(to top, rgba(0,0,0,0.7), rgba(0,0,0,0.1)),
+            url('https://i.pinimg.com/736x/69/2d/c4/692dc4bd08b5e88f6cc3da8d26faa720.jpg')
+          `,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}
+      className="relative  text-white overflow-hidden">
         {/* déco */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-0 right-0 w-96 h-96 rounded-full bg-blue-600/10 -translate-y-32 translate-x-32 blur-3xl" />
@@ -183,15 +207,15 @@ export function ContactPage() {
           <div className="max-w-2xl">
             <div className="flex items-center gap-2 mb-4">
               <Headphones size={16} className="text-blue-400" />
-              <span className="text-blue-400 text-xs font-semibold uppercase tracking-widest">Support client</span>
+              <span className="text-blue-400 text-xs  uppercase tracking-widest">Support client</span>
             </div>
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black leading-tight mb-4">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl  leading-tight mb-4">
               Comment pouvons-nous<br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">
                 vous aider ?
               </span>
             </h1>
-            <p className="text-gray-400 text-base sm:text-lg leading-relaxed max-w-xl">
+            <p className="text-gray-400  sm:text-lg leading-relaxed max-w-xl">
               Notre équipe est disponible 7 jours sur 7 pour répondre à toutes vos questions sur vos commandes, produits et livraisons.
             </p>
 
@@ -322,12 +346,12 @@ export function ContactPage() {
                 </FormField>
                 <FormField label="Téléphone" required={false}>
                   <div className="flex items-center rounded-xl border-2 border-gray-200 focus-within:border-gray-400 transition-colors overflow-hidden">
-                    <div className="flex items-center gap-1.5 px-3 py-3 bg-gray-50 border-r border-gray-200 shrink-0">
-                      <span className="text-base">🇨🇲</span>
-                      <span className="text-xs font-semibold text-gray-600">+237</span>
+                    <div className="flex items-center gap-1.5 px-3 py-3 bg-gray-50 border-r border-gray-200 shrink-0 select-none">
+                      <span className="text-base">🇨🇮</span>
+                      <span className="text-sm font-semibold text-gray-700">+225</span>
                     </div>
                     <input type="tel" value={form.telephone} onChange={e => set('telephone')(e.target.value)}
-                      placeholder="6XX XXX XXX"
+                      placeholder="07 00 00 00 00" maxLength={12} inputMode="tel"
                       className="flex-1 px-3 py-3 text-sm focus:outline-none bg-white placeholder:text-gray-300" />
                   </div>
                 </FormField>
@@ -414,6 +438,14 @@ export function ContactPage() {
                   </p>
                 )}
               </div>
+
+              {/* Erreur API */}
+              {submitError && (
+                <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-red-50 border border-red-100">
+                  <AlertCircle size={15} className="text-red-500 shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-700">{submitError}</p>
+                </div>
+              )}
 
               {/* Bouton submit */}
               <button type="submit" disabled={loading}

@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'
-import { requireAuth } from '../middleware/auth'
+import { requireAuth, requireAdmin } from '../middleware/auth'
 import { validate } from '../middleware/validate'
 
 const router = Router()
@@ -11,6 +11,24 @@ const reviewSchema = z.object({
   rating:    z.number().int().min(1).max(5),
   title:     z.string().max(100).optional(),
   body:      z.string().min(10, 'Minimum 10 caractères').max(2000),
+})
+
+/* ── GET /api/reviews/latest  — derniers avis publics ─────── */
+router.get('/latest', async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query['limit'] as string) || 6, 20)
+    const reviews = await prisma.review.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      include: {
+        user:    { select: { prenom: true, nom: true, avatar: true } },
+        product: { select: { name: true } },
+      },
+    })
+    res.json({ success: true, data: { reviews } })
+  } catch {
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
 })
 
 /* ── GET /api/reviews/product/:id ─────────────────────────── */
@@ -62,19 +80,11 @@ router.get('/product/:id', async (req, res) => {
 })
 
 /* ── POST /api/reviews ─────────────────────────────────────── */
+/* Plusieurs avis autorisés par utilisateur par produit         */
 router.post('/', requireAuth, validate(reviewSchema), async (req, res) => {
   try {
     const data = req.body as z.infer<typeof reviewSchema>
     const userId = req.user!.userId
-
-    // Vérifier si déjà un avis
-    const existing = await prisma.review.findUnique({
-      where: { userId_productId: { userId, productId: data.productId } },
-    })
-    if (existing) {
-      res.status(409).json({ success: false, message: 'Vous avez déjà laissé un avis pour ce produit' })
-      return
-    }
 
     // Vérifier si achat vérifié
     const hasBought = await prisma.orderItem.findFirst({
@@ -171,6 +181,26 @@ router.post('/:id/helpful', async (req, res) => {
   } catch {
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
+})
+
+/* ── GET /api/reviews/admin/all  [ADMIN] ───────────────────── */
+router.get('/admin/all', requireAdmin, async (req, res) => {
+  try {
+    const page  = parseInt(req.query['page'] as string) || 1
+    const limit = parseInt(req.query['limit'] as string) || 20
+    const [total, reviews] = await Promise.all([
+      prisma.review.count(),
+      prisma.review.findMany({
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit, take: limit,
+        include: {
+          product: { select: { name: true } },
+          user:    { select: { prenom: true, nom: true } },
+        },
+      }),
+    ])
+    res.json({ success: true, data: { reviews, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } } })
+  } catch { res.status(500).json({ success: false, message: 'Erreur serveur' }) }
 })
 
 export default router

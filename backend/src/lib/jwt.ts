@@ -29,3 +29,17 @@ export function verifyAccessToken(token: string): JwtPayload {
 export function verifyRefreshToken(token: string): Pick<JwtPayload, 'userId'> {
   return jwt.verify(token, SECRET + '_refresh') as Pick<JwtPayload, 'userId'>
 }
+
+/** Génère un magic-link token (15 min) */
+export function signMagicToken(userId: string, email: string): string {
+  return jwt.sign(
+    { userId, email, type: 'magic' },
+    SECRET + '_magic',
+    { expiresIn: '15m' } as jwt.SignOptions,
+  )
+}
+
+/** Vérifie un magic-link token */
+export function verifyMagicToken(token: string): { userId: string; email: string; type: string } {
+  return jwt.verify(token, SECRET + '_magic') as { userId: string; email: string; type: string }
+}

@@ -7,5 +7,12 @@ export default defineConfig({
   server: {
     port: 3000,
     host: '0.0.0.0',
+    headers: {
+      // unsafe-none : nécessaire en dev pour que Firebase popup
+      // puisse communiquer malgré le COOP de accounts.google.com
+      // À ne PAS utiliser en production.
+      'Cross-Origin-Opener-Policy': 'unsafe-none',
+      'Cross-Origin-Embedder-Policy': 'unsafe-none',
+    },
   },
 })

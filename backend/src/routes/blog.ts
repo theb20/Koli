@@ -141,4 +141,38 @@ router.delete('/:id', requireAdmin, async (req, res) => {
   }
 })
 
+/* ── GET /api/blog/admin/all  [ADMIN] — tous les articles ─── */
+router.get('/admin/all', requireAdmin, async (req, res) => {
+  try {
+    const page  = parseInt(req.query['page'] as string) || 1
+    const limit = parseInt(req.query['limit'] as string) || 15
+    const [total, posts] = await Promise.all([
+      prisma.blogPost.count(),
+      prisma.blogPost.findMany({ orderBy: { createdAt: 'desc' }, skip: (page - 1) * limit, take: limit }),
+    ])
+    res.json({ success: true, data: { posts, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } } })
+  } catch { res.status(500).json({ success: false, message: 'Erreur serveur' }) }
+})
+
+/* ── GET /api/blog/admin/:id  [ADMIN] ───────────────────────── */
+router.get('/admin/:id', requireAdmin, async (req, res) => {
+  try {
+    const post = await prisma.blogPost.findUnique({ where: { id: parseInt(req.params['id']!) } })
+    if (!post) { res.status(404).json({ success: false, message: 'Article introuvable' }); return }
+    res.json({ success: true, data: { post } })
+  } catch { res.status(500).json({ success: false, message: 'Erreur serveur' }) }
+})
+
+/* ── PATCH /api/blog/:id/publish  [ADMIN] ──────────────────── */
+router.patch('/:id/publish', requireAdmin, async (req, res) => {
+  try {
+    const { isPublished } = req.body
+    const post = await prisma.blogPost.update({
+      where: { id: parseInt(req.params['id']!) },
+      data: { isPublished, ...(isPublished ? { publishedAt: new Date() } : {}) },
+    })
+    res.json({ success: true, data: { post } })
+  } catch { res.status(500).json({ success: false, message: 'Erreur serveur' }) }
+})
+
 export default router

@@ -1,94 +1,75 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'motion/react'
 import {
   ChevronRight, Package, Truck, CheckCircle2, Clock, MapPin,
   Phone, MessageSquare, RotateCcw, Download, Copy, Check,
   Star, AlertCircle, CreditCard, ShieldCheck, ChevronDown,
+  Loader2,
 } from 'lucide-react'
 import { PageMeta } from '../components/seo/PageMeta'
-import { PRODUCTS } from '../data/products'
+import { useAuth } from '../contexts/AuthContext'
+import { fetchOrder, apiFetch, type ApiOrder, type ApiResponse } from '../lib/api'
 
 /* ═══════════════════════════════════════════════════════════════
-   TYPES & DATA
+   TYPES & HELPERS
 ═══════════════════════════════════════════════════════════════ */
 const fmt = (n: number) =>
-  (n / 100).toLocaleString('fr-FR', { minimumFractionDigits: 0 }) + ' FCFA'
+  Math.round(n / 100).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
 
 type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'shipped' | 'delivered' | 'cancelled'
 
 type OrderItem = {
-  productId: number
-  name: string
-  brand: string
-  image: string
-  price: number
-  oldPrice?: number
-  qty: number
-  color?: string
+  productId: number; name: string; brand: string; image: string
+  price: number; oldPrice?: number; qty: number; color?: string
 }
 
 type Order = {
-  id: string
-  date: string
-  status: OrderStatus
+  id: string; date: string; status: OrderStatus
   items: OrderItem[]
   shipping: { name: string; address: string; city: string; phone: string }
-  payment: { method: string; last4?: string; ref: string }
-  shippingCost: number
-  trackingNumber?: string
-  estimatedDelivery?: string
+  payment: { method: string; ref: string }
+  shippingCost: number; subtotal: number; promoDiscount: number
+  taxRate: number; taxAmount: number
+  total: number
+  trackingNumber?: string; estimatedDelivery?: string
 }
 
-/* ── Faux historique de commandes ── */
-function buildFakeOrders(): Record<string, Order> {
-  const p1 = PRODUCTS[0]
-  const p2 = PRODUCTS[4]
-  const p3 = PRODUCTS[17]
+const PAYMENT_LABELS: Record<string, string> = {
+  orange: 'Orange Money', mtn: 'MTN Mobile Money', wave: 'Wave', cash: 'Paiement à la livraison',
+}
 
+function mapOrder(o: ApiOrder): Order {
+  let addr: { ville?: string; quartier?: string; adresse?: string } = {}
+  try { addr = JSON.parse(o.shippingAddress) } catch { /* ignore */ }
   return {
-    'KLI-20250512-0041': {
-      id: 'KLI-20250512-0041',
-      date: '12 mai 2025',
-      status: 'delivered',
-      trackingNumber: 'CI-ABJ-98741236',
-      estimatedDelivery: '14 mai 2025',
-      items: [
-        { productId: p1.id, name: p1.name, brand: p1.brand, image: p1.images[0], price: p1.price, oldPrice: p1.oldPrice, qty: 1 },
-        { productId: p2.id, name: p2.name, brand: p2.brand, image: p2.images[0], price: p2.price, oldPrice: p2.oldPrice, qty: 2 },
-      ],
-      shipping: { name: 'Kouamé Atta', address: 'Cocody Riviera Golf, Rue des Jardins', city: 'Abidjan', phone: '+225 07 12 34 56 78' },
-      payment: { method: 'Orange Money', ref: 'OM-2025-0512-7741' },
-      shippingCost: 0,
+    id:           o.orderNumber,
+    date:         new Date(o.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }),
+    status:       (o.status as OrderStatus) ?? 'pending',
+    trackingNumber:    o.trackingNumber ?? undefined,
+    estimatedDelivery: o.estimatedDelivery
+      ? new Date(o.estimatedDelivery).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+      : undefined,
+    items: o.items.map(i => ({
+      productId: i.productId, name: i.name, brand: i.brand,
+      image: i.image, price: i.price, qty: i.qty, color: i.color ?? undefined,
+    })),
+    shipping: {
+      name:    `${o.clientPrenom} ${o.clientNom}`,
+      address: [addr.adresse, addr.quartier].filter(Boolean).join(', '),
+      city:    addr.ville ?? '',
+      phone:   o.clientTelephone,
     },
-    'KLI-20250428-0029': {
-      id: 'KLI-20250428-0029',
-      date: '28 avril 2025',
-      status: 'shipped',
-      trackingNumber: 'CI-ABJ-87632145',
-      estimatedDelivery: '30 avril 2025',
-      items: [
-        { productId: p3.id, name: p3.name, brand: p3.brand, image: p3.images[0], price: p3.price, oldPrice: p3.oldPrice, qty: 1, color: '#1a1a2e' },
-      ],
-      shipping: { name: 'Fatoumata Diallo', address: 'Yopougon Selmer, Rue 12 Villa 47', city: 'Abidjan', phone: '+225 05 87 65 43 21' },
-      payment: { method: 'Carte Visa', last4: '4242', ref: 'CB-2025-0428-3312' },
-      shippingCost: 150000,
-    },
-    'KLI-20250310-0017': {
-      id: 'KLI-20250310-0017',
-      date: '10 mars 2025',
-      status: 'pending',
-      items: [
-        { productId: PRODUCTS[7].id, name: PRODUCTS[7].name, brand: PRODUCTS[7].brand, image: PRODUCTS[7].images[0], price: PRODUCTS[7].price, oldPrice: PRODUCTS[7].oldPrice, qty: 1 },
-      ],
-      shipping: { name: 'Jean-Baptiste Konan', address: 'Plateau Immeuble Concorde 5e', city: 'Abidjan', phone: '+225 01 23 45 67 89' },
-      payment: { method: 'MTN MoMo', ref: 'MTN-2025-0310-9921' },
-      shippingCost: 150000,
-    },
+    payment:      { method: PAYMENT_LABELS[o.paymentMethod] ?? o.paymentMethod, ref: o.orderNumber },
+    shippingCost: o.shippingCost,
+    subtotal:     o.subtotal,
+    promoDiscount: o.promoDiscount,
+    taxRate:      o.taxRate ?? 0,
+    taxAmount:    o.taxAmount ?? 0,
+    total:        o.total,
   }
 }
-
-const FAKE_ORDERS = buildFakeOrders()
 
 /* ─── Status config ─── */
 const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
@@ -265,19 +246,70 @@ function Card({ title, icon, children, className = '' }: {
 ═══════════════════════════════════════════════════════════════ */
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const [copiedRef, setCopiedRef]       = useState(false)
-  const [copiedTrack, setCopiedTrack]   = useState(false)
-  const [showCancel, setShowCancel]     = useState(false)
-  const [ratingOpen, setRatingOpen]     = useState(false)
-  const [stars, setStars]               = useState(0)
+  const { token } = useAuth()
+  const [copiedRef, setCopiedRef]     = useState(false)
+  const [copiedTrack, setCopiedTrack] = useState(false)
+  const [ratingOpen, setRatingOpen]   = useState(false)
+  const [stars, setStars]             = useState(0)
+  const [showCancel, setShowCancel]   = useState(false)
 
-  /* Fallback: si l'ID n'existe pas, on prend le premier de la liste */
-  const orderId = id ?? Object.keys(FAKE_ORDERS)[0]
-  const order   = FAKE_ORDERS[orderId] ?? Object.values(FAKE_ORDERS)[0]
+  const queryClient = useQueryClient()
+  const [cancelling, setCancelling] = useState(false)
+  const [cancelError, setCancelError] = useState('')
 
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['order', id],
+    queryFn:  () => fetchOrder(id!, token),
+    enabled:  !!id,
+    retry:    false,
+  })
+
+  const handleCancel = async () => {
+    if (!id) return
+    setCancelling(true)
+    setCancelError('')
+    try {
+      await apiFetch<ApiResponse<unknown>>(
+        `/api/orders/${encodeURIComponent(id)}/cancel`,
+        token,
+        { method: 'PUT' },
+      )
+      queryClient.invalidateQueries({ queryKey: ['order', id] })
+      queryClient.invalidateQueries({ queryKey: ['my-orders'] })
+      setShowCancel(false)
+    } catch (e) {
+      setCancelError(e instanceof Error ? e.message : 'Erreur lors de l\'annulation')
+    } finally {
+      setCancelling(false)
+    }
+  }
+
+  /* ── Loading ── */
+  if (isLoading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <Loader2 size={32} className="animate-spin text-gray-300" />
+      </div>
+    )
+  }
+
+  /* ── 404 / Error ── */
+  if (isError || !data?.data) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 px-4 text-center">
+        <p className="text-6xl">📦</p>
+        <p className="text-xl font-bold text-gray-900">Commande introuvable</p>
+        <p className="text-sm text-gray-400">Cette commande n'existe pas ou vous n'y avez pas accès.</p>
+        <Link to="/profil"
+          className="mt-2 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-800 transition">
+          Mes commandes
+        </Link>
+      </div>
+    )
+  }
+
+  const order      = mapOrder(data.data)
   const statusCfg  = STATUS_CONFIG[order.status]
-  const subtotal   = order.items.reduce((s, i) => s + i.price * i.qty, 0)
-  const total      = subtotal + order.shippingCost
   const canCancel  = order.status === 'pending'
   const canReturn  = order.status === 'delivered'
 
@@ -472,24 +504,35 @@ export default function OrderDetailPage() {
               <Card title="Récapitulatif" icon={<CreditCard size={16} />}>
                 <div className="space-y-2.5">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Sous-total</span>
-                    <span className="font-medium text-gray-800">{fmt(subtotal)}</span>
+                    <span className="text-gray-500">Sous-total HT</span>
+                    <span className="font-medium text-gray-800">{fmt(order.subtotal)}</span>
                   </div>
+                  {order.promoDiscount > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Code promo</span>
+                      <span className="text-emerald-600 font-semibold">−{fmt(order.promoDiscount)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">Livraison</span>
                     <span className={order.shippingCost === 0 ? 'text-emerald-600 font-semibold' : 'font-medium text-gray-800'}>
                       {order.shippingCost === 0 ? 'Gratuite' : fmt(order.shippingCost)}
                     </span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">TVA</span>
-                    <span className="text-gray-400 text-xs self-center">incluse</span>
-                  </div>
+                  {order.taxAmount > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">TVA ({order.taxRate}%)</span>
+                      <span className="font-medium text-gray-800">{fmt(order.taxAmount)}</span>
+                    </div>
+                  )}
                   <div className="h-px bg-gray-100 my-1" />
                   <div className="flex justify-between font-bold text-base">
-                    <span className="text-gray-900">Total</span>
-                    <span className="text-gray-900">{fmt(total)}</span>
+                    <span className="text-gray-900">Total TTC</span>
+                    <span className="text-gray-900">{fmt(order.total)}</span>
                   </div>
+                  {order.taxAmount > 0 && (
+                    <p className="text-[11px] text-gray-400 text-right">TVA {order.taxRate}% incluse</p>
+                  )}
                 </div>
               </Card>
 
@@ -501,9 +544,6 @@ export default function OrderDetailPage() {
                   </div>
                   <div>
                     <p className="text-sm font-bold text-gray-900">{order.payment.method}</p>
-                    {order.payment.last4 && (
-                      <p className="text-xs text-gray-400 mt-0.5">●●●● {order.payment.last4}</p>
-                    )}
                   </div>
                 </div>
                 <div className="mt-4 pt-4 border-t border-gray-100">
@@ -587,18 +627,24 @@ export default function OrderDetailPage() {
             <p className="text-sm text-gray-500 text-center mt-2 leading-relaxed">
               Cette action est irréversible. Le remboursement sera effectué sous 3 à 5 jours ouvrés via le même moyen de paiement.
             </p>
+            {cancelError && (
+              <p className="text-sm text-red-500 text-center mt-3 bg-red-50 rounded-lg px-3 py-2">{cancelError}</p>
+            )}
             <div className="flex gap-3 mt-6">
               <button
-                onClick={() => setShowCancel(false)}
-                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:border-gray-300 transition-colors"
+                onClick={() => { setShowCancel(false); setCancelError('') }}
+                disabled={cancelling}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:border-gray-300 transition-colors disabled:opacity-50"
               >
                 Garder la commande
               </button>
               <button
-                onClick={() => setShowCancel(false)}
-                className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition-colors"
+                onClick={handleCancel}
+                disabled={cancelling}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
               >
-                Confirmer
+                {cancelling ? <Loader2 size={14} className="animate-spin" /> : null}
+                {cancelling ? 'Annulation…' : 'Confirmer'}
               </button>
             </div>
           </motion.div>

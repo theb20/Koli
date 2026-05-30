@@ -98,5 +98,26 @@ router.delete('/:id', auth_1.requireAdmin, async (req, res) => {
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });
+/* ── GET /api/promo/admin/all  [ADMIN] ──────────────────────── */
+router.get('/admin/all', auth_1.requireAdmin, async (_req, res) => {
+    try {
+        const promos = await prisma_1.prisma.promoCode.findMany({ orderBy: { createdAt: 'desc' } });
+        res.json({ success: true, data: { promos } });
+    }
+    catch {
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+/* ── PATCH /api/promo/:id/toggle  [ADMIN] ──────────────────── */
+router.patch('/:id/toggle', auth_1.requireAdmin, async (req, res) => {
+    try {
+        const { isActive } = req.body;
+        const promo = await prisma_1.prisma.promoCode.update({ where: { id: parseInt(req.params['id']) }, data: { isActive } });
+        res.json({ success: true, data: { promo } });
+    }
+    catch {
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
 exports.default = router;
 //# sourceMappingURL=promo.js.map

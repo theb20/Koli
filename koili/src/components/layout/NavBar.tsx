@@ -2,11 +2,11 @@ import { Link, NavLink } from 'react-router-dom'
 import { AlignLeft, ChevronDown, MapPin, Tag, Zap } from 'lucide-react'
 
 const NAV_LINKS = [
-  { label: 'Home', href: '/' },
-  { label: 'Shop', href: '/shop', hasDropdown: true },
-  { label: 'Brands', href: '/about' },
-  { label: 'Blog', href: '/blog' },
-  { label: 'Pages', href: '/about', hasDropdown: true },
+  { label: 'Accueil',   href: '/' },
+  { label: 'Catalogue', href: '/catalogue', hasDropdown: true },
+  { label: 'Blog',      href: '/blog' },
+  { label: 'À propos',  href: '/about' },
+  { label: 'Contact',   href: '/contact' },
 ]
 
 export function NavBar() {
@@ -48,11 +48,11 @@ export function NavBar() {
             <MapPin size={13} />
             <span className="hidden sm:block font-medium">Track Order</span>
           </Link>
-          <Link to="/shop?deals=daily" className="flex items-center gap-1.5 text-xs font-bold text-[#D97706] hover:text-amber-700 px-4 h-11 border-l border-slate-100 transition-colors">
+          <Link to="/catalogue?badge=sale" className="flex items-center gap-1.5 text-xs font-bold text-[#D97706] hover:text-amber-700 px-4 h-11 border-l border-slate-100 transition-colors">
             <Tag size={13} />
-            <span className="hidden sm:block">Daily Deals</span>
+            <span className="hidden sm:block">Soldes</span>
           </Link>
-          <Link to="/shop?deals=flash" className="flex items-center gap-1.5 text-xs font-bold text-[#4F46E5] hover:text-[#3730A3] px-4 h-11 border-l border-slate-100 transition-colors">
+          <Link to="/catalogue?badge=hot" className="flex items-center gap-1.5 text-xs font-bold text-[#4F46E5] hover:text-[#3730A3] px-4 h-11 border-l border-slate-100 transition-colors">
             <Zap size={13} />
             <span className="hidden sm:block">Flash Deals</span>
           </Link>

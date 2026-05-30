@@ -17,33 +17,71 @@ import contactRouter       from './routes/contact'
 import promoRouter         from './routes/promo'
 import notificationsRouter from './routes/notifications'
 import blogRouter          from './routes/blog'
+import storesRouter        from './routes/stores'
+import categoriesRouter    from './routes/categories'
+import taxRouter           from './routes/tax'
+import newsletterRouter    from './routes/newsletter'
+import loyaltyRouter      from './routes/loyalty'
+import flashRouter        from './routes/flash'
+import stockAlertsRouter  from './routes/stock-alerts'
+import referralRouter     from './routes/referral'
+import giftListsRouter    from './routes/gift-lists'
+import deliveryRouter     from './routes/delivery'
+import historyRouter       from './routes/history'
+import sellerRouter        from './routes/seller'
 
 const app = express()
 
 /* ── Sécurité ───────────────────────────────────────────────── */
-app.use(helmet())
+app.use(helmet()) 
+
+const ALLOWED_ORIGINS = [
+  process.env.FRONTEND_URL ?? 'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:5175',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174',
+  'http://127.0.0.1:5175',
+  'http://192.168.1.29:3000',
+  'http://192.168.1.29:5173',
+  'http://192.168.1.29:5174',
+  'http://192.168.1.29:5175',
+]
+
 app.use(cors({
-  origin:      process.env.FRONTEND_URL ?? 'http://localhost:5173',
+  origin: (origin, callback) => {
+    // allow requests with no origin (mobile apps, curl, Postman)
+    if (!origin) return callback(null, true)
+    if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true)
+    return callback(new Error(`CORS: origin ${origin} not allowed`))
+  },
   credentials: true,   // cookies cross-origin
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }))
 
 /* ── Rate Limiting ──────────────────────────────────────────── */
-// Global
+
+// Global — toutes les routes (confortable en dev, suffisant en prod light)
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000,  // 15 min
-  max: 200,
+  max: 500,                   // augmenté : les SPA font beaucoup de requêtes légitimes
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: 'Trop de requêtes, réessayez dans 15 minutes' },
+  skip: (req) => req.method === 'GET', // les GET ne consomment pas le quota global
 }))
 
-// Auth — plus strict
-const authLimiter = rateLimit({
+// Auth actions sensibles uniquement (login / register / mot de passe / magic link)
+// NE s'applique PAS à /me, /profile, /sessions (lectures normales)
+const authActionLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
-  message: { success: false, message: 'Trop de tentatives de connexion' },
+  max: 20,                    // 20 tentatives par IP / 15 min — suffisant sans bloquer l'usage normal
+  message: { success: false, message: 'Trop de tentatives, réessayez dans 15 minutes' },
+  keyGenerator: (req) => req.ip ?? 'unknown',
 })
 
 /* ── Parsers ────────────────────────────────────────────────── */
@@ -73,7 +111,13 @@ app.get('/health', (_req, res) => {
 })
 
 /* ── Routes API ─────────────────────────────────────────────── */
-app.use('/api/auth',          authLimiter, authRouter)
+// Limiteur strict sur les actions sensibles seulement (pas sur /me, /sessions, /profile)
+app.use('/api/auth/login',          authActionLimiter)
+app.use('/api/auth/register',       authActionLimiter)
+app.use('/api/auth/forgot-password',authActionLimiter)
+app.use('/api/auth/magic',          authActionLimiter)
+app.use('/api/auth/password',       authActionLimiter)
+app.use('/api/auth',                authRouter)
 app.use('/api/products',      productsRouter)
 app.use('/api/orders',        ordersRouter)
 app.use('/api/addresses',     addressesRouter)
@@ -83,6 +127,18 @@ app.use('/api/contact',       contactRouter)
 app.use('/api/promo',         promoRouter)
 app.use('/api/notifications', notificationsRouter)
 app.use('/api/blog',          blogRouter)
+app.use('/api/stores',        storesRouter)
+app.use('/api/categories',   categoriesRouter)
+app.use('/api/tax',          taxRouter)
+app.use('/api/newsletter',   newsletterRouter)
+app.use('/api/loyalty',       loyaltyRouter)
+app.use('/api/flash',         flashRouter)
+app.use('/api/stock-alerts',  stockAlertsRouter)
+app.use('/api/referral',      referralRouter)
+app.use('/api/gift-lists',    giftListsRouter)
+app.use('/api/delivery',      deliveryRouter)
+app.use('/api/history',        historyRouter)
+app.use('/api/seller',         sellerRouter)
 
 /* ── 404 ────────────────────────────────────────────────────── */
 app.use((_req, res) => {

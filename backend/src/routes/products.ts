@@ -10,22 +10,23 @@ const router = Router()
 
 const listQuerySchema = z.object({
   page:     z.coerce.number().int().positive().default(1),
-  limit:    z.coerce.number().int().min(1).max(100).default(20),
+  limit:    z.coerce.number().int().min(1).max(500).default(20),
   category: z.string().optional(),
-  q:        z.string().optional(),        // recherche texte
+  q:        z.string().optional(),
   sort:     z.enum(['popular', 'newest', 'price_asc', 'price_desc', 'rating']).default('popular'),
   minPrice: z.coerce.number().optional(),
   maxPrice: z.coerce.number().optional(),
   badge:    z.string().optional(),
   inStock:  z.coerce.boolean().optional(),
+  storeId:  z.coerce.number().int().optional(),   // filter by store
 })
 
 const createProductSchema = z.object({
   name:        z.string().min(3).max(200),
   brand:       z.string().min(1).max(100),
   category:    z.enum(['hightech', 'maison', 'beaute', 'sport', 'mode', 'jeux']),
-  price:       z.number().int().positive(),
-  oldPrice:    z.number().int().positive().optional(),
+  price:       z.number().positive(),
+  oldPrice:    z.number().positive().optional(),
   badge:       z.enum(['hot', 'new', 'sale', 'top']).optional(),
   stock:       z.number().int().nonnegative().default(100),
   isNew:       z.boolean().default(false),
@@ -41,13 +42,14 @@ const createProductSchema = z.object({
 router.get('/', optionalAuth, async (req, res) => {
   try {
     const query = listQuerySchema.parse(req.query)
-    const { page, limit, category, q, sort, minPrice, maxPrice, badge, inStock } = query
+    const { page, limit, category, q, sort, minPrice, maxPrice, badge, inStock, storeId } = query
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: Record<string, any> = { isActive: true }
     if (category) where['category'] = category
     if (badge)    where['badge']    = badge
     if (inStock)  where['stock']    = { gt: 0 }
+    if (storeId)  where['storeId']  = storeId
     if (minPrice !== undefined || maxPrice !== undefined) {
       where['price'] = {
         ...(minPrice !== undefined ? { gte: minPrice } : {}),
@@ -80,7 +82,9 @@ router.get('/', optionalAuth, async (req, res) => {
         skip:  (page - 1) * limit,
         take:  limit,
         include: {
-          images: { orderBy: { position: 'asc' } },
+          images:      { orderBy: { position: 'asc' } },
+          store:       { select: { id: true, name: true } },
+          categoryRel: { select: { id: true, slug: true, name: true, icon: true, image: true } },
         },
       }),
     ])
@@ -148,8 +152,9 @@ router.get('/:id', optionalAuth, async (req, res) => {
     const product = await prisma.product.findFirst({
       where: { id, isActive: true },
       include: {
-        images: { orderBy: { position: 'asc' } },
-        specs:  { orderBy: { position: 'asc' } },
+        images:      { orderBy: { position: 'asc' } },
+        specs:       { orderBy: { position: 'asc' } },
+        categoryRel: { select: { id: true, slug: true, name: true, icon: true, image: true } },
         reviewItems: {
           take: 5,
           orderBy: { createdAt: 'desc' },
@@ -192,9 +197,13 @@ router.post('/', requireAdmin, validate(createProductSchema), async (req, res) =
   try {
     const { images, specs, colors, ...data } = req.body as z.infer<typeof createProductSchema>
 
+    // Résoudre categoryId depuis le slug
+    const catRow = await prisma.category.findUnique({ where: { slug: data.category } })
+
     const product = await prisma.product.create({
       data: {
         ...data,
+        categoryId: catRow?.id ?? null,
         colors: colors ? JSON.stringify(colors) : null,
         images: {
           create: images.map((url, i) => ({ url, position: i })),
@@ -223,10 +232,14 @@ router.put('/:id', requireAdmin, async (req, res) => {
     const id = parseInt(req.params['id'] ?? '')
     const { images, specs, colors, ...data } = req.body as Partial<z.infer<typeof createProductSchema>>
 
+    // Résoudre categoryId si le slug est fourni
+    const catRow = data.category ? await prisma.category.findUnique({ where: { slug: data.category } }) : undefined
+
     const product = await prisma.product.update({
       where: { id },
       data: {
         ...data,
+        ...(catRow !== undefined ? { categoryId: catRow?.id ?? null } : {}),
         ...(colors !== undefined ? { colors: JSON.stringify(colors) } : {}),
         ...(images ? {
           images: {

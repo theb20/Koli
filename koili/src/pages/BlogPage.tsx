@@ -6,6 +6,8 @@ import {
   BookOpen, TrendingUp, Zap, ChevronRight,
   Share2, Bookmark, User, Calendar, X,
 } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { fetchBlogPosts, type ApiBlogPost } from '../lib/api'
 import { PageMeta } from '../components/seo/PageMeta'
 
 const BLUE = '#0421ff'
@@ -276,11 +278,11 @@ function ArticleCard({ article, delay = 0 }: { article: Article; delay?: number 
 }
 
 /* ─── Sidebar ───────────────────────────────────────────────── */
-function Sidebar({ onTagClick }: { onTagClick: (tag: string) => void }) {
+function Sidebar({ onTagClick, articles }: { onTagClick: (tag: string) => void; articles: Article[] }) {
   const [email, setEmail] = useState('')
   const [subscribed, setSubscribed] = useState(false)
 
-  const popular = [...ARTICLES].sort((a, b) => b.views - a.views).slice(0, 4)
+  const popular = [...articles].sort((a, b) => b.views - a.views).slice(0, 4)
 
   return (
     <aside className="space-y-6">
@@ -387,14 +389,53 @@ function Sidebar({ onTagClick }: { onTagClick: (tag: string) => void }) {
   )
 }
 
+/* ─── Normalise un article venant de l'API vers le type Article ── */
+function apiBlogToArticle(post: ApiBlogPost): Article {
+  let tags: string[] = []
+  try { tags = JSON.parse(post.tags) } catch { tags = [] }
+
+  const date = post.publishedAt
+    ? new Date(post.publishedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
+    : 'Non daté'
+
+  return {
+    id:        post.id + 100_000,   // évite collision avec les IDs statiques (1-99)
+    slug:      post.slug,
+    cat:       post.category,
+    title:     post.title,
+    excerpt:   post.excerpt,
+    img:       post.coverImage,
+    author:    post.author,
+    authorImg: post.authorImage
+      ?? `https://ui-avatars.com/api/?name=${encodeURIComponent(post.author)}&background=0421ff&color=fff&size=100`,
+    date,
+    readTime:  post.readTime,
+    views:     post.views,
+    likes:     post.likes,
+    tags,
+  }
+}
+
 /* ─── Page ─────────────────────────────────────────────────── */
 export function BlogPage() {
   const [activeCat, setActiveCat] = useState<string>('all')
   const [searchVal, setSearchVal] = useState('')
   const [activeTag, setActiveTag]  = useState<string | null>(null)
 
-  const featured = ARTICLES.find(a => a.featured)!
-  const rest     = ARTICLES.filter(a => !a.featured)
+  // Récupère les articles du backoffice et les fusionne avec les articles statiques
+  const { data: blogData } = useQuery({
+    queryKey: ['blog-posts'],
+    queryFn:  () => fetchBlogPosts(),
+    staleTime: 60_000,
+  })
+
+  const apiArticles: Article[] = (blogData?.data?.posts ?? []).map(apiBlogToArticle)
+
+  // Articles API en premier, puis articles statiques (les statiques restent visibles)
+  const allArticles = [...apiArticles, ...ARTICLES]
+
+  const featured = allArticles.find(a => a.featured) ?? allArticles[0]!
+  const rest     = allArticles.filter(a => a !== featured)
 
   const filtered = rest.filter(a => {
     const matchCat  = activeCat === 'all' || a.cat === activeCat
@@ -431,7 +472,7 @@ export function BlogPage() {
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 bg-white/5 text-white/60 text-xs font-semibold mb-6 backdrop-blur-sm"
           >
             <BookOpen size={12} style={{ color: BLUE }} />
-            Magazine Koli · {ARTICLES.length} articles publiés
+            Magazine Koli · {allArticles.length} articles publiés
           </motion.div>
 
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 mb-12">
@@ -593,7 +634,7 @@ export function BlogPage() {
           {/* Sidebar */}
           <FadeIn delay={0.2}>
             <div className="sticky top-28">
-              <Sidebar onTagClick={handleTagClick} />
+              <Sidebar onTagClick={handleTagClick} articles={allArticles} />
             </div>
           </FadeIn>
         </div>

@@ -327,5 +327,22 @@ router.get('/admin/all', auth_1.requireAdmin, async (req, res) => {
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });
+/* ── PATCH /api/orders/:id/status  [ADMIN] — alias PATCH ─── */
+router.patch('/:id/status', auth_1.requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+        const validStatuses = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded'];
+        if (!validStatuses.includes(status)) {
+            res.status(400).json({ success: false, message: 'Statut invalide' });
+            return;
+        }
+        const order = await prisma_1.prisma.order.update({ where: { id }, data: { status } });
+        res.json({ success: true, data: { order } });
+    }
+    catch {
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
 exports.default = router;
 //# sourceMappingURL=orders.js.map

@@ -13,7 +13,7 @@ import { useCart } from '../contexts/CartContext'
    DONNÉES
 ═══════════════════════════════════════════════════════════════ */
 const fmt = (n: number) =>
-  (n / 100).toLocaleString('fr-FR', { minimumFractionDigits: 0 }) + ' FCFA'
+  Math.round(n / 100).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
 
 const CATEGORIES = [
   { id: 'all',      label: 'Tout',            icon: '🏪', count: PRODUCTS.length },
@@ -49,7 +49,8 @@ function ProductCard({ product, rank, view }: { product: typeof PRODUCTS[0]; ran
 
   const handleAdd = (e: React.MouseEvent) => {
     e.preventDefault()
-    addItem({ productId: product.id, name: product.name, brand: product.brand, price: product.price, oldPrice: product.oldPrice, image: product.images[0] })
+    if (product.stock === 0) return
+    addItem({ productId: product.id, name: product.name, brand: product.brand, price: product.price, oldPrice: product.oldPrice, image: product.images[0], stock: product.stock ?? undefined })
     setAdded(true)
     setTimeout(() => setAdded(false), 1800)
   }
@@ -78,8 +79,13 @@ function ProductCard({ product, rank, view }: { product: typeof PRODUCTS[0]; ran
               {product.oldPrice && <p className="text-xs text-gray-400 line-through">{fmt(product.oldPrice)}</p>}
             </div>
             <button onClick={handleAdd}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 ${added ? 'bg-emerald-500 text-white' : 'bg-gray-900 text-white hover:bg-gray-700'}`}>
-              {added ? <><Check size={12}/>Ajouté !</> : <><ShoppingCart size={12}/>Ajouter</>}
+              disabled={product.stock === 0}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                product.stock === 0
+                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  : `active:scale-95 ${added ? 'bg-emerald-500 text-white' : 'bg-gray-900 text-white hover:bg-gray-700'}`
+              }`}>
+              {product.stock === 0 ? <><ShoppingCart size={12}/>Épuisé</> : added ? <><Check size={12}/>Ajouté !</> : <><ShoppingCart size={12}/>Ajouter</>}
             </button>
           </div>
         </div>
@@ -142,9 +148,13 @@ function ProductCard({ product, rank, view }: { product: typeof PRODUCTS[0]; ran
             )}
           </div>
           <button onClick={handleAdd}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 ${added ? 'bg-emerald-500 text-white' : 'bg-gray-900 text-white hover:bg-gray-700'}`}>
-            {added ? <Check size={11}/> : <ShoppingCart size={11}/>}
-            {added ? 'Ajouté !' : 'Ajouter'}
+            disabled={product.stock === 0}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+              product.stock === 0
+                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                : `active:scale-95 ${added ? 'bg-emerald-500 text-white' : 'bg-gray-900 text-white hover:bg-gray-700'}`
+            }`}>
+            {product.stock === 0 ? <><ShoppingCart size={11}/>Épuisé</> : added ? <><Check size={11}/> Ajouté !</> : <><ShoppingCart size={11}/> Ajouter</>}
           </button>
         </div>
       </div>
@@ -338,7 +348,7 @@ export default function MagasinPage() {
                     className="w-full accent-gray-900 cursor-pointer" />
                   <div className="flex justify-between text-xs text-gray-400 mt-1">
                     <span>1 000 FCFA</span>
-                    <span className="font-bold text-gray-800">{(priceMax * 100 / 100 / 100).toLocaleString('fr-FR')} FCFA</span>
+                    <span className="font-bold text-gray-800">{Math.round(priceMax / 100).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} FCFA</span>
                     <span>50 000 FCFA</span>
                   </div>
                 </div>

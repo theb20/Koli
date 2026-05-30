@@ -1,13 +1,16 @@
 import { Link, NavLink } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import {
   Menu, X, ChevronDown, ChevronRight, ShoppingCart,
   User, Package, Bell, Phone, Mail, Moon, Sun,
-  Zap, AlignJustify, HelpCircle, MapPin, Search,
+  Zap, AlignJustify, HelpCircle, MapPin, Search, LogOut,
 } from 'lucide-react'
 import SearchBar from '../ui/Search'
 import { useCart } from '../../contexts/CartContext'
+import { useAuth } from '../../contexts/AuthContext'
+import { useQuery } from '@tanstack/react-query'
+import { fetchCategories, type ApiCategory } from '../../lib/api'
 
 /* ─────────────────────────────────────────
    TYPES
@@ -29,33 +32,24 @@ type NavItem = {
 const GREEN = '#0421ffff'
 
 /* ─────────────────────────────────────────
-   DATA
+   DATA — fallback si l'API n'est pas encore chargée
 ───────────────────────────────────────── */
-const CATEGORIES_DROPDOWN = [
-  { label: 'High-Tech',          icon: '📱', href: '/catalogue?cat=hightech'  },
-  { label: 'Maison & Décoration',icon: '🏠', href: '/catalogue?cat=maison'    },
-  { label: 'Beauté & Soins',     icon: '✨', href: '/catalogue?cat=beaute'    },
-  { label: 'Sport & Fitness',    icon: '💪', href: '/catalogue?cat=sport'     },
-  { label: 'Mode & Accessoires', icon: '👗', href: '/catalogue?cat=mode'      },
-  { label: 'Jeux & Loisirs',     icon: '🎮', href: '/catalogue?cat=jeux'      },
-]
-
-const MEGA_CATEGORIES: NavChild[] = [
-  { label: 'High-Tech',          href: '/catalogue?cat=hightech', description: 'Gadgets, audio & accessoires',     image: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=600', tag: 'Populaire' },
-  { label: 'Maison & Décoration',href: '/catalogue?cat=maison',   description: 'Décoration moderne & lifestyle',   image: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?q=80&w=600' },
-  { label: 'Beauté & Soins',     href: '/catalogue?cat=beaute',   description: 'Skincare & accessoires beauté',    image: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?q=80&w=600', tag: 'Tendance' },
-  { label: 'Sport & Fitness',    href: '/catalogue?cat=sport',    description: 'Performance & récupération',       image: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=600' },
-  { label: 'Mode & Accessoires', href: '/catalogue?cat=mode',     description: 'Styles contemporains',             image: 'https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?q=80&w=600' },
-  { label: 'Jeux & Loisirs',     href: '/catalogue?cat=jeux',     description: 'Gaming, jouets & créativité',      image: 'https://images.unsplash.com/photo-1493711662062-fa541adb3fc8?q=80&w=600' },
+const FALLBACK_CATEGORIES: ApiCategory[] = [
+  { id: 1, slug: 'hightech', name: 'High-Tech',          description: 'Gadgets, audio & accessoires',   icon: '📱', image: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=600', tag: 'Populaire', position: 0, isActive: true },
+  { id: 2, slug: 'maison',   name: 'Maison & Décoration', description: 'Décoration moderne & lifestyle', icon: '🏠', image: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?q=80&w=600', tag: null,        position: 1, isActive: true },
+  { id: 3, slug: 'beaute',   name: 'Beauté & Soins',      description: 'Skincare & accessoires beauté',  icon: '✨', image: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?q=80&w=600', tag: 'Tendance',  position: 2, isActive: true },
+  { id: 4, slug: 'sport',    name: 'Sport & Fitness',     description: 'Performance & récupération',     icon: '💪', image: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=600', tag: null,        position: 3, isActive: true },
+  { id: 5, slug: 'mode',     name: 'Mode & Accessoires',  description: 'Styles contemporains',           icon: '👗', image: 'https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?q=80&w=600', tag: null,        position: 4, isActive: true },
+  { id: 6, slug: 'jeux',     name: 'Jeux & Loisirs',      description: 'Gaming, jouets & créativité',    icon: '🎮', image: 'https://images.unsplash.com/photo-1493711662062-fa541adb3fc8?q=80&w=600', tag: null,        position: 5, isActive: true },
 ]
 
 const TRENDING_TAGS = ['Montres connectées', 'LED RGB', 'Skincare', 'Pistolet massage', 'Lampe bureau']
 
 const NAV_LINKS: NavItem[] = [
   { label: 'Accueil',    href: '/'          },
-  { label: 'Catalogue',  href: '/catalogue', mega: true, children: MEGA_CATEGORIES },
-  { label: 'Nouveautés', href: '/new'        },
-  { label: 'Tendances',  href: '/trending'   },
+  { label: 'Catalogue',  href: '/catalogue', mega: true },
+  { label: 'Blog', href: '/blog'        },
+  { label: 'À propos',  href: '/about'   },
   { label: 'Contact',    href: '/contact'    },
 ]
 
@@ -79,11 +73,11 @@ function TopBar() {
           <span className="text-gray-400 hidden lg:block">Livraison partout en Côte d&apos;Ivoire</span>
         </div>
         <div className="flex items-center gap-3 shrink-0">
-          <Link to="/suivi" className="hidden md:flex items-center gap-1 text-gray-300 hover:text-white transition-colors">
+          <Link to="/commandes" className="hidden md:flex items-center gap-1 text-gray-300 hover:text-white transition-colors">
             <MapPin size={12} /> Suivre ma commande
           </Link>
           <span className="text-gray-600 hidden md:block">|</span>
-          <Link to="/aide" className="hidden md:flex items-center gap-1 text-gray-300 hover:text-white transition-colors">
+          <Link to="/contact" className="hidden md:flex items-center gap-1 text-gray-300 hover:text-white transition-colors">
             <HelpCircle size={12} /> Aide
           </Link>
           <span className="text-gray-600">|</span>
@@ -123,11 +117,140 @@ function ActionIcon({ icon, label, sublabel, badge, href }: {
 }
 
 /* ─────────────────────────────────────────
+   ACCOUNT BUTTON — adaptatif selon l'auth
+───────────────────────────────────────── */
+function AccountButton() {
+  const { user, isAuthenticated, logout } = useAuth()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Annule le timer de fermeture quand la souris revient dans la zone
+  const cancelClose = () => {
+    if (closeTimer.current) {
+      clearTimeout(closeTimer.current)
+      closeTimer.current = null
+    }
+  }
+
+  // Ferme après un délai — laisse le temps de glisser vers le dropdown
+  const scheduleClose = () => {
+    cancelClose()
+    closeTimer.current = setTimeout(() => setMenuOpen(false), 120)
+  }
+
+  if (isAuthenticated && user) {
+    const initials = `${user.prenom[0] ?? ''}${user.nom[0] ?? ''}`.toUpperCase()
+
+    return (
+      <div
+        className="relative shrink-0"
+        onMouseEnter={cancelClose}
+        onMouseLeave={scheduleClose}
+      >
+        {/* Bouton principal */}
+        <button
+          onClick={() => setMenuOpen(v => !v)}
+          className="flex items-center gap-2.5 group"
+        >
+          {/* Avatar */}
+          <div className="relative shrink-0">
+            {user.avatar
+              ? <img src={user.avatar} alt={user.prenom}
+                  className="w-9 h-9 rounded-full object-cover ring-2 ring-offset-1 ring-transparent transition-all group-hover:ring-blue-500" />
+              : <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-xs font-bold ring-2 ring-offset-1 ring-transparent transition-all group-hover:ring-blue-500">
+                  {initials}
+                </div>
+            }
+            {/* Point vert "en ligne" */}
+            <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-400 border-2 border-white rounded-full" />
+          </div>
+          {/* Labels */}
+          <div className="hidden lg:block text-left">
+            <p className="text-[11px] text-gray-400 leading-none">
+              Bonjour, <span className="font-semibold text-gray-700">{user.prenom}</span>
+            </p>
+            <p className="text-sm font-semibold text-gray-800 leading-tight">Mon Compte</p>
+          </div>
+        </button>
+
+        {/* Pont invisible — comble le gap entre le bouton et le dropdown */}
+        {menuOpen && (
+          <div className="absolute right-0 top-full h-3 w-full" />
+        )}
+
+        {/* Dropdown menu */}
+        <AnimatePresence>
+          {menuOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: 6, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 4, scale: 0.97 }}
+              transition={{ duration: 0.15 }}
+              className="absolute right-0 top-[calc(100%+10px)] w-60 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50"
+            >
+              {/* Header dropdown */}
+              <div className="px-4 py-3 bg-gradient-to-br from-gray-900 to-gray-800 text-white flex items-center gap-3">
+                {user.avatar
+                  ? <img src={user.avatar} alt={user.prenom} className="w-10 h-10 rounded-full object-cover shrink-0 ring-2 ring-white/20" />
+                  : <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-violet-500 flex items-center justify-center text-white text-sm font-bold shrink-0">
+                      {initials}
+                    </div>
+                }
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold truncate">{user.prenom} {user.nom}</p>
+                  <p className="text-[11px] text-gray-400 truncate">{user.email}</p>
+                </div>
+              </div>
+
+              {/* Items */}
+              <div className="py-1.5">
+                {[
+                  { href: '/profil',    icon: <User size={14} />,    label: 'Mon profil'    },
+                  { href: '/commandes', icon: <Package size={14} />, label: 'Mes commandes' },
+                ].map(item => (
+                  <Link key={item.href} to={item.href} onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors">
+                    <span className="text-gray-400">{item.icon}</span>
+                    {item.label}
+                  </Link>
+                ))}
+                <div className="border-t border-gray-100 my-1" />
+                <button onClick={() => { setMenuOpen(false); logout() }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors">
+                  <LogOut size={14} />
+                  Se déconnecter
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    )
+  }
+
+  /* Non connecté */
+  return (
+    <Link to="/login" className="flex items-center gap-2.5 group shrink-0">
+      <div className="text-gray-500 group-hover:text-gray-900 transition-colors">
+        <User size={22} />
+      </div>
+      <div className="hidden lg:block">
+        <p className="text-[11px] text-gray-400 leading-none">Bonjour, Identifiez-vous</p>
+        <p className="text-sm font-semibold text-gray-800 leading-tight">Mon Compte</p>
+      </div>
+    </Link>
+  )
+}
+
+/* ─────────────────────────────────────────
    MEGA MENU (desktop)
 ───────────────────────────────────────── */
-function FullMegaMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
+function FullMegaMenu({ open, onClose, categories }: { open: boolean; onClose: () => void; categories: ApiCategory[] }) {
   const [activeIdx, setActiveIdx] = useState(0)
-  const active = MEGA_CATEGORIES[activeIdx] ?? MEGA_CATEGORIES[0]
+  const active = categories[activeIdx] ?? categories[0]
+  const activeHref = active ? `/catalogue?cat=${active.slug}` : '/catalogue'
+
+  if (!active) return null
 
   return (
     <div
@@ -149,25 +272,27 @@ function FullMegaMenu({ open, onClose }: { open: boolean; onClose: () => void })
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">Catalogue</p>
                 <h3 className="text-base font-semibold text-gray-900 mt-0.5">Parcourir par catégorie</h3>
               </div>
-              <span className="text-[11px] text-gray-400 font-mono">{MEGA_CATEGORIES.length} sections</span>
+              <span className="text-[11px] text-gray-400 font-mono">{categories.length} sections</span>
             </div>
             <div className="space-y-0.5">
-              {MEGA_CATEGORIES.map((cat, i) => {
+              {categories.map((cat, i) => {
                 const isActive = activeIdx === i
+                const href = `/catalogue?cat=${cat.slug}`
                 return (
-                  <Link key={cat.href} to={cat.href} onClick={onClose}
+                  <Link key={cat.id} to={href} onClick={onClose}
                     onMouseEnter={() => setActiveIdx(i)} onFocus={() => setActiveIdx(i)}
                     className={`group flex items-center gap-3 px-3 py-3 rounded-lg transition-colors duration-150 ${isActive ? 'bg-gray-50' : 'hover:bg-gray-50/60'}`}
                   >
                     <span className={`text-[10px] font-mono w-6 tabular-nums ${isActive ? 'text-gray-900' : 'text-gray-300'}`}>{String(i + 1).padStart(2, '0')}</span>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className={`text-sm font-medium ${isActive ? 'text-gray-900' : 'text-gray-700'}`}>{cat.label}</span>
+                        {cat.icon && <span className="text-base leading-none">{cat.icon}</span>}
+                        <span className={`text-sm font-medium ${isActive ? 'text-gray-900' : 'text-gray-700'}`}>{cat.name}</span>
                         {cat.tag && (
                           <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider" style={{ background: `${GREEN}15`, color: GREEN }}>{cat.tag}</span>
                         )}
                       </div>
-                      <p className="text-xs text-gray-500 mt-0.5 truncate">{cat.description}</p>
+                      {cat.description && <p className="text-xs text-gray-500 mt-0.5 truncate">{cat.description}</p>}
                     </div>
                     <span className={`text-gray-300 transition-all ${isActive ? 'opacity-100 text-gray-900' : 'opacity-0 -translate-x-2'}`}>→</span>
                   </Link>
@@ -184,23 +309,26 @@ function FullMegaMenu({ open, onClose }: { open: boolean; onClose: () => void })
           {/* Droite */}
           <div className="col-span-7 bg-gray-50/40 py-6 px-8 flex flex-col">
             <div className="flex items-center justify-between mb-5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">Aperçu · {active.label}</p>
-              <Link to={active.href} onClick={onClose} className="text-xs font-medium text-gray-900 hover:underline underline-offset-4 decoration-2" style={{ textDecorationColor: GREEN }}>Tout voir →</Link>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">Aperçu · {active.name}</p>
+              <Link to={activeHref} onClick={onClose} className="text-xs font-medium text-gray-900 hover:underline underline-offset-4 decoration-2" style={{ textDecorationColor: GREEN }}>Tout voir →</Link>
             </div>
-            <Link to={active.href} onClick={onClose} className="relative block rounded-xl overflow-hidden group mb-5" style={{ aspectRatio: '16/7' }}>
-              <img src={active.image} alt={active.label} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" key={active.href} />
+            <Link to={activeHref} onClick={onClose} className="relative block rounded-xl overflow-hidden group mb-5" style={{ aspectRatio: '16/7' }}>
+              {active.image
+                ? <img src={active.image} alt={active.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" key={active.slug} />
+                : <div className="absolute inset-0 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-6xl">{active.icon}</div>
+              }
               <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/20 to-transparent" />
               <div className="absolute inset-0 p-6 flex flex-col justify-end">
                 <p className="text-white/70 text-[10px] font-semibold uppercase tracking-[0.18em] mb-1">Catégorie</p>
-                <h4 className="text-white text-2xl font-semibold leading-tight">{active.label}</h4>
-                <p className="text-white/80 text-sm mt-1 max-w-md">{active.description}</p>
+                <h4 className="text-white text-2xl font-semibold leading-tight">{active.name}</h4>
+                {active.description && <p className="text-white/80 text-sm mt-1 max-w-md">{active.description}</p>}
               </div>
             </Link>
             <div className="grid grid-cols-2 gap-x-8 gap-y-1 mb-5">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400 mb-2">Sélections</p>
                 {[{ label: 'Nouveautés', meta: '24' }, { label: 'Meilleures ventes', meta: '48' }, { label: 'En promotion', meta: '-30%', accent: true }].map(item => (
-                  <Link key={item.label} to={active.href} onClick={onClose} className="flex items-center justify-between py-2 border-b border-gray-100 hover:border-gray-300 transition-colors group">
+                  <Link key={item.label} to={activeHref} onClick={onClose} className="flex items-center justify-between py-2 border-b border-gray-100 hover:border-gray-300 transition-colors group">
                     <span className="text-sm text-gray-700 group-hover:text-gray-900 group-hover:translate-x-0.5 transition-all">{item.label}</span>
                     <span className={`text-xs font-mono ${item.accent ? 'font-bold' : 'text-gray-400'}`} style={item.accent ? { color: GREEN } : {}}>{item.meta}</span>
                   </Link>
@@ -268,7 +396,7 @@ function CategoriesBtn() {
   return (
     <Link
       to="/magasin"
-      className="flex items-center gap-2 px-4 py-2 rounded-full border-2 border-gray-800 text-sm font-semibold text-gray-800 hover:bg-gray-800 hover:text-white transition-all shrink-0"
+      className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold text-gray-800 hover:bg-gray-800 hover:text-white transition-all shrink-0"
     >
       <AlignJustify size={15} />
       Explorer
@@ -280,8 +408,9 @@ function CategoriesBtn() {
 /* ─────────────────────────────────────────
    MOBILE MENU — pro light
 ───────────────────────────────────────── */
-function MobileOverlay({ open, onClose, onOpenCart }: { open: boolean; onClose: () => void; onOpenCart: () => void }) {
+function MobileOverlay({ open, onClose, onOpenCart, categories }: { open: boolean; onClose: () => void; onOpenCart: () => void; categories: ApiCategory[] }) {
   const [searchVal, setSearchVal] = useState('')
+  const { user, isAuthenticated, logout } = useAuth()
 
   useEffect(() => { if (!open) setSearchVal('') }, [open])
 
@@ -382,47 +511,71 @@ function MobileOverlay({ open, onClose, onOpenCart }: { open: boolean; onClose: 
                 Catégories
               </p>
               <div className="grid grid-cols-3 gap-2">
-                {CATEGORIES_DROPDOWN.map((cat, i) => (
-                  <motion.div
-                    key={cat.href}
-                    initial={{ opacity: 0, scale: 0.94 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.15 + i * 0.04, duration: 0.28 }}
-                  >
-                    <Link
-                      to={cat.href}
-                      onClick={onClose}
-                      className="flex flex-col items-center gap-1.5 p-3 rounded-2xl bg-gray-50 border border-gray-100 hover:border-gray-200 hover:bg-gray-100 active:scale-[0.96] transition-all text-center"
+                {categories.map((cat, i) => {
+                  const href = `/catalogue?cat=${cat.slug}`
+                  return (
+                    <motion.div
+                      key={cat.id}
+                      initial={{ opacity: 0, scale: 0.94 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.15 + i * 0.04, duration: 0.28 }}
                     >
-                      <span className="text-2xl leading-none">{cat.icon}</span>
-                      <span className="text-[11px] font-medium text-gray-600 leading-tight">{cat.label}</span>
-                    </Link>
-                  </motion.div>
-                ))}
+                      <Link
+                        to={href}
+                        onClick={onClose}
+                        className="flex flex-col items-center gap-1.5 p-3 rounded-2xl bg-gray-50 border border-gray-100 hover:border-gray-200 hover:bg-gray-100 active:scale-[0.96] transition-all text-center"
+                      >
+                        {cat.image
+                          ? <img src={cat.image} alt={cat.name} className="w-10 h-10 rounded-xl object-cover" />
+                          : <span className="text-2xl leading-none">{cat.icon ?? '📦'}</span>
+                        }
+                        <span className="text-[11px] font-medium text-gray-600 leading-tight">{cat.name}</span>
+                      </Link>
+                    </motion.div>
+                  )
+                })}
               </div>
             </div>
 
             {/* ── Actions ── */}
             <div className="px-4 pb-6 border-t border-gray-100 pt-4 flex flex-col gap-2.5">
 
-              {/* Flash sales */}
+              {/* Flash sales 
               <Link
-                to="/ventes-flash"
+                to="/catalogue?sort=promo"
                 onClick={onClose}
                 className="flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-bold text-white active:scale-[0.98] transition-transform"
                 style={{ background: 'linear-gradient(135deg, #f59e0b, #ef4444)' }}
               >
                 <Zap size={15} className="fill-white" />
                 Ventes Flash — Jusqu'à -50%
-              </Link>
+              </Link>*/}
 
               {/* Compte + Panier */}
               <div className="grid grid-cols-2 gap-2.5">
-                <Link to="/profil" onClick={onClose}
-                  className="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold text-gray-700 bg-gray-50 border border-gray-200 hover:border-gray-300 hover:bg-gray-100 active:scale-[0.97] transition-all">
-                  <User size={15} className="text-gray-500" />
-                  Mon Compte
-                </Link>
+                {isAuthenticated && user ? (
+                  /* Connecté — affiche avatar + prénom */
+                  <Link to="/profil" onClick={onClose}
+                    className="flex items-center gap-2.5 py-2.5 px-3 rounded-xl bg-gray-50 border border-gray-200 hover:border-gray-300 hover:bg-gray-100 active:scale-[0.97] transition-all min-w-0">
+                    {user.avatar
+                      ? <img src={user.avatar} alt={user.prenom} className="w-7 h-7 rounded-full object-cover shrink-0 ring-2 ring-blue-400/40" />
+                      : <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                          {user.prenom[0]}{user.nom[0]}
+                        </div>
+                    }
+                    <div className="min-w-0 text-left">
+                      <p className="text-[10px] text-gray-400 leading-none truncate">Mon Compte</p>
+                      <p className="text-xs font-bold text-gray-800 leading-tight truncate">{user.prenom}</p>
+                    </div>
+                  </Link>
+                ) : (
+                  /* Non connecté */
+                  <Link to="/login" onClick={onClose}
+                    className="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold text-gray-700 bg-gray-50 border border-gray-200 hover:border-gray-300 hover:bg-gray-100 active:scale-[0.97] transition-all">
+                    <User size={15} className="text-gray-500" />
+                    Mon Compte
+                  </Link>
+                )}
                 <button onClick={() => { onClose(); onOpenCart() }}
                   className="relative flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold text-white active:scale-[0.97] transition-all"
                   style={{ background: GREEN }}>
@@ -431,13 +584,22 @@ function MobileOverlay({ open, onClose, onOpenCart }: { open: boolean; onClose: 
                 </button>
               </div>
 
+              {/* Déconnexion rapide (si connecté) */}
+              {isAuthenticated && (
+                <button onClick={() => { onClose(); logout() }}
+                  className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold text-red-500 border border-red-100 hover:bg-red-50 active:scale-[0.97] transition-all">
+                  <LogOut size={13} />
+                  Se déconnecter
+                </button>
+              )}
+
               {/* Icônes rapides */}
               <div className="flex items-center justify-around pt-1 border-t border-gray-100 mt-1">
                 {[
-                  { href: '/commandes', icon: <Package size={18} />, label: 'Commandes' },
-                  { href: '/nouveautes', icon: <Bell size={18} />, label: 'Nouveautés', badge: 5 },
-                  { href: '/suivi', icon: <MapPin size={18} />, label: 'Suivi' },
-                  { href: '/aide', icon: <HelpCircle size={18} />, label: 'Aide' },
+                  { href: '/commandes',          icon: <Package size={18} />,   label: 'Commandes' },
+                  { href: '/catalogue?sort=newest', icon: <Bell size={18} />,      label: 'Nouveautés', badge: 5 },
+                  { href: '/commandes',          icon: <MapPin size={18} />,    label: 'Suivi' },
+                  { href: '/contact',            icon: <HelpCircle size={18} />, label: 'Aide' },
                 ].map(({ href, icon, label, badge }) => (
                   <Link key={href} to={href} onClick={onClose}
                     className="flex flex-col items-center gap-1 py-2 px-3 rounded-xl hover:bg-gray-50 transition-colors relative">
@@ -468,8 +630,17 @@ export function Header() {
   const [megaOpen,   setMegaOpen]   = useState(false)
   const { totalItems, totalPrice, toggleCart } = useCart()
   const cartLabel = totalPrice > 0
-    ? (totalPrice / 100).toLocaleString('fr-FR', { minimumFractionDigits: 0 }) + ' FCFA'
+    ? Math.round(totalPrice / 100).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
     : '0 FCFA'
+
+  /* Catégories dynamiques depuis l'API, fallback statique pendant le chargement */
+  const { data: catData } = useQuery({
+    queryKey: ['categories-public'],
+    queryFn: fetchCategories,
+    staleTime: 5 * 60_000,    // 5 min — les catégories changent rarement
+    placeholderData: { success: true, data: FALLBACK_CATEGORIES },
+  })
+  const categories = catData?.data ?? FALLBACK_CATEGORIES
 
   /* Ferme le menu mobile si on passe en desktop */
   useEffect(() => {
@@ -509,9 +680,9 @@ export function Header() {
 
           {/* Icons (desktop) */}
           <div className="hidden md:flex items-center gap-5 lg:gap-6 ml-2">
-            <ActionIcon icon={<User size={22}/>}         label="Bonjour, Identifiez-vous" sublabel="Mon Compte" href="/profil"     />
+            <AccountButton />
             <ActionIcon icon={<Package size={22}/>}      label="Mes"                      sublabel="Commandes"  href="/commandes"  />
-            <ActionIcon icon={<Bell size={22}/>}         label="Nouveautés"               sublabel="Produits"   badge={5} href="/nouveautes"/>
+            <ActionIcon icon={<Bell size={22}/>}         label="Nouveautés"               sublabel="Produits"   badge={5} href="/catalogue?sort=newest"/>
             <button onClick={toggleCart} className="flex items-center gap-2.5 group shrink-0">
               <div className="relative">
                 <ShoppingCart size={22} className="text-gray-500 group-hover:text-gray-900 transition-colors" />
@@ -591,19 +762,19 @@ export function Header() {
               )
             )}
           </nav>
-          <Link to="/ventes-flash"
+          <Link to="/catalogue?badges=sale"
             className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold text-white shrink-0 hover:opacity-90 transition-opacity"
             style={{ background: 'linear-gradient(135deg, #f59e0b, #ef4444)' }}>
             <Zap size={14} className="fill-white" /> VENTES FLASH
           </Link>
         </div>
-        <FullMegaMenu open={megaOpen} onClose={() => setMegaOpen(false)} />
+        <FullMegaMenu open={megaOpen} onClose={() => setMegaOpen(false)} categories={categories} />
       </div>
 
     </header>
 
     {/* Full-screen overlay mobile */}
-    <MobileOverlay open={mobileOpen} onClose={() => setMobileOpen(false)} onOpenCart={toggleCart} />
+    <MobileOverlay open={mobileOpen} onClose={() => setMobileOpen(false)} onOpenCart={toggleCart} categories={categories} />
     </>
   )
 }

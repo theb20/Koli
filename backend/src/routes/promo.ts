@@ -61,10 +61,11 @@ router.get('/:code', async (req, res) => {
 router.post('/', requireAdmin, validate(z.object({
   code:      z.string().min(3).max(20).toUpperCase(),
   type:      z.enum(['percent', 'fixed']),
-  value:     z.number().int().positive(),
-  minOrder:  z.number().int().nonnegative().default(0),
-  maxUses:   z.number().int().positive().optional(),
-  expiresAt: z.string().datetime().optional(),
+  value:     z.coerce.number().int().positive(),
+  minOrder:  z.coerce.number().int().nonnegative().default(0),
+  maxUses:   z.coerce.number().int().positive().optional(),
+  /* Accepte un ISO complet ou une date seule — on parse en Date dans le handler */
+  expiresAt: z.string().optional(),
 })), async (req, res) => {
   try {
     const data = req.body as {
@@ -105,6 +106,23 @@ router.delete('/:id', requireAdmin, async (req, res) => {
   } catch {
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
+})
+
+/* ── GET /api/promo/admin/all  [ADMIN] ──────────────────────── */
+router.get('/admin/all', requireAdmin, async (_req, res) => {
+  try {
+    const promos = await prisma.promoCode.findMany({ orderBy: { createdAt: 'desc' } })
+    res.json({ success: true, data: { promos } })
+  } catch { res.status(500).json({ success: false, message: 'Erreur serveur' }) }
+})
+
+/* ── PATCH /api/promo/:id/toggle  [ADMIN] ──────────────────── */
+router.patch('/:id/toggle', requireAdmin, async (req, res) => {
+  try {
+    const { isActive } = req.body
+    const promo = await prisma.promoCode.update({ where: { id: parseInt(req.params['id']!) }, data: { isActive } })
+    res.json({ success: true, data: { promo } })
+  } catch { res.status(500).json({ success: false, message: 'Erreur serveur' }) }
 })
 
 export default router

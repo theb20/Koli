@@ -12,10 +12,7 @@ const contactSchema = z.object({
   nom:       z.string().min(2).max(50),
   email:     z.string().email(),
   telephone: z.string().optional(),
-  sujet:     z.enum([
-    'Commande', 'Livraison', 'Remboursement', 'Produit défectueux',
-    'Question produit', 'Partenariat', 'Presse', 'Autre'
-  ]),
+  sujet:     z.string().min(1).max(100),
   message: z.string().min(20, 'Message trop court').max(2000),
 })
 
@@ -69,6 +66,35 @@ router.put('/:id/status', requireAdmin, async (req, res) => {
   } catch {
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
+})
+
+/* ── GET /api/contact/admin/all  [ADMIN] ────────────────────── */
+router.get('/admin/all', requireAdmin, async (req, res) => {
+  try {
+    const page  = parseInt(req.query['page'] as string) || 1
+    const limit = parseInt(req.query['limit'] as string) || 20
+    const [total, messages] = await Promise.all([
+      prisma.contactMessage.count(),
+      prisma.contactMessage.findMany({ orderBy: { createdAt: 'desc' }, skip: (page - 1) * limit, take: limit }),
+    ])
+    res.json({ success: true, data: { messages, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } } })
+  } catch { res.status(500).json({ success: false, message: 'Erreur serveur' }) }
+})
+
+/* ── PATCH /api/contact/:id/read  [ADMIN] ──────────────────── */
+router.patch('/:id/read', requireAdmin, async (req, res) => {
+  try {
+    const msg = await prisma.contactMessage.update({ where: { id: req.params['id']! }, data: { status: 'read' } })
+    res.json({ success: true, data: { message: msg } })
+  } catch { res.status(500).json({ success: false, message: 'Erreur serveur' }) }
+})
+
+/* ── DELETE /api/contact/:id  [ADMIN] ──────────────────────── */
+router.delete('/:id', requireAdmin, async (req, res) => {
+  try {
+    await prisma.contactMessage.delete({ where: { id: req.params['id']! } })
+    res.json({ success: true, message: 'Message supprimé' })
+  } catch { res.status(500).json({ success: false, message: 'Erreur serveur' }) }
 })
 
 export default router

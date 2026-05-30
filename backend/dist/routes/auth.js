@@ -286,5 +286,154 @@ router.delete('/sessions/:id', auth_1.requireAuth, async (req, res) => {
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });
+/* ─────────────────────────────────────────────────────────────
+   POST /api/auth/google  — Connexion / inscription via Google
+   Reçoit les infos Firebase, crée ou trouve le compte
+───────────────────────────────────────────────────────────── */
+router.post('/google', async (req, res) => {
+    try {
+        const schema = zod_1.z.object({
+            email: zod_1.z.string().email(),
+            prenom: zod_1.z.string().min(1),
+            nom: zod_1.z.string().min(1),
+            avatar: zod_1.z.string().url().nullable().optional(),
+            firebaseUid: zod_1.z.string().min(1),
+        });
+        const body = schema.parse(req.body);
+        // Chercher un compte existant avec cet email
+        let user = await prisma_1.prisma.user.findUnique({ where: { email: body.email } });
+        if (!user) {
+            // Créer un nouveau compte (pas de mot de passe pour les comptes Google)
+            user = await prisma_1.prisma.user.create({
+                data: {
+                    email: body.email,
+                    prenom: body.prenom,
+                    nom: body.nom,
+                    avatar: body.avatar ?? null,
+                    password: '', // compte Google — pas de mot de passe local
+                    isVerified: true, // email vérifié par Google
+                },
+            });
+            // Email de bienvenue
+            (0, mailer_1.sendWelcomeEmail)(user.email, user.prenom).catch(() => { });
+        }
+        else {
+            // Mettre à jour l'avatar si on en a un nouveau
+            if (body.avatar && !user.avatar) {
+                await prisma_1.prisma.user.update({ where: { id: user.id }, data: { avatar: body.avatar } });
+                user = { ...user, avatar: body.avatar };
+            }
+        }
+        const accessToken = (0, jwt_1.signAccessToken)({ userId: user.id, email: user.email, role: user.role });
+        const refreshToken = (0, jwt_1.signRefreshToken)({ userId: user.id });
+        await prisma_1.prisma.session.create({
+            data: {
+                userId: user.id,
+                refreshToken,
+                userAgent: req.headers['user-agent'],
+                ipAddress: req.ip,
+                expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+            },
+        });
+        setAuthCookies(res, accessToken, refreshToken);
+        res.json({
+            success: true,
+            data: {
+                user: {
+                    id: user.id,
+                    prenom: user.prenom,
+                    nom: user.nom,
+                    email: user.email,
+                    avatar: user.avatar,
+                    role: user.role,
+                },
+                accessToken,
+            },
+        });
+    }
+    catch (err) {
+        if (err instanceof zod_1.z.ZodError) {
+            res.status(400).json({ success: false, message: 'Données invalides', errors: err.flatten().fieldErrors });
+            return;
+        }
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+/* ─────────────────────────────────────────────────────────────
+   GET /api/auth/users  [ADMIN] — Liste des utilisateurs
+───────────────────────────────────────────────────────────── */
+router.get('/users', auth_1.requireAdmin, async (req, res) => {
+    try {
+        const page = parseInt(req.query['page']) || 1;
+        const limit = parseInt(req.query['limit']) || 20;
+        const q = req.query['q'];
+        const role = req.query['role'];
+        const where = {};
+        if (role)
+            where['role'] = role;
+        if (q)
+            where['OR'] = [
+                { prenom: { contains: q } },
+                { nom: { contains: q } },
+                { email: { contains: q } },
+            ];
+        const [total, users] = await Promise.all([
+            prisma_1.prisma.user.count({ where }),
+            prisma_1.prisma.user.findMany({
+                where,
+                skip: (page - 1) * limit,
+                take: limit,
+                orderBy: { createdAt: 'desc' },
+                select: {
+                    id: true, prenom: true, nom: true, email: true,
+                    telephone: true, avatar: true, role: true,
+                    isVerified: true, createdAt: true,
+                    _count: { select: { orders: true } },
+                },
+            }),
+        ]);
+        res.json({
+            success: true,
+            data: {
+                users,
+                pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+            },
+        });
+    }
+    catch {
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+/* ── PATCH /api/auth/users/:id/role  [ADMIN] ─────────────────── */
+router.patch('/users/:id/role', auth_1.requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { role } = req.body;
+        if (!['admin', 'customer'].includes(role)) {
+            res.status(400).json({ success: false, message: 'Rôle invalide' });
+            return;
+        }
+        const user = await prisma_1.prisma.user.update({ where: { id }, data: { role } });
+        res.json({ success: true, data: { user } });
+    }
+    catch {
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+/* ── PUT /api/auth/me  [AUTH] ───────────────────────────────── */
+router.put('/me', auth_1.requireAuth, async (req, res) => {
+    try {
+        const { prenom, nom, email } = req.body;
+        const user = await prisma_1.prisma.user.update({
+            where: { id: req.user.userId },
+            data: { prenom, nom, email },
+        });
+        res.json({ success: true, data: { user } });
+    }
+    catch {
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
 exports.default = router;
 //# sourceMappingURL=auth.js.map

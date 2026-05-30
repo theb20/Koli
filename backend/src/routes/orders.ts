@@ -47,6 +47,7 @@ const createOrderSchema = z.object({
   // Promo
   promoCode: z.string().optional(),
   notes:     z.string().max(500).optional(),
+
 })
 
 /* ─────────────────────────────────────────────────────────────
@@ -55,6 +56,18 @@ const createOrderSchema = z.object({
 router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => {
   try {
     const body = req.body as z.infer<typeof createOrderSchema>
+
+    // 0. Vérifier que l'utilisateur n'est pas banni
+    if (req.user) {
+      const account = await prisma.user.findUnique({
+        where: { id: req.user.userId },
+        select: { isBanned: true },
+      })
+      if (account?.isBanned) {
+        res.status(403).json({ success: false, message: 'Votre compte est suspendu. Contactez le support.' })
+        return
+      }
+    }
 
     // 1. Récupérer les produits et vérifier le stock
     const productIds = body.items.map(i => i.productId)
@@ -71,6 +84,10 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
     // Vérifier le stock
     for (const item of body.items) {
       const p = products.find(p => p.id === item.productId)!
+      if (p.stock !== null && p.stock === 0) {
+        res.status(400).json({ success: false, message: `"${p.name}" est en rupture de stock` })
+        return
+      }
       if (p.stock !== null && p.stock < item.qty) {
         res.status(400).json({ success: false, message: `Stock insuffisant pour "${p.name}" (disponible: ${p.stock})` })
         return
@@ -88,7 +105,14 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
       return body.deliveryMethod === 'express' ? 350_000 : 150_000
     })()
 
-    // 3. Valider le code promo
+    // 3. Récupérer le taux de TVA par défaut
+    const defaultTax = await prisma.taxRate.findFirst({
+      where: { isDefault: true, isActive: true },
+    })
+    const taxRatePercent = defaultTax?.rate ?? 0
+    const taxAmount      = Math.round(subtotal * taxRatePercent / 100)
+
+    // 4. Valider le code promo
     let promoDiscount = 0
     let validatedCode: string | null = null
     if (body.promoCode) {
@@ -112,9 +136,12 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
       }
     }
 
-    const total = subtotal - promoDiscount + shippingCost
+    const total = subtotal + taxAmount - promoDiscount + shippingCost
 
-    // 4. Créer la commande
+    // Points gagnés : 1 point par 100 FCFA dépensés
+    const pointsEarned = req.user?.userId ? Math.floor(total / 10_000) : 0
+
+    // 5. Créer la commande
     const orderNumber = generateOrderNumber()
     const order = await prisma.order.create({
       data: {
@@ -129,8 +156,11 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
         shippingCost,
         paymentMethod:   body.paymentMethod,
         subtotal,
+        taxRate:         taxRatePercent,
+        taxAmount,
         promoCode:       validatedCode,
         promoDiscount,
+        pointsEarned,
         total,
         notes:           body.notes,
         items: {
@@ -161,14 +191,26 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
       )
     )
 
-    // 6. Notification en base (si utilisateur connecté)
+    // 6a. Fidélité : créditer les points gagnés
+    if (req.user?.userId && pointsEarned > 0) {
+      await Promise.all([
+        prisma.user.update({ where: { id: req.user.userId }, data: { loyaltyPoints: { increment: pointsEarned } } }),
+        prisma.pointTransaction.create({
+          data: { userId: req.user.userId, orderId: order.id, type: 'earn', points: pointsEarned, note: `Gagnés sur commande ${orderNumber}` },
+        }),
+      ])
+    }
+
+    // 6b. Notification en base (si utilisateur connecté)
     if (req.user?.userId) {
+      const notifLines = [`Votre commande ${orderNumber} a bien été reçue.`]
+      if (pointsEarned > 0) notifLines.push(`+${pointsEarned} points Koli crédités !`)
       await prisma.notification.create({
         data: {
           userId: req.user.userId,
           type:   'order',
           title:  'Commande reçue',
-          body:   `Votre commande ${orderNumber} a bien été reçue.`,
+          body:   notifLines.join(' '),
           link:   `/commandes/${orderNumber}`,
         },
       })
@@ -188,11 +230,12 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
       success: true,
       message: 'Commande créée avec succès',
       data: {
-        orderNumber: order.orderNumber,
-        orderId:     order.id,
+        orderNumber:     order.orderNumber,
+        orderId:         order.id,
         total,
         shippingCost,
         promoDiscount,
+        pointsEarned,
       },
     })
   } catch (err) {
@@ -243,18 +286,62 @@ router.get('/', requireAuth, async (req, res) => {
 })
 
 /* ─────────────────────────────────────────────────────────────
+   GET /api/orders/admin/all  [ADMIN]
+   ⚠️  DOIT être déclaré AVANT /:id pour ne pas être masqué
+───────────────────────────────────────────────────────────── */
+router.get('/admin/all', requireAdmin, async (req, res) => {
+  try {
+    const page   = parseInt(req.query['page'] as string) || 1
+    const limit  = parseInt(req.query['limit'] as string) || 20
+    const status = req.query['status'] as string | undefined
+    const q      = req.query['q'] as string | undefined
+
+    const where = {
+      ...(status ? { status } : {}),
+      ...(q ? { OR: [
+        { orderNumber: { contains: q } },
+        { clientEmail: { contains: q } },
+        { clientTelephone: { contains: q } },
+      ] } : {}),
+    }
+
+    const [total, orders] = await Promise.all([
+      prisma.order.count({ where }),
+      prisma.order.findMany({
+        where, orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit, take: limit,
+        include: { items: { select: { name: true, qty: true, image: true } } },
+      }),
+    ])
+
+    res.json({ success: true, data: { orders, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } } })
+  } catch {
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/* ─────────────────────────────────────────────────────────────
    GET /api/orders/:id  — Détail commande
 ───────────────────────────────────────────────────────────── */
 router.get('/:id', optionalAuth, async (req, res) => {
   try {
+    const paramId = req.params['id'] ?? ''
+    const isAdmin = req.user?.role === 'admin'
+
     const order = await prisma.order.findFirst({
       where: {
-        OR: [
-          { id: req.params['id'] },
-          { orderNumber: req.params['id'] },
+        AND: [
+          // Cherche par id (CUID) OU par orderNumber (KLI-...)
+          { OR: [{ id: paramId }, { orderNumber: paramId }] },
+          // Admin → toutes les commandes
+          // Connecté non-admin → commande lui appartenant OU commande invité (userId null)
+          // Non connecté → commande invité seulement
+          ...(isAdmin
+            ? []
+            : req.user
+              ? [{ OR: [{ userId: req.user.userId }, { userId: null }] }]
+              : [{ userId: null }]),
         ],
-        // Si connecté : doit être sa commande
-        ...(req.user ? { userId: req.user.userId } : {}),
       },
       include: { items: true },
     })
@@ -302,7 +389,7 @@ router.put('/:id/cancel', requireAuth, async (req, res) => {
 ───────────────────────────────────────────────────────────── */
 router.put('/:id/status', requireAdmin, async (req, res) => {
   try {
-    const schema = z.object({ status: z.enum(['pending','confirmed','preparing','shipped','delivered','cancelled']) })
+    const schema = z.object({ status: z.enum(['pending','confirmed','processing','shipped','delivered','cancelled','refunded']) })
     const { status } = schema.parse(req.body)
 
     const order = await prisma.order.findUnique({
@@ -337,31 +424,18 @@ router.put('/:id/status', requireAdmin, async (req, res) => {
   }
 })
 
-/* ─────────────────────────────────────────────────────────────
-   GET /api/orders/admin/all  [ADMIN]
-───────────────────────────────────────────────────────────── */
-router.get('/admin/all', requireAdmin, async (req, res) => {
+/* ── PATCH /api/orders/:id/status  [ADMIN] — alias PATCH ─── */
+router.patch('/:id/status', requireAdmin, async (req, res) => {
   try {
-    const page   = parseInt(req.query['page'] as string) || 1
-    const limit  = parseInt(req.query['limit'] as string) || 20
-    const status = req.query['status'] as string | undefined
-    const q      = req.query['q'] as string | undefined
-
-    const where = {
-      ...(status ? { status } : {}),
-      ...(q ? { OR: [{ orderNumber: { contains: q } }, { clientEmail: { contains: q } }, { clientTelephone: { contains: q } }] } : {}),
+    const { id }     = req.params
+    const { status } = req.body
+    const validStatuses = ['pending','confirmed','processing','shipped','delivered','cancelled','refunded']
+    if (!validStatuses.includes(status)) {
+      res.status(400).json({ success: false, message: 'Statut invalide' })
+      return
     }
-
-    const [total, orders] = await Promise.all([
-      prisma.order.count({ where }),
-      prisma.order.findMany({
-        where, orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * limit, take: limit,
-        include: { items: { select: { name: true, qty: true } } },
-      }),
-    ])
-
-    res.json({ success: true, data: { orders, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } } })
+    const order = await prisma.order.update({ where: { id }, data: { status } })
+    res.json({ success: true, data: { order } })
   } catch {
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
