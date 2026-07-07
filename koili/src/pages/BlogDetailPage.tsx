@@ -8,6 +8,7 @@ import {
   ExternalLink, Link2, Check,
 } from 'lucide-react'
 import { fetchBlogPost } from '../lib/api'
+import { PageMeta } from '../components/seo/PageMeta'
 
 /* ── Types article statique (fallback) ─────────────────────── */
 type StaticArticle = {
@@ -179,6 +180,40 @@ export default function BlogDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-50/50">
+
+      <PageMeta
+        title={article.title}
+        description={article.excerpt?.slice(0, 155)}
+        image={article.img}
+        path={`/blog/${article.slug}`}
+        type="article"
+        jsonLd={[
+          {
+            '@context': 'https://schema.org',
+            '@type': 'BlogPosting',
+            headline: article.title,
+            description: article.excerpt,
+            image: article.img,
+            author: { '@type': 'Person', name: article.author },
+            publisher: {
+              '@type': 'Organization',
+              name: 'Skignas',
+              logo: { '@type': 'ImageObject', url: 'https://skignas.com/imgs_dropship/favicon.svg' },
+            },
+            ...(apiPost?.publishedAt ? { datePublished: apiPost.publishedAt } : {}),
+            mainEntityOfPage: { '@type': 'WebPage', '@id': `https://skignas.com/blog/${article.slug}` },
+          },
+          {
+            '@context': 'https://schema.org',
+            '@type': 'BreadcrumbList',
+            itemListElement: [
+              { '@type': 'ListItem', position: 1, name: 'Accueil', item: 'https://skignas.com/' },
+              { '@type': 'ListItem', position: 2, name: 'Blog', item: 'https://skignas.com/blog' },
+              { '@type': 'ListItem', position: 3, name: article.title, item: `https://skignas.com/blog/${article.slug}` },
+            ],
+          },
+        ]}
+      />
 
       {/* ── Hero image ──────────────────────────────────────────── */}
       <div className="relative w-full aspect-[16/7] bg-gray-900 overflow-hidden">

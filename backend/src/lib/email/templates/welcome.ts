@@ -3,7 +3,7 @@ import { baseLayout } from '../layout'
 import { subheading, heading, paragraph, divider, ctaButton, highlightBox, iconRow } from '../components'
 
 export async function sendWelcomeEmail(to: string, prenom: string): Promise<void> {
-  const frontUrl = process.env.FRONTEND_URL ?? 'https://skignas.ahobaut.fr'
+  const frontUrl = process.env.FRONTEND_URL ?? 'https://skignas.com'
 
   const html = await baseLayout(`
       ${subheading('Compte activé')}

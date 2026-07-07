@@ -658,7 +658,42 @@ export default function ProductPage() {
         description={product.description?.slice(0, 155)}
         image={product.images[0]}
         path={`/catalogue/${product.id}`}
-        type="website"
+        type="product"
+        jsonLd={[
+          {
+            '@context': 'https://schema.org',
+            '@type': 'Product',
+            name: product.name,
+            image: product.images.filter(Boolean),
+            description: product.description?.slice(0, 500) || product.name,
+            brand: { '@type': 'Brand', name: product.brand },
+            ...(product.reviews > 0 ? {
+              aggregateRating: {
+                '@type': 'AggregateRating',
+                ratingValue: product.rating,
+                reviewCount: product.reviews,
+              },
+            } : {}),
+            offers: {
+              '@type': 'Offer',
+              url: `https://skignas.com/catalogue/${product.id}`,
+              priceCurrency: 'XOF',
+              price: product.price,
+              availability: product.stock > 0
+                ? 'https://schema.org/InStock'
+                : 'https://schema.org/OutOfStock',
+            },
+          },
+          {
+            '@context': 'https://schema.org',
+            '@type': 'BreadcrumbList',
+            itemListElement: [
+              { '@type': 'ListItem', position: 1, name: 'Accueil', item: 'https://skignas.com/' },
+              { '@type': 'ListItem', position: 2, name: 'Catalogue', item: 'https://skignas.com/catalogue' },
+              { '@type': 'ListItem', position: 3, name: product.name, item: `https://skignas.com/catalogue/${product.id}` },
+            ],
+          },
+        ]}
       />
 
       <div className="bg-white min-h-screen">

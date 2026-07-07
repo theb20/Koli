@@ -2,6 +2,7 @@ import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
 import morgan from 'morgan'
+import compression from 'compression'
 import cookieParser from 'cookie-parser'
 import { rateLimit } from 'express-rate-limit'
 import path from 'path'
@@ -43,6 +44,9 @@ const ALLOWED_ORIGINS = [
   'http://192.168.1.29:5174',
   'https://skignas.ahobaut.fr',
   'https://adminskignas.web.app',
+  'https://skignas.com',
+  'https://www.skignas.com',
+
 ]
 
 app.use(cors({
@@ -56,6 +60,9 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }))
+
+/* ── Compression gzip — réduit la taille des réponses JSON ────── */
+app.use(compression())
 
 /* ── Sécurité ───────────────────────────────────────────────── */
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }))

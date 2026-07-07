@@ -139,6 +139,10 @@ model Product {
   stockAlerts    StockAlert[]
   wishlistItems  WishlistItem[]
 
+  @@index([categoryId])
+  @@index([storeId])
+  @@index([category])
+  @@index([isActive, createdAt])
   @@map("products")
 }
 
@@ -196,6 +200,8 @@ model Order {
   items           OrderItem[]
   user            User?         @relation(fields: [userId], references: [id])
 
+  @@index([userId])
+  @@index([status])
   @@map("orders")
 }
 
@@ -212,6 +218,8 @@ model OrderItem {
   product   Product @relation(fields: [productId], references: [id])
   order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
+  @@index([orderId])
+  @@index([productId])
   @@map("order_items")
 }
 
@@ -228,6 +236,7 @@ model Address {
   isDefault Boolean @default(false)
   user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
   @@map("addresses")
 }
 
@@ -245,6 +254,8 @@ model Review {
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([productId])
+  @@index([userId])
   @@map("reviews")
 }
 
@@ -286,6 +297,7 @@ model Notification {
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, isRead])
   @@map("notifications")
 }
 

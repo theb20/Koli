@@ -43,7 +43,9 @@ export type PageMetaProps = {
   /** Empêche l'indexation (login, register…). */
   noIndex?: boolean
   /** Type Open Graph. "website" par défaut. */
-  type?: "website" | "article"
+  type?: "website" | "article" | "product"
+  /** Données structurées schema.org (rich snippets Google) — un objet ou plusieurs. */
+  jsonLd?: object | object[]
 }
 
 /* ─────────────────────────────────────────
@@ -56,6 +58,7 @@ export function PageMeta({
   path,
   noIndex = false,
   type    = "website",
+  jsonLd,
 }: PageMetaProps) {
   const fullTitle = `${title} — ${SITE_NAME}`
 
@@ -65,6 +68,7 @@ export function PageMeta({
     : DEFAULT_IMAGE
 
   const canonical = path ? `${BASE_URL}${path}` : undefined
+  const ldItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : []
 
   return (
     <>
@@ -95,6 +99,11 @@ export function PageMeta({
       {description && <meta name="twitter:description" content={description} />}
       <meta name="twitter:image"       content={ogImage} />
       <meta name="twitter:image:alt"   content={fullTitle} />
+
+      {/* ── Données structurées (rich snippets) ── */}
+      {ldItems.map((obj, i) => (
+        <script key={i} type="application/ld+json">{JSON.stringify(obj)}</script>
+      ))}
     </>
   )
 }

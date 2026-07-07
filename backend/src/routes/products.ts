@@ -187,23 +187,21 @@ router.get('/:id', optionalAuth, cacheControl(20), async (req, res) => {
       return
     }
 
-    // Produits similaires
-    const similar = await prisma.product.findMany({
-      where: { category: product.category, id: { not: product.id }, isActive: true },
-      take: 6, orderBy: { sold: 'desc' },
-      include: { images: { take: 1, orderBy: { position: 'asc' } } },
-    })
+    // Produits similaires + statut wishlist — indépendants, en parallèle
+    const [similar, wish] = await Promise.all([
+      prisma.product.findMany({
+        where: { category: product.category, id: { not: product.id }, isActive: true },
+        take: 6, orderBy: { sold: 'desc' },
+        include: { images: { take: 1, orderBy: { position: 'asc' } } },
+      }),
+      req.user
+        ? prisma.wishlistItem.findUnique({
+            where: { userId_productId: { userId: req.user.userId, productId: id } },
+          })
+        : Promise.resolve(null),
+    ])
 
-    // Vérifier si dans la wishlist
-    let inWishlist = false
-    if (req.user) {
-      const wish = await prisma.wishlistItem.findUnique({
-        where: { userId_productId: { userId: req.user.userId, productId: id } },
-      })
-      inWishlist = !!wish
-    }
-
-    res.json({ success: true, data: { product, similar, inWishlist } })
+    res.json({ success: true, data: { product, similar, inWishlist: !!wish } })
   } catch {
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }

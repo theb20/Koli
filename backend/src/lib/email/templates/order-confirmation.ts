@@ -15,7 +15,7 @@ function fmt(n: number): string {
 }
 
 export async function sendOrderConfirmationEmail(to: string, order: OrderConfirmationPayload): Promise<void> {
-  const frontUrl      = process.env.FRONTEND_URL ?? 'https://skignas.ahobaut.fr'
+  const frontUrl      = process.env.FRONTEND_URL ?? 'https://skignas.com'
   const paymentLabel  = PAYMENT_LABELS[order.paymentMethod]  ?? order.paymentMethod
   const deliveryLabel = order.deliveryMethod === 'express' ? 'Express · 24h' : 'Standard · 48–72h'
   const sub           = order.subtotal      ?? order.items.reduce((s, i) => s + i.price * i.qty, 0)

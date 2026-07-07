@@ -71,6 +71,7 @@ export function PackifyHero() {
         {/* Headline */}
         <div style={{ fontSize: 'clamp(26px, 5vw, 108px)', fontWeight: 400 }}>
           <BlurText
+            as="h1"
             text="La tech que vous cherchez, réunie en un seul endroit."
             delay={120}
             animateBy="words"

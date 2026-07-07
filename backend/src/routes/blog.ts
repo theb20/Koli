@@ -66,15 +66,15 @@ router.get('/:slug', async (req, res) => {
       return
     }
 
-    // Incrémenter les vues
-    await prisma.blogPost.update({ where: { id: post.id }, data: { views: { increment: 1 } } })
-
-    // Articles liés
-    const related = await prisma.blogPost.findMany({
-      where: { category: post.category, id: { not: post.id }, isPublished: true },
-      take: 3, orderBy: { views: 'desc' },
-      select: { id: true, slug: true, title: true, coverImage: true, readTime: true, publishedAt: true },
-    })
+    // Incrémenter les vues + récupérer les articles liés en parallèle (indépendants l'un de l'autre)
+    const [, related] = await Promise.all([
+      prisma.blogPost.update({ where: { id: post.id }, data: { views: { increment: 1 } } }),
+      prisma.blogPost.findMany({
+        where: { category: post.category, id: { not: post.id }, isPublished: true },
+        take: 3, orderBy: { views: 'desc' },
+        select: { id: true, slug: true, title: true, coverImage: true, readTime: true, publishedAt: true },
+      }),
+    ])
 
     res.json({ success: true, data: { post, related } })
   } catch {

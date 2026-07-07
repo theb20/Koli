@@ -1,6 +1,6 @@
 # ================================================================
 # DROPSHIP — robots.txt
-# Domaine : https://skignas.ahobaut.fr
+# Domaine : https://skignas.com
 # ================================================================
 
 User-agent: *
@@ -38,4 +38,4 @@ Disallow: /*.json$
 Crawl-delay: 1
 
 # ── Sitemap ──────────────────────────────────────────────────────
-Sitemap: https://skignas.ahobaut.fr/sitemap.xml
+Sitemap: https://skignas.com/sitemap.xml

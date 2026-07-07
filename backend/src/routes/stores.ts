@@ -29,6 +29,7 @@ const importProductSchema = z.object({
   stock:       z.coerce.number().int().nonnegative().default(100),
   badge:       z.enum(['hot', 'new', 'sale', 'top']).optional(),
   images:      z.array(z.string().url()).optional(),
+  specs:       z.array(z.object({ label: z.string(), value: z.string() })).optional(),
 })
 
 /* ─────────────────────────────────────────────────────────────
@@ -171,7 +172,7 @@ router.post('/:id/import', async (req, res) => {
         skipped.push(`${item.name} (catégorie "${item.category}" introuvable)`)
         continue
       }
-      const { images, ...rest } = item
+      const { images, specs, ...rest } = item
       await prisma.product.create({
         data: {
           ...rest,
@@ -180,6 +181,9 @@ router.post('/:id/import', async (req, res) => {
           isActive: true,
           images: images?.length
             ? { create: images.map((url, i) => ({ url, position: i })) }
+            : undefined,
+          specs: specs?.length
+            ? { create: specs.map((s, i) => ({ ...s, position: i })) }
             : undefined,
         },
       })

@@ -16,7 +16,7 @@ export async function sendFlashDealEmail(
   products: FlashDealProduct[],
   endsAt: Date,
 ): Promise<void> {
-  const frontUrl = process.env.FRONTEND_URL ?? 'https://skignas.ahobaut.fr'
+  const frontUrl = process.env.FRONTEND_URL ?? 'https://skignas.com'
   const endLabel  = endsAt.toLocaleString('fr-FR', { day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' })
   const title     = products.length === 1
     ? `Vente flash sur ${products[0]!.name}`

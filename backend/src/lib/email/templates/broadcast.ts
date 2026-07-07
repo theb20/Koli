@@ -3,7 +3,7 @@ import { baseLayout } from '../layout'
 import { subheading, heading, paragraph, ctaButton } from '../components'
 
 export async function sendBroadcastEmail(to: string, prenom: string, title: string, message: string): Promise<void> {
-  const frontUrl = process.env.FRONTEND_URL ?? 'https://skignas.ahobaut.fr'
+  const frontUrl = process.env.FRONTEND_URL ?? 'https://skignas.com'
 
   const html = await baseLayout(`
       ${subheading('Annonce Skignas')}

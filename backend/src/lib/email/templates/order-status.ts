@@ -65,7 +65,7 @@ export async function sendOrderStatusEmail(
   const info = ORDER_STATUS_MAP[status]
   if (!info) return
 
-  const frontUrl = process.env.FRONTEND_URL ?? 'https://skignas.ahobaut.fr'
+  const frontUrl = process.env.FRONTEND_URL ?? 'https://skignas.com'
 
   const html = await baseLayout(`
       ${statusTag(info.tag, info.accent, info.accentBg)}
