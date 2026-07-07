@@ -124,6 +124,7 @@ model Product {
   colors         String?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
+  saleStartsAt   DateTime?
   saleEndsAt     DateTime?
   salePrice      Int?
   browseHistory  BrowseHistory[]
@@ -455,6 +456,22 @@ model BrowseHistory {
 
   @@unique([userId, productId])
   @@map("browse_history")
+}
+
+/// Annonce email automatique d'une vente flash à un segment de clients
+model DealAnnouncement {
+  id             Int       @id @default(autoincrement())
+  productIds     String    // JSON: number[]
+  segment        String    // 'all' | 'buyers' | 'inactive'
+  inactiveDays   Int?
+  sendAt         DateTime
+  status         String    @default("pending") // pending | sent | failed | cancelled
+  recipientCount Int?
+  error          String?
+  createdAt      DateTime  @default(now())
+  sentAt         DateTime?
+
+  @@map("deal_announcements")
 }
 
 /// Réglages globaux du site (singleton — une seule ligne, id fixe = 1)

@@ -2,10 +2,12 @@
    Layout de base pour tous les emails Skignas
    Compatible : Gmail, Outlook, Apple Mail, dark mode, mobile
 ───────────────────────────────────────────────────────────── */
+import { getContactInfo, waLink } from './settings'
 
-export function baseLayout(content: string, preheader = ''): string {
+export async function baseLayout(content: string, preheader = ''): Promise<string> {
   const year     = new Date().getFullYear()
   const frontUrl = process.env.FRONTEND_URL ?? 'https://skignas.ahobaut.fr'
+  const contact  = await getContactInfo()
 
   return `<!DOCTYPE html>
 <html lang="fr" xmlns="http://www.w3.org/1999/xhtml">
@@ -19,45 +21,52 @@ export function baseLayout(content: string, preheader = ''): string {
   <![endif]-->
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    body{margin:0;padding:0;background:#f0f4ff;-webkit-font-smoothing:antialiased}
-    a{text-decoration:one;color:inherit}
+    body{margin:0;padding:0;background:#eef1f8;-webkit-font-smoothing:antialiased}
+    a{text-decoration:none;color:inherit}
     img{display:block;border:0;outline:0}
     .preheader{display:none;max-height:0;overflow:hidden;font-size:1px;line-height:1px;color:transparent;mso-hide:all}
+    .footer-link:hover{color:#0421ff !important}
 
     /* ── Responsive ── */
     @media only screen and (max-width:600px){
-      .wrapper{padding:16px !important}
-      .card{border-radius:16px !important}
-      .card-body{padding:28px 24px !important}
+      .wrapper{padding:20px 12px !important}
+      .card{border-radius:20px !important}
+      .card-header{padding:22px 24px !important}
+      .card-body{padding:32px 24px !important}
+      .footer-bg{padding:20px 24px !important}
+      .footer-row{display:block !important}
+      .footer-item{display:block !important;margin:0 0 8px !important}
     }
 
     /* ── Dark mode ── */
     @media (prefers-color-scheme:dark){
-      body,.bg-outer{background:#0d1117 !important}
-      .card{background:#161b22 !important;border-color:#30363d !important}
-      .card-header{background:linear-gradient(135deg,#0318cc 0%,#021399 100%) !important}
+      body,.bg-outer{background:#0b0f19 !important}
+      .card{background:#161b22 !important;border-color:#262c38 !important}
+      .card-header{background:linear-gradient(135deg,#0318cc 0%,#020a80 100%) !important}
+      .card-body{background:#161b22 !important}
       .card-body *{color:#c9d1d9}
-      .footer-bg{background:#0d1117 !important;border-color:#21262d !important}
-      .footer-text{color:#484f58 !important}
+      .support-block{background:#1c2333 !important;border-color:#2a3244 !important}
+      .footer-bg{background:#0f1420 !important;border-color:#232a38 !important}
+      .footer-text,.footer-item{color:#6b7280 !important}
     }
   </style>
 </head>
-<body style="margin:0;padding:0;background:#f0f4ff">
+<body style="margin:0;padding:0;background:#eef1f8">
   ${preheader ? `<div class="preheader">${preheader}</div>` : ''}
 
   <table class="bg-outer" width="100%" cellpadding="0" cellspacing="0" role="presentation"
-    style="background:#f0f4ff;border-collapse:collapse">
+    style="background:#eef1f8;border-collapse:collapse">
     <tr>
-      <td class="wrapper" align="center" style="padding:40px 24px">
+      <td class="wrapper" align="center" style="padding:44px 24px">
 
         <!-- ══ CARD ══ -->
         <table class="card" width="100%" cellpadding="0" cellspacing="0" role="presentation"
-          style="max-width:560px;background:#ffffff;border-radius:20px;border:1px solid #dbe4ff;overflow:hidden;border-collapse:collapse;box-shadow:0 4px 24px rgba(4,33,255,.07)">
+          style="max-width:560px;background:#ffffff;border-radius:24px;border:1px solid #dde3f5;overflow:hidden;border-collapse:collapse;box-shadow:0 8px 32px rgba(4,33,255,.08)">
 
           <!-- Header bleu -->
           <tr>
             <td class="card-header"
-              style="background:linear-gradient(135deg,#0421ff 0%,#0318cc 100%);padding:26px 40px">
+              style="background:linear-gradient(135deg,#0421ff 0%,#0318cc 55%,#2b0aad 100%);padding:28px 40px">
               <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
                 style="border-collapse:collapse">
                 <tr>
@@ -65,13 +74,13 @@ export function baseLayout(content: string, preheader = ''): string {
                     <a href="${frontUrl}" style="text-decoration:none;display:block;line-height:0">
                       <img src="https://skignas.ahobaut.fr/imgs_dropship/skignas_white.png"
                            alt="Skignas"
-                           width="160" height="42"
-                           style="display:block;border:0;outline:0;width:160px;height:42px" />
+                           width="150" height="40"
+                           style="display:block;border:0;outline:0;width:150px;height:40px" />
                     </a>
                   </td>
                   <td align="right" style="vertical-align:middle">
-                    <span style="font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:600;color:rgba(255,255,255,.5);letter-spacing:.8px;text-transform:uppercase">
-                      skignas.ahobaut.fr
+                    <span style="display:inline-block;font-family:system-ui,-apple-system,sans-serif;font-size:10px;font-weight:700;color:rgba(255,255,255,.85);letter-spacing:.8px;text-transform:uppercase;background:rgba(255,255,255,.14);padding:6px 12px;border-radius:100px">
+                      Côte d'Ivoire
                     </span>
                   </td>
                 </tr>
@@ -81,35 +90,59 @@ export function baseLayout(content: string, preheader = ''): string {
 
           <!-- Corps -->
           <tr>
-            <td class="card-body" style="padding:40px 40px 36px">
+            <td class="card-body" style="padding:44px 40px 36px">
               ${content}
+            </td>
+          </tr>
+
+          <!-- Bloc support -->
+          <tr>
+            <td style="padding:0 40px 32px">
+              <table class="support-block" width="100%" cellpadding="0" cellspacing="0" role="presentation"
+                style="background:#f8faff;border:1px solid #e5edff;border-radius:16px;border-collapse:separate">
+                <tr>
+                  <td style="padding:16px 20px">
+                    <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse">
+                      <tr>
+                        <td style="font-family:system-ui,-apple-system,sans-serif;font-size:13px;color:#4b5563;vertical-align:middle">
+                          Besoin d'aide ? Notre équipe répond 7j/7.
+                        </td>
+                        <td align="right" style="white-space:nowrap;vertical-align:middle">
+                          <a href="${waLink(contact.whatsappNumber)}"
+                            style="display:inline-block;font-family:system-ui,-apple-system,sans-serif;font-size:12px;font-weight:700;color:#059669;background:#ecfdf5;border:1px solid #a7f3d0;padding:8px 14px;border-radius:100px">
+                            💬 WhatsApp
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
 
           <!-- Footer carte -->
           <tr>
             <td class="footer-bg"
-              style="background:#f8faff;border-top:1px solid #dbe4ff;padding:18px 40px">
-              <p class="footer-text"
-                style="font-family:system-ui,-apple-system,sans-serif;font-size:11px;color:#8898c8;line-height:1.8;text-align:center;margin:0">
-                © ${year} Skignas · Côte d'Ivoire
-                &nbsp;·&nbsp;
-                <a href="${frontUrl}"
-                  style="color:#0421ff;text-decoration:underline;text-underline-offset:2px">skignas.ahobaut.fr</a>
-                &nbsp;·&nbsp;
-                <a href="https://wa.me/237600000000"
-                  style="color:#0421ff;text-decoration:underline;text-underline-offset:2px">WhatsApp SAV</a>
-                &nbsp;·&nbsp;
-                <a href="${frontUrl}/privacy"
-                  style="color:#8898c8;text-decoration:underline;text-underline-offset:2px">Confidentialité</a>
-              </p>
+              style="background:#f8faff;border-top:1px solid #dbe4ff;padding:20px 40px">
+              <table class="footer-row" width="100%" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse">
+                <tr>
+                  <td class="footer-item" style="font-family:system-ui,-apple-system,sans-serif;font-size:11px;color:#8898c8">
+                    © ${year} Skignas · Côte d'Ivoire
+                  </td>
+                  <td class="footer-item" align="right" style="font-family:system-ui,-apple-system,sans-serif;font-size:11px">
+                    <a class="footer-link" href="mailto:${contact.supportEmail}" style="color:#6b7fb8;margin-right:14px">${contact.supportEmail}</a>
+                    <a class="footer-link" href="${frontUrl}/privacy" style="color:#8898c8">Confidentialité</a>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
 
         </table>
         <!-- FIN CARD -->
 
-        <p style="font-family:system-ui,-apple-system,sans-serif;font-size:11px;color:#a0aec0;text-align:center;margin:14px 0 0">
+        <p style="font-family:system-ui,-apple-system,sans-serif;font-size:11px;color:#a0aec0;text-align:center;margin:16px 0 0">
           Vous recevez cet email car vous avez un compte Skignas.
         </p>
 

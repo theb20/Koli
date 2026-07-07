@@ -5,10 +5,7 @@ import { subheading, heading, paragraph, divider, ctaButton, highlightBox, iconR
 export async function sendWelcomeEmail(to: string, prenom: string): Promise<void> {
   const frontUrl = process.env.FRONTEND_URL ?? 'https://skignas.ahobaut.fr'
 
-  await send(
-    to,
-    `Bienvenue chez Skignas, ${prenom} 🎉`,
-    baseLayout(`
+  const html = await baseLayout(`
       ${subheading('Compte activé')}
       ${heading(`Bienvenue, ${prenom} !`)}
       ${paragraph("Votre compte Skignas est prêt. Vous rejoignez <strong style=\"color:#111827\">+12&nbsp;000</strong> clients satisfaits à travers la Côte d'Ivoire.")}
@@ -26,6 +23,7 @@ export async function sendWelcomeEmail(to: string, prenom: string): Promise<void
       ${divider()}
       ${paragraph('Parcourez des milliers de produits sélectionnés avec soin, livrés chez vous en 48–72h.', 'color:#6b7280')}
       ${ctaButton('Découvrir le catalogue', `${frontUrl}/catalogue`)}
-      `, `Bienvenue chez Skignas, ${prenom} — votre compte est actif.`),
-  )
+      `, `Bienvenue chez Skignas, ${prenom} — votre compte est actif.`)
+
+  await send(to, `Bienvenue chez Skignas, ${prenom} 🎉`, html)
 }

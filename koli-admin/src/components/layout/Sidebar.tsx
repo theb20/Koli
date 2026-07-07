@@ -2,13 +2,14 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Package, ShoppingCart, Users, BookOpen,
   Tag, Star, MessageSquare, Settings, LogOut,
-  Bell, BarChart2, Store, Layers, Percent,
+  Bell, BarChart2, Store, Layers, Percent, Zap,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 
 const nav = [
   { to: '/',         label: 'Dashboard',     icon: LayoutDashboard },
   { to: '/products',   label: 'Produits',       icon: Package },
+  { to: '/deals',      label: 'Deals du jour',  icon: Zap },
   { to: '/categories', label: 'Catégories',    icon: Layers },
   { to: '/stores',     label: 'Magasins',      icon: Store },
   { to: '/orders',   label: 'Commandes',      icon: ShoppingCart },

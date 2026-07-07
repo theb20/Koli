@@ -28,10 +28,7 @@ export async function sendOrderConfirmationEmail(to: string, order: OrderConfirm
     ['Livraison', shipping === 0 ? '<span style="color:#059669">Gratuite</span>' : fmt(shipping)],
   ]
 
-  await send(
-    to,
-    `Commande ${order.orderNumber} confirmée ✓`,
-    baseLayout(`
+  const html = await baseLayout(`
       ${statusTag('Commande reçue', '#059669', '#ecfdf5')}
       ${heading(`Merci, ${order.prenom} !`)}
       ${paragraph(`Votre commande <strong style="color:#0421ff">${order.orderNumber}</strong> a bien été reçue et est en cours de traitement.`)}
@@ -59,6 +56,7 @@ export async function sendOrderConfirmationEmail(to: string, order: OrderConfirm
       ])}
 
       ${ctaButton('Suivre ma commande', `${frontUrl}/commandes/${order.orderNumber}`)}
-    `, `Votre commande ${order.orderNumber} est confirmée.`),
-  )
+    `, `Votre commande ${order.orderNumber} est confirmée.`)
+
+  await send(to, `Commande ${order.orderNumber} confirmée ✓`, html)
 }

@@ -5,6 +5,7 @@ import LoginPage        from './pages/LoginPage'
 import DashboardPage    from './pages/DashboardPage'
 import ProductsPage     from './pages/products/ProductsPage'
 import ProductFormPage  from './pages/products/ProductFormPage'
+import DealsPage        from './pages/products/DealsPage'
 import OrdersPage       from './pages/orders/OrdersPage'
 import OrderDetailPage  from './pages/orders/OrderDetailPage'
 import UsersPage        from './pages/users/UsersPage'
@@ -36,6 +37,7 @@ export default function App() {
             <Route path="/products"      element={<ProductsPage />} />
             <Route path="/products/new"  element={<ProductFormPage />} />
             <Route path="/products/:id"  element={<ProductFormPage />} />
+            <Route path="/deals"         element={<DealsPage />} />
             <Route path="/categories"    element={<CategoriesPage />} />
             <Route path="/stores"        element={<StoresPage />} />
             <Route path="/stores/:id"    element={<StoreDetailPage />} />

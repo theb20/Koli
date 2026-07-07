@@ -3,10 +3,7 @@ import { baseLayout } from '../layout'
 import { subheading, heading, paragraph, divider, ctaButton, highlightBox } from '../components'
 
 export async function sendMagicLinkEmail(to: string, prenom: string, link: string): Promise<void> {
-  await send(
-    to,
-    'Votre lien de connexion Skignas 🔑',
-    baseLayout(`
+  const html = await baseLayout(`
       ${subheading('Connexion sécurisée')}
       ${heading(`Bonjour ${prenom},`)}
       ${paragraph('Vous avez demandé un lien de connexion à votre compte Skignas. Cliquez sur le bouton ci-dessous pour vous connecter instantanément.')}
@@ -27,6 +24,7 @@ export async function sendMagicLinkEmail(to: string, prenom: string, link: strin
 
       ${divider()}
       ${paragraph("Si vous n'avez pas demandé ce lien, ignorez cet email. Votre compte reste sécurisé.", 'font-size:13px;color:#9ca3af')}
-      `, 'Votre lien de connexion Skignas — valable 15 minutes.'),
-  )
+      `, 'Votre lien de connexion Skignas — valable 15 minutes.')
+
+  await send(to, 'Votre lien de connexion Skignas 🔑', html)
 }

@@ -20,6 +20,7 @@ const listQuerySchema = z.object({
   badge:    z.string().optional(),
   inStock:  z.coerce.boolean().optional(),
   storeId:  z.coerce.number().int().optional(),   // filter by store
+  hasSale:  z.coerce.boolean().optional(),        // filter: promo programmée (salePrice défini)
 })
 
 const createProductSchema = z.object({
@@ -35,6 +36,22 @@ const createProductSchema = z.object({
   colors:      z.array(z.string()).optional(),
   images:      z.array(z.string().url()).min(1).max(4),
   specs:       z.array(z.object({ label: z.string(), value: z.string() })).optional(),
+  /* Promo programmée (Deals du jour / vente flash) */
+  salePrice:    z.number().int().positive().nullable().optional(),
+  saleStartsAt: z.coerce.date().nullable().optional(),
+  saleEndsAt:   z.coerce.date().nullable().optional(),
+})
+
+/** Cohérence de la promo — appliquée à la création ET à l'édition */
+function saleWindowError(d: { salePrice?: number | null; saleStartsAt?: Date | null; saleEndsAt?: Date | null }): string | null {
+  if (d.salePrice != null && !d.saleEndsAt) return 'Une date de fin est requise pour programmer un prix promo'
+  if (d.saleStartsAt && d.saleEndsAt && d.saleStartsAt >= d.saleEndsAt) return 'La date de fin doit être après la date de début'
+  return null
+}
+
+const createProductSchemaChecked = createProductSchema.superRefine((d, ctx) => {
+  const err = saleWindowError(d)
+  if (err) ctx.addIssue({ code: z.ZodIssueCode.custom, message: err, path: ['saleEndsAt'] })
 })
 
 /* ─────────────────────────────────────────────────────────────
@@ -43,7 +60,7 @@ const createProductSchema = z.object({
 router.get('/', optionalAuth, cacheControl(30), async (req, res) => {
   try {
     const query = listQuerySchema.parse(req.query)
-    const { page, limit, category, q, sort, minPrice, maxPrice, badge, inStock, storeId } = query
+    const { page, limit, category, q, sort, minPrice, maxPrice, badge, inStock, storeId, hasSale } = query
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: Record<string, any> = { isActive: true }
@@ -51,6 +68,7 @@ router.get('/', optionalAuth, cacheControl(30), async (req, res) => {
     if (badge)    where['badge']    = badge
     if (inStock)  where['stock']    = { gt: 0 }
     if (storeId)  where['storeId']  = storeId
+    if (hasSale)  where['salePrice'] = { not: null }
     if (minPrice !== undefined || maxPrice !== undefined) {
       where['price'] = {
         ...(minPrice !== undefined ? { gte: minPrice } : {}),
@@ -192,9 +210,47 @@ router.get('/:id', optionalAuth, cacheControl(20), async (req, res) => {
 })
 
 /* ─────────────────────────────────────────────────────────────
+   POST /api/products/bulk-sale  [ADMIN]
+   Programme (ou retire) la même promo sur plusieurs produits d'un coup.
+───────────────────────────────────────────────────────────── */
+const bulkSaleSchema = z.object({
+  productIds:   z.array(z.number().int().positive()).min(1),
+  salePrice:    z.number().int().positive().nullable(),
+  saleStartsAt: z.coerce.date().nullable().optional(),
+  saleEndsAt:   z.coerce.date().nullable().optional(),
+})
+
+router.post('/bulk-sale', requireAdmin, validate(bulkSaleSchema), async (req, res) => {
+  try {
+    const { productIds, salePrice, saleStartsAt, saleEndsAt } = req.body as z.infer<typeof bulkSaleSchema>
+
+    if (salePrice !== null) {
+      const err = saleWindowError({ salePrice, saleStartsAt: saleStartsAt ?? null, saleEndsAt: saleEndsAt ?? null })
+      if (err) {
+        res.status(400).json({ success: false, message: err })
+        return
+      }
+    }
+
+    await prisma.product.updateMany({
+      where: { id: { in: productIds } },
+      data: {
+        salePrice,
+        saleStartsAt: salePrice === null ? null : (saleStartsAt ?? null),
+        saleEndsAt:   salePrice === null ? null : (saleEndsAt ?? null),
+      },
+    })
+
+    res.json({ success: true, data: { updated: productIds.length } })
+  } catch {
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/* ─────────────────────────────────────────────────────────────
    POST /api/products  [ADMIN]
 ───────────────────────────────────────────────────────────── */
-router.post('/', requireAdmin, validate(createProductSchema), async (req, res) => {
+router.post('/', requireAdmin, validate(createProductSchemaChecked), async (req, res) => {
   try {
     const { images, specs, colors, ...data } = req.body as z.infer<typeof createProductSchema>
 
@@ -242,6 +298,23 @@ router.put('/:id', requireAdmin, validate(createProductSchema.partial()), async 
     if (data.category && !catRow) {
       res.status(400).json({ success: false, message: `Catégorie "${data.category}" introuvable` })
       return
+    }
+
+    // Vérifie la cohérence de la promo en fusionnant avec l'état actuel (mise à jour partielle)
+    if ('salePrice' in data || 'saleStartsAt' in data || 'saleEndsAt' in data) {
+      const current = await prisma.product.findUnique({
+        where: { id }, select: { salePrice: true, saleStartsAt: true, saleEndsAt: true },
+      })
+      const merged = {
+        salePrice:    'salePrice'    in data ? data.salePrice    : current?.salePrice,
+        saleStartsAt: 'saleStartsAt' in data ? data.saleStartsAt : current?.saleStartsAt,
+        saleEndsAt:   'saleEndsAt'   in data ? data.saleEndsAt   : current?.saleEndsAt,
+      }
+      const err = saleWindowError(merged)
+      if (err) {
+        res.status(400).json({ success: false, message: err })
+        return
+      }
     }
 
     const product = await prisma.product.update({

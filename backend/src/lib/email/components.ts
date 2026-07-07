@@ -4,14 +4,16 @@
    compatible Gmail, Outlook, Apple Mail et dark mode.
 ───────────────────────────────────────────────────────────── */
 
-/** Sous-titre bleu en capslock avant le heading */
+/** Sous-titre bleu en capslock avant le heading, avec puce */
 export function subheading(text: string): string {
-  return `<p style="font-family:system-ui,-apple-system,sans-serif;font-size:13px;font-weight:600;color:#0421ff;letter-spacing:.6px;text-transform:uppercase;margin:0 0 16px">${text}</p>`
+  return `<p style="font-family:system-ui,-apple-system,sans-serif;font-size:12px;font-weight:700;color:#0421ff;letter-spacing:.8px;text-transform:uppercase;margin:0 0 14px">
+    <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#0421ff;margin-right:8px;vertical-align:middle"></span>${text}
+  </p>`
 }
 
 /** Titre principal H1 */
 export function heading(text: string): string {
-  return `<h1 style="font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:26px;font-weight:800;color:#111827;line-height:1.2;margin:0 0 12px;letter-spacing:-0.5px">${text}</h1>`
+  return `<h1 style="font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:25px;font-weight:800;color:#0f172a;line-height:1.25;margin:0 0 14px;letter-spacing:-0.5px">${text}</h1>`
 }
 
 /** Paragraphe de corps de texte */
@@ -19,9 +21,9 @@ export function paragraph(text: string, extraStyle = ''): string {
   return `<p style="font-family:system-ui,-apple-system,sans-serif;font-size:15px;color:#4b5563;line-height:1.75;margin:0 0 16px${extraStyle ? ';' + extraStyle : ''}">${text}</p>`
 }
 
-/** Séparateur horizontal */
+/** Séparateur horizontal en dégradé */
 export function divider(): string {
-  return `<div style="border-top:1px solid #e5edff;margin:28px 0"></div>`
+  return `<div style="height:1px;background:linear-gradient(90deg,rgba(4,33,255,0) 0%,rgba(4,33,255,.15) 50%,rgba(4,33,255,0) 100%);margin:28px 0"></div>`
 }
 
 /** Bouton CTA principal */
@@ -29,21 +31,23 @@ export function ctaButton(label: string, url: string, color = '#0421ff'): string
   return `
     <div style="margin-top:28px">
       <a href="${url}"
-        style="display:inline-block;background:${color};color:#ffffff;font-family:system-ui,-apple-system,sans-serif;font-size:14px;font-weight:700;letter-spacing:.3px;padding:14px 32px;border-radius:12px;text-decoration:none;line-height:1">
+        style="display:inline-block;background:${color};color:#ffffff;font-family:system-ui,-apple-system,sans-serif;font-size:14px;font-weight:700;letter-spacing:.3px;padding:15px 34px;border-radius:14px;text-decoration:none;line-height:1;box-shadow:0 6px 16px -4px ${color}66">
         ${label} &rarr;
       </a>
     </div>`
 }
 
-/** Pill de statut (badge arrondi) */
+/** Pill de statut (badge arrondi) avec puce */
 export function statusTag(label: string, accent: string, accentBg: string): string {
-  return `<span style="display:inline-block;background:${accentBg};color:${accent};font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;padding:5px 12px;border-radius:100px;margin:0 0 20px">${label}</span>`
+  return `<span style="display:inline-block;background:${accentBg};color:${accent};font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;padding:6px 14px 6px 10px;border-radius:100px;margin:0 0 20px">
+    <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${accent};margin-right:6px;vertical-align:middle"></span>${label}
+  </span>`
 }
 
-/** Bloc encadré avec fond coloré */
+/** Bloc encadré avec fond coloré et bordure discrète */
 export function highlightBox(content: string, bg = '#eef2ff'): string {
   return `
-    <div style="background:${bg};border-radius:12px;padding:16px 20px;margin:20px 0">
+    <div style="background:${bg};border:1px solid rgba(4,33,255,.08);border-radius:14px;padding:18px 20px;margin:20px 0">
       ${content}
     </div>`
 }
@@ -52,8 +56,8 @@ export function highlightBox(content: string, bg = '#eef2ff'): string {
 export function metaTable(rows: Array<[string, string]>): string {
   const html = rows.map(([label, value]) => `
     <tr>
-      <td style="font-family:system-ui,-apple-system,sans-serif;font-size:12px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:#9ca3af;padding:10px 0;border-bottom:1px solid #e5edff;white-space:nowrap;vertical-align:middle;padding-right:20px">${label}</td>
-      <td style="font-family:system-ui,-apple-system,sans-serif;font-size:14px;color:#111827;padding:10px 0;border-bottom:1px solid #e5edff;text-align:right;font-weight:500">${value}</td>
+      <td style="font-family:system-ui,-apple-system,sans-serif;font-size:12px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:#9ca3af;padding:11px 0;border-bottom:1px solid #eef1fa;white-space:nowrap;vertical-align:middle;padding-right:20px">${label}</td>
+      <td style="font-family:system-ui,-apple-system,sans-serif;font-size:14px;color:#111827;padding:11px 0;border-bottom:1px solid #eef1fa;text-align:right;font-weight:600">${value}</td>
     </tr>`).join('')
 
   return `
@@ -68,29 +72,53 @@ export function orderItemsTable(items: Array<{ name: string; qty: number; price:
 
   const rows = items.map(i => `
     <tr>
-      <td style="font-family:system-ui,-apple-system,sans-serif;font-size:14px;color:#111827;padding:11px 0;border-bottom:1px solid #e5edff;line-height:1.4">${i.name}</td>
-      <td style="font-family:system-ui,-apple-system,sans-serif;font-size:13px;color:#6b7280;padding:11px 0;border-bottom:1px solid #e5edff;text-align:center;white-space:nowrap">&times;${i.qty}</td>
-      <td style="font-family:system-ui,-apple-system,sans-serif;font-size:14px;font-weight:600;color:#111827;padding:11px 0;border-bottom:1px solid #e5edff;text-align:right;white-space:nowrap">${fmt(i.price * i.qty)}</td>
+      <td style="font-family:system-ui,-apple-system,sans-serif;font-size:14px;color:#111827;padding:12px 0;border-bottom:1px solid #eef1fa;line-height:1.4">${i.name}</td>
+      <td style="font-family:system-ui,-apple-system,sans-serif;font-size:13px;color:#6b7280;padding:12px 0;border-bottom:1px solid #eef1fa;text-align:center;white-space:nowrap">&times;${i.qty}</td>
+      <td style="font-family:system-ui,-apple-system,sans-serif;font-size:14px;font-weight:700;color:#111827;padding:12px 0;border-bottom:1px solid #eef1fa;text-align:right;white-space:nowrap">${fmt(i.price * i.qty)}</td>
     </tr>`).join('')
 
   return `
     <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse">
       <thead>
         <tr>
-          <th style="font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#9ca3af;padding:0 0 10px;border-bottom:2px solid #111827;text-align:left">Article</th>
-          <th style="font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#9ca3af;padding:0 0 10px;border-bottom:2px solid #111827;text-align:center">Qté</th>
-          <th style="font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#9ca3af;padding:0 0 10px;border-bottom:2px solid #111827;text-align:right">Prix</th>
+          <th style="font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#9ca3af;padding:0 0 12px;border-bottom:2px solid #0f172a;text-align:left">Article</th>
+          <th style="font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#9ca3af;padding:0 0 12px;border-bottom:2px solid #0f172a;text-align:center">Qté</th>
+          <th style="font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#9ca3af;padding:0 0 12px;border-bottom:2px solid #0f172a;text-align:right">Prix</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
     </table>`
 }
 
+/** Carte produit en promo (vente flash) — image, prix barré, prix promo, réduction */
+export function dealProductCard(p: { name: string; image: string; price: number; salePrice: number; url: string }): string {
+  const fmt  = (n: number) => n.toLocaleString('fr-FR') + '&nbsp;FCFA'
+  const disc = Math.round(((p.price - p.salePrice) / p.price) * 100)
+
+  return `
+    <a href="${p.url}" style="text-decoration:none">
+      <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+        style="border-collapse:collapse;border:1px solid #eef1fa;border-radius:16px;overflow:hidden;margin-bottom:14px">
+        <tr>
+          <td width="88" style="width:88px;vertical-align:top">
+            <img src="${p.image}" alt="${p.name}" width="88" height="88" style="width:88px;height:88px;object-fit:cover;display:block" />
+          </td>
+          <td style="padding:14px 16px;vertical-align:middle">
+            <p style="font-family:system-ui,-apple-system,sans-serif;font-size:13px;font-weight:700;color:#111827;margin:0 0 6px;line-height:1.3">${p.name}</p>
+            <span style="display:inline-block;background:#fef2f2;color:#dc2626;font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:800;padding:3px 8px;border-radius:100px;margin-right:8px">-${disc}%</span>
+            <span style="font-family:system-ui,-apple-system,sans-serif;font-size:15px;font-weight:800;color:#dc2626">${fmt(p.salePrice)}</span>
+            <span style="font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#9ca3af;text-decoration:line-through;margin-left:6px">${fmt(p.price)}</span>
+          </td>
+        </tr>
+      </table>
+    </a>`
+}
+
 /** Ligne icône + texte */
 export function iconRow(icon: string, text: string): string {
   return `
     <tr>
-      <td style="vertical-align:top;padding-right:12px;font-size:18px;padding-top:2px;width:28px">${icon}</td>
-      <td style="font-family:system-ui,-apple-system,sans-serif;font-size:13px;color:#374151;line-height:1.6">${text}</td>
+      <td style="vertical-align:top;padding-right:12px;font-size:18px;padding-top:2px;padding-bottom:12px;width:28px">${icon}</td>
+      <td style="font-family:system-ui,-apple-system,sans-serif;font-size:13px;color:#374151;line-height:1.6;padding-bottom:12px">${text}</td>
     </tr>`
 }

@@ -25,7 +25,7 @@ async function sendOrderConfirmationEmail(to, order) {
         ...(promo > 0 ? [['Promo', `<span style="color:#059669">−${fmt(promo)}</span>`]] : []),
         ['Livraison', shipping === 0 ? '<span style="color:#059669">Gratuite</span>' : fmt(shipping)],
     ];
-    await (0, client_1.send)(to, `Commande ${order.orderNumber} confirmée ✓`, (0, layout_1.baseLayout)(`
+    const html = await (0, layout_1.baseLayout)(`
       ${(0, components_1.statusTag)('Commande reçue', '#059669', '#ecfdf5')}
       ${(0, components_1.heading)(`Merci, ${order.prenom} !`)}
       ${(0, components_1.paragraph)(`Votre commande <strong style="color:#0421ff">${order.orderNumber}</strong> a bien été reçue et est en cours de traitement.`)}
@@ -53,6 +53,7 @@ async function sendOrderConfirmationEmail(to, order) {
     ])}
 
       ${(0, components_1.ctaButton)('Suivre ma commande', `${frontUrl}/commandes/${order.orderNumber}`)}
-    `, `Votre commande ${order.orderNumber} est confirmée.`));
+    `, `Votre commande ${order.orderNumber} est confirmée.`);
+    await (0, client_1.send)(to, `Commande ${order.orderNumber} confirmée ✓`, html);
 }
 //# sourceMappingURL=order-confirmation.js.map

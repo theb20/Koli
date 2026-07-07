@@ -33,6 +33,23 @@ const createProductSchema = zod_1.z.object({
     colors: zod_1.z.array(zod_1.z.string()).optional(),
     images: zod_1.z.array(zod_1.z.string().url()).min(1).max(4),
     specs: zod_1.z.array(zod_1.z.object({ label: zod_1.z.string(), value: zod_1.z.string() })).optional(),
+    /* Promo programmée (Deals du jour / vente flash) */
+    salePrice: zod_1.z.number().int().positive().nullable().optional(),
+    saleStartsAt: zod_1.z.coerce.date().nullable().optional(),
+    saleEndsAt: zod_1.z.coerce.date().nullable().optional(),
+});
+/** Cohérence de la promo — appliquée à la création ET à l'édition */
+function saleWindowError(d) {
+    if (d.salePrice != null && !d.saleEndsAt)
+        return 'Une date de fin est requise pour programmer un prix promo';
+    if (d.saleStartsAt && d.saleEndsAt && d.saleStartsAt >= d.saleEndsAt)
+        return 'La date de fin doit être après la date de début';
+    return null;
+}
+const createProductSchemaChecked = createProductSchema.superRefine((d, ctx) => {
+    const err = saleWindowError(d);
+    if (err)
+        ctx.addIssue({ code: zod_1.z.ZodIssueCode.custom, message: err, path: ['saleEndsAt'] });
 });
 /* ─────────────────────────────────────────────────────────────
    GET /api/products
@@ -186,7 +203,7 @@ router.get('/:id', auth_1.optionalAuth, (0, cache_1.cacheControl)(20), async (re
 /* ─────────────────────────────────────────────────────────────
    POST /api/products  [ADMIN]
 ───────────────────────────────────────────────────────────── */
-router.post('/', auth_1.requireAdmin, (0, validate_1.validate)(createProductSchema), async (req, res) => {
+router.post('/', auth_1.requireAdmin, (0, validate_1.validate)(createProductSchemaChecked), async (req, res) => {
     try {
         const { images, specs, colors, ...data } = req.body;
         // Résoudre categoryId depuis le slug
@@ -230,6 +247,22 @@ router.put('/:id', auth_1.requireAdmin, (0, validate_1.validate)(createProductSc
         if (data.category && !catRow) {
             res.status(400).json({ success: false, message: `Catégorie "${data.category}" introuvable` });
             return;
+        }
+        // Vérifie la cohérence de la promo en fusionnant avec l'état actuel (mise à jour partielle)
+        if ('salePrice' in data || 'saleStartsAt' in data || 'saleEndsAt' in data) {
+            const current = await prisma_1.prisma.product.findUnique({
+                where: { id }, select: { salePrice: true, saleStartsAt: true, saleEndsAt: true },
+            });
+            const merged = {
+                salePrice: 'salePrice' in data ? data.salePrice : current?.salePrice,
+                saleStartsAt: 'saleStartsAt' in data ? data.saleStartsAt : current?.saleStartsAt,
+                saleEndsAt: 'saleEndsAt' in data ? data.saleEndsAt : current?.saleEndsAt,
+            };
+            const err = saleWindowError(merged);
+            if (err) {
+                res.status(400).json({ success: false, message: err });
+                return;
+            }
         }
         const product = await prisma_1.prisma.product.update({
             where: { id },

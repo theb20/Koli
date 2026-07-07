@@ -3,30 +3,54 @@ import { motion, AnimatePresence } from 'motion/react'
 import { ShoppingCart, Star, Flame, ArrowRight, Zap, Timer, BadgePercent, Loader2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { fetchProducts, mapApiProduct } from '../../lib/api'
+import { API_BASE, mapApiProduct } from '../../lib/api'
 import { useCart } from '../../contexts/CartContext'
 
 type Product = ReturnType<typeof mapApiProduct>
 
+type FlashApiProduct = {
+  id: number; name: string; brand: string; price: number; salePrice: number
+  saleEndsAt: string; rating: number; reviews: number; sold: number; stock: number
+  badge: 'hot' | 'new' | 'sale' | 'top' | null
+  images: { url: string }[]
+}
+
+async function fetchActiveDeals(): Promise<FlashApiProduct[]> {
+  const res = await fetch(`${API_BASE}/api/flash`)
+  const json = await res.json()
+  return json?.data?.products ?? []
+}
+
+/** Un produit en promo (prix + ancien prix + échéance réelle de fin de vente) */
+function mapDealProduct(p: FlashApiProduct): Product {
+  return {
+    id: p.id, name: p.name, brand: p.brand, category: '',
+    price: p.salePrice, oldPrice: p.price,
+    rating: p.rating, reviews: p.reviews, badge: p.badge ?? undefined,
+    sold: p.sold, stock: p.stock, isNew: false,
+    images: p.images.length ? p.images.map(i => i.url) : [''],
+  } as Product
+}
+
 /* ─────────────────────────────────────────
-   COUNTDOWN
+   COUNTDOWN — échéance réelle (fin de la promo la plus proche)
 ───────────────────────────────────────── */
-function useCountdown(targetHours = 6) {
-  const [time, setTime] = useState(() => {
-    const now = new Date()
-    const end = new Date(now)
-    end.setHours(now.getHours() + targetHours, 0, 0, 0)
-    return Math.max(0, Math.floor((end.getTime() - now.getTime()) / 1000))
-  })
+function useCountdown(endAtIso: string | null) {
+  const endAt = endAtIso ? new Date(endAtIso).getTime() : null
+  const [time, setTime] = useState(() => (endAt ? Math.max(0, Math.floor((endAt - Date.now()) / 1000)) : 0))
+
   useEffect(() => {
-    if (time <= 0) return
-    const id = setInterval(() => setTime(t => Math.max(0, t - 1)), 1000)
+    if (!endAt) { setTime(0); return }
+    const tick = () => setTime(Math.max(0, Math.floor((endAt - Date.now()) / 1000)))
+    tick()
+    const id = setInterval(tick, 1000)
     return () => clearInterval(id)
-  }, [time])
+  }, [endAt])
+
   const h = String(Math.floor(time / 3600)).padStart(2, '0')
   const m = String(Math.floor((time % 3600) / 60)).padStart(2, '0')
   const s = String(time % 60).padStart(2, '0')
-  return { h, m, s }
+  return { h, m, s, expired: endAt !== null && time <= 0 }
 }
 
 /* ─────────────────────────────────────────
@@ -241,17 +265,22 @@ function SideDeal({ product, index }: { product: Product; index: number }) {
    SECTION PRINCIPALE
 ───────────────────────────────────────── */
 export function DealOfTheDay() {
-  const { h, m, s } = useCountdown(6)
-
-  // Fetch top 3 products by badge=hot or most discounted
+  /* Vraies promos programmées côté admin (avant = pas encore listé, après = auto-exclu) */
   const { data, isLoading } = useQuery({
     queryKey: ['deals-of-day'],
-    queryFn:  () => fetchProducts({ sort: 'popular', limit: 3 }),
-    staleTime: 5 * 60_000,
+    queryFn:  fetchActiveDeals,
+    staleTime: 30_000,
+    refetchInterval: 60_000, // se rafraîchit tout seul quand une promo se termine
   })
 
-  const products: Product[] = (data?.data?.products ?? []).map(mapApiProduct)
+  const products: Product[] = (data ?? []).slice(0, 3).map(mapDealProduct)
   const [hero, ...sides] = products
+  /* Échéance affichée = fin de la promo qui expire en premier (la liste est déjà triée par saleEndsAt) */
+  const nextEndsAt = data?.[0]?.saleEndsAt ?? null
+  const { h, m, s } = useCountdown(nextEndsAt)
+
+  // Avant qu'une promo soit programmée, ou après que tout ait expiré : section masquée
+  if (!isLoading && !hero) return null
 
   return (
     <section className="relative py-10 sm:py-16 lg:py-24 overflow-hidden bg-[#f8f9fc]">

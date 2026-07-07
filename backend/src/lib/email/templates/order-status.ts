@@ -14,7 +14,7 @@ const ORDER_STATUS_MAP: Record<string, {
     accentBg: '#d1fae5',
     msg:      'Votre commande a été confirmée et est en cours de préparation.',
   },
-  preparing: {
+  processing: {
     title:    'En préparation',
     tag:      'Préparation',
     emoji:    '📦',
@@ -46,6 +46,14 @@ const ORDER_STATUS_MAP: Record<string, {
     accentBg: '#fee2e2',
     msg:      'Votre commande a été annulée. Un remboursement sera effectué sous 48h ouvrées si applicable.',
   },
+  refunded: {
+    title:    'Commande remboursée',
+    tag:      'Remboursée',
+    emoji:    '💳',
+    accent:   '#dc2626',
+    accentBg: '#fee2e2',
+    msg:      'Votre remboursement a été traité. Comptez 3 à 5 jours ouvrés pour voir les fonds sur votre moyen de paiement.',
+  },
 }
 
 export async function sendOrderStatusEmail(
@@ -59,10 +67,7 @@ export async function sendOrderStatusEmail(
 
   const frontUrl = process.env.FRONTEND_URL ?? 'https://skignas.ahobaut.fr'
 
-  await send(
-    to,
-    `${info.emoji} ${info.title} · ${orderNumber}`,
-    baseLayout(`
+  const html = await baseLayout(`
       ${statusTag(info.tag, info.accent, info.accentBg)}
       ${heading(info.title)}
       ${paragraph(`Bonjour <strong style="color:#111827">${prenom}</strong>,`)}
@@ -74,6 +79,7 @@ export async function sendOrderStatusEmail(
       `)}
 
       ${ctaButton('Voir ma commande', `${frontUrl}/commandes/${orderNumber}`, info.accent)}
-    `, info.msg),
-  )
+    `, info.msg)
+
+  await send(to, `${info.emoji} ${info.title} · ${orderNumber}`, html)
 }

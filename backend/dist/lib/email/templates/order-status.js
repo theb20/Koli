@@ -13,7 +13,7 @@ const ORDER_STATUS_MAP = {
         accentBg: '#d1fae5',
         msg: 'Votre commande a été confirmée et est en cours de préparation.',
     },
-    preparing: {
+    processing: {
         title: 'En préparation',
         tag: 'Préparation',
         emoji: '📦',
@@ -45,13 +45,21 @@ const ORDER_STATUS_MAP = {
         accentBg: '#fee2e2',
         msg: 'Votre commande a été annulée. Un remboursement sera effectué sous 48h ouvrées si applicable.',
     },
+    refunded: {
+        title: 'Commande remboursée',
+        tag: 'Remboursée',
+        emoji: '💳',
+        accent: '#dc2626',
+        accentBg: '#fee2e2',
+        msg: 'Votre remboursement a été traité. Comptez 3 à 5 jours ouvrés pour voir les fonds sur votre moyen de paiement.',
+    },
 };
 async function sendOrderStatusEmail(to, prenom, orderNumber, status) {
     const info = ORDER_STATUS_MAP[status];
     if (!info)
         return;
     const frontUrl = process.env.FRONTEND_URL ?? 'https://skignas.ahobaut.fr';
-    await (0, client_1.send)(to, `${info.emoji} ${info.title} · ${orderNumber}`, (0, layout_1.baseLayout)(`
+    const html = await (0, layout_1.baseLayout)(`
       ${(0, components_1.statusTag)(info.tag, info.accent, info.accentBg)}
       ${(0, components_1.heading)(info.title)}
       ${(0, components_1.paragraph)(`Bonjour <strong style="color:#111827">${prenom}</strong>,`)}
@@ -63,6 +71,7 @@ async function sendOrderStatusEmail(to, prenom, orderNumber, status) {
       `)}
 
       ${(0, components_1.ctaButton)('Voir ma commande', `${frontUrl}/commandes/${orderNumber}`, info.accent)}
-    `, info.msg));
+    `, info.msg);
+    await (0, client_1.send)(to, `${info.emoji} ${info.title} · ${orderNumber}`, html);
 }
 //# sourceMappingURL=order-status.js.map

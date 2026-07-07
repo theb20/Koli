@@ -4,10 +4,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { ArrowLeft, Plus, Trash2, Save } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, Save, Zap, X } from 'lucide-react'
 import { api } from '../../lib/api'
 import { Button } from '../../components/ui/Button'
 import { Input, Textarea, Select } from '../../components/ui/Input'
+import { toDatetimeLocal, fromDatetimeLocal, getSaleState, SALE_STATE_BADGE } from '../../lib/saleWindow'
 import type { Category } from '../../types'
 
 /* ── Schéma — les prix sont en FCFA (entiers), on ×100 avant envoi ── */
@@ -23,7 +24,17 @@ const schema = z.object({
   description: z.string().optional(),
   images:      z.array(z.object({ url: z.string().url('URL invalide') })).min(1, 'Au moins 1 image'),
   specs:       z.array(z.object({ label: z.string().min(1), value: z.string().min(1) })),
-})
+  /* Promo programmée (Deals du jour / vente flash) */
+  salePrice:    z.coerce.number().int().positive().optional().or(z.literal('')),
+  saleStartsAt: z.string().optional(),
+  saleEndsAt:   z.string().optional(),
+}).refine(
+  d => !(d.salePrice && !d.saleEndsAt),
+  { message: 'Une date de fin est requise pour programmer un prix promo', path: ['saleEndsAt'] },
+).refine(
+  d => !(d.saleStartsAt && d.saleEndsAt && d.saleStartsAt >= d.saleEndsAt),
+  { message: 'La date de fin doit être après la date de début', path: ['saleEndsAt'] },
+)
 
 type FormData = z.infer<typeof schema>
 
@@ -59,7 +70,7 @@ export default function ProductFormPage() {
     enabled: isEdit,
   })
 
-  const { register, control, handleSubmit, reset, watch, formState: { errors } } = useForm<FormData>({
+  const { register, control, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema) as import('react-hook-form').Resolver<FormData>,
     defaultValues: { images: [{ url: '' }], specs: [], isNew: false, stock: 100, category: '' },
   })
@@ -81,6 +92,9 @@ export default function ProductFormPage() {
         description: existing.description ?? '',
         images:      existing.images.map((i: { url: string }) => ({ url: i.url })),
         specs:       existing.specs.map((s: { label: string; value: string }) => ({ label: s.label, value: s.value })),
+        salePrice:    existing.salePrice ?? '',
+        saleStartsAt: toDatetimeLocal(existing.saleStartsAt),
+        saleEndsAt:   toDatetimeLocal(existing.saleEndsAt),
       })
     }
   }, [existing, reset])
@@ -100,10 +114,23 @@ export default function ProductFormPage() {
       badge:    data.badge || undefined,
       images:   data.images.map(i => i.url),
       specs:    data.specs,
+      salePrice:    data.salePrice ? Number(data.salePrice) : null,
+      saleStartsAt: fromDatetimeLocal(data.saleStartsAt),
+      saleEndsAt:   fromDatetimeLocal(data.saleEndsAt),
     })
   }
 
-  const watchedImages = watch('images')
+  const clearSale = () => {
+    setValue('salePrice', '')
+    setValue('saleStartsAt', '')
+    setValue('saleEndsAt', '')
+  }
+
+  const watchedImages   = watch('images')
+  const watchSalePrice  = watch('salePrice')
+  const watchSaleStarts = watch('saleStartsAt')
+  const watchSaleEnds   = watch('saleEndsAt')
+  const saleState = getSaleState(watchSaleStarts, watchSaleEnds)
   const watchPrice    = watch('price')
   const watchOldPrice = watch('oldPrice')
 
@@ -203,6 +230,54 @@ export default function ProductFormPage() {
               {...register('stock')}
               error={errors.stock?.message}
               placeholder="100"
+            />
+          </div>
+        </div>
+
+        {/* Vente flash / Deal du jour */}
+        <div className={cardCls}>
+          <div className="flex items-center justify-between mb-1">
+            <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+              <Zap size={15} className="text-orange-500" /> Vente flash / Deal du jour
+            </h3>
+            <div className="flex items-center gap-2">
+              {saleState !== 'none' && (
+                <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border ${SALE_STATE_BADGE[saleState].cls}`}>
+                  {SALE_STATE_BADGE[saleState].label}
+                </span>
+              )}
+              {(watchSalePrice || watchSaleStarts || watchSaleEnds) && (
+                <button type="button" onClick={clearSale}
+                  className="flex items-center gap-1 text-[11px] font-semibold text-red-500 hover:text-red-600 transition-colors">
+                  <X size={12} /> Retirer la promo
+                </button>
+              )}
+            </div>
+          </div>
+          <p className="text-xs text-slate-500 mb-3">
+            Programmez un prix promo temporaire — le produit apparaît automatiquement dans les Deals du jour et ventes flash du site pendant cette période, puis revient au prix normal.
+          </p>
+          <div className="grid grid-cols-3 gap-4">
+            <Input
+              label="Prix promo (FCFA)"
+              type="number"
+              min={1}
+              step={1}
+              {...register('salePrice')}
+              error={errors.salePrice?.message}
+              placeholder="4500"
+            />
+            <Input
+              label="Début (optionnel — immédiat si vide)"
+              type="datetime-local"
+              {...register('saleStartsAt')}
+              error={errors.saleStartsAt?.message}
+            />
+            <Input
+              label="Fin"
+              type="datetime-local"
+              {...register('saleEndsAt')}
+              error={errors.saleEndsAt?.message}
             />
           </div>
         </div>

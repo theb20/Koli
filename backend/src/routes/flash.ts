@@ -12,6 +12,7 @@ router.get('/', async (_req, res) => {
         isActive:   true,
         saleEndsAt: { gt: now },
         salePrice:  { not: null },
+        OR: [{ saleStartsAt: null }, { saleStartsAt: { lte: now } }],
       },
       include: {
         images: { orderBy: { position: 'asc' }, take: 1 },

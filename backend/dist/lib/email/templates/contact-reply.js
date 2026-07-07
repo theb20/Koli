@@ -3,9 +3,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.sendContactReply = sendContactReply;
 const client_1 = require("../client");
 const layout_1 = require("../layout");
+const settings_1 = require("../settings");
 const components_1 = require("../components");
 async function sendContactReply(to, prenom, sujet) {
-    await (0, client_1.send)(to, `Re : ${sujet} — Skignas`, (0, layout_1.baseLayout)(`
+    const contact = await (0, settings_1.getContactInfo)();
+    const html = await (0, layout_1.baseLayout)(`
       ${(0, components_1.subheading)('Support client')}
       ${(0, components_1.heading)('Message bien reçu.')}
       ${(0, components_1.paragraph)(`Bonjour <strong style="color:#111827">${prenom}</strong>,`)}
@@ -22,7 +24,8 @@ async function sendContactReply(to, prenom, sujet) {
         </table>
       `)}
 
-      ${(0, components_1.ctaButton)('Contacter via WhatsApp', 'https://wa.me/237600000000', '#059669')}
-    `, `Nous avons bien reçu votre message concernant "${sujet}".`));
+      ${(0, components_1.ctaButton)('Contacter via WhatsApp', (0, settings_1.waLink)(contact.whatsappNumber), '#059669')}
+    `, `Nous avons bien reçu votre message concernant "${sujet}".`);
+    await (0, client_1.send)(to, `Re : ${sujet} — Skignas`, html);
 }
 //# sourceMappingURL=contact-reply.js.map

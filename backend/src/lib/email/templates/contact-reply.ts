@@ -1,12 +1,12 @@
 import { send }       from '../client'
 import { baseLayout } from '../layout'
+import { getContactInfo, waLink } from '../settings'
 import { subheading, heading, paragraph, ctaButton, highlightBox } from '../components'
 
 export async function sendContactReply(to: string, prenom: string, sujet: string): Promise<void> {
-  await send(
-    to,
-    `Re : ${sujet} — Skignas`,
-    baseLayout(`
+  const contact = await getContactInfo()
+
+  const html = await baseLayout(`
       ${subheading('Support client')}
       ${heading('Message bien reçu.')}
       ${paragraph(`Bonjour <strong style="color:#111827">${prenom}</strong>,`)}
@@ -23,7 +23,8 @@ export async function sendContactReply(to: string, prenom: string, sujet: string
         </table>
       `)}
 
-      ${ctaButton('Contacter via WhatsApp', 'https://wa.me/237600000000', '#059669')}
-    `, `Nous avons bien reçu votre message concernant "${sujet}".`),
-  )
+      ${ctaButton('Contacter via WhatsApp', waLink(contact.whatsappNumber), '#059669')}
+    `, `Nous avons bien reçu votre message concernant "${sujet}".`)
+
+  await send(to, `Re : ${sujet} — Skignas`, html)
 }

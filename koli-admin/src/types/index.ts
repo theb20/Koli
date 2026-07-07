@@ -44,8 +44,24 @@ export type Product = {
   store?: { id: number; name: string }
   createdAt: string
   updatedAt: string
+  salePrice?: number | null
+  saleStartsAt?: string | null
+  saleEndsAt?: string | null
   images: { id: number; url: string; position: number }[]
   specs: { id: number; label: string; value: string; position: number }[]
+}
+
+export type DealAnnouncement = {
+  id: number
+  productIds: number[]
+  segment: 'all' | 'buyers' | 'inactive'
+  inactiveDays?: number | null
+  sendAt: string
+  status: 'pending' | 'sent' | 'failed' | 'cancelled'
+  recipientCount?: number | null
+  error?: string | null
+  createdAt: string
+  sentAt?: string | null
 }
 
 export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded'

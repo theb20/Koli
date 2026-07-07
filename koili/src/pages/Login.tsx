@@ -50,7 +50,7 @@ export default function LoginPage() {
     setGoogleLoad(true)
     try {
       await loginWithGoogle()
-      navigate('/profil')
+      navigate('/')
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : ''
       if (!msg.includes('popup-closed') && !msg.includes('cancelled')) {

@@ -1,6 +1,7 @@
 import 'dotenv/config'
 import app from './app'
 import { prisma } from './lib/prisma'
+import { processDueDealAnnouncements } from './lib/dealAnnouncements'
 const PORT = parseInt(process.env.PORT ?? '4000')
 
 async function main() {
@@ -22,6 +23,9 @@ async function main() {
 ╚══════════════════════════════════════╝
     `)
   })
+
+  // Envoie les annonces de vente flash programmées dont l'heure est arrivée
+  setInterval(() => { processDueDealAnnouncements().catch(err => console.error('[deal-announcements poller]', err)) }, 60_000)
 }
 
 main().catch(err => {
