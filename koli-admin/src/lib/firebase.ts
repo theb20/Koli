@@ -1,4 +1,5 @@
 import { initializeApp, getApps } from 'firebase/app'
+import { getAnalytics, isSupported } from 'firebase/analytics'
 import { getAuth, GoogleAuthProvider } from 'firebase/auth'
 
 /* ─────────────────────────────────────────
@@ -30,3 +31,13 @@ export const googleProvider = new GoogleAuthProvider()
 googleProvider.addScope('email')
 googleProvider.addScope('profile')
 googleProvider.setCustomParameters({ prompt: 'select_account' })
+
+/* ─────────────────────────────────────────
+   ANALYTICS — usage interne (backoffice), pas de bannière RGPD nécessaire
+───────────────────────────────────────── */
+export async function initAnalytics() {
+  if (typeof window === 'undefined') return null
+  const supported = await isSupported()
+  if (!supported) return null
+  return getAnalytics(app)
+}
