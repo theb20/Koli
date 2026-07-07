@@ -93,13 +93,13 @@ router.get('/stats', requireAuth, async (req, res) => {
       include: { order: { select: { status: true, createdAt: true } } },
     })
 
-    const revenue = orderItems
+    const revenue = Math.round(orderItems
       .filter(i => i.order.status === 'delivered')
       .reduce((s, i) => {
         const sp = sellerProducts.find(p => p.productId === i.productId)
         const commission = sp?.commission ?? 5
         return s + i.price * i.qty * (1 - commission / 100)
-      }, 0)
+      }, 0))
 
     const totalOrders = new Set(orderItems.map(i => i.orderId)).size
 

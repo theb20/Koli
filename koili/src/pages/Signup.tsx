@@ -123,7 +123,7 @@ export default function SignupPage() {
           transition={{ duration: 0.5 }}
           className="relative z-10 w-full max-w-sm text-center space-y-6"
         >
-          <img src="/imgs_dropship/logohori_dropship_white.png" className="h-10 mx-auto mb-2" alt="Koli" />
+          <img src="/public/imgs_dropship/skignas_white.png" className="h-10 mx-auto mb-2" alt="Koli" />
 
           <motion.div
             initial={{ scale: 0 }} animate={{ scale: 1 }}

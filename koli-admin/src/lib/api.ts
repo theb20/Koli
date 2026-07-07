@@ -29,7 +29,7 @@ api.interceptors.response.use(
 
 /* ── Helpers formatage ───────────────────────────────────── */
 export const fmt = (n: number) =>
-  Math.round(n / 100).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
+  Math.round(n).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
 
 export const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })

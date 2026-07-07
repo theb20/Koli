@@ -18,7 +18,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 }
 
 function formatPrice(n: number) {
-  return Math.round(n / 100).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
+  return Math.round(n).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
 }
 
 export default function UltraSearchBar() {

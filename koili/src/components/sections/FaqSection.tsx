@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { Plus, Minus } from 'lucide-react'
 import BorderGlow from '../ui/BorderGlow'
+import { useSiteSettings, type SiteSettings } from '../../hooks/useSiteSettings'
 
 /* ─────────────────────────────────────────
    BRAND COLOR
@@ -11,7 +12,8 @@ const BLUE = '#0421ff'
 /* ─────────────────────────────────────────
    DATA
 ───────────────────────────────────────── */
-const FAQS = [
+function getFaqs(settings: SiteSettings) {
+  return [
   {
     q: 'Quels modes de paiement acceptez-vous ?',
     a: 'Nous acceptons Mobile Money (Orange Money, MTN MoMo, Wave), les cartes bancaires Visa & Mastercard, ainsi que le virement bancaire. Tous les paiements sont sécurisés par chiffrement SSL. Aucune donnée bancaire n\'est stockée sur nos serveurs.',
@@ -26,25 +28,26 @@ const FAQS = [
   },
   {
     q: 'Puis-je retourner ou échanger un produit ?',
-    a: 'Oui. Vous disposez de 30 jours à compter de la réception pour nous retourner tout produit non conforme ou défectueux. Le remboursement est effectué sous 3 à 5 jours ouvrés, via le même moyen de paiement utilisé lors de l\'achat. Les frais de retour sont pris en charge par Dropship si le défaut est avéré.',
+    a: `Oui. Vous disposez de 30 jours à compter de la réception pour nous retourner tout produit non conforme ou défectueux. Le remboursement est effectué sous 3 à 5 jours ouvrés, via le même moyen de paiement utilisé lors de l'achat. Les frais de retour sont pris en charge par Skignas si le défaut est avéré.`,
   },
   {
     q: 'Vos produits sont-ils authentiques et garantis ?',
-    a: 'Chaque produit référencé sur Dropship est sourcé auprès de fournisseurs certifiés et passe un contrôle qualité avant mise en vente. Tous les appareils électroniques bénéficient d\'une garantie constructeur de 12 à 24 mois. En cas de problème, notre équipe SAV vous accompagne jusqu\'à la résolution.',
+    a: 'Chaque produit référencé sur Skignas est sourcé auprès de fournisseurs certifiés et passe un contrôle qualité avant mise en vente. Tous les appareils électroniques bénéficient d\'une garantie constructeur de 12 à 24 mois. En cas de problème, notre équipe SAV vous accompagne jusqu\'à la résolution.',
   },
   {
     q: 'Comment contacter le service client ?',
-    a: 'Notre support est disponible 7j/7 de 8 h à 20 h (GMT) via le chat en ligne, par e-mail à support@dropship.fr, ou par téléphone au +225 07 000 00 00. Temps de réponse moyen : moins d\'une heure.',
+    a: `Notre support est disponible 7j/7 de 8 h à 20 h via le chat en ligne, par e-mail à ${settings.supportEmail}, ou par téléphone au ${settings.supportPhone}. Temps de réponse moyen : moins d'une heure.`,
   },
   {
     q: 'Livrez-vous dans d\'autres pays d\'Afrique ?',
     a: 'Oui ! Nous livrons actuellement en Côte d\'Ivoire, au Sénégal, au Mali, au Burkina Faso, au Ghana et au Togo. Des frais et délais spécifiques s\'appliquent selon la destination. D\'autres pays seront bientôt disponibles — suivez nos actualités.',
   },
   {
-    q: 'Comment devenir vendeur sur Dropship ?',
+    q: 'Comment devenir vendeur sur Skignas ?',
     a: 'Vous avez des produits à proposer ? Créez votre compte vendeur en quelques minutes, soumettez vos produits pour validation et commencez à vendre. Notre équipe vous accompagne gratuitement dans l\'intégration de votre catalogue et la mise en place de votre vitrine.',
   },
-]
+  ]
+}
 
 /* ─────────────────────────────────────────
    ACCORDION ITEM
@@ -166,6 +169,8 @@ function FaqItem({
 ───────────────────────────────────────── */
 export function FaqSection() {
   const [openIdx, setOpenIdx] = useState<number | null>(0)
+  const settings = useSiteSettings()
+  const FAQS = getFaqs(settings)
 
   const toggle = (i: number) => setOpenIdx(prev => (prev === i ? null : i))
 

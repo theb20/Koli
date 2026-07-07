@@ -295,7 +295,7 @@ function Sidebar({ onTagClick, articles }: { onTagClick: (tag: string) => void; 
           <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center mb-4">
             <BookOpen size={18} />
           </div>
-          <h3 className="font-black text-lg mb-2 leading-tight">La newsletter Koli</h3>
+          <h3 className="font-black text-lg mb-2 leading-tight">La newsletter Skignas</h3>
           <p className="text-white/70 text-xs mb-5 leading-relaxed">
             Guides exclusifs, bons plans et nouveautés produits chaque semaine.
           </p>
@@ -452,8 +452,8 @@ export function BlogPage() {
   return (
     <div className="bg-white">
       <PageMeta
-        title="Blog Koli — Guides, Tendances & Actualités"
-        description="Guides d'achat, tendances produits, actualités tech et lifestyle. Le blog Koli pour faire les meilleurs choix."
+        title="Blog Skignas — Guides, Tendances & Actualités"
+        description="Guides d'achat, tendances produits, actualités tech et lifestyle. Le blog Skignas pour faire les meilleurs choix."
         path="/blog"
         image="/wall/og-blog.jpg"
       />
@@ -462,7 +462,9 @@ export function BlogPage() {
       <section className="relative bg-gray-950 pt-8 pb-16 overflow-hidden">
         {/* BG */}
         <div className="absolute inset-0 opacity-[0.04]"
-          style={{ backgroundImage: 'linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px)', backgroundSize: '50px 50px' }} />
+          style={{ backgroundImage: 'linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px)', backgroundSize: '50px 50px' }} > 
+          <img src="/wall/blog.png" className="w-full h-full object-cover" />
+        </div>
         <div className="absolute top-0 right-0 w-96 h-96 rounded-full opacity-10 blur-3xl" style={{ background: BLUE }} />
 
         <div className="relative max-w-7xl mx-auto px-4 lg:px-8 pt-8">
@@ -472,7 +474,7 @@ export function BlogPage() {
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 bg-white/5 text-white/60 text-xs font-semibold mb-6 backdrop-blur-sm"
           >
             <BookOpen size={12} style={{ color: BLUE }} />
-            Magazine Koli · {allArticles.length} articles publiés
+            Magazine Skignas · {allArticles.length} articles publiés
           </motion.div>
 
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 mb-12">
@@ -482,7 +484,7 @@ export function BlogPage() {
                 className="text-5xl lg:text-7xl font-black text-white leading-tight tracking-tight mb-4"
               >
                 Le blog<br />
-                <span style={{ color: BLUE }}>Koli</span>
+                <span style={{ color: BLUE }}>Skignas</span> 
               </motion.h1>
               <motion.p
                 initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }}
@@ -640,34 +642,7 @@ export function BlogPage() {
         </div>
       </div>
 
-      {/* ── TOPICS STRIP ─────────────────────────────────────── */}
-      <section className="border-t border-gray-100 bg-gray-50 py-16">
-        <div className="max-w-7xl mx-auto px-4 lg:px-8">
-          <FadeIn className="text-center mb-10">
-            <h2 className="text-2xl font-black text-gray-900">Explorez par thème</h2>
-          </FadeIn>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-            {[
-              { icon: '📱', label: 'High-Tech', color: '#dbeafe', textColor: '#1d4ed8' },
-              { icon: '👗', label: 'Mode',       color: '#fce7f3', textColor: '#be185d' },
-              { icon: '🏠', label: 'Maison',     color: '#d1fae5', textColor: '#065f46' },
-              { icon: '💪', label: 'Sport',      color: '#ffedd5', textColor: '#c2410c' },
-              { icon: '✨', label: 'Beauté',     color: '#f3e8ff', textColor: '#7c3aed' },
-              { icon: '🎮', label: 'Gaming',     color: '#f0fdf4', textColor: '#15803d' },
-            ].map((topic, i) => (
-              <FadeIn key={topic.label} delay={i * 0.06}>
-                <button
-                  onClick={() => { setActiveCat('all'); setSearchVal(topic.label); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
-                  className="w-full p-5 rounded-2xl border border-gray-100 bg-white hover:shadow-md hover:-translate-y-0.5 transition-all text-center group"
-                >
-                  <span className="text-3xl block mb-3">{topic.icon}</span>
-                  <span className="text-sm font-bold text-gray-700 group-hover:text-gray-900">{topic.label}</span>
-                </button>
-              </FadeIn>
-            ))}
-          </div>
-        </div>
-      </section>
+      
 
       {/* ── CTA ──────────────────────────────────────────────── */}
       <section className="py-20 bg-gray-950 relative overflow-hidden">

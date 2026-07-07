@@ -170,20 +170,20 @@ const REVIEWS: Review[] = [
 ]
 
 const RATING_DISTRIBUTION = [
-  { stars: 5, percent: 78, count: 3219 },
-  { stars: 4, percent: 14, count: 578 },
-  { stars: 3, percent: 5, count: 206 },
-  { stars: 2, percent: 2, count: 82 },
+  { stars: 5, percent: 78, count: 342 },
+  { stars: 4, percent: 54, count: 204 },
+  { stars: 3, percent: 45, count: 122 },
+  { stars: 2, percent: 10, count: 82 },
   { stars: 1, percent: 1, count: 42 },
 ]
 
 const GLOBAL_RATING = 4.8
-const TOTAL_REVIEWS = 4127
+const TOTAL_REVIEWS = 700
 
 const KPIS = [
-  { icon: Users, value: 4127, label: 'avis clients certifiés', suffix: '+' },
+  { icon: Users, value: 100, label: 'avis clients certifiés', suffix: '+' },
   { icon: ShieldCheck, value: 98, label: 'clients satisfaits', suffix: '%' },
-  { icon: Truck, value: 48, label: 'livraison moyenne', suffix: 'h' },
+  { icon: Truck, value: 72, label: 'livraison moyenne', suffix: 'h' },
   { icon: Award, value: 96, label: 'recommandent la marque', suffix: '%' },
 ]
 
@@ -686,7 +686,7 @@ export function TestimonialsSection() {
             variants={fadeUp}
             className="text-gray-500 text-base mt-4 max-w-lg mx-auto"
           >
-            Plus de 4 000 avis certifiés de clients à travers l'Afrique de l'Ouest.
+            Plus de 100 avis certifiés de clients à travers l'Afrique de l'Ouest.
             Chaque retour compte.
           </motion.p>
         </motion.div>

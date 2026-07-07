@@ -11,11 +11,11 @@ const PAYMENT_LABELS: Record<string, string> = {
 }
 
 function fmt(n: number): string {
-  return (n / 100).toLocaleString('fr-FR') + '&nbsp;FCFA'
+  return n.toLocaleString('fr-FR') + '&nbsp;FCFA'
 }
 
 export async function sendOrderConfirmationEmail(to: string, order: OrderConfirmationPayload): Promise<void> {
-  const frontUrl      = process.env.FRONTEND_URL ?? 'https://koli.cm'
+  const frontUrl      = process.env.FRONTEND_URL ?? 'https://skignas.ahobaut.fr'
   const paymentLabel  = PAYMENT_LABELS[order.paymentMethod]  ?? order.paymentMethod
   const deliveryLabel = order.deliveryMethod === 'express' ? 'Express · 24h' : 'Standard · 48–72h'
   const sub           = order.subtotal      ?? order.items.reduce((s, i) => s + i.price * i.qty, 0)

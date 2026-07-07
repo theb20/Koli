@@ -57,7 +57,7 @@ export async function sendOrderStatusEmail(
   const info = ORDER_STATUS_MAP[status]
   if (!info) return
 
-  const frontUrl = process.env.FRONTEND_URL ?? 'https://dropshipp.fr'
+  const frontUrl = process.env.FRONTEND_URL ?? 'https://skignas.ahobaut.fr'
 
   await send(
     to,

@@ -22,9 +22,9 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 mb-4 shadow-lg shadow-indigo-500/30">
-            <span className="text-white font-bold text-2xl">K</span>
+            <span className="text-white font-bold text-2xl">S</span>
           </div>
-          <h1 className="text-2xl font-bold text-slate-900">Koli Backoffice</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Skignas Backoffice</h1>
           <p className="text-slate-500 text-sm mt-1">Espace administrateur</p>
         </div>
 
@@ -84,7 +84,7 @@ export default function LoginPage() {
           </div>
 
           <p className="text-center text-xs text-slate-400 mt-6">
-            Accès réservé aux administrateurs Koli
+            Accès réservé aux administrateurs Skignas
           </p>
         </form>
       </div>

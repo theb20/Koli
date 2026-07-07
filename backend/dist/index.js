@@ -11,12 +11,14 @@ async function main() {
     // Test connexion DB
     await prisma_1.prisma.$connect();
     console.log('✅ Base de données connectée');
-    app_1.default.listen(PORT, () => {
+    const HOST = process.env.HOST ?? '0.0.0.0';
+    app_1.default.listen(PORT, HOST, () => {
         console.log(`
 ╔══════════════════════════════════════╗
-║       🛍  KOLI API — v1.0.0          ║
+║      🛍  SKIGNAS API — v1.0.0        ║
 ╠══════════════════════════════════════╣
 ║  Serveur  : http://localhost:${PORT}    ║
+║  Local    : http://${HOST}:${PORT}        ║
 ║  Env      : ${(process.env.NODE_ENV ?? 'development').padEnd(22)}  ║
 ║  DB       : ${(process.env.DATABASE_URL ?? '').slice(0, 22).padEnd(22)}  ║
 ╚══════════════════════════════════════╝

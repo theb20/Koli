@@ -18,16 +18,16 @@
    CONSTANTS — seul fichier à modifier pour
    changer les valeurs globales du site
 ───────────────────────────────────────── */
-const SITE_NAME    = "Dropship"
-const BASE_URL     = "https://dropshipp.fr"
-const TWITTER_HANDLE = "@dropship_fr"
+const SITE_NAME    = "Skignas"
+const BASE_URL     = "https://skignas.com"
+const TWITTER_HANDLE = "@skignas"
 const DEFAULT_IMAGE  = `${BASE_URL}/wall/og-image.jpg`
 
 /* ─────────────────────────────────────────
    TYPES
 ───────────────────────────────────────── */
 export type PageMetaProps = {
-  /** Titre de la page. Formaté en → "{title} — Dropship" */
+  /** Titre de la page. Formaté en → "{title} — Skignas" */
   title: string
   /** Description meta (160 car. max). Si absent, la description globale de index.html s'applique. */
   description?: string

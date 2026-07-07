@@ -6,6 +6,7 @@ import multer from 'multer'
 import { prisma } from '../lib/prisma'
 import { requireAdmin } from '../middleware/auth'
 import { validate } from '../middleware/validate'
+import { cacheControl } from '../middleware/cache'
 
 /* ── Multer — stockage dans uploads/cat/ ─────────────────────── */
 const catUploadDir = path.resolve(process.env.UPLOAD_DIR ?? './uploads', 'cat')
@@ -46,7 +47,7 @@ const categorySchema = z.object({
 /* ─────────────────────────────────────────────────────────────
    GET /api/categories — public, catégories actives triées
 ───────────────────────────────────────────────────────────── */
-router.get('/', async (_req, res) => {
+router.get('/', cacheControl(300), async (_req, res) => {
   try {
     const categories = await prisma.category.findMany({
       where: { isActive: true },

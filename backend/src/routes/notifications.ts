@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma'
 import { requireAuth, requireAdmin } from '../middleware/auth'
+import { sendBroadcastEmail } from '../lib/mailer'
 
 const router = Router()
 
@@ -95,7 +96,8 @@ router.delete('/admin/clear', requireAdmin, async (_req, res) => {
 })
 
 /* ── POST /api/notifications/broadcast  [ADMIN] ─────────────── */
-/* Envoie uniquement aux utilisateurs abonnés à la newsletter    */
+/* Notification in-app → tous les clients actifs (non bannis).
+   Email → uniquement les clients ayant accepté la newsletter (consentement marketing). */
 router.post('/broadcast', requireAdmin, async (req, res) => {
   try {
     const { title, message, type = 'info' } = req.body
@@ -103,19 +105,30 @@ router.post('/broadcast', requireAdmin, async (req, res) => {
       res.status(400).json({ success: false, message: 'Titre et message requis' })
       return
     }
-    // Filtrer : seulement les abonnés newsletter actifs (non bannis)
     const users = await prisma.user.findMany({
-      where:  { subscribedToNewsletter: true, isBanned: false },
-      select: { id: true },
+      where:  { isBanned: false },
+      select: { id: true, prenom: true, email: true, subscribedToNewsletter: true },
     })
     if (users.length === 0) {
-      res.json({ success: true, message: 'Aucun abonné newsletter actif.' })
+      res.json({ success: true, message: 'Aucun client actif.' })
       return
     }
     await prisma.notification.createMany({
       data: users.map(u => ({ userId: u.id, title, body: message, type })),
     })
-    res.json({ success: true, message: `Notification envoyée à ${users.length} abonné(s) newsletter` })
+
+    const emailRecipients = users.filter(u => u.subscribedToNewsletter)
+    Promise.allSettled(
+      emailRecipients.map(u => sendBroadcastEmail(u.email, u.prenom, title, message)),
+    ).then(results => {
+      const failed = results.filter(r => r.status === 'rejected').length
+      if (failed > 0) console.error(`[broadcast email] ${failed}/${emailRecipients.length} envois échoués`)
+    })
+
+    res.json({
+      success: true,
+      message: `Notification envoyée à ${users.length} client(s) — email à ${emailRecipients.length} abonné(s) newsletter`,
+    })
   } catch { res.status(500).json({ success: false, message: 'Erreur serveur' }) }
 })
 

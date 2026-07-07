@@ -16,7 +16,7 @@ import {
 const FEATURES = [
   {
     title: 'Livraison rapide',
-    description: 'Recevez vos commandes en 2 à 7 jours ouvrés, partout en Afrique de l\'Ouest.',
+    description: 'Recevez vos commandes en 5 à 12 jours ouvrés, partout en Afrique de l\'Ouest.',
     icon: <IconTruck size={24} />,
   },
   {
@@ -51,7 +51,7 @@ const FEATURES = [
   },
   {
     title: 'Des milliers d\'avis 5★',
-    description: 'Plus de 4 000 clients satisfaits notent nos produits 4,8/5 en moyenne. Leur confiance, c\'est notre fierté.',
+    description: 'Plus de 100 clients satisfaits notent nos produits 4,8/5 en moyenne. Leur confiance, c\'est notre fierté.',
     icon: <IconStarFilled size={24} />,
   },
 ]
@@ -81,14 +81,14 @@ function Feature({
     >
       {/* Hover gradient — top row */}
       {index < 4 && (
-        <div className="opacity-0 group-hover/feature:opacity-100 transition duration-200 absolute inset-0 h-full w-full bg-gradient-to-t from-blue-50 to-transparent pointer-events-none" />
+        <div className="opacity-0 group-hover/feature:opacity-100 transition duration-200 absolute inset-0 h-full w-full bg-gradient-to-t from-blue-700 to-transparent pointer-events-none" />
       )}
       {/* Hover gradient — bottom row */}
       {index >= 4 && (
-        <div className="opacity-0 group-hover/feature:opacity-100 transition duration-200 absolute inset-0 h-full w-full bg-gradient-to-b from-blue-50 to-transparent pointer-events-none" />
+        <div className="opacity-0 group-hover/feature:opacity-100 transition duration-200 absolute inset-0 h-full w-full bg-gradient-to-b from-blue-700 to-transparent pointer-events-none" />
       )}
       {/* Icon */}
-      <div className="mb-4 relative z-10 px-5 sm:px-8 lg:px-10 text-white group-hover/feature:text-blue-600 transition-colors duration-200">
+      <div className="mb-4 relative z-10 px-5 sm:px-8 lg:px-10 text-white group-hover/feature:text-white transition-colors duration-200">
         {icon}
       </div>
       {/* Title */}

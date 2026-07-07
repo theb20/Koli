@@ -1,18 +1,47 @@
-import { useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
-import { Save, Bell, Send, AlertTriangle } from 'lucide-react'
+import { Save, Bell, Send, AlertTriangle, Phone } from 'lucide-react'
 import { api } from '../lib/api'
+import { AxiosError } from 'axios'
 import { useAuth } from '../hooks/useAuth'
 import { Button } from '../components/ui/Button'
 import { Input, Textarea } from '../components/ui/Input'
 import { PageTitle } from '../components/layout/Sidebar'
 
+type ApiErrorBody = { message?: string; errors?: Record<string, string[]> }
+
+function apiErrorMessage(err: unknown): string {
+  if (err instanceof AxiosError) {
+    const body = err.response?.data as ApiErrorBody | undefined
+    if (body?.errors) {
+      const first = Object.values(body.errors)[0]?.[0]
+      if (first) return first
+    }
+    if (body?.message) return body.message
+  }
+  return 'Une erreur est survenue'
+}
+
+type SiteSettings = {
+  supportPhone:   string
+  whatsappNumber: string
+  supportEmail:   string
+  contactEmail:   string
+  address:        string
+  facebookUrl?:   string
+  instagramUrl?:  string
+  youtubeUrl?:    string
+  tiktokUrl?:     string
+}
+
 export default function SettingsPage() {
   const { user } = useAuth()
+  const qc = useQueryClient()
   const [notifMsg, setNotifMsg]       = useState('')
   const [notifTitle, setNotifTitle]   = useState('')
   const [notifSuccess, setNotifSuccess] = useState(false)
+  const [siteSuccess, setSiteSuccess] = useState(false)
 
   const { register, handleSubmit } = useForm({
     defaultValues: { prenom: user?.prenom, nom: user?.nom, email: user?.email },
@@ -20,6 +49,27 @@ export default function SettingsPage() {
 
   const profileMutation = useMutation({
     mutationFn: (body: object) => api.put('/api/auth/me', body),
+  })
+
+  /* Coordonnées & réseaux sociaux du site public */
+  const { data: siteSettings, isLoading: loadingSite } = useQuery({
+    queryKey: ['site-settings'],
+    queryFn: async () => { const { data } = await api.get('/api/settings'); return data.data.settings as SiteSettings },
+  })
+
+  const { register: registerSite, handleSubmit: handleSubmitSite, reset: resetSite } = useForm<SiteSettings>()
+
+  useEffect(() => {
+    if (siteSettings) resetSite(siteSettings)
+  }, [siteSettings, resetSite])
+
+  const siteMutation = useMutation({
+    mutationFn: (body: SiteSettings) => api.put('/api/settings', body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['site-settings'] })
+      setSiteSuccess(true)
+      setTimeout(() => setSiteSuccess(false), 3000)
+    },
   })
 
   const broadcastMutation = useMutation({
@@ -48,6 +98,7 @@ export default function SettingsPage() {
             </Button>
           </div>
           {profileMutation.isSuccess && <p className="text-green-600 text-sm text-right">✓ Profil mis à jour</p>}
+          {profileMutation.isError && <p className="text-red-600 text-sm text-right">{apiErrorMessage(profileMutation.error)}</p>}
         </form>
       </div>
 
@@ -74,7 +125,7 @@ export default function SettingsPage() {
           <div className="flex justify-between items-center">
             <p className="text-xs text-amber-600 flex items-center gap-1.5 font-medium">
               <AlertTriangle size={12} />
-              Notification envoyée à tous les utilisateurs inscrits
+              In-app à tous les clients · email aux abonnés newsletter uniquement
             </p>
             <Button
               onClick={() => broadcastMutation.mutate({ title: notifTitle, message: notifMsg, type: 'info' })}
@@ -86,7 +137,49 @@ export default function SettingsPage() {
             </Button>
           </div>
           {notifSuccess && <p className="text-green-600 text-sm font-medium">✓ Notification envoyée avec succès</p>}
+          {broadcastMutation.isError && <p className="text-red-600 text-sm font-medium">{apiErrorMessage(broadcastMutation.error)}</p>}
         </div>
+      </div>
+
+      {/* Coordonnées & réseaux sociaux du site public */}
+      <div className={cardCls}>
+        <div className="flex items-center gap-2 mb-5">
+          <Phone size={16} className="text-indigo-600" />
+          <h2 className="text-sm font-semibold text-slate-900">Coordonnées & réseaux sociaux</h2>
+        </div>
+        <p className="text-xs text-slate-500 -mt-3 mb-5">
+          Ces informations sont affichées sur le site client (Header, Footer, page Contact, WhatsApp SAV, etc.)
+        </p>
+        {loadingSite ? (
+          <div className="h-40 bg-slate-50 rounded-xl animate-pulse" />
+        ) : (
+          <form onSubmit={handleSubmitSite(d => siteMutation.mutate(d))} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <Input label="Téléphone affiché" {...registerSite('supportPhone')} placeholder="+225 01 41 00 00 12" />
+              <Input label="Numéro WhatsApp (chiffres uniquement)" {...registerSite('whatsappNumber')} placeholder="2250700000000" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Input label="Email support (SAV)" {...registerSite('supportEmail')} type="email" placeholder="support@skignas.com" />
+              <Input label="Email de contact général" {...registerSite('contactEmail')} type="email" placeholder="hello@skignas.com" />
+            </div>
+            <Input label="Adresse" {...registerSite('address')} placeholder="Cocody, Abidjan - Côte d'Ivoire" />
+            <div className="grid grid-cols-2 gap-4">
+              <Input label="Facebook" {...registerSite('facebookUrl')} placeholder="https://facebook.com/skignas" />
+              <Input label="Instagram" {...registerSite('instagramUrl')} placeholder="https://instagram.com/skignas" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Input label="YouTube" {...registerSite('youtubeUrl')} placeholder="https://youtube.com/@skignas" />
+              <Input label="TikTok" {...registerSite('tiktokUrl')} placeholder="https://tiktok.com/@skignas" />
+            </div>
+            <div className="flex justify-end items-center gap-3">
+              {siteSuccess && <p className="text-green-600 text-sm">✓ Coordonnées mises à jour</p>}
+              {siteMutation.isError && <p className="text-red-600 text-sm">{apiErrorMessage(siteMutation.error)}</p>}
+              <Button type="submit" loading={siteMutation.isPending} icon={<Save size={15} />}>
+                Enregistrer
+              </Button>
+            </div>
+          </form>
+        )}
       </div>
 
       {/* App info */}
@@ -94,7 +187,7 @@ export default function SettingsPage() {
         <h2 className="text-sm font-semibold text-slate-900 mb-4">Informations système</h2>
         <div className="space-y-2 text-sm">
           {[
-            ['Backoffice', 'Koli Admin v1.0.0'],
+            ['Backoffice', 'Skignas Admin v1.0.0'],
             ['API', import.meta.env.VITE_API_URL ?? 'http://localhost:4000'],
             ['Environnement', import.meta.env.MODE],
             ['Utilisateur connecté', `${user?.prenom} ${user?.nom} (${user?.role})`],

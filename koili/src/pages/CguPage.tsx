@@ -1,7 +1,9 @@
 import { LegalLayout, P, Strong, Ul, InfoBox, SubTitle } from "../components/ui/LegalLayout";
 import { PageMeta } from "../components/seo/PageMeta";
+import { useSiteSettings, type SiteSettings } from "../hooks/useSiteSettings";
 
-const SECTIONS = [
+function getSections(settings: SiteSettings) {
+  return [
   {
     id: "objet",
     title: "Objet et champ d'application",
@@ -9,8 +11,8 @@ const SECTIONS = [
       <>
         <P>
           Les présentes Conditions Générales d'Utilisation (ci-après « CGU ») régissent l'accès et
-          l'utilisation de la plateforme <Strong>Dropship</Strong> (dropship.fr), éditée par la société
-          Dropship SAS (ci-après « Dropship », « nous »). En accédant ou en utilisant nos services,
+          l'utilisation de la plateforme <Strong>Skignas</Strong> (skignas.ahobaut.fr), éditée par la société
+          Skignas SAS (ci-après « Skignas », « nous »). En accédant ou en utilisant nos services,
           vous acceptez d'être lié par ces CGU.
         </P>
         <InfoBox variant="blue">
@@ -54,12 +56,12 @@ const SECTIONS = [
         <P>
           Vous êtes responsable de toutes les activités effectuées sous votre compte.
           Toute utilisation non autorisée de votre compte doit être signalée immédiatement à{" "}
-          <a href="mailto:support@dropship.fr" className="text-blue-600 underline underline-offset-2">
-            support@dropship.fr
+          <a href={`mailto:${settings.supportEmail}`} className="text-blue-600 underline underline-offset-2">
+            {settings.supportEmail}
           </a>.
         </P>
         <InfoBox variant="amber">
-          Dropship se réserve le droit de suspendre ou de supprimer tout compte en cas de
+          Skignas se réserve le droit de suspendre ou de supprimer tout compte en cas de
           violation des présentes CGU, sans préavis ni remboursement.
         </InfoBox>
       </>
@@ -71,7 +73,7 @@ const SECTIONS = [
     content: (
       <>
         <P>
-          Dropship met à disposition une plateforme de commerce en ligne permettant à ses
+          Skignas met à disposition une plateforme de commerce en ligne permettant à ses
           utilisateurs de référencer, commander et revendre des produits auprès de fournisseurs
           partenaires, sans gestion de stock propre (modèle dropshipping).
         </P>
@@ -88,7 +90,7 @@ const SECTIONS = [
         />
         <SubTitle>Disponibilité</SubTitle>
         <P>
-          Dropship s'efforce d'assurer une disponibilité de la plateforme 24h/24 et 7j/7.
+          Skignas s'efforce d'assurer une disponibilité de la plateforme 24h/24 et 7j/7.
           Toutefois, des interruptions de service peuvent survenir pour maintenance, mise à jour
           ou incidents techniques. Aucune garantie de disponibilité continue n'est offerte.
         </P>
@@ -101,7 +103,7 @@ const SECTIONS = [
     content: (
       <>
         <P>
-          En utilisant Dropship, vous vous engagez à respecter la législation applicable et les
+          En utilisant Skignas, vous vous engagez à respecter la législation applicable et les
           droits des tiers. Les comportements suivants sont strictement interdits :
         </P>
         <Ul
@@ -127,19 +129,19 @@ const SECTIONS = [
     content: (
       <>
         <P>
-          L'ensemble des éléments constitutifs de la plateforme Dropship — logotypes, marques,
+          L'ensemble des éléments constitutifs de la plateforme Skignas — logotypes, marques,
           textes, images, vidéos, interfaces, code source, bases de données — sont la propriété
-          exclusive de Dropship SAS ou de ses concédants de licence.
+          exclusive de Skignas SAS ou de ses concédants de licence.
         </P>
         <P>
           Toute reproduction, représentation, modification ou exploitation, totale ou partielle,
-          sans l'autorisation écrite préalable de Dropship est strictement interdite et constitue
+          sans l'autorisation écrite préalable de Skignas est strictement interdite et constitue
           une contrefaçon sanctionnée par les articles L.335-2 et suivants du Code de la propriété
           intellectuelle.
         </P>
         <SubTitle>Licence limitée</SubTitle>
         <P>
-          Dropship vous accorde une licence personnelle, non exclusive, non transférable et
+          Skignas vous accorde une licence personnelle, non exclusive, non transférable et
           révocable, pour accéder et utiliser la plateforme à des fins commerciales conformes
           aux présentes CGU.
         </P>
@@ -153,7 +155,7 @@ const SECTIONS = [
       <>
         <P>
           Les tarifs en vigueur sont affichés sur la page de tarification de la plateforme.
-          Dropship se réserve le droit de modifier ses prix à tout moment, sous réserve d'un
+          Skignas se réserve le droit de modifier ses prix à tout moment, sous réserve d'un
           préavis de 30 jours pour les abonnements en cours.
         </P>
         <SubTitle>Modalités</SubTitle>
@@ -171,8 +173,8 @@ const SECTIONS = [
           ne s'applique pas aux services numériques dont l'exécution a commencé avec l'accord
           express de l'utilisateur. Un remboursement peut toutefois être accordé à titre commercial
           dans un délai de 14 jours suivant la souscription, sur demande à{" "}
-          <a href="mailto:billing@dropship.fr" className="text-blue-600 underline underline-offset-2">
-            billing@dropship.fr
+          <a href="mailto:billing@skignas.ahobaut.fr" className="text-blue-600 underline underline-offset-2">
+            billing@skignas.ahobaut.fr
           </a>.
         </P>
       </>
@@ -184,7 +186,7 @@ const SECTIONS = [
     content: (
       <>
         <P>
-          Dans les limites permises par la loi applicable, Dropship ne pourra être tenu responsable
+          Dans les limites permises par la loi applicable, Skignas ne pourra être tenu responsable
           des dommages indirects, accessoires, spéciaux ou consécutifs résultant de l'utilisation
           ou de l'impossibilité d'utiliser la plateforme.
         </P>
@@ -197,7 +199,7 @@ const SECTIONS = [
           ]}
         />
         <P>
-          La responsabilité totale de Dropship, pour quelque motif que ce soit, est limitée au
+          La responsabilité totale de Skignas, pour quelque motif que ce soit, est limitée au
           montant payé par l'utilisateur au cours des 12 mois précédant le fait générateur du
           dommage.
         </P>
@@ -215,7 +217,7 @@ const SECTIONS = [
           d'abonnement en cours.
         </P>
         <P>
-          Dropship peut résilier votre accès sans préavis en cas de violation grave des présentes
+          Skignas peut résilier votre accès sans préavis en cas de violation grave des présentes
           CGU, d'activité frauduleuse avérée ou d'injonction judiciaire.
         </P>
         <InfoBox variant="green">
@@ -255,21 +257,24 @@ const SECTIONS = [
       </>
     ),
   },
-];
+  ];
+}
 
 export default function CguPage() {
+  const settings = useSiteSettings();
+  const SECTIONS = getSections(settings);
   return (
     <>
       <PageMeta
         title="Conditions Générales d'Utilisation"
-        description="Consultez les CGU de Dropship : objet du contrat, conditions d'utilisation, services, paiement, propriété intellectuelle et droits des utilisateurs."
+        description="Consultez les CGU de Skignas : objet du contrat, conditions d'utilisation, services, paiement, propriété intellectuelle et droits des utilisateurs."
         path="/cgu"
       />
       <LegalLayout
         badge="CGU"
         accentColor="#3b9c3c"
         title="Conditions Générales d'Utilisation"
-        subtitle="En utilisant la plateforme Dropship, vous acceptez les termes et conditions décrits dans ce document. Lisez-le attentivement avant toute utilisation."
+        subtitle="En utilisant la plateforme Skignas, vous acceptez les termes et conditions décrits dans ce document. Lisez-le attentivement avant toute utilisation."
         lastUpdated="1er janvier 2026"
         readTime="8 min"
         sections={SECTIONS}

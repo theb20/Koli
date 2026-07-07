@@ -128,8 +128,9 @@ router.post('/register', validate(registerSchema), async (req, res) => {
 router.post('/login', validate(loginSchema), async (req, res) => {
   try {
     const { email, password } = req.body as z.infer<typeof loginSchema>
+    const normalizedEmail = email.toLowerCase().trim()
 
-    const user = await prisma.user.findUnique({ where: { email } })
+    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } })
     if (!user) {
       res.status(401).json({ success: false, message: 'Email ou mot de passe incorrect' })
       return
@@ -364,15 +365,16 @@ router.post('/google', async (req, res) => {
       firebaseUid: z.string().min(1),
     })
     const body = schema.parse(req.body)
+    const normalizedEmail = body.email.toLowerCase().trim()
 
     // Chercher un compte existant avec cet email
-    let user = await prisma.user.findUnique({ where: { email: body.email } })
+    let user = await prisma.user.findUnique({ where: { email: normalizedEmail } })
 
     if (!user) {
       // Créer un nouveau compte (pas de mot de passe pour les comptes Google)
       user = await prisma.user.create({
         data: {
-          email:      body.email,
+          email:      normalizedEmail,
           prenom:     body.prenom,
           nom:        body.nom,
           avatar:     body.avatar ?? null,
@@ -529,9 +531,13 @@ router.put('/users/:id', requireAdmin, async (req, res) => {
       isVerified: z.boolean().optional(),
     })
     const data = schema.parse(req.body)
+    const updateData: any = { ...data }
+    if (data.email) {
+      updateData.email = data.email.toLowerCase().trim()
+    }
     const user = await prisma.user.update({
       where: { id },
-      data,
+      data: updateData,
       select: {
         id: true, prenom: true, nom: true, email: true,
         telephone: true, role: true, isVerified: true, isBanned: true, createdAt: true,
@@ -574,8 +580,9 @@ router.post('/magic-link', async (req, res) => {
       res.status(400).json({ success: false, message: 'Email requis' })
       return
     }
+    const normalizedEmail = email.toLowerCase().trim()
 
-    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } })
+    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } })
 
     if (user) {
       const token = signMagicToken(user.id, user.email)
@@ -686,6 +693,7 @@ router.put('/me', requireAuth, async (req, res) => {
     const user = await prisma.user.update({
       where: { id: req.user!.userId },
       data: { prenom, nom, email },
+      select: { id: true, prenom: true, nom: true, email: true, role: true, avatar: true },
     })
     res.json({ success: true, data: { user } })
   } catch {

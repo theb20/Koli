@@ -1,7 +1,7 @@
 import { Resend } from 'resend'
 
 export const resend = new Resend(process.env.RESEND_API_KEY)
-export const FROM   = process.env.EMAIL_FROM ?? 'DropShip <noreply@dropshipp.fr>'
+export const FROM   = process.env.EMAIL_FROM ?? 'Skignas <noreply@skignas.ahobaut.fr>'
 
 /**
  * Envoie un email via Resend.

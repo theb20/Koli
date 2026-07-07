@@ -6,6 +6,7 @@ import {
   CheckCircle2, ShoppingBag, Star,
   Truck, Headphones, TrendingUp, Send,
 } from 'lucide-react'
+import { useSiteSettings, telLink } from '../../hooks/useSiteSettings'
 
 /* ─────────────────────────────────────────
    TOKENS
@@ -67,10 +68,17 @@ const COLUMNS = [
   },
 ]
 
+const SOCIAL_DEFAULTS: Record<string, string> = {
+  Instagram: 'https://instagram.com/skignas',
+  Facebook:  'https://facebook.com/skignas',
+  YouTube:   'https://youtube.com/@skignas',
+  TikTok:    'https://tiktok.com/@skignas',
+}
+
 const SOCIALS = [
   {
     label: 'Instagram',
-    href: 'https://instagram.com/dropship.fr',
+    href: SOCIAL_DEFAULTS.Instagram,
     color: '#E1306C',
     svg: (
       <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -82,7 +90,7 @@ const SOCIALS = [
   },
   {
     label: 'Facebook',
-    href: 'https://facebook.com/dropship.fr',
+    href: SOCIAL_DEFAULTS.Facebook,
     color: '#1877F2',
     svg: (
       <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -92,7 +100,7 @@ const SOCIALS = [
   },
   {
     label: 'YouTube',
-    href: 'https://youtube.com/@dropship',
+    href: SOCIAL_DEFAULTS.YouTube,
     color: '#FF0000',
     svg: (
       <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -103,7 +111,7 @@ const SOCIALS = [
   },
   {
     label: 'TikTok',
-    href: 'https://tiktok.com/@dropship',
+    href: SOCIAL_DEFAULTS.TikTok,
     color: '#010101',
     svg: (
       <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor">
@@ -152,7 +160,7 @@ function AnimatedCounter({ target, suffix, inView }: { target: number; suffix: s
 /* ─────────────────────────────────────────
    FOOTER
 ───────────────────────────────────────── */
-const API = import.meta.env.VITE_API_URL ?? 'http://localhost:4000'
+const API = import.meta.env.VITE_API_URL
 
 export function Footer() {
   const [email, setEmail]       = useState('')
@@ -162,6 +170,12 @@ export function Footer() {
   const [focused, setFocused]   = useState(false)
   const statsRef                = useRef<HTMLDivElement>(null)
   const statsInView             = useInView(statsRef, { once: true, margin: '-80px' })
+  const settings                = useSiteSettings()
+
+  const socials = SOCIALS.map(s => ({
+    ...s,
+    href: (settings[`${s.label.toLowerCase()}Url` as keyof typeof settings] as string | null | undefined) || s.href,
+  }))
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -379,7 +393,7 @@ export function Footer() {
             >
               {/* Logo */}
               <Link to="/" className="group flex items-center gap-2.5 w-fit">
-                <img src="/imgs_dropship/logohori_dropship.png" className="w-90 h-18.5" alt="logo dropshipping" />
+                <img src="/imgs_dropship/logoSkignas.png" className="w-60 lg:w-90 h-18.5" alt="logo dropshipping" />
               </Link>
 
               <p className="text-gray-400 text-sm leading-relaxed">
@@ -388,22 +402,22 @@ export function Footer() {
 
               {/* Contact */}
               <div className="flex flex-col gap-2.5">
-                <a href="mailto:hello@dropship.fr"
+                <a href={`mailto:${settings.contactEmail}`}
                   className="flex items-center gap-2.5 text-gray-400 text-sm hover:text-gray-800 transition-colors group">
                   <div className="w-7 h-7 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center group-hover:border-gray-200 transition-colors">
                     <Mail size={12} className="text-gray-400" />
                   </div>
-                  hello@dropship.fr
+                  {settings.contactEmail}
                 </a>
-                <a href="tel:+33123456789"
+                <a href={telLink(settings.supportPhone)}
                   className="flex items-center gap-2.5 text-gray-400 text-sm hover:text-gray-800 transition-colors group">
                   <div className="w-7 h-7 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center group-hover:border-gray-200 transition-colors">
                     <Phone size={12} className="text-gray-400" />
                   </div>
-                  +33 1 23 45 67 89
+                  {settings.supportPhone}
                 </a>
                 <a
-                  href="https://maps.google.com/?q=42+rue+du+Commerce,+75015+Paris"
+                  href={`https://maps.google.com/?q=${encodeURIComponent(settings.address)}`}
                   target="_blank"
                   rel="noreferrer"
                   className="flex items-center gap-2.5 text-gray-400 text-sm hover:text-gray-800 transition-colors group"
@@ -411,7 +425,7 @@ export function Footer() {
                   <div className="w-7 h-7 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center group-hover:border-gray-200 transition-colors">
                     <MapPin size={12} className="text-gray-400" />
                   </div>
-                  42 rue du Commerce, Paris
+                  {settings.address}
                 </a>
               </div>
 
@@ -421,7 +435,7 @@ export function Footer() {
                   Suivez-nous
                 </p>
                 <div className="flex gap-2">
-                  {SOCIALS.map(({ label, href, svg, color }) => (
+                  {socials.map(({ label, href, svg, color }) => (
                     <motion.a
                       key={label}
                       href={href}
@@ -495,7 +509,7 @@ export function Footer() {
         <p
           className="watermark-shimmer lg:text-[clamp(70px,30vw,340px)] text-[clamp(80px,10vw,340px)] font-black leading-none whitespace-nowrap text-center pb-10 [-letter-spacing:0.04em]"
         >
-          DropShip
+          Skignas
         </p>
       </div>
 

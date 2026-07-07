@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
-import { ShoppingCart, ArrowRight, Zap, Timer, BadgePercent, Loader2 } from 'lucide-react'
+import { ShoppingCart, Star, Flame, ArrowRight, Zap, Timer, BadgePercent, Loader2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { fetchProducts, mapApiProduct } from '../../lib/api'
@@ -37,7 +37,7 @@ function discountPct(price: number, old: number) {
 }
 
 function formatPrice(n: number) {
-  return Math.round(n / 100).toLocaleString('fr-FR', { maximumFractionDigits: 0 })
+  return Math.round(n).toLocaleString('fr-FR', { maximumFractionDigits: 0 })
 }
 
 /* ─────────────────────────────────────────
@@ -76,7 +76,12 @@ function Stars({ rating }: { rating: number }) {
   return (
     <div className="flex items-center gap-0.5">
       {Array.from({ length: 5 }).map((_, i) => (
-        <div key={i} className="w-3 h-3 rounded-sm" style={{ background: i < Math.floor(rating) ? '#f59e0b' : '#e5e7eb' }} />
+       <Star
+          key={i}
+          className="w-3 h-3"
+          fill={i < Math.floor(rating) ? "#f5d60bff" : "#e5e7eb"}
+          stroke={i < Math.floor(rating) ? "#f5d60bff" : "#e5e7eb"}
+        />
       ))}
       <span className="text-gray-400 text-[11px] ml-1.5 tabular-nums font-medium">{rating}</span>
     </div>
@@ -89,7 +94,7 @@ function StockBar({ stock, sold, accent }: { stock: number; sold: number; accent
     <div>
       <div className="flex justify-between text-[11px] mb-1.5">
         <span className="text-gray-400">{sold} vendus</span>
-        <span className={pct < 20 ? 'text-red-500' : 'text-gray-400'}>{pct < 20 && '🔥 '}Il reste {stock}</span>
+        <span className={pct < 20 ? 'text-red-500 flex items-center gap-0.5' : 'text-gray-400'}>{pct < 20 && <Flame size={15} /> }Il reste {stock}</span>
       </div>
       <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
         <motion.div initial={{ width: 0 }} whileInView={{ width: `${pct}%` }} viewport={{ once: true }}

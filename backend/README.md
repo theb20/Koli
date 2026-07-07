@@ -190,3 +190,4 @@ npm run lint         # Vérification TypeScript
    npm run db:seed     # Insérer les données
    npm run build && npm start
    ```
+npx sqlite3 prisma/dev.db .dump > export_koli.sql

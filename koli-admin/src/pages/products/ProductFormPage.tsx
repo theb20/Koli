@@ -33,12 +33,6 @@ const BADGES = [
   { value: 'top', label: 'Top ⭐' },
 ]
 
-/** Centimes → FCFA pour l'affichage dans le formulaire */
-const cToFcfa = (centimes: number) => Math.round(centimes / 100)
-
-/** FCFA → centimes pour l'envoi à l'API */
-const fcfaToCents = (fcfa: number) => Math.round(fcfa * 100)
-
 function fmtPreview(raw: string | number) {
   const n = Number(raw)
   if (!n || n <= 0) return null
@@ -79,9 +73,8 @@ export default function ProductFormPage() {
         name:        existing.name,
         brand:       existing.brand,
         category:    existing.category,
-        /* prix stockés en centimes → on divise par 100 pour l'affichage */
-        price:       cToFcfa(existing.price),
-        oldPrice:    existing.oldPrice ? cToFcfa(existing.oldPrice) : '',
+        price:       existing.price,
+        oldPrice:    existing.oldPrice ?? '',
         badge:       existing.badge ?? '',
         stock:       existing.stock,
         isNew:       existing.isNew,
@@ -102,9 +95,8 @@ export default function ProductFormPage() {
   const onSubmit = (data: FormData) => {
     mutation.mutate({
       ...data,
-      /* on renvoie les prix en centimes */
-      price:    fcfaToCents(Number(data.price)),
-      oldPrice: data.oldPrice ? fcfaToCents(Number(data.oldPrice)) : undefined,
+      price:    Number(data.price),
+      oldPrice: data.oldPrice ? Number(data.oldPrice) : undefined,
       badge:    data.badge || undefined,
       images:   data.images.map(i => i.url),
       specs:    data.specs,

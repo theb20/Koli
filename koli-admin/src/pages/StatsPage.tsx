@@ -97,7 +97,7 @@ export default function StatsPage() {
             <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false}
               interval={Math.floor((data?.revenueByDay.length ?? 30) / 6)} />
             <YAxis yAxisId="left" tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false}
-              tickFormatter={v => `${(v / 100000).toFixed(0)}k`} />
+              tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
             <YAxis yAxisId="right" orientation="right" tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} />
             <Tooltip content={<CustomTooltip />} />
             <Legend formatter={v => <span style={{ color: '#64748b', fontSize: 11 }}>{v}</span>} />
@@ -115,7 +115,7 @@ export default function StatsPage() {
             <BarChart data={data?.byCategory} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
               <XAxis type="number" tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false}
-                tickFormatter={v => `${(v / 100000).toFixed(0)}k`} />
+                tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
               <YAxis type="category" dataKey="category" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} width={60} />
               <Tooltip content={<CustomTooltip />} />
               <Bar dataKey="revenue" name="Revenu" fill="#6366f1" radius={[0, 4, 4, 0]} />

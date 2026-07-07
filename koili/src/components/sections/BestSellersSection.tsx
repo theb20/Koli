@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'motion/react'
-import { ShoppingCart, Heart, ArrowRight, TrendingUp, Loader2 } from 'lucide-react'
+import { ShoppingCart, Heart, ArrowRight, TrendingUp, Star, Loader2 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { fetchProducts, mapApiProduct, toggleWishlist } from '../../lib/api'
 import { useCart } from '../../contexts/CartContext'
@@ -18,7 +18,7 @@ const TABS = [
 ]
 
 function formatPrice(n: number) {
-  return Math.round(n / 100).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
+  return Math.round(n).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
 }
 
 function discountPct(price: number, old: number) {
@@ -133,10 +133,18 @@ function ProductCard({ product, rank }: { product: Product; rank: number }) {
         </Link>
 
         <div className="flex items-center">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <img key={i} src="/icons/etoile-doree.png" alt="" className="w-3.5 h-3.5 object-contain"
-              style={{ opacity: i < Math.round(product.rating) ? 1 : 0.2 }} />
-          ))}
+          {Array.from({ length: 5 }).map((_, i) => {
+            const filled = i < Math.round(product.rating);
+
+            return (
+              <Star
+                key={i}
+                className="w-3.5 h-3.5"
+                fill={filled ? "#f59e0b" : "none"}
+                stroke={filled ? "#f59e0b" : "#d1d5db"}
+              />
+            );
+          })}
           <span className="text-gray-400 text-xs tabular-nums ml-0.5">({product.reviews.toLocaleString('fr-FR')})</span>
         </div>
 

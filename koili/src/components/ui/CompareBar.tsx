@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react'
 import { X, GitCompareArrows, Trash2 } from 'lucide-react'
 import { useCompare } from '../../contexts/CompareContext'
 
-const fmt = (n: number) => Math.round(n / 100).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
+const fmt = (n: number) => Math.round(n).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
 
 export function CompareBar() {
   const { list, remove, clear } = useCompare()

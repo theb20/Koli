@@ -1,12 +1,13 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Store, TrendingUp, Package, DollarSign, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useAuth } from '../contexts/AuthContext'
 import { API_BASE } from '../lib/api'
+import type { ApiResponse } from '../lib/api'
 import { PageMeta } from '../components/seo/PageMeta'
 
-const fmt = (n: number) => Math.round(n / 100).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
+const fmt = (n: number) => Math.round(n).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
 
 function StatBox({ icon, label, value, sub }: { icon: React.ReactNode; label: string; value: string; sub?: string }) {
   return (
@@ -40,28 +41,34 @@ export default function SellerPage() {
   const [form, setForm] = useState({ name: '', description: '', phone: '', address: '' })
   const [step, setStep] = useState<'check' | 'register' | 'dashboard'>('check')
 
-  const { data: storeData, isLoading } = useQuery({
+  const { data: storeData, isLoading } = useQuery<ApiResponse<{ store?: StoreData }>>({
     queryKey: ['seller-store'],
     queryFn: async () => {
       const res = await fetch(`${API_BASE}/api/seller/me`, {
         headers: { Authorization: `Bearer ${token}` },
       })
-      return res.json()
+      const json = await res.json()
+      return json as ApiResponse<{ store?: StoreData }>
     },
     enabled: !!token,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    onSuccess: (d: any) => {
-      setStep(d?.data?.store ? 'dashboard' : 'register')
-    },
-  } as Parameters<typeof useQuery>[0])
+  })
 
-  const { data: statsData } = useQuery({
+  // Sync step après chargement
+  useEffect(() => {
+    if (storeData) {
+      if (storeData.data?.store && step !== 'dashboard') setStep('dashboard')
+      else if (!storeData.data?.store && step !== 'register') setStep('register')
+    }
+  }, [storeData, step])
+
+  const { data: statsData } = useQuery<ApiResponse<StatsData>>({
     queryKey: ['seller-stats'],
     queryFn: async () => {
       const res = await fetch(`${API_BASE}/api/seller/stats`, {
         headers: { Authorization: `Bearer ${token}` },
       })
-      return res.json()
+      const json = await res.json()
+      return json as ApiResponse<StatsData>
     },
     enabled: step === 'dashboard',
   })

@@ -22,9 +22,9 @@ const storeSchema = z.object({
 const importProductSchema = z.object({
   name:        z.string().min(1),
   brand:       z.string().default('Sans marque'),
-  category:    z.enum(['hightech', 'maison', 'beaute', 'sport', 'mode', 'jeux']).default('maison'),
-  price:       z.coerce.number().nonnegative().default(0),
-  oldPrice:    z.coerce.number().nonnegative().optional(),
+  category:    z.string().min(1, 'Catégorie requise'),
+  price:       z.coerce.number().int().nonnegative().default(0),
+  oldPrice:    z.coerce.number().int().nonnegative().optional(),
   description: z.string().optional(),
   stock:       z.coerce.number().int().nonnegative().default(100),
   badge:       z.enum(['hot', 'new', 'sale', 'top']).optional(),
@@ -160,13 +160,22 @@ router.post('/:id/import', async (req, res) => {
     if (!store) return res.status(404).json({ success: false, message: 'Magasin introuvable' })
 
     const items = z.array(importProductSchema).parse(req.body.products)
+    const categories = await prisma.category.findMany({ select: { id: true, slug: true } })
+    const categoryIdBySlug = new Map(categories.map(c => [c.slug, c.id]))
 
     let created = 0
+    const skipped: string[] = []
     for (const item of items) {
+      const categoryId = categoryIdBySlug.get(item.category)
+      if (!categoryId) {
+        skipped.push(`${item.name} (catégorie "${item.category}" introuvable)`)
+        continue
+      }
       const { images, ...rest } = item
       await prisma.product.create({
         data: {
           ...rest,
+          categoryId,
           storeId,
           isActive: true,
           images: images?.length
@@ -182,7 +191,16 @@ router.post('/:id/import', async (req, res) => {
       data: { lastImportAt: new Date() },
     })
 
-    return res.json({ success: true, data: { created, message: `${created} produit(s) importé(s)` } })
+    return res.json({
+      success: true,
+      data: {
+        created,
+        skipped,
+        message: skipped.length
+          ? `${created} produit(s) importé(s), ${skipped.length} ignoré(s)`
+          : `${created} produit(s) importé(s)`,
+      },
+    })
   } catch (err) {
     console.error(err)
     return res.status(400).json({ success: false, message: 'Données invalides', detail: String(err) })
@@ -699,13 +717,15 @@ router.post('/:id/scrape', async (req, res) => {
 
     /* ── Result ── */
     if (products.length === 0) {
-      const isBot = html.includes('captcha') || html.includes('robot') || html.includes('CAPTCHA')
+      const isBot = /captcha|Type the characters you see|validateCaptcha|automated access/i.test(html)
       const isSheinBlock = retailer === 'shein' && (html.includes('verify') || html.length < 10000)
       return res.json({
         success: true,
         data: { products: [], url, count: 0, retailer },
         warning: isSheinBlock
           ? 'Shein a bloqué la requête. Copiez le HTML de la page (Ctrl+U) et utilisez l\'onglet JSON pour importer les données manuellement.'
+          : isBot && retailer === 'amazon'
+          ? 'Amazon a détecté une requête automatisée et a bloqué l\'accès (page de vérification anti-robot). Amazon bloque quasi-systématiquement le scraping direct depuis un serveur, quels que soient les en-têtes envoyés. Reportez manuellement le nom, le prix et les liens d\'images dans l\'onglet Import JSON — ou passez par un service de scraping tiers (ScraperAPI, Bright Data...) si vous avez besoin d\'automatiser des imports Amazon en volume.'
           : isBot
           ? 'Le site a détecté un robot — essayez de copier-coller les données manuellement dans l\'onglet JSON.'
           : 'Aucun produit trouvé à cette URL. Le site utilise peut-être du rendu JavaScript pur.',

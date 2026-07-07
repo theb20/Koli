@@ -12,7 +12,7 @@ import { fetchMyOrders, type ApiOrder } from '../lib/api'
 
 /* ─── helpers ─── */
 const fmt = (n: number) =>
-  Math.round(n / 100).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
+  Math.round(n).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
 
 const fmtDate = (s: string) =>
   new Date(s).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })

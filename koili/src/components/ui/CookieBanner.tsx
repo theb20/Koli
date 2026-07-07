@@ -244,7 +244,7 @@ export function CookieBanner() {
                     <div className="px-8 py-3 border-t border-gray-100 text-center">
                       <p className="text-[10px] text-gray-400">
                         Propulsé par{' '}
-                        <span className="font-semibold text-gray-500">Dropship Consent Management</span>
+                        <span className="font-semibold text-gray-500">Skignas Consent Management</span>
                       </p>
                     </div>
                   </motion.div>
@@ -348,7 +348,7 @@ export function CookieBanner() {
                     <div className="px-8 py-3 border-t border-gray-100 text-center">
                       <p className="text-[10px] text-gray-400">
                         Propulsé par{' '}
-                        <span className="font-semibold text-gray-500">Dropship Consent Management</span>
+                        <span className="font-semibold text-gray-500">Skignas Consent Management</span>
                       </p>
                     </div>
                   </motion.div>

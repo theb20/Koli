@@ -166,7 +166,7 @@ function StepCGU({ onNext }: { onNext: () => void }) {
 
         <p className="text-[11px] text-gray-400 text-center pt-2">
           Document complet disponible sur{' '}
-          <a href="/cgu" target="_blank" className="text-blue-600 underline">koli.cm/cgu</a>
+          <a href="/cgu" target="_blank" className="text-blue-600 underline">skignas.ahobaut.fr/cgu</a>
         </p>
       </div>
 
@@ -213,7 +213,7 @@ function StepConfidentialite({ onNext }: { onNext: () => void }) {
           },
           {
             icon: '⚙️', title: 'Vos droits (RGPD)',
-            body: 'Vous disposez d\'un droit d\'accès, de rectification, d\'effacement et de portabilité de vos données. Pour exercer ces droits, contactez-nous à dpo@koli.cm. Toute demande sera traitée sous 30 jours conformément au RGPD.',
+            body: 'Vous disposez d\'un droit d\'accès, de rectification, d\'effacement et de portabilité de vos données. Pour exercer ces droits, contactez-nous à dpo@skignas.ahobaut.fr. Toute demande sera traitée sous 30 jours conformément au RGPD.',
           },
           {
             icon: '🍪', title: 'Cookies',
@@ -232,7 +232,7 @@ function StepConfidentialite({ onNext }: { onNext: () => void }) {
 
         <p className="text-[11px] text-gray-400 text-center pt-2">
           Politique complète sur{' '}
-          <a href="/privacy" target="_blank" className="text-blue-600 underline">koli.cm/privacy</a>
+          <a href="/privacy" target="_blank" className="text-blue-600 underline">skignas.ahobaut.fr/privacy</a>
         </p>
       </div>
 

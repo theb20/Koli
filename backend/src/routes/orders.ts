@@ -101,8 +101,8 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
     }, 0)
 
     const shippingCost = (() => {
-      if (subtotal >= 2_500_000) return 0        // livraison gratuite
-      return body.deliveryMethod === 'express' ? 350_000 : 150_000
+      if (subtotal >= 25_000) return 0        // livraison gratuite
+      return body.deliveryMethod === 'express' ? 3_500 : 1_500
     })()
 
     // 3. Récupérer le taux de TVA par défaut
@@ -139,7 +139,7 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
     const total = subtotal + taxAmount - promoDiscount + shippingCost
 
     // Points gagnés : 1 point par 100 FCFA dépensés
-    const pointsEarned = req.user?.userId ? Math.floor(total / 10_000) : 0
+    const pointsEarned = req.user?.userId ? Math.floor(total / 100) : 0
 
     // 5. Créer la commande
     const orderNumber = generateOrderNumber()
@@ -204,7 +204,7 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
     // 6b. Notification en base (si utilisateur connecté)
     if (req.user?.userId) {
       const notifLines = [`Votre commande ${orderNumber} a bien été reçue.`]
-      if (pointsEarned > 0) notifLines.push(`+${pointsEarned} points Koli crédités !`)
+      if (pointsEarned > 0) notifLines.push(`+${pointsEarned} points Skignas crédités !`)
       await prisma.notification.create({
         data: {
           userId: req.user.userId,
@@ -221,6 +221,9 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
       orderNumber,
       prenom:        body.clientPrenom,
       items:         order.items.map(i => ({ name: i.name, qty: i.qty, price: i.price })),
+      subtotal,
+      shippingCost,
+      promoDiscount,
       total,
       paymentMethod: body.paymentMethod,
       deliveryMethod: body.deliveryMethod,

@@ -6,7 +6,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useCart } from '../../contexts/CartContext'
 import { API_BASE } from '../../lib/api'
 
-const fmt = (n: number) => Math.round(n / 100).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
+const fmt = (n: number) => Math.round(n).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
 
 function pad(n: number) { return String(n).padStart(2, '0') }
 

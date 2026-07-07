@@ -16,7 +16,7 @@ router.get('/me', requireAuth, async (req, res) => {
     // générer un code si manquant
     let code = user?.referralCode
     if (!code) {
-      code = `KOLI-${req.user!.userId.slice(-6).toUpperCase()}`
+      code = `SKIGNAS-${req.user!.userId.slice(-6).toUpperCase()}`
       await prisma.user.update({
         where: { id: req.user!.userId },
         data:  { referralCode: code },

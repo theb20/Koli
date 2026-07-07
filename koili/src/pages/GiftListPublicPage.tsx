@@ -5,7 +5,7 @@ import { useCart } from '../contexts/CartContext'
 import { API_BASE } from '../lib/api'
 import { PageMeta } from '../components/seo/PageMeta'
 
-const fmt = (n: number) => Math.round(n / 100).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
+const fmt = (n: number) => Math.round(n).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
 
 type GiftItem = {
   id: number

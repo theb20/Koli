@@ -10,7 +10,7 @@ export const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:4000'
    fmtPrice(n) → "29 990 FCFA" (aucun chiffre après la virgule).
 ───────────────────────────────────────────────────────────────── */
 export function fmtPrice(n: number): string {
-  return Math.round(n / 100).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
+  return Math.round(n).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
 }
 
 /* ─── Types partagés ─────────────────────────────────────────── */

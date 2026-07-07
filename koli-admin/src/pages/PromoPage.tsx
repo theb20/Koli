@@ -62,11 +62,8 @@ export default function PromoPage() {
     createMutation.mutate({
       code:      data.code.toUpperCase(),
       type:      rawType,
-      /* Pour 'percent' → valeur brute (ex: 20 pour 20%)
-         Pour 'fixed'   → valeur en centimes (l'admin entre des FCFA) */
-      value:     rawType === 'fixed' ? Math.round(Number(data.value) * 100) : Math.round(Number(data.value)),
-      /* minOrder stocké en centimes → l'admin entre des FCFA */
-      minOrder:  Math.round(Number(data.minOrder ?? 0) * 100),
+      value:     Math.round(Number(data.value)),
+      minOrder:  Math.round(Number(data.minOrder ?? 0)),
       maxUses:   data.maxUses ? Number(data.maxUses) : undefined,
       /* La date ISO est requise — on convertit "2026-01-15" → "2026-01-15T00:00:00.000Z" */
       expiresAt: data.expiresAt ? new Date(data.expiresAt).toISOString() : undefined,
@@ -167,7 +164,7 @@ export default function PromoPage() {
             </div>
           )}
           <div className="grid grid-cols-2 gap-4">
-            <Input label="Code" {...register('code')} error={errors.code?.message} placeholder="KOLI20" className="uppercase" />
+            <Input label="Code" {...register('code')} error={errors.code?.message} placeholder="SKIGNAS20" className="uppercase" />
             <Select label="Type" {...register('type')} options={[
               { value: 'percent', label: 'Pourcentage (%)' },
               { value: 'fixed',   label: 'Montant fixe (FCFA)' },

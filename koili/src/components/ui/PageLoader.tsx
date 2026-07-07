@@ -9,7 +9,7 @@ import { useEffect, useState } from 'react'
    .loader, .loader-letter, etc.)
 ───────────────────────────────────────── */
 
-const LETTERS = ['D', 'r', 'o', 'p', 's', 'h', 'i', 'p', '.', '.', '.']
+const LETTERS = ['S', 'k', 'i', 'g', 'n', 'a', 's', '']
 
 interface PageLoaderProps {
   /** Durée d'affichage en ms avant fade-out automatique */

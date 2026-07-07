@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { requireAdmin } from '../middleware/auth'
 import { validate } from '../middleware/validate'
+import { cacheControl } from '../middleware/cache'
 
 const router = Router()
 
@@ -21,7 +22,7 @@ const blogSchema = z.object({
 })
 
 /* ── GET /api/blog ──────────────────────────────────────────── */
-router.get('/', async (req, res) => {
+router.get('/', cacheControl(60), async (req, res) => {
   try {
     const page     = parseInt(req.query['page'] as string) || 1
     const limit    = parseInt(req.query['limit'] as string) || 9

@@ -1,10 +1,10 @@
 @import "tailwindcss";
 
 @theme {
-  --color-koli-50: #eef2ff;
-  --color-koli-100: #e0e7ff;
-  --color-koli-600: #6366f1;
-  --color-koli-700: #4f46e5;
+  --color-skignas-50: #eef2ff;
+  --color-skignas-100: #e0e7ff;
+  --color-skignas-600: #6366f1;
+  --color-skignas-700: #4f46e5;
 }
 
 body {

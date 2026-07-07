@@ -41,24 +41,24 @@ export function DropShopSection() {
           {/* Hero card */}
           <div className="relative rounded-2xl overflow-hidden flex flex-col min-h-[320px] sm:min-h-[420px] lg:min-h-[500px]">
             <img
-              src="/flyers/1.png"
+              src="/flyers/2.png"
               alt="produits tendance"
               className="absolute inset-0 w-full h-full object-cover"
             />
             <div
               className="absolute inset-0"
-              style={{ background: 'linear-gradient(160deg, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0) 45%, rgba(255,255,255,0.10) 100%)' }}
+              style={{ background: 'linear-gradient(160deg, rgba(62, 0, 0, 0.92) 0%, rgba(255,255,255,0) 45%, rgba(255,255,255,0.10) 100%)' }}
             />
 
             <div className="relative z-10 flex flex-col px-5 sm:px-8 flex-1">
-              <div className="flex flex-col items-start text-left flex-1 justify-center">
-                <span className="text-xs font-bold tracking-widest uppercase mb-4" style={{ color: '#b57a3d' }}>
+              <div className="flex p-3 flex-col items-start text-left flex-1 justify-center">
+                <span className="text-xs font-bold tracking-widest uppercase mb-4" style={{ color: '#fefefdff' }}>
                   Nouveautés
                 </span>
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl text-gray-900 mb-3">
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl text-white mb-3">
                   Produits tendance<br /> Livrés chez vous
                 </h1>
-                <p className="text-gray-600 text-sm leading-relaxed mb-6 max-w-xs">
+                <p className="text-gray-200 text-sm leading-relaxed mb-6 max-w-xs">
                   Découvrez notre sélection de produits gagnants à prix mini.
                 </p>
                 <Link

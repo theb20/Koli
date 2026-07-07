@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'motion/react'
 import {
   SlidersHorizontal, X, ChevronDown, LayoutGrid, LayoutList,
-  Heart, ShoppingCart, Star, Search, ChevronLeft, ChevronRight,
+  Heart, ShoppingCart, Star, Search,
   Sparkles, TrendingUp, Zap, RotateCcw, Check, Grid2X2, Grid3X3,
   Loader2,
 } from 'lucide-react'
@@ -12,6 +12,7 @@ import { PageMeta } from '../components/seo/PageMeta'
 import { useCart } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
 import { fetchProducts, mapApiProduct, toggleWishlist, fetchCategories, type ApiCategory } from '../lib/api'
+import { useDebouncedValue } from '../hooks/useDebouncedValue'
 
 /* ═══════════════════════════════════════════════════════════════
    CONSTANTS & TYPES
@@ -55,10 +56,10 @@ const BADGE_STYLE: Record<Badge, string> = {
   top:  'bg-blue-600 text-white',
 }
 
-const PER_PAGE = 12
+const PER_PAGE = 20
 
 /* ─── Helpers ─── */
-const fmt  = (n: number) => Math.round(n / 100).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
+const fmt  = (n: number) => Math.round(n).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
 const disc = (p: number, o: number) => Math.round(((o - p) / o) * 100)
 
 /* ─── Map sort ID frontend → backend ─── */
@@ -523,15 +524,38 @@ export default function CataloguePage() {
   const [minRating, setMinRating] = useState(+(searchParams.get('rating') ?? 0))
   const [badges,    setBadges]    = useState<Badge[]>((searchParams.get('badges')?.split(',').filter(Boolean) ?? []) as Badge[])
   const [search,    setSearch]    = useState(searchParams.get('q') ?? '')
+  const debouncedSearch = useDebouncedValue(search, 300)
   const [viewMode,  setViewMode]  = useState<'grid'|'list'>('grid')
   const [gridCols,  setGridCols]  = useState<3|4>(3)
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const [sortOpen,  setSortOpen]  = useState(false)
   const [page,      setPage]      = useState(1)
+  const [accumulated, setAccumulated] = useState<ReturnType<typeof mapApiProduct>[]>([])
   const sortRef = useRef<HTMLDivElement>(null)
+  const isSyncingRef = useRef(false) // Flag pour éviter les boucles
 
-  /* ── Sync URL ── */
+  /* ── Sync URL → State (quand on clique sur un lien depuis le menu Header) ── */
   useEffect(() => {
+    if (isSyncingRef.current) return // Ignore si on est en train de sync State→URL
+    isSyncingRef.current = true
+
+    setCategory(searchParams.get('cat') ?? 'all')
+    setSortBy(searchParams.get('sort') ?? 'popular')
+    setPriceMin(+(searchParams.get('pmin') ?? 0))
+    setPriceMax(+(searchParams.get('pmax') ?? PRICE_MAX_LIMIT))
+    setMinRating(+(searchParams.get('rating') ?? 0))
+    setBadges((searchParams.get('badges')?.split(',').filter(Boolean) ?? []) as Badge[])
+    setSearch(searchParams.get('q') ?? '')
+    setPage(1)
+
+    setTimeout(() => { isSyncingRef.current = false }, 0)
+  }, [searchParams])
+
+  /* ── Sync State → URL ── */
+  useEffect(() => {
+    if (isSyncingRef.current) return // Ignore si on est en train de sync URL→State
+    isSyncingRef.current = true
+
     const p: Record<string,string> = {}
     if (category!=='all')          p.cat    = category
     if (sortBy!=='popular')        p.sort   = sortBy
@@ -542,6 +566,9 @@ export default function CataloguePage() {
     if (search)                    p.q      = search
     setSearchParams(p, { replace:true })
     setPage(1)
+    setAccumulated([])
+
+    setTimeout(() => { isSyncingRef.current = false }, 0)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category, sortBy, priceMin, priceMax, minRating, badges, search])
 
@@ -579,9 +606,9 @@ export default function CataloguePage() {
   const apiCats = (catData?.data ?? FALLBACK_CATEGORIES).filter(c => c.slug !== 'all')
   const categories: ApiCategory[] = [allCatEntry, ...apiCats]
 
-  /* ── API query ── */
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['products', category, sortBy, priceMin, priceMax, minRating, badges, search, page],
+  /* ── API query — une page à la fois, accumulée via "Charger plus" ── */
+  const { data, isLoading, isFetching, isError } = useQuery({
+    queryKey: ['products', category, sortBy, priceMin, priceMax, minRating, badges, debouncedSearch, page],
     queryFn: () => fetchProducts({
       page,
       limit: PER_PAGE,
@@ -590,19 +617,29 @@ export default function CataloguePage() {
       minPrice: priceMin > 0 ? priceMin : undefined,
       maxPrice: priceMax < PRICE_MAX_LIMIT ? priceMax : undefined,
       badge: badges.length === 1 ? badges[0] : undefined,
-      q: search || undefined,
+      q: debouncedSearch || undefined,
     }, token),
     staleTime: 30_000,
     placeholderData: prev => prev,
   })
 
-  const products   = (data?.data.products ?? []).map(mapApiProduct)
   const pagination = data?.data.pagination
   const totalPages = pagination?.totalPages ?? 1
   const totalCount = pagination?.total ?? 0
+  const hasMore    = page < totalPages
+
+  /* Accumule les produits de la page reçue : remplace à la page 1, ajoute ensuite */
+  useEffect(() => {
+    if (!data) return
+    const mapped = data.data.products.map(mapApiProduct)
+    setAccumulated(prev => (page === 1 ? mapped : [...prev, ...mapped]))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data])
+
+  const loadMore = () => setPage(p => p + 1)
 
   /* Filter by rating client-side (API ne supporte pas minRating directement) */
-  const filtered = minRating > 0 ? products.filter(p => p.rating >= minRating) : products
+  const filtered = minRating > 0 ? accumulated.filter(p => p.rating >= minRating) : accumulated
 
   const activeFilterCount = [
     category!=='all', priceMin>0||priceMax<PRICE_MAX_LIMIT,
@@ -844,32 +881,18 @@ export default function CataloguePage() {
                 )}
               </AnimatePresence>
 
-              {/* Pagination */}
-              {!isLoading && totalPages>1 && (
-                <div className="flex items-center justify-center gap-2 mt-10">
-                  <button onClick={()=>{setPage(p=>Math.max(1,p-1));window.scrollTo({top:0,behavior:'smooth'})}} disabled={page===1}
-                    className="flex items-center gap-1 px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-500 disabled:opacity-30 hover:border-gray-300 transition-all">
-                    <ChevronLeft size={14}/> Préc.
+              {/* Charger plus */}
+              {!isLoading && hasMore && (
+                <div className="flex flex-col items-center gap-2 mt-10">
+                  <button onClick={loadMore} disabled={isFetching}
+                    className="flex items-center gap-2 px-6 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 disabled:opacity-50 hover:border-gray-300 hover:bg-gray-50 transition-all">
+                    {isFetching ? (
+                      <>Chargement…</>
+                    ) : (
+                      <>Charger {Math.min(PER_PAGE, totalCount - filtered.length)} produits de plus</>
+                    )}
                   </button>
-                  <div className="flex items-center gap-1">
-                    {Array.from({length:totalPages}).map((_,i)=>{
-                      const pg=i+1; const isActive=pg===page
-                      const show=pg===1||pg===totalPages||Math.abs(pg-page)<=1
-                      if(!show&&(pg===2||pg===totalPages-1)) return <span key={pg} className="text-gray-300 text-xs">…</span>
-                      if(!show) return null
-                      return(
-                        <button key={pg} onClick={()=>{setPage(pg);window.scrollTo({top:0,behavior:'smooth'})}}
-                          className={`w-9 h-9 rounded-xl text-sm font-semibold transition-all ${isActive?'text-white shadow-sm':'text-gray-500 hover:bg-gray-100'}`}
-                          style={{background:isActive?BLUE:''}}>
-                          {pg}
-                        </button>
-                      )
-                    })}
-                  </div>
-                  <button onClick={()=>{setPage(p=>Math.min(totalPages,p+1));window.scrollTo({top:0,behavior:'smooth'})}} disabled={page===totalPages}
-                    className="flex items-center gap-1 px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-500 disabled:opacity-30 hover:border-gray-300 transition-all">
-                    Suiv. <ChevronRight size={14}/>
-                  </button>
+                  <p className="text-xs text-gray-400">{filtered.length} / {totalCount} produits affichés</p>
                 </div>
               )}
             </div>

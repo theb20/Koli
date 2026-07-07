@@ -6,6 +6,7 @@ import { api, fmt, fmtDateTime } from '../../lib/api'
 import { Badge } from '../../components/ui/Badge'
 import { Pagination } from '../../components/ui/Pagination'
 import { PageTitle } from '../../components/layout/Sidebar'
+import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import type { Order, OrderStatus } from '../../types'
 
 const STATUSES: { value: string; label: string }[] = [
@@ -36,10 +37,11 @@ export default function OrdersPage() {
   const [page, setPage]       = useState(1)
   const [search, setSearch]   = useState('')
   const [status, setStatus]   = useState(params.get('status') ?? '')
+  const debouncedSearch = useDebouncedValue(search, 300)
 
   const { data, isLoading } = useQuery({
-    queryKey: ['orders', page, search, status],
-    queryFn: () => fetchOrders({ page, limit: 20, q: search, status }),
+    queryKey: ['orders', page, debouncedSearch, status],
+    queryFn: () => fetchOrders({ page, limit: 20, q: debouncedSearch, status }),
     placeholderData: (prev) => prev,
   })
 

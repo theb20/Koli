@@ -1,11 +1,11 @@
 /* ─────────────────────────────────────────────────────────────
-   Layout de base pour tous les emails Koli
+   Layout de base pour tous les emails Skignas
    Compatible : Gmail, Outlook, Apple Mail, dark mode, mobile
 ───────────────────────────────────────────────────────────── */
 
 export function baseLayout(content: string, preheader = ''): string {
   const year     = new Date().getFullYear()
-  const frontUrl = process.env.FRONTEND_URL ?? 'https://dropshipp.fr'
+  const frontUrl = process.env.FRONTEND_URL ?? 'https://skignas.ahobaut.fr'
 
   return `<!DOCTYPE html>
 <html lang="fr" xmlns="http://www.w3.org/1999/xhtml">
@@ -13,14 +13,14 @@ export function baseLayout(content: string, preheader = ''): string {
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <meta name="x-apple-disable-message-reformatting"/>
-  <title>DropShip</title>
+  <title>Skignas</title>
   <!--[if mso]>
   <noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
   <![endif]-->
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     body{margin:0;padding:0;background:#f0f4ff;-webkit-font-smoothing:antialiased}
-    a{text-decoration:none;color:inherit}
+    a{text-decoration:one;color:inherit}
     img{display:block;border:0;outline:0}
     .preheader{display:none;max-height:0;overflow:hidden;font-size:1px;line-height:1px;color:transparent;mso-hide:all}
 
@@ -63,15 +63,15 @@ export function baseLayout(content: string, preheader = ''): string {
                 <tr>
                   <td style="vertical-align:middle">
                     <a href="${frontUrl}" style="text-decoration:none;display:block;line-height:0">
-                      <img src="https://dropshipp.fr/imgs_dropship/logohori_dropship_whitemail.png"
-                           alt="DropShip"
+                      <img src="https://skignas.ahobaut.fr/imgs_dropship/skignas_white.png"
+                           alt="Skignas"
                            width="160" height="42"
                            style="display:block;border:0;outline:0;width:160px;height:42px" />
                     </a>
                   </td>
                   <td align="right" style="vertical-align:middle">
                     <span style="font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:600;color:rgba(255,255,255,.5);letter-spacing:.8px;text-transform:uppercase">
-                      dropshipp.fr
+                      skignas.ahobaut.fr
                     </span>
                   </td>
                 </tr>
@@ -92,10 +92,10 @@ export function baseLayout(content: string, preheader = ''): string {
               style="background:#f8faff;border-top:1px solid #dbe4ff;padding:18px 40px">
               <p class="footer-text"
                 style="font-family:system-ui,-apple-system,sans-serif;font-size:11px;color:#8898c8;line-height:1.8;text-align:center;margin:0">
-                © ${year} DropShip · France, Côte d'ivoire
+                © ${year} Skignas · Côte d'Ivoire
                 &nbsp;·&nbsp;
                 <a href="${frontUrl}"
-                  style="color:#0421ff;text-decoration:underline;text-underline-offset:2px">dropshipp.fr</a>
+                  style="color:#0421ff;text-decoration:underline;text-underline-offset:2px">skignas.ahobaut.fr</a>
                 &nbsp;·&nbsp;
                 <a href="https://wa.me/237600000000"
                   style="color:#0421ff;text-decoration:underline;text-underline-offset:2px">WhatsApp SAV</a>
@@ -110,7 +110,7 @@ export function baseLayout(content: string, preheader = ''): string {
         <!-- FIN CARD -->
 
         <p style="font-family:system-ui,-apple-system,sans-serif;font-size:11px;color:#a0aec0;text-align:center;margin:14px 0 0">
-          Vous recevez cet email car vous avez un compte Dropship.
+          Vous recevez cet email car vous avez un compte Skignas.
         </p>
 
       </td>

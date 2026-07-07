@@ -88,7 +88,7 @@ function CartItemRow({ item }: { item: CartItem }) {
 export function CartDrawer() {
   const { items, isOpen, closeCart, totalItems, totalPrice, clearCart } = useCart()
 
-  const shipping = totalPrice >= 2500000 ? 0 : 150000 // livraison gratuite > 25 000 FCFA
+  const shipping = totalPrice >= 25000 ? 0 : 1500 // livraison gratuite > 25 000 FCFA
   const total    = totalPrice + shipping
 
   return (
@@ -145,27 +145,27 @@ export function CartDrawer() {
             </div>
 
             {/* Free shipping progress */}
-            {totalPrice > 0 && totalPrice < 2500000 && (
+            {totalPrice > 0 && totalPrice < 25000 && (
               <div className="px-5 py-3 bg-emerald-50 border-b border-emerald-100">
                 <div className="flex items-center justify-between text-xs mb-1.5">
                   <span className="text-emerald-700 font-medium">
-                    Plus que {fmtCart(2500000 - totalPrice)} pour la livraison gratuite
+                    Plus que {fmtCart(25000 - totalPrice)} pour la livraison gratuite
                   </span>
                   <span className="text-emerald-600 font-bold">
-                    {Math.round((totalPrice / 2500000) * 100)}%
+                    {Math.round((totalPrice / 25000) * 100)}%
                   </span>
                 </div>
                 <div className="h-1.5 rounded-full bg-emerald-100 overflow-hidden">
                   <motion.div
                     className="h-full rounded-full bg-emerald-500"
                     initial={{ width: 0 }}
-                    animate={{ width: `${Math.min((totalPrice / 2500000) * 100, 100)}%` }}
+                    animate={{ width: `${Math.min((totalPrice / 25000) * 100, 100)}%` }}
                     transition={{ duration: 0.5 }}
                   />
                 </div>
               </div>
             )}
-            {totalPrice >= 2500000 && (
+            {totalPrice >= 25000 && (
               <div className="px-5 py-2.5 bg-emerald-50 border-b border-emerald-100 text-xs text-emerald-700 font-semibold flex items-center gap-1.5">
                 <Package size={13} /> 🎉 Livraison gratuite débloquée !
               </div>

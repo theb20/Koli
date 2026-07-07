@@ -33,7 +33,7 @@ router.get('/:code', async (req, res) => {
     if (total > 0 && total < promo.minOrder) {
       res.status(400).json({
         success: false,
-        message: `Commande minimum de ${(promo.minOrder / 100).toLocaleString('fr-FR')} FCFA requise`,
+        message: `Commande minimum de ${promo.minOrder.toLocaleString('fr-FR')} FCFA requise`,
       })
       return
     }

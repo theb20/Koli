@@ -5,7 +5,7 @@ import { subheading, heading, paragraph, ctaButton, highlightBox } from '../comp
 export async function sendContactReply(to: string, prenom: string, sujet: string): Promise<void> {
   await send(
     to,
-    `Re : ${sujet} — DropShip`,
+    `Re : ${sujet} — Skignas`,
     baseLayout(`
       ${subheading('Support client')}
       ${heading('Message bien reçu.')}

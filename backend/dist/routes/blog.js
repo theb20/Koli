@@ -5,6 +5,7 @@ const zod_1 = require("zod");
 const prisma_1 = require("../lib/prisma");
 const auth_1 = require("../middleware/auth");
 const validate_1 = require("../middleware/validate");
+const cache_1 = require("../middleware/cache");
 const router = (0, express_1.Router)();
 const blogSchema = zod_1.z.object({
     slug: zod_1.z.string().min(3).regex(/^[a-z0-9-]+$/, 'Slug invalide (lettres minuscules, chiffres, tirets)'),
@@ -20,7 +21,7 @@ const blogSchema = zod_1.z.object({
     isPublished: zod_1.z.boolean().default(false),
 });
 /* ── GET /api/blog ──────────────────────────────────────────── */
-router.get('/', async (req, res) => {
+router.get('/', (0, cache_1.cacheControl)(60), async (req, res) => {
     try {
         const page = parseInt(req.query['page']) || 1;
         const limit = parseInt(req.query['limit']) || 9;

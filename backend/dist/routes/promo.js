@@ -29,7 +29,7 @@ router.get('/:code', async (req, res) => {
         if (total > 0 && total < promo.minOrder) {
             res.status(400).json({
                 success: false,
-                message: `Commande minimum de ${(promo.minOrder / 100).toLocaleString('fr-FR')} FCFA requise`,
+                message: `Commande minimum de ${promo.minOrder.toLocaleString('fr-FR')} FCFA requise`,
             });
             return;
         }
@@ -55,10 +55,11 @@ router.get('/:code', async (req, res) => {
 router.post('/', auth_1.requireAdmin, (0, validate_1.validate)(zod_1.z.object({
     code: zod_1.z.string().min(3).max(20).toUpperCase(),
     type: zod_1.z.enum(['percent', 'fixed']),
-    value: zod_1.z.number().int().positive(),
-    minOrder: zod_1.z.number().int().nonnegative().default(0),
-    maxUses: zod_1.z.number().int().positive().optional(),
-    expiresAt: zod_1.z.string().datetime().optional(),
+    value: zod_1.z.coerce.number().int().positive(),
+    minOrder: zod_1.z.coerce.number().int().nonnegative().default(0),
+    maxUses: zod_1.z.coerce.number().int().positive().optional(),
+    /* Accepte un ISO complet ou une date seule — on parse en Date dans le handler */
+    expiresAt: zod_1.z.string().optional(),
 })), async (req, res) => {
     try {
         const data = req.body;

@@ -4,10 +4,11 @@
   "description": "Koli E-commerce API — Node.js + TypeScript + Prisma",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "dev:watch": "nodemon dist/index.js",
+    "dev": "kill $(lsof -ti :4000) 2>/dev/null; tsx watch src/index.ts",
+    "dev:watch": "kill $(lsof -ti :4000) 2>/dev/null; nodemon dist/index.js",
     "build": "tsc",
-    "start": "node dist/index.js",
+    "postinstall": "prisma generate",
+    "start": "prisma migrate deploy && node dist/index.js",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
@@ -17,6 +18,7 @@
   },
   "dependencies": {
     "@prisma/client": "^5.14.0",
+    "prisma": "^5.14.0",
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
@@ -42,7 +44,6 @@
     "@types/multer": "^1.4.11",
     "@types/node": "^20.14.0",
     "@types/nodemailer": "^6.4.15",
-    "prisma": "^5.14.0",
     "tsx": "^4.15.6",
     "typescript": "^5.4.5"
   },

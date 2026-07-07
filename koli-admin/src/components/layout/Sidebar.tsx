@@ -34,11 +34,11 @@ export function Sidebar() {
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-xl  flex items-center justify-center">
             <span className="text-white font-bold text-sm">
-              <img src="/imgs_dropship/favicon-dropship.png" alt="logo dropship" />
+              <img src="/imgs_dropship/favicon-skignas.png" alt="logo Skignas" />
             </span>
           </div>
           <div>
-            <p className="text-sm font-bold text-slate-900">Dropship</p>
+            <p className="text-sm font-bold text-slate-900">Skignas</p>
             <p className="text-[10px] text-slate-400">Backoffice v1.0</p>
           </div>
         </div>

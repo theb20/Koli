@@ -12,6 +12,24 @@ const reviewSchema = zod_1.z.object({
     title: zod_1.z.string().max(100).optional(),
     body: zod_1.z.string().min(10, 'Minimum 10 caractères').max(2000),
 });
+/* ── GET /api/reviews/latest  — derniers avis publics ─────── */
+router.get('/latest', async (req, res) => {
+    try {
+        const limit = Math.min(parseInt(req.query['limit']) || 6, 20);
+        const reviews = await prisma_1.prisma.review.findMany({
+            orderBy: { createdAt: 'desc' },
+            take: limit,
+            include: {
+                user: { select: { prenom: true, nom: true, avatar: true } },
+                product: { select: { name: true } },
+            },
+        });
+        res.json({ success: true, data: { reviews } });
+    }
+    catch {
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
 /* ── GET /api/reviews/product/:id ─────────────────────────── */
 router.get('/product/:id', async (req, res) => {
     try {
@@ -57,18 +75,11 @@ router.get('/product/:id', async (req, res) => {
     }
 });
 /* ── POST /api/reviews ─────────────────────────────────────── */
+/* Plusieurs avis autorisés par utilisateur par produit         */
 router.post('/', auth_1.requireAuth, (0, validate_1.validate)(reviewSchema), async (req, res) => {
     try {
         const data = req.body;
         const userId = req.user.userId;
-        // Vérifier si déjà un avis
-        const existing = await prisma_1.prisma.review.findUnique({
-            where: { userId_productId: { userId, productId: data.productId } },
-        });
-        if (existing) {
-            res.status(409).json({ success: false, message: 'Vous avez déjà laissé un avis pour ce produit' });
-            return;
-        }
         // Vérifier si achat vérifié
         const hasBought = await prisma_1.prisma.orderItem.findFirst({
             where: { productId: data.productId, order: { userId, status: 'delivered' } },

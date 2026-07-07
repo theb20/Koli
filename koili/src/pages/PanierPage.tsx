@@ -7,11 +7,12 @@ import {
   MapPin, Phone, User, Tag, CreditCard, Smartphone, Banknote,
   CheckCircle2, Package, Shield, Truck, Clock, Copy, Check,
   ArrowLeft, AlertCircle, Edit2, Star, Zap, Gift, Info,
-  MessageCircle, RotateCcw, Mail, Loader2,
+  MessageCircle, RotateCcw, Mail, Loader2, Undo2, Lock, Van,
 } from 'lucide-react'
 import { useCart, fmtCart, type CartItem } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
 import { createOrder, fetchPromo, fetchProducts, fetchProduct, mapApiProduct, fetchDefaultTax } from '../lib/api'
+import { useSiteSettings, waLink, telLink } from '../hooks/useSiteSettings'
 
 /* ═══════════════════════════════════════════════════════════════
    TYPES & CONSTANTES
@@ -26,9 +27,9 @@ type DeliveryInfo = {
 
 type PaymentMethod = 'orange' | 'wave' | 'mtn' | 'cash'
 
-const SHIPPING_FREE   = 2_500_000  // 25 000 FCFA
-const SHIPPING_STD    = 150_000    // 1 500 FCFA
-const SHIPPING_EXP    = 350_000    // 3 500 FCFA
+const SHIPPING_FREE   = 25_000  // 25 000 FCFA
+const SHIPPING_STD    = 1_500   // 1 500 FCFA
+const SHIPPING_EXP    = 3_500   // 3 500 FCFA
 
 const STEPS_LIST: { id: Step; label: string; icon: string }[] = [
   { id: 'cart',         label: 'Panier',       icon: '🛒' },
@@ -640,11 +641,11 @@ function StepCart({ items, totalPrice, onNext, promoCode, promoDiscount, onPromo
       {/* Garanties */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { icon: '🔒', title: 'Paiement sécurisé', sub: 'Données chiffrées' },
-          { icon: '🚚', title: 'Livraison rapide',   sub: '24 à 72h' },
-          { icon: '↩️', title: 'Retours gratuits',   sub: 'Sous 30 jours' },
+          { icon: <Lock size={24} />, title: 'Paiement sécurisé', sub: 'Données chiffrées' },
+          { icon: <Van size={24} />, title: 'Livraison rapide',   sub: '24 à 72h' },
+          { icon: <Undo2 size={24} />, title: 'Retours gratuits',   sub: 'Sous 30 jours' },
         ].map(g => (
-          <div key={g.title} className="bg-white rounded-xl border border-gray-100 p-3 text-center">
+          <div key={g.title} className="bg-white flex flex-col items-center rounded-xl border border-gray-100 p-3 text-center">
             <span className="text-xl">{g.icon}</span>
             <p className="text-xs font-bold text-gray-800 mt-1 leading-tight">{g.title}</p>
             <p className="text-[10px] text-gray-400 mt-0.5">{g.sub}</p>
@@ -749,15 +750,15 @@ function StepLivraison({ delivery, setDelivery, onNext, onBack, totalPrice }: {
               label: 'Livraison Standard',
               delay: '3 à 5 jours ouvrés',
               price: shippingFree ? 0 : SHIPPING_STD,
-              icon: '📦',
+              icon: <Package size={24} />,
               note: shippingFree ? '🎉 Gratuite (seuil atteint)' : null,
             },
             {
               id: 'express' as const,
               label: 'Livraison Express',
-              delay: '24 à 48h garanties',
+              delay: '24 à 72h garanties',
               price: SHIPPING_EXP,
-              icon: '⚡',
+              icon: <Zap size={24} />,
               note: 'Prioritaire · Appel avant livraison',
             },
           ].map(opt => (
@@ -1057,7 +1058,7 @@ function StepConfirmation({ items, delivery, paymentMethod, totalPrice, promoDis
       {/* Alerte info */}
       <div className="flex items-center gap-3 p-3.5 rounded-xl bg-blue-50 border border-blue-100 text-sm text-blue-700">
         <Info size={15} className="shrink-0" />
-        Vérifiez vos informations avant de confirmer. Vous recevrez une confirmation par SMS.
+        Vérifiez vos informations avant de confirmer. Vous recevrez une confirmation dans votre boite mail.
       </div>
 
       {/* Livraison recap */}
@@ -1085,7 +1086,7 @@ function StepConfirmation({ items, delivery, paymentMethod, totalPrice, promoDis
         )}
         <div className="mt-3 flex items-center gap-2 text-xs">
           {delivery.methode === 'express'
-            ? <span className="flex items-center gap-1 text-orange-600 font-semibold bg-orange-50 px-2.5 py-1.5 rounded-lg"><Zap size={11}/> Express · 24–48h</span>
+            ? <span className="flex items-center gap-1 text-orange-600 font-semibold bg-orange-50 px-2.5 py-1.5 rounded-lg"><Zap size={11}/> Express · 24–72h</span>
             : <span className="flex items-center gap-1 text-blue-600 font-semibold bg-blue-50 px-2.5 py-1.5 rounded-lg"><Truck size={11}/> Standard · 3–5 jours</span>
           }
           <span className="flex items-center gap-1 text-gray-500 bg-gray-50 px-2.5 py-1.5 rounded-lg"><Clock size={11}/> Estimé : {new Date(Date.now() + (delivery.methode === 'express' ? 2 : 5) * 86400000).toLocaleDateString('fr-FR',{weekday:'long', day:'numeric', month:'long'})}</span>
@@ -1198,6 +1199,7 @@ function StepSucces({ orderId, paymentMethod, delivery }: {
   orderId: string; paymentMethod: PaymentMethod; delivery: DeliveryInfo
 }) {
   const navigate  = useNavigate()
+  const settings  = useSiteSettings()
   const [copied, setCopied] = useState(false)
   const pm = PAYMENT_OPTIONS.find(p => p.id === paymentMethod)!
 
@@ -1227,7 +1229,7 @@ function StepSucces({ orderId, paymentMethod, delivery }: {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Commande confirmée !</h1>
           <p className="text-gray-500 text-sm mt-2 leading-relaxed max-w-sm mx-auto">
-            Merci {delivery.prenom} ! Votre commande a été enregistrée. Vous recevrez un SMS de confirmation sous peu.
+            Merci {delivery.prenom} ! Votre commande a été enregistrée. Vous recevrez un message de confirmation par mail sous peu.
           </p>
         </motion.div>
 
@@ -1305,11 +1307,11 @@ function StepSucces({ orderId, paymentMethod, delivery }: {
           className="w-full bg-white rounded-2xl border border-gray-100 p-4">
           <p className="text-xs text-gray-400 text-center mb-3">Besoin d'aide avec votre commande ?</p>
           <div className="flex gap-3">
-            <a href="https://wa.me/2250700000000" target="_blank" rel="noopener noreferrer"
+            <a href={waLink(settings.whatsappNumber)} target="_blank" rel="noopener noreferrer"
               className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-500 text-white text-sm font-semibold hover:bg-emerald-600 transition-colors">
               <MessageCircle size={15} /> WhatsApp SAV
             </a>
-            <a href="tel:+2250700000000"
+            <a href={telLink(settings.supportPhone)}
               className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-sm font-semibold hover:border-gray-300 transition-colors">
               <Phone size={15} /> Appeler
             </a>
@@ -1463,8 +1465,8 @@ export default function PanierPage() {
       <div className="bg-white border-b border-gray-100 sticky top-0 z-30 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <Link to="/" className="font-black text-xl tracking-tight text-gray-900">
-            <img src="/imgs_dropship/logohori_dropship.png" 
-            className="w-45 h-12"
+            <img src="/imgs_dropship/logoSkignas.png" 
+            className="w-37 h-12"
             alt="" />          
           </Link>
           {step !== 'succes' && (

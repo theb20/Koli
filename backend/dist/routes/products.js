@@ -5,23 +5,25 @@ const zod_1 = require("zod");
 const prisma_1 = require("../lib/prisma");
 const auth_1 = require("../middleware/auth");
 const validate_1 = require("../middleware/validate");
+const cache_1 = require("../middleware/cache");
 const router = (0, express_1.Router)();
 /* ── Schemas ─────────────────────────────────────────────────── */
 const listQuerySchema = zod_1.z.object({
     page: zod_1.z.coerce.number().int().positive().default(1),
-    limit: zod_1.z.coerce.number().int().min(1).max(100).default(20),
+    limit: zod_1.z.coerce.number().int().min(1).max(500).default(20),
     category: zod_1.z.string().optional(),
-    q: zod_1.z.string().optional(), // recherche texte
+    q: zod_1.z.string().optional(),
     sort: zod_1.z.enum(['popular', 'newest', 'price_asc', 'price_desc', 'rating']).default('popular'),
-    minPrice: zod_1.z.coerce.number().optional(),
-    maxPrice: zod_1.z.coerce.number().optional(),
+    minPrice: zod_1.z.coerce.number().int().optional(),
+    maxPrice: zod_1.z.coerce.number().int().optional(),
     badge: zod_1.z.string().optional(),
     inStock: zod_1.z.coerce.boolean().optional(),
+    storeId: zod_1.z.coerce.number().int().optional(), // filter by store
 });
 const createProductSchema = zod_1.z.object({
     name: zod_1.z.string().min(3).max(200),
     brand: zod_1.z.string().min(1).max(100),
-    category: zod_1.z.enum(['hightech', 'maison', 'beaute', 'sport', 'mode', 'jeux']),
+    category: zod_1.z.string().min(1, 'Catégorie requise'),
     price: zod_1.z.number().int().positive(),
     oldPrice: zod_1.z.number().int().positive().optional(),
     badge: zod_1.z.enum(['hot', 'new', 'sale', 'top']).optional(),
@@ -35,10 +37,10 @@ const createProductSchema = zod_1.z.object({
 /* ─────────────────────────────────────────────────────────────
    GET /api/products
 ───────────────────────────────────────────────────────────── */
-router.get('/', auth_1.optionalAuth, async (req, res) => {
+router.get('/', auth_1.optionalAuth, (0, cache_1.cacheControl)(30), async (req, res) => {
     try {
         const query = listQuerySchema.parse(req.query);
-        const { page, limit, category, q, sort, minPrice, maxPrice, badge, inStock } = query;
+        const { page, limit, category, q, sort, minPrice, maxPrice, badge, inStock, storeId } = query;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const where = { isActive: true };
         if (category)
@@ -47,6 +49,8 @@ router.get('/', auth_1.optionalAuth, async (req, res) => {
             where['badge'] = badge;
         if (inStock)
             where['stock'] = { gt: 0 };
+        if (storeId)
+            where['storeId'] = storeId;
         if (minPrice !== undefined || maxPrice !== undefined) {
             where['price'] = {
                 ...(minPrice !== undefined ? { gte: minPrice } : {}),
@@ -78,6 +82,8 @@ router.get('/', auth_1.optionalAuth, async (req, res) => {
                 take: limit,
                 include: {
                     images: { orderBy: { position: 'asc' } },
+                    store: { select: { id: true, name: true } },
+                    categoryRel: { select: { id: true, slug: true, name: true, icon: true, image: true } },
                 },
             }),
         ]);
@@ -105,7 +111,7 @@ router.get('/', auth_1.optionalAuth, async (req, res) => {
 /* ─────────────────────────────────────────────────────────────
    GET /api/products/featured   — produits mis en avant (homepage)
 ───────────────────────────────────────────────────────────── */
-router.get('/featured', async (_req, res) => {
+router.get('/featured', (0, cache_1.cacheControl)(60), async (_req, res) => {
     try {
         const [hot, newItems, topRated] = await Promise.all([
             prisma_1.prisma.product.findMany({
@@ -133,7 +139,7 @@ router.get('/featured', async (_req, res) => {
 /* ─────────────────────────────────────────────────────────────
    GET /api/products/:id
 ───────────────────────────────────────────────────────────── */
-router.get('/:id', auth_1.optionalAuth, async (req, res) => {
+router.get('/:id', auth_1.optionalAuth, (0, cache_1.cacheControl)(20), async (req, res) => {
     try {
         const id = parseInt(req.params['id'] ?? '');
         if (isNaN(id)) {
@@ -145,6 +151,7 @@ router.get('/:id', auth_1.optionalAuth, async (req, res) => {
             include: {
                 images: { orderBy: { position: 'asc' } },
                 specs: { orderBy: { position: 'asc' } },
+                categoryRel: { select: { id: true, slug: true, name: true, icon: true, image: true } },
                 reviewItems: {
                     take: 5,
                     orderBy: { createdAt: 'desc' },
@@ -182,9 +189,16 @@ router.get('/:id', auth_1.optionalAuth, async (req, res) => {
 router.post('/', auth_1.requireAdmin, (0, validate_1.validate)(createProductSchema), async (req, res) => {
     try {
         const { images, specs, colors, ...data } = req.body;
+        // Résoudre categoryId depuis le slug
+        const catRow = await prisma_1.prisma.category.findUnique({ where: { slug: data.category } });
+        if (!catRow) {
+            res.status(400).json({ success: false, message: `Catégorie "${data.category}" introuvable` });
+            return;
+        }
         const product = await prisma_1.prisma.product.create({
             data: {
                 ...data,
+                categoryId: catRow.id,
                 colors: colors ? JSON.stringify(colors) : null,
                 images: {
                     create: images.map((url, i) => ({ url, position: i })),
@@ -207,14 +221,21 @@ router.post('/', auth_1.requireAdmin, (0, validate_1.validate)(createProductSche
 /* ─────────────────────────────────────────────────────────────
    PUT /api/products/:id  [ADMIN]
 ───────────────────────────────────────────────────────────── */
-router.put('/:id', auth_1.requireAdmin, async (req, res) => {
+router.put('/:id', auth_1.requireAdmin, (0, validate_1.validate)(createProductSchema.partial()), async (req, res) => {
     try {
         const id = parseInt(req.params['id'] ?? '');
         const { images, specs, colors, ...data } = req.body;
+        // Résoudre categoryId si le slug est fourni
+        const catRow = data.category ? await prisma_1.prisma.category.findUnique({ where: { slug: data.category } }) : undefined;
+        if (data.category && !catRow) {
+            res.status(400).json({ success: false, message: `Catégorie "${data.category}" introuvable` });
+            return;
+        }
         const product = await prisma_1.prisma.product.update({
             where: { id },
             data: {
                 ...data,
+                ...(catRow !== undefined ? { categoryId: catRow?.id ?? null } : {}),
                 ...(colors !== undefined ? { colors: JSON.stringify(colors) } : {}),
                 ...(images ? {
                     images: {

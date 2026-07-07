@@ -11,14 +11,15 @@ import {
 import { PageMeta } from '../components/seo/PageMeta'
 import { useAuth } from '../contexts/AuthContext'
 import { fetchOrder, apiFetch, type ApiOrder, type ApiResponse } from '../lib/api'
+import { useSiteSettings, waLink, telLink } from '../hooks/useSiteSettings'
 
 /* ═══════════════════════════════════════════════════════════════
    TYPES & HELPERS
 ═══════════════════════════════════════════════════════════════ */
 const fmt = (n: number) =>
-  Math.round(n / 100).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
+  Math.round(n).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
 
-type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'shipped' | 'delivered' | 'cancelled'
+type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded'
 
 type OrderItem = {
   productId: number; name: string; brand: string; image: string
@@ -73,24 +74,25 @@ function mapOrder(o: ApiOrder): Order {
 
 /* ─── Status config ─── */
 const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
-  pending:   { label: 'En attente',      color: '#d97706', bg: '#fffbeb', icon: <Clock size={14} /> },
-  confirmed: { label: 'Confirmée',       color: '#0421ff', bg: '#eef2ff', icon: <CheckCircle2 size={14} /> },
-  preparing: { label: 'En préparation',  color: '#7c3aed', bg: '#f5f3ff', icon: <Package size={14} /> },
-  shipped:   { label: 'Expédiée',        color: '#0891b2', bg: '#ecfeff', icon: <Truck size={14} /> },
-  delivered: { label: 'Livrée',          color: '#059669', bg: '#ecfdf5', icon: <CheckCircle2 size={14} /> },
-  cancelled: { label: 'Annulée',         color: '#dc2626', bg: '#fef2f2', icon: <AlertCircle size={14} /> },
+  pending:    { label: 'En attente',      color: '#d97706', bg: '#fffbeb', icon: <Clock size={14} /> },
+  confirmed:  { label: 'Confirmée',       color: '#0421ff', bg: '#eef2ff', icon: <CheckCircle2 size={14} /> },
+  processing: { label: 'En préparation',  color: '#7c3aed', bg: '#f5f3ff', icon: <Package size={14} /> },
+  shipped:    { label: 'Expédiée',        color: '#0891b2', bg: '#ecfeff', icon: <Truck size={14} /> },
+  delivered:  { label: 'Livrée',          color: '#059669', bg: '#ecfdf5', icon: <CheckCircle2 size={14} /> },
+  cancelled:  { label: 'Annulée',         color: '#dc2626', bg: '#fef2f2', icon: <AlertCircle size={14} /> },
+  refunded:   { label: 'Remboursée',      color: '#dc2626', bg: '#fef2f2', icon: <AlertCircle size={14} /> },
 }
 
 /* ─── Timeline steps ─── */
 const TIMELINE_STEPS: { key: OrderStatus; label: string; desc: string; icon: React.ReactNode }[] = [
-  { key: 'pending',   label: 'Commande reçue',     desc: 'Votre commande a été enregistrée',              icon: <Clock size={15} /> },
-  { key: 'confirmed', label: 'Confirmée',           desc: 'Paiement validé, traitement en cours',          icon: <CheckCircle2 size={15} /> },
-  { key: 'preparing', label: 'En préparation',      desc: 'Vos articles sont en cours de préparation',     icon: <Package size={15} /> },
-  { key: 'shipped',   label: 'Expédiée',            desc: 'Votre colis est en route',                      icon: <Truck size={15} /> },
-  { key: 'delivered', label: 'Livrée',              desc: 'Commande livrée avec succès',                   icon: <CheckCircle2 size={15} /> },
+  { key: 'pending',    label: 'Commande reçue',     desc: 'Votre commande a été enregistrée',              icon: <Clock size={15} /> },
+  { key: 'confirmed',  label: 'Confirmée',           desc: 'Paiement validé, traitement en cours',          icon: <CheckCircle2 size={15} /> },
+  { key: 'processing', label: 'En préparation',      desc: 'Vos articles sont en cours de préparation',     icon: <Package size={15} /> },
+  { key: 'shipped',    label: 'Expédiée',            desc: 'Votre colis est en route',                      icon: <Truck size={15} /> },
+  { key: 'delivered',  label: 'Livrée',              desc: 'Commande livrée avec succès',                   icon: <CheckCircle2 size={15} /> },
 ]
 
-const STATUS_ORDER: OrderStatus[] = ['pending', 'confirmed', 'preparing', 'shipped', 'delivered']
+const STATUS_ORDER: OrderStatus[] = ['pending', 'confirmed', 'processing', 'shipped', 'delivered']
 
 /* ═══════════════════════════════════════════════════════════════
    TIMELINE
@@ -103,6 +105,18 @@ function OrderTimeline({ status }: { status: OrderStatus }) {
         <div>
           <p className="text-sm font-semibold text-red-700">Commande annulée</p>
           <p className="text-xs text-red-400 mt-0.5">Cette commande a été annulée. Remboursement sous 3-5 jours ouvrés.</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (status === 'refunded') {
+    return (
+      <div className="flex items-center gap-3 p-4 rounded-2xl bg-red-50 border border-red-100">
+        <AlertCircle size={20} className="text-red-500 shrink-0" />
+        <div>
+          <p className="text-sm font-semibold text-red-700">Commande remboursée</p>
+          <p className="text-xs text-red-400 mt-0.5">Cette commande a été remboursée.</p>
         </div>
       </div>
     )
@@ -247,6 +261,7 @@ function Card({ title, icon, children, className = '' }: {
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { token } = useAuth()
+  const settings = useSiteSettings()
   const [copiedRef, setCopiedRef]     = useState(false)
   const [copiedTrack, setCopiedTrack] = useState(false)
   const [ratingOpen, setRatingOpen]   = useState(false)
@@ -565,7 +580,7 @@ export default function OrderDetailPage() {
               <Card title="Besoin d'aide ?" icon={<MessageSquare size={16} />}>
                 <div className="space-y-2.5">
                   <a
-                    href="https://wa.me/2250700000000"
+                    href={waLink(settings.whatsappNumber)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-gray-200 hover:bg-gray-50 transition-colors group"
@@ -581,7 +596,7 @@ export default function OrderDetailPage() {
                   </a>
 
                   <a
-                    href="tel:+2250700000000"
+                    href={telLink(settings.supportPhone)}
                     className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-gray-200 hover:bg-gray-50 transition-colors group"
                   >
                     <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shrink-0">

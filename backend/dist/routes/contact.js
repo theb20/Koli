@@ -12,10 +12,7 @@ const contactSchema = zod_1.z.object({
     nom: zod_1.z.string().min(2).max(50),
     email: zod_1.z.string().email(),
     telephone: zod_1.z.string().optional(),
-    sujet: zod_1.z.enum([
-        'Commande', 'Livraison', 'Remboursement', 'Produit défectueux',
-        'Question produit', 'Partenariat', 'Presse', 'Autre'
-    ]),
+    sujet: zod_1.z.string().min(1).max(100),
     message: zod_1.z.string().min(20, 'Message trop court').max(2000),
 });
 /* ── POST /api/contact ─────────────────────────────────────── */

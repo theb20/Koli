@@ -11,6 +11,7 @@ import { useCart } from '../../contexts/CartContext'
 import { useAuth } from '../../contexts/AuthContext'
 import { useQuery } from '@tanstack/react-query'
 import { fetchCategories, type ApiCategory } from '../../lib/api'
+import { useSiteSettings, telLink } from '../../hooks/useSiteSettings'
 
 /* ─────────────────────────────────────────
    TYPES
@@ -29,7 +30,7 @@ type NavItem = {
   children?: NavChild[]
 }
 
-const GREEN = '#0421ffff'
+const GREEN = '#1d04ffff'
 
 /* ─────────────────────────────────────────
    DATA — fallback si l'API n'est pas encore chargée
@@ -58,16 +59,17 @@ const NAV_LINKS: NavItem[] = [
 ───────────────────────────────────────── */
 function TopBar() {
   const [dark, setDark] = useState(false)
+  const settings = useSiteSettings()
   return (
     <div className="bg-gray-900 text-white text-xs hidden sm:block">
       <div className="max-w-7xl mx-auto px-4 lg:px-8 h-9 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 shrink-0">
-          <a href="tel:+2250141000012" className="flex items-center gap-1.5 text-gray-300 hover:text-white transition-colors whitespace-nowrap">
-            <Phone size={12} /> +225 01 41 00 00 12
+          <a href={telLink(settings.supportPhone)} className="flex items-center gap-1.5 text-gray-300 hover:text-white transition-colors whitespace-nowrap">
+            <Phone size={12} /> {settings.supportPhone}
           </a>
           <span className="text-gray-600 hidden md:block">|</span>
-          <a href="mailto:service.client@koli.com" className="hidden md:flex items-center gap-1.5 text-gray-300 hover:text-white transition-colors">
-            <Mail size={12} /> service.client@koli.com
+          <a href={`mailto:${settings.supportEmail}`} className="hidden md:flex items-center gap-1.5 text-gray-300 hover:text-white transition-colors">
+            <Mail size={12} /> {settings.supportEmail}
           </a>
           <span className="text-gray-600 hidden lg:block">|</span>
           <span className="text-gray-400 hidden lg:block">Livraison partout en Côte d&apos;Ivoire</span>
@@ -269,10 +271,10 @@ function FullMegaMenu({ open, onClose, categories }: { open: boolean; onClose: (
           <div className="col-span-5 border-r border-gray-100 py-6 px-8">
             <div className="flex items-baseline justify-between mb-5">
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">Catalogue</p>
-                <h3 className="text-base font-semibold text-gray-900 mt-0.5">Parcourir par catégorie</h3>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gray-400">Catalogue</p>
+                <h3 className="text-base font-bold text-gray-900 mt-0.5">Parcourir par catégorie</h3>
               </div>
-              <span className="text-[11px] text-gray-400 font-mono">{categories.length} sections</span>
+              <span className="text-[11px] text-gray-400 ">{categories.length} sections</span>
             </div>
             <div className="space-y-0.5">
               {categories.map((cat, i) => {
@@ -283,18 +285,18 @@ function FullMegaMenu({ open, onClose, categories }: { open: boolean; onClose: (
                     onMouseEnter={() => setActiveIdx(i)} onFocus={() => setActiveIdx(i)}
                     className={`group flex items-center gap-3 px-3 py-3 rounded-lg transition-colors duration-150 ${isActive ? 'bg-gray-50' : 'hover:bg-gray-50/60'}`}
                   >
-                    <span className={`text-[10px] font-mono w-6 tabular-nums ${isActive ? 'text-gray-900' : 'text-gray-300'}`}>{String(i + 1).padStart(2, '0')}</span>
+                    <span className={`text-[10px] w-6 tabular-nums ${isActive ? 'text-gray-900' : 'text-gray-300'}`}>{String(i + 1).padStart(2, '0')}</span>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         {cat.icon && <span className="text-base leading-none">{cat.icon}</span>}
                         <span className={`text-sm font-medium ${isActive ? 'text-gray-900' : 'text-gray-700'}`}>{cat.name}</span>
                         {cat.tag && (
-                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider" style={{ background: `${GREEN}15`, color: GREEN }}>{cat.tag}</span>
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold  tracking-wider" style={{ background: `${GREEN}15`, color: GREEN }}>{cat.tag}</span>
                         )}
                       </div>
                       {cat.description && <p className="text-xs text-gray-500 mt-0.5 truncate">{cat.description}</p>}
                     </div>
-                    <span className={`text-gray-300 transition-all ${isActive ? 'opacity-100 text-gray-900' : 'opacity-0 -translate-x-2'}`}>→</span>
+                    <span className={`text-gray-300 transition-all ${isActive ? 'opacity-100 text-gray-900' : 'opacity-0 -translate-x-2'}`}><ChevronRight size={14} /></span>
                   </Link>
                 )
               })}
@@ -310,7 +312,7 @@ function FullMegaMenu({ open, onClose, categories }: { open: boolean; onClose: (
           <div className="col-span-7 bg-gray-50/40 py-6 px-8 flex flex-col">
             <div className="flex items-center justify-between mb-5">
               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">Aperçu · {active.name}</p>
-              <Link to={activeHref} onClick={onClose} className="text-xs font-medium text-gray-900 hover:underline underline-offset-4 decoration-2" style={{ textDecorationColor: GREEN }}>Tout voir →</Link>
+              <Link to={activeHref} onClick={onClose} className="flex items-center gap-1 text-xs font-medium text-gray-900 hover:underline underline-offset-4 decoration-2" style={{ textDecorationColor: GREEN }}>Tout voir <ChevronRight size={14} /></Link>
             </div>
             <Link to={activeHref} onClick={onClose} className="relative block rounded-xl overflow-hidden group mb-5" style={{ aspectRatio: '16/7' }}>
               {active.image
@@ -319,15 +321,19 @@ function FullMegaMenu({ open, onClose, categories }: { open: boolean; onClose: (
               }
               <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/20 to-transparent" />
               <div className="absolute inset-0 p-6 flex flex-col justify-end">
-                <p className="text-white/70 text-[10px] font-semibold uppercase tracking-[0.18em] mb-1">Catégorie</p>
-                <h4 className="text-white text-2xl font-semibold leading-tight">{active.name}</h4>
+                <p className="text-white/70 text-[10px] font-bold uppercase tracking-[0.18em] mb-1">Catégorie</p>
+                <h4 className="text-white text-2xl font-bold uppercase leading-tight">{active.name}</h4>
                 {active.description && <p className="text-white/80 text-sm mt-1 max-w-md">{active.description}</p>}
               </div>
             </Link>
             <div className="grid grid-cols-2 gap-x-8 gap-y-1 mb-5">
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400 mb-2">Sélections</p>
-                {[{ label: 'Nouveautés', meta: '24' }, { label: 'Meilleures ventes', meta: '48' }, { label: 'En promotion', meta: '-30%', accent: true }].map(item => (
+                <p className="text-[10px] uppercase font-bold tracking-[0.18em] text-gray-400 mb-2">Sélections</p>
+                {[
+                  { label: 'Nouveautés', meta: '24' }, 
+                  { label: 'Meilleures ventes', meta: '48' }, 
+                  { label: 'En promotion', meta: '-30%', accent: true }
+                ].map(item => (
                   <Link key={item.label} to={activeHref} onClick={onClose} className="flex items-center justify-between py-2 border-b border-gray-100 hover:border-gray-300 transition-colors group">
                     <span className="text-sm text-gray-700 group-hover:text-gray-900 group-hover:translate-x-0.5 transition-all">{item.label}</span>
                     <span className={`text-xs font-mono ${item.accent ? 'font-bold' : 'text-gray-400'}`} style={item.accent ? { color: GREEN } : {}}>{item.meta}</span>
@@ -336,7 +342,11 @@ function FullMegaMenu({ open, onClose, categories }: { open: boolean; onClose: (
               </div>
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400 mb-2">Ressources</p>
-                {[{ label: "Guide d'achat", meta: 'PDF' }, { label: 'Comparateur', meta: 'Outil' }, { label: 'Avis clients', meta: '4.7★' }].map(item => (
+                {[
+                  { label: "Guide d'achat", meta: 'PDF' }, 
+                  { label: 'Comparateur', meta: 'Outil' }, 
+                  { label: 'Avis clients', meta: '4.7★' }
+                ].map(item => (
                   <Link key={item.label} to="/catalogue" onClick={onClose} className="flex items-center justify-between py-2 border-b border-gray-100 hover:border-gray-300 transition-colors group">
                     <span className="text-sm text-gray-700 group-hover:text-gray-900 group-hover:translate-x-0.5 transition-all">{item.label}</span>
                     <span className="text-xs font-mono text-gray-400">{item.meta}</span>
@@ -630,7 +640,7 @@ export function Header() {
   const [megaOpen,   setMegaOpen]   = useState(false)
   const { totalItems, totalPrice, toggleCart } = useCart()
   const cartLabel = totalPrice > 0
-    ? Math.round(totalPrice / 100).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
+    ? Math.round(totalPrice).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
     : '0 FCFA'
 
   /* Catégories dynamiques depuis l'API, fallback statique pendant le chargement */
@@ -669,8 +679,8 @@ export function Header() {
 
           {/* Logo */}
           <Link to="/" className="shrink-0" onClick={() => setMobileOpen(false)}>
-            <img src="/imgs_dropship/logohori_dropship.png" alt="Koli" className="hidden sm:block h-10 sm:h-12 w-auto" />
-            <img src="/imgs_dropship/favicon-dropship.png"  alt="Koli" className="sm:hidden h-9 w-auto" />
+            <img src="/imgs_dropship/logoSkignas.png" alt="Skignas" className="hidden sm:block h-10 sm:h-12 w-auto" />
+            <img src="/imgs_dropship/logoSkignas.png"  alt="Skignas" className="sm:hidden h-9 w-auto" />
           </Link>
 
           {/* Search (desktop) */}
@@ -718,7 +728,7 @@ export function Header() {
             {/* Burger / X */}
             <button
               onClick={() => setMobileOpen(v => !v)}
-              className="relative w-11 h-11 flex items-center justify-center text-gray-700 hover:text-gray-900 transition-colors"
+              className="relative w-11 h-11 flex items-center justify-center text-gray-700 hover:text-gray-900 transition-colors z-100"
               aria-label={mobileOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
             >
               <motion.span
@@ -733,7 +743,7 @@ export function Header() {
                 animate={{ rotate: mobileOpen ? 0 : -90, opacity: mobileOpen ? 1 : 0, scale: mobileOpen ? 1 : 0.6 }}
                 transition={{ duration: 0.22 }}
               >
-                <X size={24} />
+                <X size={24} color="black" />
               </motion.span>
             </button>
           </div>

@@ -167,4 +167,4 @@ export function useCart(): CartContextValue {
 
 /* ─── Helpers ─── */
 export const fmtCart = (n: number) =>
-  Math.round(n / 100).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
+  Math.round(n).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'

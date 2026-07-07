@@ -21,7 +21,7 @@ import {
 ═══════════════════════════════════════════════════════════════ */
 const BLUE = '#0421ff'
 const fmt = (n: number) =>
-  (n / 100).toLocaleString('fr-FR', { minimumFractionDigits: 0 }) + ' FCFA'
+  n.toLocaleString('fr-FR', { minimumFractionDigits: 0 }) + ' FCFA'
 const disc = (p: number, o: number) => Math.round(((o - p) / o) * 100)
 
 const BADGE_LABEL: Record<string, string> = {

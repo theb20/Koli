@@ -1,10 +1,10 @@
 import { useRef, useState } from 'react'
-import { motion, useInView, AnimatePresence } from 'motion/react'
+import { motion, useInView } from 'motion/react'
 import { Link } from 'react-router-dom'
 import {
   Target, Heart, Shield, Zap, Globe, Users,
   Package, Star, TrendingUp, Award, CheckCircle,
-  ArrowRight, ChevronDown, Quote, Truck, Headphones, RefreshCw,
+  ArrowRight, Quote, Truck, Headphones, RefreshCw,
 } from 'lucide-react'
 import { PageMeta } from '../components/seo/PageMeta'
 
@@ -29,25 +29,36 @@ const VALUES = [
 ]
 
 const TIMELINE = [
-  { year: '2020', title: 'La naissance de Koli', desc: 'Fondé à Douala par deux passionnés de tech et d\'e-commerce, Koli démarrait avec 20 produits soigneusement sélectionnés.', side: 'left'  },
-  { year: '2021', title: 'Première expansion',   desc: '500 clients fidèles, lancement des livraisons express à Yaoundé. Notre catalogue atteint 100 produits.', side: 'right' },
-  { year: '2022', title: 'La communauté grandit', desc: '3 000 membres actifs, partenariats avec les meilleures marques mondiales, ouverture du service client 7j/7.', side: 'left'  },
-  { year: '2023', title: 'Koli 2.0',             desc: 'Refonte complète de la plateforme, lancement de l\'application mobile, programme fidélité Bronze / Silver / Gold.', side: 'right' },
-  { year: '2024', title: 'Numéro 1 au Cameroun', desc: '10 000 clients, 400+ produits, livraison dans 8 villes. La référence e-commerce pour l\'Afrique centrale.', side: 'left'  },
-  { year: '2026', title: 'Aujourd\'hui',          desc: '12 000+ familles satisfaites, expansion en cours vers la Côte d\'Ivoire et le Sénégal. L\'aventure continue.', side: 'right' },
+  { year: '2024', title: 'La naissance de Skignas',      desc: 'Fondé à Abidjan par M. Serge Soro, passionné de tech et d\'e-commerce, Skignas démarre avec une vingtaine de produits soigneusement sélectionnés et une promesse simple : des prix justes en FCFA et une livraison fiable.', side: 'left'  },
+  { year: '2024', title: 'Les premières commandes',      desc: 'Paiement mobile money intégré dès le départ (Wave, Orange Money), premières livraisons dans les communes d\'Abidjan. La confiance des tout premiers clients se construit, commande après commande.', side: 'right' },
+  { year: '2025', title: 'La communauté grandit',        desc: 'Le catalogue s\'étoffe, le service client sur WhatsApp devient une signature. Livraison étendue au-delà d\'Abidjan, vers Bouaké et Yamoussoukro. Le bouche-à-oreille fait son travail.', side: 'left'  },
+  { year: '2025', title: 'Skignas passe à la vitesse supérieure', desc: 'Refonte de la plateforme, mise en place du suivi de commande en temps réel et de points relais pour sécuriser le dernier kilomètre. Ajout de Moov Money et MTN MoMo au paiement.', side: 'right' },
+  { year: '2026', title: 'L\'app mobile',                desc: 'Lancement de l\'application mobile pensée pour tous les smartphones, même en 3G, et d\'un programme de fidélité. Skignas livre désormais dans plusieurs villes de Côte d\'Ivoire.', side: 'left'  },
+  { year: 'Aujourd\'hui', title: 'L\'aventure continue', desc: 'Une communauté grandissante de clients satisfaits à travers la Côte d\'Ivoire. Skignas continue d\'enrichir son catalogue et d\'améliorer l\'expérience, avec l\'ambition de rayonner dans toute la sous-région.', side: 'right' },
 ]
 
 const TEAM = [
-  { name: 'Alain Mbida',    role: 'CEO & Co-fondateur',    img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=400', quote: 'Notre mission : rendre l\'excellence accessible à chaque foyer.' },
-  { name: 'Christelle Ngo', role: 'Directrice Produit',    img: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=400', quote: 'Je sélectionne chaque produit comme si je l\'achetais pour ma famille.' },
-  { name: 'Patrick Essama', role: 'Responsable Logistique', img: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=400', quote: 'Un colis livré à temps, c\'est une promesse tenue.' },
-  { name: 'Solange Tchoua', role: 'Head of Customer Care',  img: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=400', quote: 'Chaque client mérite une réponse rapide et un sourire.' },
+   {
+    name: 'Serge Soro',
+    role: 'Fondateur & CEO',
+    img: '/wall/soro_serge.png',
+    quote: 'Notre ambition est de rendre la technologie accessible à tous, avec des produits fiables et un service irréprochable.'
+  },
+  {
+    name: 'Frédérick Ahobaut',
+    role: 'Co-fondateur & Responsable IT',
+    img: 'https://media.licdn.com/dms/image/v2/D4E35AQFCIdkWlRMLGA/profile-framedphoto-shrink_800_800/B4EZ347Q8ZGkAg-/0/1777997779570?e=1783911600&v=beta&t=Y_h8P7XEkgz5gTPBjrnoRNTMPR4_92qvi54GfGPDTXk',
+    quote: 'Je veille à ce que chaque produit et chaque fonctionnalité de Skignas offrent une expérience simple, rapide et sécurisée.'
+  }
 ]
 
 const TESTIMONIALS = [
-  { name: 'Marie K.',  city: 'Douala',   text: 'J\'ai commandé une montre connectée, livrée en moins de 24h. La qualité était exactement celle des photos. Je recommande Koli à tout le monde !', stars: 5, img: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?q=80&w=200' },
-  { name: 'Jean-Paul T.', city: 'Yaoundé', text: 'Service client exceptionnel. J\'avais un problème avec ma commande et ils ont tout réglé en moins de 2h. C\'est rare de voir ça !', stars: 5, img: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=200' },
-  { name: 'Fatima D.', city: 'Bafoussam', text: 'Les prix sont imbattables par rapport à ce qu\'on trouve en magasin. Et la qualité est au rendez-vous. Koli est ma boutique préférée.', stars: 5, img: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=200' },
+  { name: 'Aya K.',       city: 'Cocody, Abidjan',   text: 'J\'ai commandé une montre connectée, payée avec Wave, livrée chez moi à Cocody en moins de 24h. La qualité était exactement celle des photos. Je recommande Skignas à tout le monde !', stars: 5, img: 'https://media.licdn.com/dms/image/v2/C4D03AQETq5RZ_MigKQ/profile-displayphoto-shrink_200_200/profile-displayphoto-shrink_200_200/0/1523605897645?e=2147483647&v=beta&t=1xq1DSAAn4csLAneB-m7JUjZGKQ0d_amva7NfosPOo4' },
+  { name: 'Konan Y.',     city: 'Bouaké',            text: 'Service client exceptionnel. J\'avais un souci avec ma commande et l\'équipe a tout réglé en moins de 2h sur WhatsApp. Même depuis Bouaké, la livraison a suivi sans problème. C\'est rare de voir ça !', stars: 5, img: 'https://media.licdn.com/dms/image/v2/D5603AQFFAUYtwSTgfA/profile-displayphoto-shrink_200_200/profile-displayphoto-shrink_200_200/0/1712179821336?e=2147483647&v=beta&t=chQwDJ110RIhsjplDsWddbj14cJ9UZSkq3sMdLljRtw' },
+  { name: 'Aminata T.',   city: 'Yopougon, Abidjan', text: 'Les prix sont imbattables par rapport à ce qu\'on trouve en boutique à Abidjan. Paiement Orange Money accepté, tout est simple. Koli est devenue ma boutique préférée.', stars: 5, img: 'https://upload.wikimedia.org/wikipedia/commons/7/70/Bagayoko_Aminita_TRAORE.jpg' },
+  { name: 'Kouadio N\'G.', city: 'Yamoussoukro',      text: 'Première commande un peu stressé de payer avant de recevoir, mais le suivi en temps réel m\'a rassuré. Colis reçu au point relais comme prévu. Je commande à nouveau sans hésiter.', stars: 5, img: 'https://www.wakatsera.com/wp-content/uploads/2025/06/Kouadio-300x194.jpg' },
+  { name: 'Mariam C.',    city: 'San-Pédro',         text: 'Habitant loin d\'Abidjan, je craignais pour la livraison. Finalement reçu en 3 jours, bien emballé. Le rapport qualité-prix est vraiment top. Merci à toute l\'équipe.', stars: 4, img: 'https://cdn.prod.website-files.com/660a7aaf0d2e1e2cd2ff2737/677ce8885c9edf6735f69638_mariam-ba-lagare-looks-2.png' },
+  { name: 'Ibrahim B.',   city: 'Marcory, Abidjan',  text: 'Écouteurs commandés le matin, livrés l\'après-midi à Marcory. Paiement mobile money en deux clics, aucun stress. Franchement, c\'est du sérieux.', stars: 5, img: 'https://prod.cdn-medias.jeuneafrique.com/cdn-cgi/image/q=auto,f=auto,metadata=none,width=1215,fit=cover/https://prod.cdn-medias.jeuneafrique.com/medias/2010/09/09/009092010154826000000ibk-large.jpg' },
 ]
 
 const GUARANTEES = [
@@ -95,44 +106,7 @@ function FadeIn({ children, delay = 0, className = '' }: { children: React.React
   )
 }
 
-/* ─── FAQ Accordion ────────────────────────────────────────── */
-const FAQ_ITEMS = [
-  { q: 'Comment fonctionne la livraison ?',           a: 'Nous livrons partout au Cameroun. La livraison standard prend 24 à 72h selon votre ville. La livraison express garantit la réception le lendemain pour Douala et Yaoundé.' },
-  { q: 'Les produits sont-ils garantis ?',             a: 'Oui, tous nos produits sont garantis 6 à 24 mois selon la catégorie. En cas de problème, notre service après-vente prend en charge le remplacement ou le remboursement.' },
-  { q: 'Quels modes de paiement acceptez-vous ?',     a: 'Nous acceptons Orange Money, MTN Mobile Money, Wave et le paiement à la livraison (cash). Des facilités de paiement sont disponibles pour les commandes supérieures à 100 000 FCFA.' },
-  { q: 'Puis-je retourner un article ?',               a: 'Oui, vous disposez de 14 jours après réception pour retourner un article non utilisé dans son emballage d\'origine. Le remboursement est effectué sous 48h.' },
-  { q: 'Comment suivre ma commande ?',                 a: 'Dès votre commande confirmée, vous recevez un lien de suivi par SMS et WhatsApp. Vous pouvez aussi suivre votre commande depuis votre espace profil sur Koli.' },
-]
 
-function FaqItem({ q, a }: { q: string; a: string }) {
-  const [open, setOpen] = useState(false)
-  return (
-    <div className="border-b border-gray-100 last:border-0">
-      <button
-        onClick={() => setOpen(v => !v)}
-        className="w-full flex items-center justify-between py-5 text-left gap-4 group"
-      >
-        <span className="text-gray-900 font-medium text-sm sm:text-base group-hover:text-blue-600 transition-colors">{q}</span>
-        <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }} className="shrink-0 text-gray-400">
-          <ChevronDown size={18} />
-        </motion.span>
-      </button>
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-            className="overflow-hidden"
-          >
-            <p className="pb-5 text-gray-500 text-sm leading-relaxed">{a}</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  )
-}
 
 /* ─── Page ─────────────────────────────────────────────────── */
 export function AboutPage() {
@@ -141,7 +115,7 @@ export function AboutPage() {
   return (
     <div className="bg-white">
       <PageMeta
-        title="À propos de Koli"
+        title="À propos de Skignas"
         description="Découvrez l'histoire de Koli : notre mission, nos valeurs et pourquoi plus de 12 000 Camerounais nous font confiance."
         path="/about"
         image="/wall/og-about.jpg"
@@ -170,8 +144,7 @@ export function AboutPage() {
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
               className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 bg-white/5 text-white/70 text-xs font-semibold mb-6 backdrop-blur-sm"
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-              Fondé en 2020 · Douala, Cameroun
+              Fondé en 2020 · Abidjan côte d'ivoire
             </motion.div>
 
             <motion.h1
@@ -299,9 +272,9 @@ export function AboutPage() {
               <span className="text-gray-400">accessible à tous</span>
             </h2>
             <p className="text-gray-500 leading-relaxed mb-6">
-              Nous croyons que la qualité ne devrait pas être réservée à une élite. Koli sélectionne
+              Nous croyons que la qualité ne devrait pas être réservée à une élite. Skignas sélectionne
               rigoureusement les meilleurs produits du monde entier et les met à portée de chaque
-              Camerounais, avec une livraison rapide et un service après-vente irréprochable.
+              Ivoirien, avec une livraison rapide et un service après-vente irréprochable.
             </p>
             <p className="text-gray-500 leading-relaxed mb-8">
               Chaque produit dans notre catalogue a été testé, évalué et approuvé par notre équipe
@@ -413,7 +386,7 @@ export function AboutPage() {
         <div className="max-w-7xl mx-auto px-4 lg:px-8">
           <FadeIn className="text-center mb-16">
             <p className="text-[11px] font-bold tracking-[0.2em] uppercase mb-4" style={{ color: BLUE }}>
-              Les visages de Koli
+              Les visages de Skignas
             </p>
             <h2 className="text-4xl lg:text-5xl font-black text-gray-900 mb-4">Notre équipe</h2>
             <p className="text-gray-500 max-w-xl mx-auto">
@@ -421,7 +394,7 @@ export function AboutPage() {
             </p>
           </FadeIn>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-2 gap-6">
             {TEAM.map((member, i) => (
               <FadeIn key={member.name} delay={i * 0.1}>
                 <div className="group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300">
@@ -498,25 +471,8 @@ export function AboutPage() {
         </div>
       </section>
 
-      {/* ── FAQ ──────────────────────────────────────────────── */}
-      <section className="py-24 bg-gray-50">
-        <div className="max-w-3xl mx-auto px-4 lg:px-8">
-          <FadeIn className="text-center mb-16">
-            <p className="text-[11px] font-bold tracking-[0.2em] uppercase mb-4" style={{ color: BLUE }}>
-              Vos questions
-            </p>
-            <h2 className="text-4xl font-black text-gray-900 mb-4">Questions fréquentes</h2>
-            <p className="text-gray-500">Tout ce que vous voulez savoir sur Koli.</p>
-          </FadeIn>
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-8 py-2">
-            {FAQ_ITEMS.map(item => (
-              <FaqItem key={item.q} q={item.q} a={item.a} />
-            ))}
-          </div>
-        </div>
-      </section>
 
-      {/* ── CTA ──────────────────────────────────────────────── */}
+      {/* ── CTA ──────────────────────────────────────────────── 
       <section className="py-24 bg-gray-950 relative overflow-hidden">
         <div className="absolute inset-0 opacity-[0.03]"
           style={{ backgroundImage: 'linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px)', backgroundSize: '60px 60px' }} />
@@ -527,7 +483,7 @@ export function AboutPage() {
             </div>
             <h2 className="text-4xl lg:text-5xl font-black text-white mb-6 leading-tight">
               Prêt à découvrir<br />
-              <span style={{ color: BLUE }}>Koli</span> ?
+              <span style={{ color: BLUE }}>Skignas</span> ?
             </h2>
             <p className="text-white/50 mb-10 text-lg max-w-xl mx-auto">
               Parcourez notre catalogue de 450+ produits premium et bénéficiez de la livraison rapide partout au Cameroun.
@@ -545,7 +501,7 @@ export function AboutPage() {
             </div>
           </FadeIn>
         </div>
-      </section>
+      </section>*/}
     </div>
   )
 }

@@ -8,12 +8,13 @@ import {
 } from 'lucide-react'
 import { PRODUCTS } from '../data/products'
 import { useCart } from '../contexts/CartContext'
+import { useSiteSettings, waLink } from '../hooks/useSiteSettings'
 
 /* ═══════════════════════════════════════════════════════════════
    DONNÉES
 ═══════════════════════════════════════════════════════════════ */
 const fmt = (n: number) =>
-  Math.round(n / 100).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
+  Math.round(n).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
 
 const CATEGORIES = [
   { id: 'all',      label: 'Tout',            icon: '🏪', count: PRODUCTS.length },
@@ -166,18 +167,19 @@ function ProductCard({ product, rank, view }: { product: typeof PRODUCTS[0]; ran
    PAGE
 ═══════════════════════════════════════════════════════════════ */
 export default function MagasinPage() {
+  const settings = useSiteSettings()
   const [search,   setSearch]   = useState('')
   const [category, setCategory] = useState('all')
   const [sort,     setSort]     = useState('popular')
   const [view,     setView]     = useState<'grid' | 'list'>('grid')
-  const [priceMax, setPriceMax] = useState(500000) // 5 000 FCFA en centimes → 500000
+  const [priceMax, setPriceMax] = useState(50000) // budget max par défaut : 50 000 FCFA
 
   /* Filtrage */
   const filtered = PRODUCTS
     .filter(p => {
       if (category !== 'all' && p.category !== category) return false
       if (search && !p.name.toLowerCase().includes(search.toLowerCase()) && !p.brand.toLowerCase().includes(search.toLowerCase())) return false
-      if (p.price > priceMax * 100) return false
+      if (p.price > priceMax) return false
       return true
     })
     .sort((a, b) => {
@@ -188,7 +190,7 @@ export default function MagasinPage() {
       return b.sold - a.sold
     })
 
-  const hasActiveFilter = category !== 'all' || search !== '' || priceMax !== 500000
+  const hasActiveFilter = category !== 'all' || search !== '' || priceMax !== 50000
 
   return (
     <div className="min-h-screen bg-gray-50/50">
@@ -343,12 +345,12 @@ export default function MagasinPage() {
               <div>
                 <p className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-3">Budget maximum</p>
                 <div className="px-1">
-                  <input type="range" min={10} max={500} step={10} value={priceMax / 1000}
-                    onChange={e => setPriceMax(Number(e.target.value) * 1000)}
+                  <input type="range" min={1000} max={50000} step={1000} value={priceMax}
+                    onChange={e => setPriceMax(Number(e.target.value))}
                     className="w-full accent-gray-900 cursor-pointer" />
                   <div className="flex justify-between text-xs text-gray-400 mt-1">
                     <span>1 000 FCFA</span>
-                    <span className="font-bold text-gray-800">{Math.round(priceMax / 100).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} FCFA</span>
+                    <span className="font-bold text-gray-800">{priceMax.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} FCFA</span>
                     <span>50 000 FCFA</span>
                   </div>
                 </div>
@@ -487,7 +489,7 @@ export default function MagasinPage() {
               className="px-5 py-3 rounded-xl border border-white/20 text-sm font-semibold text-white hover:bg-white/10 transition-colors">
               Nous contacter
             </Link>
-            <a href="https://wa.me/237600000000" target="_blank" rel="noopener noreferrer"
+            <a href={waLink(settings.whatsappNumber)} target="_blank" rel="noopener noreferrer"
               className="px-5 py-3 rounded-xl bg-emerald-500 text-sm font-bold text-white hover:bg-emerald-600 transition-colors flex items-center gap-2">
               💬 WhatsApp
             </a>

@@ -383,11 +383,11 @@ export function LegalLayout({
                 <strong className="text-gray-600">{lastUpdated}</strong>.
                 Pour toute question, contactez-nous à{" "}
                 <a
-                  href="mailto:legal@dropship.fr"
+                  href="mailto:legal@skignas.ahobaut.fr"
                   className="font-medium underline underline-offset-2 hover:text-gray-700"
                   style={{ color: accentColor }}
                 >
-                  legal@dropship.fr
+                  legal@skignas.ahobaut.fr
                 </a>
               </p>
             </div>

@@ -8,17 +8,9 @@ import { Badge } from '../../components/ui/Badge'
 import { Confirm } from '../../components/ui/Modal'
 import { Pagination } from '../../components/ui/Pagination'
 import { PageTitle } from '../../components/layout/Sidebar'
-import type { Product } from '../../types'
+import { useDebouncedValue } from '../../hooks/useDebouncedValue'
+import type { Product, Category } from '../../types'
 
-const CATEGORIES = [
-  { value: '', label: 'Toutes catégories' },
-  { value: 'hightech', label: 'High-tech' },
-  { value: 'maison', label: 'Maison' },
-  { value: 'beaute', label: 'Beauté' },
-  { value: 'sport', label: 'Sport' },
-  { value: 'mode', label: 'Mode' },
-  { value: 'jeux', label: 'Jeux' },
-]
 
 async function fetchProducts(params: Record<string, string | number>) {
   const q = new URLSearchParams(Object.entries(params).filter(([, v]) => v !== '' && v !== undefined).map(([k, v]) => [k, String(v)]))
@@ -35,15 +27,25 @@ export default function ProductsPage() {
   const [sort, setSort]         = useState('newest')
   const [storeId, setStoreId]   = useState('')
   const [deleteId, setDeleteId] = useState<number | null>(null)
+  const debouncedSearch = useDebouncedValue(search, 300)
 
   const { data: storesData } = useQuery({
     queryKey: ['stores-list'],
     queryFn: async () => { const { data } = await api.get('/api/stores/admin/all'); return data.data.stores as { id: number; name: string }[] },
+    staleTime: 5 * 60 * 1000,
   })
 
+  /* Catégories dynamiques — reflète les catégories créées côté admin */
+  const { data: categoriesData } = useQuery({
+    queryKey: ['categories-admin'],
+    queryFn: async () => { const { data } = await api.get('/api/categories/admin'); return data.data as Category[] },
+    staleTime: 5 * 60 * 1000,
+  })
+  const CATEGORIES = [{ value: '', label: 'Toutes catégories' }, ...(categoriesData ?? []).map(c => ({ value: c.slug, label: c.name }))]
+
   const { data, isLoading } = useQuery({
-    queryKey: ['products', page, search, category, sort, storeId],
-    queryFn: () => fetchProducts({ page, limit: 15, q: search, category, sort, storeId }),
+    queryKey: ['products', page, debouncedSearch, category, sort, storeId],
+    queryFn: () => fetchProducts({ page, limit: 15, q: debouncedSearch, category, sort, storeId }),
     placeholderData: (prev) => prev,
   })
 

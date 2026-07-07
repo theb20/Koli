@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { requireAdmin, optionalAuth } from '../middleware/auth'
 import { validate } from '../middleware/validate'
+import { cacheControl } from '../middleware/cache'
 
 const router = Router()
 
@@ -14,8 +15,8 @@ const listQuerySchema = z.object({
   category: z.string().optional(),
   q:        z.string().optional(),
   sort:     z.enum(['popular', 'newest', 'price_asc', 'price_desc', 'rating']).default('popular'),
-  minPrice: z.coerce.number().optional(),
-  maxPrice: z.coerce.number().optional(),
+  minPrice: z.coerce.number().int().optional(),
+  maxPrice: z.coerce.number().int().optional(),
   badge:    z.string().optional(),
   inStock:  z.coerce.boolean().optional(),
   storeId:  z.coerce.number().int().optional(),   // filter by store
@@ -24,9 +25,9 @@ const listQuerySchema = z.object({
 const createProductSchema = z.object({
   name:        z.string().min(3).max(200),
   brand:       z.string().min(1).max(100),
-  category:    z.enum(['hightech', 'maison', 'beaute', 'sport', 'mode', 'jeux']),
-  price:       z.number().positive(),
-  oldPrice:    z.number().positive().optional(),
+  category:    z.string().min(1, 'Catégorie requise'),
+  price:       z.number().int().positive(),
+  oldPrice:    z.number().int().positive().optional(),
   badge:       z.enum(['hot', 'new', 'sale', 'top']).optional(),
   stock:       z.number().int().nonnegative().default(100),
   isNew:       z.boolean().default(false),
@@ -39,7 +40,7 @@ const createProductSchema = z.object({
 /* ─────────────────────────────────────────────────────────────
    GET /api/products
 ───────────────────────────────────────────────────────────── */
-router.get('/', optionalAuth, async (req, res) => {
+router.get('/', optionalAuth, cacheControl(30), async (req, res) => {
   try {
     const query = listQuerySchema.parse(req.query)
     const { page, limit, category, q, sort, minPrice, maxPrice, badge, inStock, storeId } = query
@@ -113,7 +114,7 @@ router.get('/', optionalAuth, async (req, res) => {
 /* ─────────────────────────────────────────────────────────────
    GET /api/products/featured   — produits mis en avant (homepage)
 ───────────────────────────────────────────────────────────── */
-router.get('/featured', async (_req, res) => {
+router.get('/featured', cacheControl(60), async (_req, res) => {
   try {
     const [hot, newItems, topRated] = await Promise.all([
       prisma.product.findMany({
@@ -141,7 +142,7 @@ router.get('/featured', async (_req, res) => {
 /* ─────────────────────────────────────────────────────────────
    GET /api/products/:id
 ───────────────────────────────────────────────────────────── */
-router.get('/:id', optionalAuth, async (req, res) => {
+router.get('/:id', optionalAuth, cacheControl(20), async (req, res) => {
   try {
     const id = parseInt(req.params['id'] ?? '')
     if (isNaN(id)) {
@@ -199,11 +200,15 @@ router.post('/', requireAdmin, validate(createProductSchema), async (req, res) =
 
     // Résoudre categoryId depuis le slug
     const catRow = await prisma.category.findUnique({ where: { slug: data.category } })
+    if (!catRow) {
+      res.status(400).json({ success: false, message: `Catégorie "${data.category}" introuvable` })
+      return
+    }
 
     const product = await prisma.product.create({
       data: {
         ...data,
-        categoryId: catRow?.id ?? null,
+        categoryId: catRow.id,
         colors: colors ? JSON.stringify(colors) : null,
         images: {
           create: images.map((url, i) => ({ url, position: i })),
@@ -227,13 +232,17 @@ router.post('/', requireAdmin, validate(createProductSchema), async (req, res) =
 /* ─────────────────────────────────────────────────────────────
    PUT /api/products/:id  [ADMIN]
 ───────────────────────────────────────────────────────────── */
-router.put('/:id', requireAdmin, async (req, res) => {
+router.put('/:id', requireAdmin, validate(createProductSchema.partial()), async (req, res) => {
   try {
     const id = parseInt(req.params['id'] ?? '')
     const { images, specs, colors, ...data } = req.body as Partial<z.infer<typeof createProductSchema>>
 
     // Résoudre categoryId si le slug est fourni
     const catRow = data.category ? await prisma.category.findUnique({ where: { slug: data.category } }) : undefined
+    if (data.category && !catRow) {
+      res.status(400).json({ success: false, message: `Catégorie "${data.category}" introuvable` })
+      return
+    }
 
     const product = await prisma.product.update({
       where: { id },

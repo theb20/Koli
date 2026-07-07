@@ -1,6 +1,6 @@
 {
-  "name": "DropShip",
-  "short_name": "DropShip",
+  "name": "Skignas Admin",
+  "short_name": "Skignas",
   "icons": [
     {
       "src": "/imgs_dropship/web-app-manifest-192x192.png",

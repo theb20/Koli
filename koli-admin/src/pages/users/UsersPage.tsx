@@ -9,6 +9,7 @@ import { PageTitle } from '../../components/layout/Sidebar'
 import { Confirm, Modal } from '../../components/ui/Modal'
 import { Input } from '../../components/ui/Input'
 import { Button } from '../../components/ui/Button'
+import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import type { User, Order } from '../../types'
 
 /* ── helpers ──────────────────────────────────────────────── */
@@ -44,11 +45,12 @@ export default function UsersPage() {
   const [confirmDelete, setConfirmDelete] = useState<User | null>(null)
   const [editingUser,   setEditingUser]   = useState<User | null>(null)
   const [detailUser,    setDetailUser]    = useState<User | null>(null)
+  const debouncedSearch = useDebouncedValue(search, 300)
 
   /* ── queries ──────────────────────────────────────────────── */
   const { data, isLoading } = useQuery({
-    queryKey: ['users', page, search, role, banned],
-    queryFn:  () => fetchUsers({ page, limit: 20, q: search, role, banned }),
+    queryKey: ['users', page, debouncedSearch, role, banned],
+    queryFn:  () => fetchUsers({ page, limit: 20, q: debouncedSearch, role, banned }),
     placeholderData: (prev) => prev,
   })
 

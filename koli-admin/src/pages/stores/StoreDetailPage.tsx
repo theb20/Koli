@@ -13,6 +13,7 @@ import { Badge } from '../../components/ui/Badge'
 import { Card } from '../../components/ui/Card'
 import { Confirm } from '../../components/ui/Modal'
 import { Pagination } from '../../components/ui/Pagination'
+import type { Category } from '../../types'
 
 /* ══════════════════════════════════════════════════════════════
    Types
@@ -41,15 +42,6 @@ type ScrapeItem = {
   source: string
 }
 
-const CATS = [
-  { value: 'hightech', label: 'High-tech' },
-  { value: 'maison',   label: 'Maison' },
-  { value: 'beaute',   label: 'Beauté' },
-  { value: 'sport',    label: 'Sport' },
-  { value: 'mode',     label: 'Mode' },
-  { value: 'jeux',     label: 'Jeux' },
-]
-
 const BADGES = [
   { value: '', label: 'Aucun' }, { value: 'hot', label: 'Hot 🔥' },
   { value: 'new', label: 'Nouveau ✨' }, { value: 'sale', label: 'Promo 💰' },
@@ -62,10 +54,11 @@ type Tab = 'products' | 'url' | 'json'
    ScrapedProductCard
 ══════════════════════════════════════════════════════════════ */
 function ScrapedProductCard({
-  item, index, onUpdate, onImportSingle, importing,
+  item, index, categories, onUpdate, onImportSingle, importing,
 }: {
   item: ScrapeItem
   index: number
+  categories: Category[]
   onUpdate: (i: number, patch: Partial<ScrapeItem>) => void
   onImportSingle: (i: number) => void
   importing: boolean
@@ -175,7 +168,7 @@ function ScrapedProductCard({
             className="flex-1 text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 focus:border-indigo-400 focus:outline-none focus:bg-white transition-colors" />
           <select value={item.category} onChange={e => upd({ category: e.target.value })}
             className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-slate-700 focus:border-indigo-400 focus:outline-none">
-            {CATS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+            {categories.map(c => <option key={c.slug} value={c.slug}>{c.name}</option>)}
           </select>
         </div>
 
@@ -348,6 +341,13 @@ export default function StoreDetailPage() {
     placeholderData: (prev) => prev,
   })
 
+  /* Catégories dynamiques — reflète les catégories créées côté admin */
+  const { data: categories = [] } = useQuery({
+    queryKey: ['categories-admin'],
+    queryFn: async () => { const { data } = await api.get('/api/categories/admin'); return data.data as Category[] },
+    staleTime: 5 * 60 * 1000,
+  })
+
   /* ── Import mutation ─────────────────────────────────────── */
   const importMutation = useMutation({
     mutationFn: (products: object[]) => api.post(`/api/stores/${storeId}/import`, { products }),
@@ -378,7 +378,7 @@ export default function StoreDetailPage() {
     price:       Number(raw.price ?? 0),
     oldPrice:    raw.oldPrice ? Number(raw.oldPrice) : undefined,
     stock:       Number(raw.stock ?? 100),
-    category:    String(raw.category ?? 'maison'),
+    category:    String(raw.category ?? categories[0]?.slug ?? ''),
     badge:       String(raw.badge ?? ''),
     images:      (Array.isArray(raw.images) ? raw.images : []).filter((u: unknown) => typeof u === 'string' && u.startsWith('http')),
     activeImg:   0,
@@ -391,7 +391,7 @@ export default function StoreDetailPage() {
   const buildPayload = (item: ScrapeItem) => ({
     name:        item.name || 'Produit sans nom',
     brand:       item.brand || 'Sans marque',
-    category:    item.category || 'maison',
+    category:    item.category || categories[0]?.slug || '',
     price:       Number(item.price) || 0,
     oldPrice:    item.oldPrice || undefined,
     description: item.description || undefined,
@@ -408,7 +408,7 @@ export default function StoreDetailPage() {
     try {
       const { data } = await api.post(`/api/stores/${storeId}/scrape`, { url: scrapeUrl })
       if (data.data.count === 0) {
-        setScrapeError("Aucun produit détecté. Le site n'expose peut-être pas de données structurées. Utilisez l'Import JSON.")
+        setScrapeError(data.warning ?? "Aucun produit détecté. Le site n'expose peut-être pas de données structurées. Utilisez l'Import JSON.")
       } else {
         setScraped(data.data.products.map((p: Record<string, unknown>) => toScrapeItem(p, String(p.source ?? 'scrape'))))
       }
@@ -477,7 +477,7 @@ export default function StoreDetailPage() {
             <h1 className="text-xl font-bold text-slate-900">{store?.name ?? '…'}</h1>
             {store && <Badge label={store.isActive ? 'active' : 'inactive'} />}
           </div>
-          {store?.description && <p className="text-sm text-slate-500 mt-0.5">{store.description}</p>}
+          {store?.description && <p className="text-sm text-slate-500 mt-0.5 truncate">{store.description}</p>}
         </div>
         {store?.website && (
           <a href={store.website} target="_blank" rel="noopener noreferrer"
@@ -694,6 +694,7 @@ export default function StoreDetailPage() {
                     key={i}
                     item={item}
                     index={i}
+                    categories={categories}
                     onUpdate={(idx, patch) => setScraped(s => s.map((x, j) => j === idx ? { ...x, ...patch } : x))}
                     onImportSingle={handleImportSingle}
                     importing={singleImporting === i}
@@ -724,7 +725,7 @@ export default function StoreDetailPage() {
   {
     "name": "Nom du produit",
     "brand": "Marque",
-    "category": "hightech",
+    "category": "${categories[0]?.slug ?? 'slug-de-la-categorie'}",
     "price": 29990,
     "oldPrice": 39990,
     "description": "Description du produit...",
@@ -748,7 +749,7 @@ export default function StoreDetailPage() {
               onChange={e => { setJsonInput(e.target.value); setJsonError(''); setJsonPreview([]) }}
               rows={10}
               spellCheck={false}
-              placeholder={'[\n  { "name": "Mon produit", "price": 15000, "category": "mode" }\n]'}
+              placeholder={`[\n  { "name": "Mon produit", "price": 15000, "category": "${categories[0]?.slug ?? 'slug-de-la-categorie'}" }\n]`}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 focus:outline-none resize-none font-mono leading-relaxed"
             />
 
@@ -806,6 +807,7 @@ export default function StoreDetailPage() {
                     key={i}
                     item={item}
                     index={i}
+                    categories={categories}
                     onUpdate={(idx, patch) => setJsonPreview(s => s.map((x, j) => j === idx ? { ...x, ...patch } : x))}
                     onImportSingle={handleImportSingle}
                     importing={singleImporting === i}

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { fetchLoyalty, fetchReferral, fetchMyGiftLists, createGiftList } from '../lib/api'
+import { useSiteSettings, waLink } from '../hooks/useSiteSettings'
 
 /* ─────────────────────────────────────────────────────────────
    API helper
@@ -43,7 +44,7 @@ async function apiFetch<T = unknown>(
 ───────────────────────────────────────────────────────────── */
 type Tab = 'profil' | 'commandes' | 'adresses' | 'favoris' | 'notifications' | 'securite' | 'fidelite'
 
-type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'shipped' | 'delivered' | 'cancelled'
+type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded'
 
 type ApiOrder = {
   id: string; orderNumber: string; status: OrderStatus; total: number
@@ -95,15 +96,16 @@ type FullProfile = {
    Helpers
 ───────────────────────────────────────────────────────────── */
 const fmt = (n: number) =>
-  (n / 100).toLocaleString('fr-FR', { minimumFractionDigits: 0 }) + ' FCFA'
+  n.toLocaleString('fr-FR', { minimumFractionDigits: 0 }) + ' FCFA'
 
 const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bg: string; dot: string }> = {
-  pending:   { label: 'En attente',     color: 'text-amber-700',   bg: 'bg-amber-50   border-amber-200',   dot: 'bg-amber-400'   },
-  confirmed: { label: 'Confirmée',      color: 'text-blue-700',    bg: 'bg-blue-50    border-blue-200',     dot: 'bg-blue-500'    },
-  preparing: { label: 'En préparation', color: 'text-violet-700',  bg: 'bg-violet-50  border-violet-200',   dot: 'bg-violet-500'  },
-  shipped:   { label: 'Expédiée',       color: 'text-cyan-700',    bg: 'bg-cyan-50    border-cyan-200',     dot: 'bg-cyan-500'    },
-  delivered: { label: 'Livrée',         color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200',  dot: 'bg-emerald-500' },
-  cancelled: { label: 'Annulée',        color: 'text-red-700',     bg: 'bg-red-50     border-red-200',      dot: 'bg-red-400'     },
+  pending:    { label: 'En attente',     color: 'text-amber-700',   bg: 'bg-amber-50   border-amber-200',   dot: 'bg-amber-400'   },
+  confirmed:  { label: 'Confirmée',      color: 'text-blue-700',    bg: 'bg-blue-50    border-blue-200',     dot: 'bg-blue-500'    },
+  processing: { label: 'En préparation', color: 'text-violet-700',  bg: 'bg-violet-50  border-violet-200',   dot: 'bg-violet-500'  },
+  shipped:    { label: 'Expédiée',       color: 'text-cyan-700',    bg: 'bg-cyan-50    border-cyan-200',     dot: 'bg-cyan-500'    },
+  delivered:  { label: 'Livrée',         color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200',  dot: 'bg-emerald-500' },
+  cancelled:  { label: 'Annulée',        color: 'text-red-700',     bg: 'bg-red-50     border-red-200',      dot: 'bg-red-400'     },
+  refunded:   { label: 'Remboursée',     color: 'text-red-700',     bg: 'bg-red-50     border-red-200',      dot: 'bg-red-400'     },
 }
 
 const SIDEBAR_ITEMS: { tab: Tab; icon: React.ReactNode; label: string }[] = [
@@ -238,7 +240,7 @@ function TabProfil({ avatar, setAvatar, orders, profile }: {
   }
 
   const totalSpent = orders.filter(o => o.status === 'delivered').reduce((s, o) => s + o.total, 0)
-  const loyaltyPts = Math.floor(totalSpent / 100000)
+  const loyaltyPts = Math.floor(totalSpent / 1000)
   const memberSince = new Date(profile.createdAt).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
 
   return (
@@ -466,7 +468,7 @@ function TabCommandes({ orders }: { orders: MappedOrder[] }) {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { status: 'all',       label: 'Toutes',   count: orders.length,                                          icon: <Package size={16} />,      color: 'text-gray-700 bg-gray-50 border-gray-200'         },
-          { status: 'shipped',   label: 'En cours', count: orders.filter(o => ['shipped','preparing','confirmed'].includes(o.status)).length, icon: <Truck size={16} />, color: 'text-blue-700 bg-blue-50 border-blue-200' },
+          { status: 'shipped',   label: 'En cours', count: orders.filter(o => ['shipped','processing','confirmed'].includes(o.status)).length, icon: <Truck size={16} />, color: 'text-blue-700 bg-blue-50 border-blue-200' },
           { status: 'delivered', label: 'Livrées',  count: orders.filter(o => o.status === 'delivered').length,   icon: <CheckCircle2 size={16} />, color: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
           { status: 'cancelled', label: 'Annulées', count: orders.filter(o => o.status === 'cancelled').length,   icon: <X size={16} />,            color: 'text-red-700 bg-red-50 border-red-200'            },
         ].map(s => (
@@ -521,11 +523,11 @@ function TabCommandes({ orders }: { orders: MappedOrder[] }) {
                   )}
                 </div>
               </div>
-              {(['confirmed','preparing','shipped'] as OrderStatus[]).includes(order.status) && (
+              {(['confirmed','processing','shipped'] as OrderStatus[]).includes(order.status) && (
                 <div className="px-5 pb-4">
                   <div className="flex items-center gap-1 mb-2">
-                    {(['confirmed','preparing','shipped','delivered'] as const).map((s, i, arr) => {
-                      const current = ['confirmed','preparing','shipped','delivered'].indexOf(order.status)
+                    {(['confirmed','processing','shipped','delivered'] as const).map((s, i, arr) => {
+                      const current = ['confirmed','processing','shipped','delivered'].indexOf(order.status)
                       const done = i <= current
                       return (
                         <div key={s} className="flex items-center flex-1">
@@ -537,7 +539,7 @@ function TabCommandes({ orders }: { orders: MappedOrder[] }) {
                   </div>
                   <p className="text-xs text-blue-600 font-medium">
                     {order.status === 'confirmed' ? 'Commande confirmée, préparation à venir'
-                    : order.status === 'preparing' ? 'En cours de préparation'
+                    : order.status === 'processing' ? 'En cours de préparation'
                     : 'En route vers vous · Livraison estimée sous 24h'}
                   </p>
                 </div>
@@ -780,8 +782,8 @@ function TabFavoris() {
                 </Link>
                 <div className="flex items-center justify-between mt-2">
                   <div>
-                    <p className="text-sm font-bold text-gray-900">{(p.price / 100).toLocaleString('fr-FR')} FCFA</p>
-                    {p.oldPrice && <p className="text-[10px] text-gray-400 line-through">{(p.oldPrice / 100).toLocaleString('fr-FR')} FCFA</p>}
+                    <p className="text-sm font-bold text-gray-900">{p.price.toLocaleString('fr-FR')} FCFA</p>
+                    {p.oldPrice && <p className="text-[10px] text-gray-400 line-through">{p.oldPrice.toLocaleString('fr-FR')} FCFA</p>}
                   </div>
                   <Link to={`/catalogue/${p.id}`} className="text-[10px] font-bold bg-gray-900 text-white px-2.5 py-1.5 rounded-lg hover:bg-gray-700 transition-colors">Voir</Link>
                 </div>
@@ -1331,6 +1333,7 @@ function TabFidelite() {
 export default function ProfilPage() {
   const navigate  = useNavigate()
   const { user, token, isAuthenticated, logout } = useAuth()
+  const settings  = useSiteSettings()
 
   const [activeTab,     setActiveTab]     = useState<Tab>('profil')
   const [avatar,        setAvatar]        = useState('')
@@ -1375,7 +1378,7 @@ export default function ProfilPage() {
   }
 
   const fullName   = `${user.prenom} ${user.nom}`
-  const loyaltyPts = Math.floor(orders.filter(o => o.status === 'delivered').reduce((s, o) => s + o.total, 0) / 100000)
+  const loyaltyPts = Math.floor(orders.filter(o => o.status === 'delivered').reduce((s, o) => s + o.total, 0) / 1000)
   const unreadOrders = orders.filter(o => ['pending','confirmed'].includes(o.status)).length
 
   const TAB_CONTENT: Record<Tab, React.ReactNode> = {
@@ -1446,7 +1449,7 @@ export default function ProfilPage() {
             <div className="bg-blue-50 rounded-2xl border border-blue-100 p-4">
               <p className="text-xs font-bold text-blue-900 mb-1 flex items-center gap-1.5"><MessageCircle size={12} />Besoin d'aide ?</p>
               <p className="text-[11px] text-blue-700 mb-2">Notre équipe est disponible 7j/7 de 8h à 20h.</p>
-              <a href="https://wa.me/237600000000" target="_blank" rel="noopener noreferrer"
+              <a href={waLink(settings.whatsappNumber)} target="_blank" rel="noopener noreferrer"
                 className="flex items-center gap-1.5 text-xs font-semibold text-blue-700 hover:text-blue-900 transition-colors">
                 WhatsApp <ExternalLink size={10} />
               </a>

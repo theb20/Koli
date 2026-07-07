@@ -47,6 +47,17 @@ const createOrderSchema = zod_1.z.object({
 router.post('/', auth_1.optionalAuth, (0, validate_1.validate)(createOrderSchema), async (req, res) => {
     try {
         const body = req.body;
+        // 0. Vérifier que l'utilisateur n'est pas banni
+        if (req.user) {
+            const account = await prisma_1.prisma.user.findUnique({
+                where: { id: req.user.userId },
+                select: { isBanned: true },
+            });
+            if (account?.isBanned) {
+                res.status(403).json({ success: false, message: 'Votre compte est suspendu. Contactez le support.' });
+                return;
+            }
+        }
         // 1. Récupérer les produits et vérifier le stock
         const productIds = body.items.map(i => i.productId);
         const products = await prisma_1.prisma.product.findMany({
@@ -60,6 +71,10 @@ router.post('/', auth_1.optionalAuth, (0, validate_1.validate)(createOrderSchema
         // Vérifier le stock
         for (const item of body.items) {
             const p = products.find(p => p.id === item.productId);
+            if (p.stock !== null && p.stock === 0) {
+                res.status(400).json({ success: false, message: `"${p.name}" est en rupture de stock` });
+                return;
+            }
             if (p.stock !== null && p.stock < item.qty) {
                 res.status(400).json({ success: false, message: `Stock insuffisant pour "${p.name}" (disponible: ${p.stock})` });
                 return;
@@ -71,11 +86,17 @@ router.post('/', auth_1.optionalAuth, (0, validate_1.validate)(createOrderSchema
             return sum + p.price * item.qty;
         }, 0);
         const shippingCost = (() => {
-            if (subtotal >= 2_500_000)
+            if (subtotal >= 25_000)
                 return 0; // livraison gratuite
-            return body.deliveryMethod === 'express' ? 350_000 : 150_000;
+            return body.deliveryMethod === 'express' ? 3_500 : 1_500;
         })();
-        // 3. Valider le code promo
+        // 3. Récupérer le taux de TVA par défaut
+        const defaultTax = await prisma_1.prisma.taxRate.findFirst({
+            where: { isDefault: true, isActive: true },
+        });
+        const taxRatePercent = defaultTax?.rate ?? 0;
+        const taxAmount = Math.round(subtotal * taxRatePercent / 100);
+        // 4. Valider le code promo
         let promoDiscount = 0;
         let validatedCode = null;
         if (body.promoCode) {
@@ -98,8 +119,10 @@ router.post('/', auth_1.optionalAuth, (0, validate_1.validate)(createOrderSchema
                 await prisma_1.prisma.promoCode.update({ where: { id: promo.id }, data: { usedCount: { increment: 1 } } });
             }
         }
-        const total = subtotal - promoDiscount + shippingCost;
-        // 4. Créer la commande
+        const total = subtotal + taxAmount - promoDiscount + shippingCost;
+        // Points gagnés : 1 point par 100 FCFA dépensés
+        const pointsEarned = req.user?.userId ? Math.floor(total / 100) : 0;
+        // 5. Créer la commande
         const orderNumber = generateOrderNumber();
         const order = await prisma_1.prisma.order.create({
             data: {
@@ -114,8 +137,11 @@ router.post('/', auth_1.optionalAuth, (0, validate_1.validate)(createOrderSchema
                 shippingCost,
                 paymentMethod: body.paymentMethod,
                 subtotal,
+                taxRate: taxRatePercent,
+                taxAmount,
                 promoCode: validatedCode,
                 promoDiscount,
+                pointsEarned,
                 total,
                 notes: body.notes,
                 items: {
@@ -140,14 +166,26 @@ router.post('/', auth_1.optionalAuth, (0, validate_1.validate)(createOrderSchema
             where: { id: item.productId },
             data: { stock: { decrement: item.qty }, sold: { increment: item.qty } },
         })));
-        // 6. Notification en base (si utilisateur connecté)
+        // 6a. Fidélité : créditer les points gagnés
+        if (req.user?.userId && pointsEarned > 0) {
+            await Promise.all([
+                prisma_1.prisma.user.update({ where: { id: req.user.userId }, data: { loyaltyPoints: { increment: pointsEarned } } }),
+                prisma_1.prisma.pointTransaction.create({
+                    data: { userId: req.user.userId, orderId: order.id, type: 'earn', points: pointsEarned, note: `Gagnés sur commande ${orderNumber}` },
+                }),
+            ]);
+        }
+        // 6b. Notification en base (si utilisateur connecté)
         if (req.user?.userId) {
+            const notifLines = [`Votre commande ${orderNumber} a bien été reçue.`];
+            if (pointsEarned > 0)
+                notifLines.push(`+${pointsEarned} points Skignas crédités !`);
             await prisma_1.prisma.notification.create({
                 data: {
                     userId: req.user.userId,
                     type: 'order',
                     title: 'Commande reçue',
-                    body: `Votre commande ${orderNumber} a bien été reçue.`,
+                    body: notifLines.join(' '),
                     link: `/commandes/${orderNumber}`,
                 },
             });
@@ -157,6 +195,9 @@ router.post('/', auth_1.optionalAuth, (0, validate_1.validate)(createOrderSchema
             orderNumber,
             prenom: body.clientPrenom,
             items: order.items.map(i => ({ name: i.name, qty: i.qty, price: i.price })),
+            subtotal,
+            shippingCost,
+            promoDiscount,
             total,
             paymentMethod: body.paymentMethod,
             deliveryMethod: body.deliveryMethod,
@@ -170,6 +211,7 @@ router.post('/', auth_1.optionalAuth, (0, validate_1.validate)(createOrderSchema
                 total,
                 shippingCost,
                 promoDiscount,
+                pointsEarned,
             },
         });
     }
@@ -217,18 +259,58 @@ router.get('/', auth_1.requireAuth, async (req, res) => {
     }
 });
 /* ─────────────────────────────────────────────────────────────
+   GET /api/orders/admin/all  [ADMIN]
+   ⚠️  DOIT être déclaré AVANT /:id pour ne pas être masqué
+───────────────────────────────────────────────────────────── */
+router.get('/admin/all', auth_1.requireAdmin, async (req, res) => {
+    try {
+        const page = parseInt(req.query['page']) || 1;
+        const limit = parseInt(req.query['limit']) || 20;
+        const status = req.query['status'];
+        const q = req.query['q'];
+        const where = {
+            ...(status ? { status } : {}),
+            ...(q ? { OR: [
+                    { orderNumber: { contains: q } },
+                    { clientEmail: { contains: q } },
+                    { clientTelephone: { contains: q } },
+                ] } : {}),
+        };
+        const [total, orders] = await Promise.all([
+            prisma_1.prisma.order.count({ where }),
+            prisma_1.prisma.order.findMany({
+                where, orderBy: { createdAt: 'desc' },
+                skip: (page - 1) * limit, take: limit,
+                include: { items: { select: { name: true, qty: true, image: true } } },
+            }),
+        ]);
+        res.json({ success: true, data: { orders, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } } });
+    }
+    catch {
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+/* ─────────────────────────────────────────────────────────────
    GET /api/orders/:id  — Détail commande
 ───────────────────────────────────────────────────────────── */
 router.get('/:id', auth_1.optionalAuth, async (req, res) => {
     try {
+        const paramId = req.params['id'] ?? '';
+        const isAdmin = req.user?.role === 'admin';
         const order = await prisma_1.prisma.order.findFirst({
             where: {
-                OR: [
-                    { id: req.params['id'] },
-                    { orderNumber: req.params['id'] },
+                AND: [
+                    // Cherche par id (CUID) OU par orderNumber (KLI-...)
+                    { OR: [{ id: paramId }, { orderNumber: paramId }] },
+                    // Admin → toutes les commandes
+                    // Connecté non-admin → commande lui appartenant OU commande invité (userId null)
+                    // Non connecté → commande invité seulement
+                    ...(isAdmin
+                        ? []
+                        : req.user
+                            ? [{ OR: [{ userId: req.user.userId }, { userId: null }] }]
+                            : [{ userId: null }]),
                 ],
-                // Si connecté : doit être sa commande
-                ...(req.user ? { userId: req.user.userId } : {}),
             },
             include: { items: true },
         });
@@ -270,7 +352,7 @@ router.put('/:id/cancel', auth_1.requireAuth, async (req, res) => {
 ───────────────────────────────────────────────────────────── */
 router.put('/:id/status', auth_1.requireAdmin, async (req, res) => {
     try {
-        const schema = zod_1.z.object({ status: zod_1.z.enum(['pending', 'confirmed', 'preparing', 'shipped', 'delivered', 'cancelled']) });
+        const schema = zod_1.z.object({ status: zod_1.z.enum(['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded']) });
         const { status } = schema.parse(req.body);
         const order = await prisma_1.prisma.order.findUnique({
             where: { id: req.params['id'] },
@@ -295,33 +377,6 @@ router.put('/:id/status', auth_1.requireAdmin, async (req, res) => {
             });
         }
         res.json({ success: true, message: 'Statut mis à jour' });
-    }
-    catch {
-        res.status(500).json({ success: false, message: 'Erreur serveur' });
-    }
-});
-/* ─────────────────────────────────────────────────────────────
-   GET /api/orders/admin/all  [ADMIN]
-───────────────────────────────────────────────────────────── */
-router.get('/admin/all', auth_1.requireAdmin, async (req, res) => {
-    try {
-        const page = parseInt(req.query['page']) || 1;
-        const limit = parseInt(req.query['limit']) || 20;
-        const status = req.query['status'];
-        const q = req.query['q'];
-        const where = {
-            ...(status ? { status } : {}),
-            ...(q ? { OR: [{ orderNumber: { contains: q } }, { clientEmail: { contains: q } }, { clientTelephone: { contains: q } }] } : {}),
-        };
-        const [total, orders] = await Promise.all([
-            prisma_1.prisma.order.count({ where }),
-            prisma_1.prisma.order.findMany({
-                where, orderBy: { createdAt: 'desc' },
-                skip: (page - 1) * limit, take: limit,
-                include: { items: { select: { name: true, qty: true } } },
-            }),
-        ]);
-        res.json({ success: true, data: { orders, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } } });
     }
     catch {
         res.status(500).json({ success: false, message: 'Erreur serveur' });

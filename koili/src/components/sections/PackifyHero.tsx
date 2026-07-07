@@ -2,26 +2,21 @@ import { Link } from 'react-router-dom'
 import BlurText from '../ui/BlurText'
 import TrueFocus from '../ui/TrueFocus'
 import Aurora from '../ui/Aurora'
-//import BorderGlow from '../ui/BorderGlow'
 import LogoLoop from '../ui/LogoLoop'
-//import { SiFigma, SiCanva, SiShopify, SiWoocommerce, SiEtsy, SiNotion, SiSlack, SiStripe, SiZapier, SiMailchimp } from 'react-icons/si'
 
 const partnerLogos = [
   // Icônes react-icons — format { node, title }
   // { node: <SiFigma />,       title: 'Figma' },
   // Images — format { src, alt, href? }
   // { src: '/logos/mon-logo.png', alt: 'Mon Logo', href: 'https://exemple.com' },
-  { src: '/icons/action.png', alt: 'logo action' },
+  { src: '/icons/fnac.png', alt: 'logo fnac' },
   { src: '/icons/amazon.png', alt: 'logo amazon' },
-  { src: '/icons/carrefour.png', alt: 'logo carrefour' },
-  { src: '/icons/h&m.png', alt: 'logo h&m' },
-  { src: '/icons/ikea.png', alt: 'logo ikea' },
-  { src: '/icons/kiabi.png', alt: 'logo kiabi' },
-  { src: '/icons/lidl.png', alt: 'logo lidl' },
-  { src: '/icons/normal.png', alt: 'logo normal' },
-  { src: '/icons/primark.png', alt: 'logo primark' },
-  { src: '/icons/shein.png', alt: 'logo shein' },
-  { src: '/icons/zara.png', alt: 'logo zara' },
+  { src: '/icons/darty.png', alt: 'logo darty' },
+  { src: '/icons/imou.png', alt: 'logo imou' },
+  { src: '/icons/alibaba.png', alt: 'logo alibaba' },
+  { src: '/icons/aliexpress.png', alt: 'logo aliexpress' },
+  { src: '/icons/banggood.png', alt: 'logo banggood' },
+  { src: '/icons/jd.com.png', alt: 'logo jd.com' }
 ]
 
 export function PackifyHero() {
@@ -65,7 +60,7 @@ export function PackifyHero() {
 
         {/* Badge */}
         <div className="inline-flex items-center gap-3 mb-6 sm:mb-10 border border-white/10 rounded-full overflow-hidden">
-          <Link to="/login" className="hover:scale-110 transition-transform duration-300 bg-blue-600 text-white text-xs font-bold tracking-widest uppercase px-4 py-2">
+          <Link to="/login" className="hover:scale-110 transition-transform duration-300 bg-blue-600 text-white text-xs font-bold tracking-widest px-4 py-2">
             Se connecter
           </Link>
           <Link to="/register" className="hover:scale-110 transition-transform duration-300 text-center text-white/70 text-sm pr-4">
@@ -76,7 +71,7 @@ export function PackifyHero() {
         {/* Headline */}
         <div style={{ fontSize: 'clamp(26px, 5vw, 108px)', fontWeight: 400 }}>
           <BlurText
-            text="Achetez des produits de grandes enseignes en ligne, livrés chez vous."
+            text="La tech que vous cherchez, réunie en un seul endroit."
             delay={120}
             animateBy="words"
             direction="top"
@@ -87,13 +82,13 @@ export function PackifyHero() {
         {/* Subtitle */}
         <div className="mt-8 max-w-xl">
           <TrueFocus
-            sentence="Tellement simple avec nous!"
+            sentence="Skignas rassemble vos marques tech préférées en une seule expérience d'achat."
             manualMode={false}
             blurAmount={5}
             borderColor="#000dffff"
             animationDuration={0.5}
             pauseBetweenAnimations={1}
-            className="text-white/50 text-sm sm:text-lg leading-relaxed"
+            className="text-white/50 text-sm sm:text-lg mb-9 leading-relaxed"
           />
         </div>
 

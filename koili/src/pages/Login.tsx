@@ -67,7 +67,7 @@ export default function LoginPage() {
     <>
       <PageMeta
         title="Connexion"
-        description="Connectez-vous à votre espace Koli."
+        description="Connectez-vous à votre espace Skignas."
         path="/login"
         noIndex
       />
@@ -90,9 +90,9 @@ export default function LoginPage() {
             className="lg:w-full relative lg:max-w-md lg:border rounded-2xl lg:border-white/10 lg:bg-white/10 p-8 lg:shadow-2xl lg:backdrop-blur-xl"
           >
             {/* Logo */}
-            <img src="/imgs_dropship/logohori_dropship_white.png" className="w-full h-30 mb-4 hidden lg:block" alt="Koli" />
+            <img src="/imgs_dropship/skignas_white.png" className="w-full h-30 mb-4 hidden lg:block" alt="Skignas" />
             <div className="flex justify-center items-center">
-              <img src="/imgs_dropship/favicon-dropship.png" className="w-30 h-30 mb-4 block lg:hidden" alt="Koli" />
+              <img src="/imgs_dropship/skignas_white.png" className="w-100 h-30 mb-4 block lg:hidden" alt="Skignas" />
             </div>
 
             <div className="mb-8 text-center">

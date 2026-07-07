@@ -24,7 +24,6 @@ import OrderDetailPage from './pages/OrderDetailPage'
 import OrdersPage      from './pages/OrdersPage'
 import PanierPage from './pages/PanierPage'
 import ProfilPage from './pages/ProfilPage'
-import MagasinPage from './pages/MagasinPage'
 import MagicLoginPage from './pages/MagicLoginPage'
 import OnboardingPage from './pages/OnboardingPage'
 import ComparePage from './pages/ComparePage'
@@ -68,7 +67,6 @@ function App() {
               <Route path="/catalogue" element={<CataloguePage />} />
               <Route path="/catalogue/:id" element={<ProductPage />} />
 
-              <Route path="/magasin" element={<MagasinPage />} />
               <Route path="/cgu"     element={<CguPage />} />
               <Route path="/legal"   element={<LegalPage />} />
               <Route path="/privacy" element={<PrivacyPage />} />
@@ -83,11 +81,14 @@ function App() {
                 <Route path="/commandes/:id"       element={<OrderDetailPage />} />
                 <Route path="/commandes/:id/suivi" element={<DeliveryPage />} />
                 <Route path="/vendeur"             element={<SellerPage />} />
+                <Route path="/panier"      element={<PanierPage />} />
+
               </Route>
             </Route>
 
             {/* Pages sans header/footer */}
-            <Route path="/panier"      element={<PanierPage />} />
+            
+
             <Route path="/login"       element={<Login />} />
             <Route path="/register"    element={<Register />} />
             <Route path="/auth/magic"  element={<MagicLoginPage />} />

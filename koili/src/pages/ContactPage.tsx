@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { PageMeta } from '../components/seo/PageMeta'
 import { postContact } from '../lib/api'
+import { useSiteSettings, waLink, telLink } from '../hooks/useSiteSettings'
 
 /* ═══════════════════════════════════════════════════════════════
    DONNÉES
@@ -85,6 +86,8 @@ function FaqItem({ q, a, defaultOpen = false }: { q: string; a: string; defaultO
    PAGE PRINCIPALE
 ═══════════════════════════════════════════════════════════════ */
 export function ContactPage() {
+  const settings = useSiteSettings()
+
   /* ── Form state ── */
   const [form, setForm] = useState({
     prenom: '', nom: '', email: '', telephone: '',
@@ -168,7 +171,7 @@ export function ContactPage() {
               className="px-6 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:border-gray-300 hover:bg-gray-50 transition-colors">
               Retour à l'accueil
             </Link>
-            <a href="https://wa.me/237600000000" target="_blank" rel="noopener noreferrer"
+            <a href={waLink(settings.whatsappNumber)} target="_blank" rel="noopener noreferrer"
               className="px-6 py-3 rounded-xl bg-emerald-500 text-white text-sm font-bold hover:bg-emerald-600 transition-colors flex items-center justify-center gap-2">
               <MessageCircle size={15} /> WhatsApp SAV
             </a>
@@ -181,8 +184,8 @@ export function ContactPage() {
   return (
     <>
       <PageMeta
-        title="Contact — Koli"
-        description="Une question, un retour, un partenariat ? L'équipe Koli vous répond sous 24h. WhatsApp, email ou formulaire de contact."
+        title="Contact — Skignas"
+        description="Une question, un retour, un partenariat ? L'équipe Skignas vous répond sous 24h. WhatsApp, email ou formulaire de contact."
         path="/contact"
       />
 
@@ -247,7 +250,7 @@ export function ContactPage() {
                 title: 'WhatsApp',
                 desc: 'Réponse instantanée',
                 action: 'Démarrer une conversation',
-                href: 'https://wa.me/237600000000',
+                href: waLink(settings.whatsappNumber),
                 badge: 'Le + rapide',
                 badgeColor: 'bg-emerald-500',
               },
@@ -256,8 +259,8 @@ export function ContactPage() {
                 bg:   'bg-blue-50 border-blue-100',
                 title: 'Téléphone',
                 desc: 'Lun–Sam · 8h–20h',
-                action: '+237 600 00 00 00',
-                href: 'tel:+237600000000',
+                action: settings.supportPhone,
+                href: telLink(settings.supportPhone),
                 badge: null,
                 badgeColor: '',
               },
@@ -266,8 +269,8 @@ export function ContactPage() {
                 bg:   'bg-violet-50 border-violet-100',
                 title: 'E-mail',
                 desc: 'Réponse sous 24h',
-                action: 'support@koli.cm',
-                href: 'mailto:support@koli.cm',
+                action: settings.supportEmail,
+                href: `mailto:${settings.supportEmail}`,
                 badge: null,
                 badgeColor: '',
               },
@@ -275,7 +278,7 @@ export function ContactPage() {
                 icon: <MapPin size={22} className="text-orange-600" />,
                 bg:   'bg-orange-50 border-orange-100',
                 title: 'Agence',
-                desc: 'Douala, Bonanjo',
+                desc: settings.address,
                 action: 'Voir sur la carte',
                 href: '#localisation',
                 badge: null,
@@ -424,12 +427,12 @@ export function ContactPage() {
                     {form.rgpd && <Check size={12} className="text-white" strokeWidth={3} />}
                   </div>
                   <span className="text-xs text-gray-500 leading-relaxed">
-                    J'accepte que mes données soient traitées par Koli afin de répondre à ma demande, conformément à la{' '}
+                    J'accepte que mes données soient traitées par Skignas afin de répondre à ma demande, conformément à la{' '}
                     <Link to="/privacy" className="text-blue-600 underline underline-offset-2 hover:text-blue-800">
                       politique de confidentialité
                     </Link>.
                     Vous pouvez exercer vos droits à tout moment en écrivant à{' '}
-                    <a href="mailto:dpo@koli.cm" className="text-blue-600 underline underline-offset-2">dpo@koli.cm</a>.
+                    <a href={`mailto:${settings.supportEmail}`} className="text-blue-600 underline underline-offset-2">{settings.supportEmail}</a>.
                   </span>
                 </label>
                 {errors.rgpd && (
@@ -503,10 +506,10 @@ export function ContactPage() {
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
               <p className="text-sm font-bold text-gray-900">Coordonnées directes</p>
               {[
-                { icon: <Phone size={15} className="text-blue-500" />,          label: 'Téléphone', value: '+237 600 00 00 00', href: 'tel:+237600000000'         },
-                { icon: <Mail size={15} className="text-violet-500" />,         label: 'E-mail SAV', value: 'support@koli.cm', href: 'mailto:support@koli.cm'     },
-                { icon: <Mail size={15} className="text-orange-400" />,         label: 'E-mail pro', value: 'pro@koli.cm',     href: 'mailto:pro@koli.cm'         },
-                { icon: <MapPin size={15} className="text-red-400" />,          label: 'Adresse',   value: 'Bonanjo, Douala · Cameroun', href: '#localisation'    },
+                { icon: <Phone size={15} className="text-blue-500" />,          label: 'Téléphone', value: settings.supportPhone, href: telLink(settings.supportPhone) },
+                { icon: <Mail size={15} className="text-violet-500" />,         label: 'E-mail SAV', value: settings.supportEmail, href: `mailto:${settings.supportEmail}` },
+                { icon: <Mail size={15} className="text-orange-400" />,         label: 'E-mail pro', value: settings.contactEmail, href: `mailto:${settings.contactEmail}` },
+                { icon: <MapPin size={15} className="text-red-400" />,          label: 'Adresse',   value: settings.address, href: '#localisation'    },
               ].map(item => (
                 <a key={item.label} href={item.href}
                   className="flex items-start gap-3 group hover:bg-gray-50 -mx-1 px-1 py-1.5 rounded-xl transition-colors">
@@ -522,7 +525,7 @@ export function ContactPage() {
             </div>
 
             {/* WhatsApp CTA */}
-            <a href="https://wa.me/237600000000?text=Bonjour%20Koli%2C%20j'ai%20une%20question%20concernant…"
+            <a href={waLink(settings.whatsappNumber, "Bonjour Skignas, j'ai une question concernant…")}
               target="_blank" rel="noopener noreferrer"
               className="flex items-center gap-4 p-4 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl text-white hover:from-emerald-600 hover:to-teal-600 transition-all shadow-lg shadow-emerald-500/20 group">
               <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
@@ -555,17 +558,17 @@ export function ContactPage() {
                 </div>
                 {/* Label */}
                 <div className="absolute bottom-3 left-3 bg-white/90 backdrop-blur-sm rounded-lg px-2.5 py-1.5 shadow-sm">
-                  <p className="text-xs font-bold text-gray-900">Koli HQ · Bonanjo</p>
-                  <p className="text-[10px] text-gray-500">Douala, Cameroun</p>
+                  <p className="text-xs font-bold text-gray-900">Skignas HQ</p>
+                  <p className="text-[10px] text-gray-500">{settings.address}</p>
                 </div>
-                <a href="https://maps.google.com/?q=Bonanjo,Douala,Cameroun" target="_blank" rel="noopener noreferrer"
+                <a href={`https://maps.google.com/?q=${encodeURIComponent(settings.address)}`} target="_blank" rel="noopener noreferrer"
                   className="absolute top-3 right-3 bg-white rounded-lg px-2.5 py-1.5 shadow-sm text-[10px] font-semibold text-blue-600 hover:bg-blue-50 transition-colors flex items-center gap-1">
                   Ouvrir <ChevronRight size={9} />
                 </a>
               </div>
               <div className="px-4 py-3.5">
-                <p className="text-sm font-bold text-gray-900">Koli Commerce SAS</p>
-                <p className="text-xs text-gray-500 mt-0.5">Rue du Commerce, Quartier Bonanjo<br />Douala, Cameroun · BP 12345</p>
+                <p className="text-sm font-bold text-gray-900">Skignas Commerce</p>
+                <p className="text-xs text-gray-500 mt-0.5">{settings.address}</p>
               </div>
             </div>
 
@@ -601,7 +604,7 @@ export function ContactPage() {
           </div>
           <div className="mt-8 text-center">
             <p className="text-sm text-gray-500">Vous n'avez pas trouvé de réponse ?</p>
-            <a href="https://wa.me/237600000000" target="_blank" rel="noopener noreferrer"
+            <a href={waLink(settings.whatsappNumber)} target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center gap-2 mt-3 px-5 py-2.5 rounded-xl bg-gray-900 text-white text-sm font-bold hover:bg-gray-800 transition-colors">
               <MessageCircle size={14} /> Contactez-nous sur WhatsApp
             </a>
@@ -618,7 +621,7 @@ export function ContactPage() {
               { icon: <Package size={20} className="text-blue-500" />,    title: 'Mes commandes',  desc: 'Suivez vos livraisons',       href: '/commandes',  bg: 'bg-blue-50   border-blue-100'   },
               { icon: <RotateCcw size={20} className="text-orange-500" />, title: 'Retours',        desc: 'Retourner un article',        href: '/contact',    bg: 'bg-orange-50 border-orange-100' },
               { icon: <Shield size={20} className="text-emerald-500" />,  title: 'Garanties',      desc: 'Politique de garantie',       href: '/cgu',        bg: 'bg-emerald-50 border-emerald-100' },
-              { icon: <Star size={20} className="text-yellow-500" />,     title: 'Partenariat',    desc: 'Devenir vendeur Koli',        href: '/contact',    bg: 'bg-yellow-50 border-yellow-100' },
+              { icon: <Star size={20} className="text-yellow-500" />,     title: 'Partenariat',    desc: 'Devenir vendeur Skignas',      href: '/contact',    bg: 'bg-yellow-50 border-yellow-100' },
             ].map(card => (
               <Link key={card.title} to={card.href}
                 className={`flex flex-col items-center text-center gap-3 p-5 rounded-2xl border hover:shadow-md transition-all ${card.bg}`}>

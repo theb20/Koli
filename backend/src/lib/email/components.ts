@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────
-   Composants HTML réutilisables pour les emails Koli
+   Composants HTML réutilisables pour les emails Skignas
    Chaque fonction retourne une chaîne HTML inline-stylée,
    compatible Gmail, Outlook, Apple Mail et dark mode.
 ───────────────────────────────────────────────────────────── */
@@ -64,7 +64,7 @@ export function metaTable(rows: Array<[string, string]>): string {
 
 /** Tableau d'articles de commande */
 export function orderItemsTable(items: Array<{ name: string; qty: number; price: number }>): string {
-  const fmt = (n: number) => (n / 100).toLocaleString('fr-FR') + '&nbsp;FCFA'
+  const fmt = (n: number) => n.toLocaleString('fr-FR') + '&nbsp;FCFA'
 
   const rows = items.map(i => `
     <tr>

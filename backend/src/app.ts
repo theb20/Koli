@@ -29,26 +29,21 @@ import giftListsRouter    from './routes/gift-lists'
 import deliveryRouter     from './routes/delivery'
 import historyRouter       from './routes/history'
 import sellerRouter        from './routes/seller'
+import settingsRouter       from './routes/settings'
 
 const app = express()
 
-/* ── Sécurité ───────────────────────────────────────────────── */
-app.use(helmet()) 
-
+/* ── CORS (must be before helmet) ──────────────────────────── */
 const ALLOWED_ORIGINS = [
   process.env.FRONTEND_URL ?? 'http://localhost:5173',
+  'http://localhost:3001',
   'http://localhost:3000',
-  'http://localhost:5173',
   'http://localhost:5174',
-  'http://localhost:5175',
-  'http://127.0.0.1:3000',
+  'http://127.0.0.1:3001',
   'http://127.0.0.1:5173',
   'http://127.0.0.1:5174',
-  'http://127.0.0.1:5175',
-  'http://192.168.1.29:3000',
-  'http://192.168.1.29:5173',
+  'http://192.168.1.29:3001',
   'http://192.168.1.29:5174',
-  'http://192.168.1.29:5175',
 ]
 
 app.use(cors({
@@ -62,6 +57,9 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }))
+
+/* ── Sécurité ───────────────────────────────────────────────── */
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }))
 
 /* ── Rate Limiting ──────────────────────────────────────────── */
 
@@ -139,6 +137,7 @@ app.use('/api/gift-lists',    giftListsRouter)
 app.use('/api/delivery',      deliveryRouter)
 app.use('/api/history',        historyRouter)
 app.use('/api/seller',         sellerRouter)
+app.use('/api/settings',       settingsRouter)
 
 /* ── 404 ────────────────────────────────────────────────────── */
 app.use((_req, res) => {

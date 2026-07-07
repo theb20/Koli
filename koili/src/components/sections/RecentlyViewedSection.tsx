@@ -5,7 +5,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useHistory } from '../../hooks/useHistory'
 import { fetchProducts, mapApiProduct } from '../../lib/api'
 
-const fmt = (n: number) => Math.round(n / 100).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
+const fmt = (n: number) => Math.round(n).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
 
 export function RecentlyViewedSection() {
   const { token } = useAuth()
