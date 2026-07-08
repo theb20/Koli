@@ -66,6 +66,7 @@ async function main() {
     { loc: `${SITE_URL}/blog`, changefreq: 'weekly', priority: '0.7', image: `${SITE_URL}/wall/og-blog.jpg` },
     { loc: `${SITE_URL}/about`, changefreq: 'monthly', priority: '0.6' },
     { loc: `${SITE_URL}/contact`, changefreq: 'monthly', priority: '0.5' },
+    { loc: `${SITE_URL}/demande`, changefreq: 'monthly', priority: '0.5' },
     { loc: `${SITE_URL}/cgu`, changefreq: 'yearly', priority: '0.3' },
     { loc: `${SITE_URL}/legal`, changefreq: 'yearly', priority: '0.3' },
     { loc: `${SITE_URL}/privacy`, changefreq: 'yearly', priority: '0.3' },

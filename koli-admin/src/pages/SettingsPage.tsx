@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
-import { Save, Bell, Send, AlertTriangle, Phone } from 'lucide-react'
+import { Save, Bell, Send, AlertTriangle, Phone, Mail, X, Plus } from 'lucide-react'
 import { api } from '../lib/api'
 import { AxiosError } from 'axios'
 import { useAuth } from '../hooks/useAuth'
@@ -33,6 +33,7 @@ type SiteSettings = {
   instagramUrl?:  string
   youtubeUrl?:    string
   tiktokUrl?:     string
+  orderNotifyEmails?: string
 }
 
 export default function SettingsPage() {
@@ -51,10 +52,11 @@ export default function SettingsPage() {
     mutationFn: (body: object) => api.put('/api/auth/me', body),
   })
 
-  /* Coordonnées & réseaux sociaux du site public */
+  /* Coordonnées & réseaux sociaux du site public — vue admin complète (inclut orderNotifyEmails,
+     jamais exposé sur le endpoint public consommé par le site client) */
   const { data: siteSettings, isLoading: loadingSite } = useQuery({
-    queryKey: ['site-settings'],
-    queryFn: async () => { const { data } = await api.get('/api/settings'); return data.data.settings as SiteSettings },
+    queryKey: ['site-settings-admin'],
+    queryFn: async () => { const { data } = await api.get('/api/settings/admin'); return data.data.settings as SiteSettings },
   })
 
   const { register: registerSite, handleSubmit: handleSubmitSite, reset: resetSite } = useForm<SiteSettings>()
@@ -64,13 +66,27 @@ export default function SettingsPage() {
   }, [siteSettings, resetSite])
 
   const siteMutation = useMutation({
-    mutationFn: (body: SiteSettings) => api.put('/api/settings', body),
+    mutationFn: (body: Partial<SiteSettings>) => api.put('/api/settings', body),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['site-settings'] })
+      qc.invalidateQueries({ queryKey: ['site-settings-admin'] })
       setSiteSuccess(true)
       setTimeout(() => setSiteSuccess(false), 3000)
     },
   })
+
+  /* Destinataires des emails "nouvelle commande" */
+  const [newNotifyEmail, setNewNotifyEmail] = useState('')
+  const notifyEmails = (siteSettings?.orderNotifyEmails ?? '').split(',').map(e => e.trim()).filter(Boolean)
+
+  const addNotifyEmail = () => {
+    const email = newNotifyEmail.trim()
+    if (!email || notifyEmails.includes(email)) return
+    siteMutation.mutate({ orderNotifyEmails: [...notifyEmails, email].join(', ') })
+    setNewNotifyEmail('')
+  }
+  const removeNotifyEmail = (email: string) => {
+    siteMutation.mutate({ orderNotifyEmails: notifyEmails.filter(e => e !== email).join(', ') })
+  }
 
   const broadcastMutation = useMutation({
     mutationFn: (body: object) => api.post('/api/notifications/broadcast', body),
@@ -179,6 +195,53 @@ export default function SettingsPage() {
               </Button>
             </div>
           </form>
+        )}
+      </div>
+
+      {/* Notifications de nouvelle commande */}
+      <div className={cardCls}>
+        <div className="flex items-center gap-2 mb-2">
+          <Mail size={16} className="text-indigo-600" />
+          <h2 className="text-sm font-semibold text-slate-900">Notifications de nouvelle commande</h2>
+        </div>
+        <p className="text-xs text-slate-500 mb-5">
+          Ces adresses reçoivent un email à chaque nouvelle commande passée sur le site. Retire une adresse pour qu'elle arrête de recevoir ces emails.
+        </p>
+
+        {loadingSite ? (
+          <div className="h-16 bg-slate-50 rounded-xl animate-pulse" />
+        ) : (
+          <>
+            <div className="flex flex-wrap gap-2 mb-4">
+              {notifyEmails.length === 0 ? (
+                <p className="text-xs text-slate-400 italic">Aucun destinataire — personne ne sera notifié par email des nouvelles commandes.</p>
+              ) : (
+                notifyEmails.map(email => (
+                  <span key={email} className="flex items-center gap-1.5 bg-indigo-50 text-indigo-700 text-xs font-medium pl-3 pr-1.5 py-1.5 rounded-full border border-indigo-100">
+                    {email}
+                    <button type="button" onClick={() => removeNotifyEmail(email)}
+                      className="p-0.5 rounded-full hover:bg-indigo-100 text-indigo-400 hover:text-indigo-700 transition-colors" title="Retirer">
+                      <X size={12} />
+                    </button>
+                  </span>
+                ))
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Input
+                value={newNotifyEmail}
+                onChange={e => setNewNotifyEmail(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addNotifyEmail() } }}
+                type="email"
+                placeholder="email@exemple.com"
+                className="flex-1"
+              />
+              <Button type="button" variant="secondary" onClick={addNotifyEmail} disabled={!newNotifyEmail.trim()} icon={<Plus size={15} />}>
+                Ajouter
+              </Button>
+            </div>
+            {siteMutation.isError && <p className="text-red-600 text-sm mt-2">{apiErrorMessage(siteMutation.error)}</p>}
+          </>
         )}
       </div>
 

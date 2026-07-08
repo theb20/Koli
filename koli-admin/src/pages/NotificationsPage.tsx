@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Bell, Send, Trash2, AlertTriangle, CheckCircle2, Info, AlertOctagon } from 'lucide-react'
 import { api, fmtDateTime } from '../lib/api'
@@ -70,6 +70,14 @@ export default function NotificationsPage() {
   })
 
   const notifs: Notification[] = data?.notifications ?? []
+
+  // Marque les notifications de l'admin connecté comme lues à la visite — vide la bulle du menu
+  useEffect(() => {
+    api.put('/api/notifications/read-all').then(() => {
+      qc.invalidateQueries({ queryKey: ['notifications-unread-count'] })
+    }).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <div className="space-y-6">

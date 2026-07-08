@@ -19,6 +19,7 @@ const listQuerySchema = zod_1.z.object({
     badge: zod_1.z.string().optional(),
     inStock: zod_1.z.coerce.boolean().optional(),
     storeId: zod_1.z.coerce.number().int().optional(), // filter by store
+    hasSale: zod_1.z.coerce.boolean().optional(), // filter: promo programmée (salePrice défini)
 });
 const createProductSchema = zod_1.z.object({
     name: zod_1.z.string().min(3).max(200),
@@ -57,7 +58,7 @@ const createProductSchemaChecked = createProductSchema.superRefine((d, ctx) => {
 router.get('/', auth_1.optionalAuth, (0, cache_1.cacheControl)(30), async (req, res) => {
     try {
         const query = listQuerySchema.parse(req.query);
-        const { page, limit, category, q, sort, minPrice, maxPrice, badge, inStock, storeId } = query;
+        const { page, limit, category, q, sort, minPrice, maxPrice, badge, inStock, storeId, hasSale } = query;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const where = { isActive: true };
         if (category)
@@ -68,6 +69,8 @@ router.get('/', auth_1.optionalAuth, (0, cache_1.cacheControl)(30), async (req, 
             where['stock'] = { gt: 0 };
         if (storeId)
             where['storeId'] = storeId;
+        if (hasSale)
+            where['salePrice'] = { not: null };
         if (minPrice !== undefined || maxPrice !== undefined) {
             where['price'] = {
                 ...(minPrice !== undefined ? { gte: minPrice } : {}),
@@ -180,21 +183,54 @@ router.get('/:id', auth_1.optionalAuth, (0, cache_1.cacheControl)(20), async (re
             res.status(404).json({ success: false, message: 'Produit introuvable' });
             return;
         }
-        // Produits similaires
-        const similar = await prisma_1.prisma.product.findMany({
-            where: { category: product.category, id: { not: product.id }, isActive: true },
-            take: 6, orderBy: { sold: 'desc' },
-            include: { images: { take: 1, orderBy: { position: 'asc' } } },
-        });
-        // Vérifier si dans la wishlist
-        let inWishlist = false;
-        if (req.user) {
-            const wish = await prisma_1.prisma.wishlistItem.findUnique({
-                where: { userId_productId: { userId: req.user.userId, productId: id } },
-            });
-            inWishlist = !!wish;
+        // Produits similaires + statut wishlist — indépendants, en parallèle
+        const [similar, wish] = await Promise.all([
+            prisma_1.prisma.product.findMany({
+                where: { category: product.category, id: { not: product.id }, isActive: true },
+                take: 6, orderBy: { sold: 'desc' },
+                include: { images: { take: 1, orderBy: { position: 'asc' } } },
+            }),
+            req.user
+                ? prisma_1.prisma.wishlistItem.findUnique({
+                    where: { userId_productId: { userId: req.user.userId, productId: id } },
+                })
+                : Promise.resolve(null),
+        ]);
+        res.json({ success: true, data: { product, similar, inWishlist: !!wish } });
+    }
+    catch {
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+/* ─────────────────────────────────────────────────────────────
+   POST /api/products/bulk-sale  [ADMIN]
+   Programme (ou retire) la même promo sur plusieurs produits d'un coup.
+───────────────────────────────────────────────────────────── */
+const bulkSaleSchema = zod_1.z.object({
+    productIds: zod_1.z.array(zod_1.z.number().int().positive()).min(1),
+    salePrice: zod_1.z.number().int().positive().nullable(),
+    saleStartsAt: zod_1.z.coerce.date().nullable().optional(),
+    saleEndsAt: zod_1.z.coerce.date().nullable().optional(),
+});
+router.post('/bulk-sale', auth_1.requireAdmin, (0, validate_1.validate)(bulkSaleSchema), async (req, res) => {
+    try {
+        const { productIds, salePrice, saleStartsAt, saleEndsAt } = req.body;
+        if (salePrice !== null) {
+            const err = saleWindowError({ salePrice, saleStartsAt: saleStartsAt ?? null, saleEndsAt: saleEndsAt ?? null });
+            if (err) {
+                res.status(400).json({ success: false, message: err });
+                return;
+            }
         }
-        res.json({ success: true, data: { product, similar, inWishlist } });
+        await prisma_1.prisma.product.updateMany({
+            where: { id: { in: productIds } },
+            data: {
+                salePrice,
+                saleStartsAt: salePrice === null ? null : (saleStartsAt ?? null),
+                saleEndsAt: salePrice === null ? null : (saleEndsAt ?? null),
+            },
+        });
+        res.json({ success: true, data: { updated: productIds.length } });
     }
     catch {
         res.status(500).json({ success: false, message: 'Erreur serveur' });

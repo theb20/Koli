@@ -61,6 +61,13 @@
   </url>
 
   <url>
+    <loc>https://skignas.com/demande</loc>
+    <lastmod>2026-07-08</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+
+  <url>
     <loc>https://skignas.com/cgu</loc>
     <lastmod>2026-07-08</lastmod>
     <changefreq>yearly</changefreq>

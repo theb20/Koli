@@ -8,7 +8,7 @@ exports.baseLayout = baseLayout;
 const settings_1 = require("./settings");
 async function baseLayout(content, preheader = '') {
     const year = new Date().getFullYear();
-    const frontUrl = process.env.FRONTEND_URL ?? 'https://skignas.ahobaut.fr';
+    const frontUrl = process.env.FRONTEND_URL ?? 'https://skignas.com';
     const contact = await (0, settings_1.getContactInfo)();
     return `<!DOCTYPE html>
 <html lang="fr" xmlns="http://www.w3.org/1999/xhtml">
@@ -73,7 +73,7 @@ async function baseLayout(content, preheader = '') {
                 <tr>
                   <td style="vertical-align:middle">
                     <a href="${frontUrl}" style="text-decoration:none;display:block;line-height:0">
-                      <img src="https://skignas.ahobaut.fr/imgs_dropship/skignas_white.png"
+                      <img src="https://skignas.com/imgs_dropship/skignas_white.png"
                            alt="Skignas"
                            width="150" height="40"
                            style="display:block;border:0;outline:0;width:150px;height:40px" />

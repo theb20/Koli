@@ -32,6 +32,7 @@ import historyRouter       from './routes/history'
 import sellerRouter        from './routes/seller'
 import settingsRouter       from './routes/settings'
 import dealAnnouncementsRouter from './routes/deal-announcements'
+import productRequestsRouter   from './routes/product-requests'
 
 const app = express()
 
@@ -145,6 +146,7 @@ app.use('/api/history',        historyRouter)
 app.use('/api/seller',         sellerRouter)
 app.use('/api/settings',       settingsRouter)
 app.use('/api/deal-announcements', dealAnnouncementsRouter)
+app.use('/api/product-requests', productRequestsRouter)
 
 /* ── 404 ────────────────────────────────────────────────────── */
 app.use((_req, res) => {

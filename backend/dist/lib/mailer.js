@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sendBroadcastEmail = exports.sendContactReply = exports.sendOrderStatusEmail = exports.sendOrderConfirmationEmail = exports.sendMagicLinkEmail = exports.sendWelcomeEmail = void 0;
+exports.sendNewOrderAdminEmail = exports.sendBroadcastEmail = exports.sendContactReply = exports.sendOrderStatusEmail = exports.sendOrderConfirmationEmail = exports.sendMagicLinkEmail = exports.sendWelcomeEmail = void 0;
 /* ─────────────────────────────────────────────────────────────
    Compatibility shim — all exports come from ./email/
    Do not add logic here; edit the files in ./email/ instead.
@@ -12,4 +12,5 @@ Object.defineProperty(exports, "sendOrderConfirmationEmail", { enumerable: true,
 Object.defineProperty(exports, "sendOrderStatusEmail", { enumerable: true, get: function () { return email_1.sendOrderStatusEmail; } });
 Object.defineProperty(exports, "sendContactReply", { enumerable: true, get: function () { return email_1.sendContactReply; } });
 Object.defineProperty(exports, "sendBroadcastEmail", { enumerable: true, get: function () { return email_1.sendBroadcastEmail; } });
+Object.defineProperty(exports, "sendNewOrderAdminEmail", { enumerable: true, get: function () { return email_1.sendNewOrderAdminEmail; } });
 //# sourceMappingURL=mailer.js.map

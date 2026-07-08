@@ -20,6 +20,14 @@ export declare function orderItemsTable(items: Array<{
     qty: number;
     price: number;
 }>): string;
+/** Carte produit en promo (vente flash) — image, prix barré, prix promo, réduction */
+export declare function dealProductCard(p: {
+    name: string;
+    image: string;
+    price: number;
+    salePrice: number;
+    url: string;
+}): string;
 /** Ligne icône + texte */
 export declare function iconRow(icon: string, text: string): string;
 //# sourceMappingURL=components.d.ts.map

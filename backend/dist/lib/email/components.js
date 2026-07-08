@@ -14,6 +14,7 @@ exports.statusTag = statusTag;
 exports.highlightBox = highlightBox;
 exports.metaTable = metaTable;
 exports.orderItemsTable = orderItemsTable;
+exports.dealProductCard = dealProductCard;
 exports.iconRow = iconRow;
 /** Sous-titre bleu en capslock avant le heading, avec puce */
 function subheading(text) {
@@ -88,6 +89,28 @@ function orderItemsTable(items) {
       </thead>
       <tbody>${rows}</tbody>
     </table>`;
+}
+/** Carte produit en promo (vente flash) — image, prix barré, prix promo, réduction */
+function dealProductCard(p) {
+    const fmt = (n) => n.toLocaleString('fr-FR') + '&nbsp;FCFA';
+    const disc = Math.round(((p.price - p.salePrice) / p.price) * 100);
+    return `
+    <a href="${p.url}" style="text-decoration:none">
+      <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+        style="border-collapse:collapse;border:1px solid #eef1fa;border-radius:16px;overflow:hidden;margin-bottom:14px">
+        <tr>
+          <td width="88" style="width:88px;vertical-align:top">
+            <img src="${p.image}" alt="${p.name}" width="88" height="88" style="width:88px;height:88px;object-fit:cover;display:block" />
+          </td>
+          <td style="padding:14px 16px;vertical-align:middle">
+            <p style="font-family:system-ui,-apple-system,sans-serif;font-size:13px;font-weight:700;color:#111827;margin:0 0 6px;line-height:1.3">${p.name}</p>
+            <span style="display:inline-block;background:#fef2f2;color:#dc2626;font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:800;padding:3px 8px;border-radius:100px;margin-right:8px">-${disc}%</span>
+            <span style="font-family:system-ui,-apple-system,sans-serif;font-size:15px;font-weight:800;color:#dc2626">${fmt(p.salePrice)}</span>
+            <span style="font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#9ca3af;text-decoration:line-through;margin-left:6px">${fmt(p.price)}</span>
+          </td>
+        </tr>
+      </table>
+    </a>`;
 }
 /** Ligne icône + texte */
 function iconRow(icon, text) {

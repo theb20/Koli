@@ -14,6 +14,8 @@ import BlogFormPage     from './pages/blog/BlogFormPage'
 import PromoPage        from './pages/PromoPage'
 import ReviewsPage      from './pages/ReviewsPage'
 import ContactPage      from './pages/ContactPage'
+import ProductRequestsPage      from './pages/ProductRequestsPage'
+import ProductRequestDetailPage from './pages/ProductRequestDetailPage'
 import StatsPage        from './pages/StatsPage'
 import SettingsPage       from './pages/SettingsPage'
 import NotificationsPage  from './pages/NotificationsPage'
@@ -50,6 +52,8 @@ export default function App() {
             <Route path="/promo"         element={<PromoPage />} />
             <Route path="/reviews"       element={<ReviewsPage />} />
             <Route path="/contact"       element={<ContactPage />} />
+            <Route path="/product-requests"     element={<ProductRequestsPage />} />
+            <Route path="/product-requests/:id" element={<ProductRequestDetailPage />} />
             <Route path="/stats"         element={<StatsPage />} />
             <Route path="/settings"      element={<SettingsPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />

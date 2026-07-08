@@ -176,6 +176,30 @@ export type ContactMessage = {
   createdAt: string
 }
 
+export type ProductRequestStatus = 'new' | 'processing' | 'quoted' | 'fulfilled' | 'rejected' | 'cancelled'
+
+export type ProductRequest = {
+  id: string
+  userId?: string | null
+  clientPrenom: string
+  clientNom: string
+  clientEmail: string
+  clientTelephone?: string | null
+  productName: string
+  description: string
+  images: string[]
+  quantity?: number | null
+  budget?: number | null
+  deliveryAddress: string
+  desiredDate?: string | null
+  status: ProductRequestStatus
+  adminReply?: string | null
+  quotedPrice?: number | null
+  repliedAt?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 export type Category = {
   id: number
   slug: string

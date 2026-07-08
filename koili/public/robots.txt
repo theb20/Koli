@@ -12,6 +12,7 @@ Allow: /catalogue
 Allow: /blog
 Allow: /about
 Allow: /contact
+Allow: /demande
 Allow: /cgu
 Allow: /legal
 Allow: /privacy

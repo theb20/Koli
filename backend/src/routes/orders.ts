@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { requireAuth, requireAdmin, optionalAuth } from '../middleware/auth'
 import { validate } from '../middleware/validate'
-import { sendOrderConfirmationEmail, sendOrderStatusEmail } from '../lib/mailer'
+import { sendOrderConfirmationEmail, sendOrderStatusEmail, sendNewOrderAdminEmail } from '../lib/mailer'
 
 const router = Router()
 
@@ -71,7 +71,7 @@ type OrderStatusValue = typeof ORDER_STATUSES[number]
  *   fait office de confirmation manuelle du paiement.
  */
 async function applyOrderStatusChange(orderId: string, status: OrderStatusValue) {
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const order = await tx.order.findUnique({ where: { id: orderId }, include: { items: true } })
     if (!order) return null
 
@@ -92,8 +92,30 @@ async function applyOrderStatusChange(orderId: string, status: OrderStatusValue)
       : ['confirmed', 'processing', 'shipped', 'delivered'].includes(status) ? 'paid'
       : order.paymentStatus // 'pending'/'cancelled' : ne pas inventer un statut de paiement
 
-    return tx.order.update({ where: { id: orderId }, data: { status, paymentStatus } })
+    const updated = await tx.order.update({ where: { id: orderId }, data: { status, paymentStatus } })
+    return { updated, changed: order.status !== status }
   })
+  if (!result) return null
+
+  // Email + notification client à chaque changement réel de statut — non bloquant, ne doit
+  // jamais faire échouer la mise à jour si l'envoi échoue. Pas de mail si le statut est
+  // resté identique (ex: admin renvoie la même valeur par erreur).
+  if (result.changed) {
+    sendOrderStatusEmail(result.updated.clientEmail, result.updated.clientPrenom, result.updated.orderNumber, status).catch(() => {})
+    if (result.updated.userId) {
+      prisma.notification.create({
+        data: {
+          userId: result.updated.userId,
+          type:   'order',
+          title:  `Commande ${result.updated.orderNumber} mise à jour`,
+          body:   `Nouveau statut : ${status}`,
+          link:   `/commandes/${result.updated.orderNumber}`,
+        },
+      }).catch(() => {})
+    }
+  }
+
+  return result.updated
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -343,6 +365,41 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
       }
     }
 
+    // 6d. Notifier les administrateurs — bulle in-app + email(s) configurés dans les paramètres.
+    //     Ne bloque jamais la réponse au client si ça échoue.
+    ;(async () => {
+      try {
+        const admins = await prisma.user.findMany({ where: { role: 'admin' }, select: { id: true } })
+        if (admins.length > 0) {
+          await prisma.notification.createMany({
+            data: admins.map(a => ({
+              userId: a.id,
+              type:   'order',
+              title:  'Nouvelle commande',
+              body:   `${body.clientPrenom} ${body.clientNom} · ${order.total.toLocaleString('fr-FR')} FCFA · ${orderNumber}`,
+              link:   `/orders/${order.id}`,
+            })),
+          })
+        }
+
+        const settings = await prisma.siteSettings.findUnique({ where: { id: 1 }, select: { orderNotifyEmails: true } })
+        const recipients = (settings?.orderNotifyEmails ?? '').split(',').map(e => e.trim()).filter(Boolean)
+        await Promise.allSettled(recipients.map(email => sendNewOrderAdminEmail(email, {
+          orderNumber,
+          clientNom:       `${body.clientPrenom} ${body.clientNom}`,
+          clientTelephone: body.clientTelephone,
+          clientEmail:     body.clientEmail,
+          items:           order.items.map(i => ({ name: i.name, qty: i.qty, price: i.price })),
+          total:           order.total,
+          paymentMethod:   body.paymentMethod,
+          deliveryMethod:  body.deliveryMethod,
+          orderId:         order.id,
+        })))
+      } catch (err) {
+        console.error('[orders] échec notification admin', err) // non bloquant
+      }
+    })()
+
     // 7. Email de confirmation (sans bloquer)
     sendOrderConfirmationEmail(body.clientEmail, {
       orderNumber,
@@ -553,22 +610,6 @@ router.put('/:id/status', requireAdmin, async (req, res) => {
     if (!order) {
       res.status(404).json({ success: false, message: 'Commande introuvable' })
       return
-    }
-
-    // Email de mise à jour
-    sendOrderStatusEmail(order.clientEmail, order.clientPrenom, order.orderNumber, status).catch(() => {})
-
-    // Notification si user connecté
-    if (order.userId) {
-      await prisma.notification.create({
-        data: {
-          userId: order.userId,
-          type: 'order',
-          title: `Commande ${order.orderNumber} mise à jour`,
-          body: `Nouveau statut : ${status}`,
-          link: `/commandes/${order.orderNumber}`,
-        },
-      })
     }
 
     res.json({ success: true, message: 'Statut mis à jour' })

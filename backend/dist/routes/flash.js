@@ -2,9 +2,10 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const prisma_1 = require("../lib/prisma");
+const cache_1 = require("../middleware/cache");
 const router = (0, express_1.Router)();
 /* GET /api/flash — produits en vente flash actives */
-router.get('/', async (_req, res) => {
+router.get('/', (0, cache_1.cacheControl)(20), async (_req, res) => {
     try {
         const now = new Date();
         const products = await prisma_1.prisma.product.findMany({

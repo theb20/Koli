@@ -58,7 +58,7 @@ async function sendOrderStatusEmail(to, prenom, orderNumber, status) {
     const info = ORDER_STATUS_MAP[status];
     if (!info)
         return;
-    const frontUrl = process.env.FRONTEND_URL ?? 'https://skignas.ahobaut.fr';
+    const frontUrl = process.env.FRONTEND_URL ?? 'https://skignas.com';
     const html = await (0, layout_1.baseLayout)(`
       ${(0, components_1.statusTag)(info.tag, info.accent, info.accentBg)}
       ${(0, components_1.heading)(info.title)}

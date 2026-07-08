@@ -7,6 +7,7 @@ const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
 const morgan_1 = __importDefault(require("morgan"));
+const compression_1 = __importDefault(require("compression"));
 const cookie_parser_1 = __importDefault(require("cookie-parser"));
 const express_rate_limit_1 = require("express-rate-limit");
 const path_1 = __importDefault(require("path"));
@@ -34,6 +35,7 @@ const delivery_1 = __importDefault(require("./routes/delivery"));
 const history_1 = __importDefault(require("./routes/history"));
 const seller_1 = __importDefault(require("./routes/seller"));
 const settings_1 = __importDefault(require("./routes/settings"));
+const deal_announcements_1 = __importDefault(require("./routes/deal-announcements"));
 const app = (0, express_1.default)();
 /* ── CORS (must be before helmet) ──────────────────────────── */
 const ALLOWED_ORIGINS = [
@@ -43,6 +45,9 @@ const ALLOWED_ORIGINS = [
     'http://192.168.1.29:3001',
     'http://192.168.1.29:5174',
     'https://skignas.ahobaut.fr',
+    'https://adminskignas.web.app',
+    'https://skignas.com',
+    'https://www.skignas.com',
 ];
 app.use((0, cors_1.default)({
     origin: (origin, callback) => {
@@ -57,6 +62,8 @@ app.use((0, cors_1.default)({
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization'],
 }));
+/* ── Compression gzip — réduit la taille des réponses JSON ────── */
+app.use((0, compression_1.default)());
 /* ── Sécurité ───────────────────────────────────────────────── */
 app.use((0, helmet_1.default)({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 /* ── Rate Limiting ──────────────────────────────────────────── */
@@ -130,6 +137,7 @@ app.use('/api/delivery', delivery_1.default);
 app.use('/api/history', history_1.default);
 app.use('/api/seller', seller_1.default);
 app.use('/api/settings', settings_1.default);
+app.use('/api/deal-announcements', deal_announcements_1.default);
 /* ── 404 ────────────────────────────────────────────────────── */
 app.use((_req, res) => {
     res.status(404).json({ success: false, message: 'Route introuvable' });

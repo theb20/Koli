@@ -27,6 +27,7 @@ const importProductSchema = zod_1.z.object({
     stock: zod_1.z.coerce.number().int().nonnegative().default(100),
     badge: zod_1.z.enum(['hot', 'new', 'sale', 'top']).optional(),
     images: zod_1.z.array(zod_1.z.string().url()).optional(),
+    specs: zod_1.z.array(zod_1.z.object({ label: zod_1.z.string(), value: zod_1.z.string() })).optional(),
 });
 /* ─────────────────────────────────────────────────────────────
    GET /api/stores/admin/all
@@ -166,7 +167,7 @@ router.post('/:id/import', async (req, res) => {
                 skipped.push(`${item.name} (catégorie "${item.category}" introuvable)`);
                 continue;
             }
-            const { images, ...rest } = item;
+            const { images, specs, ...rest } = item;
             await prisma_1.prisma.product.create({
                 data: {
                     ...rest,
@@ -175,6 +176,9 @@ router.post('/:id/import', async (req, res) => {
                     isActive: true,
                     images: images?.length
                         ? { create: images.map((url, i) => ({ url, position: i })) }
+                        : undefined,
+                    specs: specs?.length
+                        ? { create: specs.map((s, i) => ({ ...s, position: i })) }
                         : undefined,
                 },
             });

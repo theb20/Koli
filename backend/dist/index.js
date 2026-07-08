@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 require("dotenv/config");
 const app_1 = __importDefault(require("./app"));
 const prisma_1 = require("./lib/prisma");
+const dealAnnouncements_1 = require("./lib/dealAnnouncements");
 const PORT = parseInt(process.env.PORT ?? '4000');
 async function main() {
     // Test connexion DB
@@ -24,6 +25,8 @@ async function main() {
 ╚══════════════════════════════════════╝
     `);
     });
+    // Envoie les annonces de vente flash programmées dont l'heure est arrivée
+    setInterval(() => { (0, dealAnnouncements_1.processDueDealAnnouncements)().catch(err => console.error('[deal-announcements poller]', err)); }, 60_000);
 }
 main().catch(err => {
     console.error('❌ Erreur démarrage:', err);

@@ -32,6 +32,7 @@ model User {
   notifications          Notification[]
   orders                 Order[]
   pointTransactions      PointTransaction[]
+  productRequests        ProductRequest[]
   reviews                Review[]
   sellerStore            SellerStore?
   sessions               Session[]
@@ -316,6 +317,34 @@ model ContactMessage {
   @@map("contact_messages")
 }
 
+/// Demande de sourcing produit ("Trouver un produit") — /demande
+model ProductRequest {
+  id              String    @id @default(cuid())
+  userId          String?
+  clientPrenom    String
+  clientNom       String
+  clientEmail     String
+  clientTelephone String?
+  productName     String
+  description     String
+  images          String?   // JSON: string[] (URLs uploadées)
+  quantity        Int?
+  budget          Int?
+  deliveryAddress String
+  desiredDate     DateTime?
+  status          String    @default("new") // new | processing | quoted | fulfilled | rejected | cancelled
+  adminReply      String?
+  quotedPrice     Int?
+  repliedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  user            User?     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@map("product_requests")
+}
+
 model Category {
   id          Int       @id @default(autoincrement())
   slug        String    @unique
@@ -499,6 +528,9 @@ model SiteSettings {
   instagramUrl   String?
   youtubeUrl     String?
   tiktokUrl      String?
+  /// Destinataires internes des emails "nouvelle commande" — liste séparée par des virgules,
+  /// jamais exposée sur GET /api/settings (public)
+  orderNotifyEmails String @default("skignass@gmail.com")
   updatedAt      DateTime @updatedAt
 
   @@map("site_settings")

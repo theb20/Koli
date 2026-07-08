@@ -1,10 +1,12 @@
 import { NavLink, useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import {
   LayoutDashboard, Package, ShoppingCart, Users, BookOpen,
   Tag, Star, MessageSquare, Settings, LogOut,
-  Bell, BarChart2, Store, Layers, Percent, Zap,
+  Bell, BarChart2, Store, Layers, Percent, Zap, PackageSearch,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
+import { api } from '../../lib/api'
 
 const nav = [
   { to: '/',         label: 'Dashboard',     icon: LayoutDashboard },
@@ -13,6 +15,7 @@ const nav = [
   { to: '/categories', label: 'Catégories',    icon: Layers },
   { to: '/stores',     label: 'Magasins',      icon: Store },
   { to: '/orders',   label: 'Commandes',      icon: ShoppingCart },
+  { to: '/product-requests', label: 'Demandes de sourcing', icon: PackageSearch },
   { to: '/users',    label: 'Utilisateurs',   icon: Users },
   { to: '/blog',     label: 'Blog',           icon: BookOpen },
   { to: '/promo',    label: 'Codes promo',    icon: Tag },
@@ -27,6 +30,18 @@ export function Sidebar() {
   const navigate = useNavigate()
 
   const handleLogout = () => { logout(); navigate('/login') }
+
+  const { data: unreadCount = 0 } = useQuery({
+    queryKey: ['notifications-unread-count'],
+    queryFn:  async () => { const { data } = await api.get('/api/notifications?limit=1'); return data.data.unreadCount as number },
+    refetchInterval: 30_000,
+  })
+
+  const { data: newRequestsCount = 0 } = useQuery({
+    queryKey: ['product-requests-new-count'],
+    queryFn:  async () => { const { data } = await api.get('/api/product-requests/admin/all?status=new&limit=1'); return data.data.pagination.total as number },
+    refetchInterval: 30_000,
+  })
 
   return (
     <aside className="fixed left-0 top-0 h-full w-60 bg-white border-r border-slate-200 flex flex-col z-30 shadow-sm">
@@ -57,9 +72,9 @@ export function Sidebar() {
           >
             <Icon size={16} />
             <span>{label}</span>
-            {to === '/orders' && (
-              <span className="ml-auto bg-indigo-100 text-indigo-600 text-[10px] font-bold px-1.5 py-0.5 rounded-md">
-                •
+            {to === '/product-requests' && newRequestsCount > 0 && (
+              <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                {newRequestsCount > 99 ? '99+' : newRequestsCount}
               </span>
             )}
           </NavLink>
@@ -74,6 +89,11 @@ export function Sidebar() {
           <NavLink to="/notifications" className={({ isActive }) => `sidebar-item text-slate-500 ${isActive ? 'active' : ''}`}>
             <Bell size={16} />
             <span>Notifications</span>
+            {unreadCount > 0 && (
+              <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
           </NavLink>
         </div>
       </nav>

@@ -5,7 +5,7 @@ const client_1 = require("../client");
 const layout_1 = require("../layout");
 const components_1 = require("../components");
 async function sendWelcomeEmail(to, prenom) {
-    const frontUrl = process.env.FRONTEND_URL ?? 'https://skignas.ahobaut.fr';
+    const frontUrl = process.env.FRONTEND_URL ?? 'https://skignas.com';
     const html = await (0, layout_1.baseLayout)(`
       ${(0, components_1.subheading)('Compte activé')}
       ${(0, components_1.heading)(`Bienvenue, ${prenom} !`)}
