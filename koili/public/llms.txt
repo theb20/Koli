@@ -1,0 +1,19 @@
+# Skignas
+
+> Skignas est une marketplace en ligne basée en Côte d'Ivoire qui réunit des milliers de produits tech (électronique, maison connectée, accessoires) de marques et boutiques partenaires, avec paiement sécurisé et livraison rapide.
+
+Skignas centralise l'offre de plusieurs enseignes (Amazon, Fnac, Darty, Imou, Alibaba, AliExpress, Banggood, JD.com et des boutiques locales) sur une seule plateforme d'achat, avec paiement par Orange Money, MTN Mobile Money, Wave ou à la livraison.
+
+## Pages principales
+
+- [Accueil](https://skignas.com/): présentation de la marketplace et des offres du moment
+- [Catalogue](https://skignas.com/catalogue): l'ensemble des produits disponibles à l'achat
+- [Blog](https://skignas.com/blog): articles et guides d'achat tech
+- [À propos](https://skignas.com/about): présentation de l'entreprise et de son équipe
+- [Contact](https://skignas.com/contact): support client et assistance
+
+## Informations légales
+
+- [Conditions générales d'utilisation](https://skignas.com/cgu)
+- [Mentions légales](https://skignas.com/legal)
+- [Politique de confidentialité](https://skignas.com/privacy)

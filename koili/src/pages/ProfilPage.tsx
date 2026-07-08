@@ -12,8 +12,9 @@ import {
   MessageCircle, ExternalLink, X,
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import { fetchLoyalty, fetchReferral, fetchMyGiftLists, createGiftList } from '../lib/api'
+import { fetchLoyalty, fetchReferral, fetchMyGiftLists, createGiftList, fetchAddresses } from '../lib/api'
 import { useSiteSettings, waLink } from '../hooks/useSiteSettings'
+import { VILLES_CI } from '../constants/villesCI'
 
 /* ─────────────────────────────────────────────────────────────
    API helper
@@ -59,7 +60,7 @@ type MappedOrder = {
 type Address = {
   id: string; label: string; prenom: string; nom: string
   telephone: string; ville: string; adresse: string; isDefault: boolean
-  quartier?: string
+  quartier?: string | null
 }
 
 type AddressForm = Omit<Address, 'id' | 'isDefault'>
@@ -555,7 +556,7 @@ function TabCommandes({ orders }: { orders: MappedOrder[] }) {
 /* ═══════════════════════════════════════════════════════════════
    TAB — ADRESSES  (100% API)
 ═══════════════════════════════════════════════════════════════ */
-const EMPTY_FORM: AddressForm = { label: 'Domicile', prenom: '', nom: '', telephone: '', ville: '', adresse: '' }
+const EMPTY_FORM: AddressForm = { label: 'Domicile', prenom: '', nom: '', telephone: '', ville: '', quartier: '', adresse: '' }
 
 function TabAdresses() {
   const { token } = useAuth()
@@ -563,7 +564,8 @@ function TabAdresses() {
 
   const { data: addresses = [], isLoading } = useQuery<Address[]>({
     queryKey: ['addresses'],
-    queryFn:  () => apiFetch<Address[]>('/api/addresses', token),
+    queryFn:  () => fetchAddresses(token!),
+    enabled:  !!token,
   })
 
   const [editing, setEditing] = useState<Address | null>(null)
@@ -597,7 +599,7 @@ function TabAdresses() {
   }
 
   const startEdit = (a: Address) => {
-    setForm({ label: a.label, prenom: a.prenom, nom: a.nom, telephone: a.telephone, ville: a.ville, adresse: a.adresse })
+    setForm({ label: a.label, prenom: a.prenom, nom: a.nom, telephone: a.telephone, ville: a.ville, quartier: a.quartier ?? '', adresse: a.adresse })
     setEditing(a); setAdding(false); setErr(null)
   }
 
@@ -635,7 +637,7 @@ function TabAdresses() {
             </div>
             <p className="text-sm font-semibold text-gray-800">{addr.prenom} {addr.nom}</p>
             <p className="text-xs text-gray-500 mt-0.5">📞 {addr.telephone}</p>
-            <p className="text-xs text-gray-500 mt-0.5">📍 {addr.adresse}, {addr.ville}</p>
+            <p className="text-xs text-gray-500 mt-0.5">📍 {addr.adresse}{addr.quartier ? `, ${addr.quartier}` : ''}, {addr.ville}</p>
             {!addr.isDefault && (
               <button onClick={() => setDefault(addr.id)}
                 className="mt-3 text-xs text-blue-600 font-semibold hover:text-blue-700 transition-colors">
@@ -671,12 +673,10 @@ function TabAdresses() {
                 </select>
               </div>
               {([
-                { label: 'Prénom',          key: 'prenom',  span: 1 },
-                { label: 'Nom',             key: 'nom',     span: 1 },
-                { label: 'Ville',           key: 'ville',   span: 1 },
-                { label: 'Adresse complète',key: 'adresse', span: 2 },
+                { label: 'Prénom', key: 'prenom' },
+                { label: 'Nom',    key: 'nom'    },
               ] as const).map(f => (
-                <div key={f.key} className={f.span === 2 ? 'sm:col-span-2' : ''}>
+                <div key={f.key}>
                   <label className="text-xs font-semibold text-gray-600 block mb-1.5">{f.label}</label>
                   <input value={form[f.key]} onChange={e => setF(f.key)(e.target.value)}
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-400 bg-white transition-colors" />
@@ -686,13 +686,36 @@ function TabAdresses() {
                 <label className="text-xs font-semibold text-gray-600 block mb-1.5">Téléphone</label>
                 <div className="flex items-center rounded-xl border-2 border-gray-200 focus-within:border-gray-400 transition-colors overflow-hidden">
                   <div className="flex items-center gap-1.5 px-3 py-3 bg-gray-50 border-r border-gray-200 shrink-0 select-none">
-                    <span className="text-base leading-none">🇨🇲</span>
-                    <span className="text-sm font-semibold text-gray-700">+237</span>
+                    <span className="text-base leading-none">🇨🇮</span>
+                    <span className="text-sm font-semibold text-gray-700">+225</span>
                   </div>
                   <input type="tel" value={form.telephone} onChange={e => setF('telephone')(e.target.value)}
-                    placeholder="6 XX XX XX XX" maxLength={12} inputMode="tel"
+                    placeholder="07 00 00 00 00" maxLength={14} inputMode="tel"
                     className="flex-1 px-3.5 py-3 text-sm focus:outline-none text-gray-800 bg-white placeholder:text-gray-300" />
                 </div>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1.5">Ville</label>
+                <select value={form.ville} onChange={e => setF('ville')(e.target.value)}
+                  className={`w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-400 bg-white transition-colors appearance-none ${!form.ville ? 'text-gray-400' : 'text-gray-800'}`}>
+                  <option value="">Sélectionner votre ville / commune</option>
+                  {Object.entries(VILLES_CI).map(([groupe, villes]) => (
+                    <optgroup key={groupe} label={groupe}>
+                      {villes.map(v => <option key={v} value={v}>{v}</option>)}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1.5">Quartier / Zone</label>
+                <input value={form.quartier ?? ''} onChange={e => setF('quartier')(e.target.value)}
+                  placeholder="Zone 4, Riviera, Deux-Plateaux…"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-400 bg-white transition-colors" />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="text-xs font-semibold text-gray-600 block mb-1.5">Adresse complète</label>
+                <input value={form.adresse} onChange={e => setF('adresse')(e.target.value)}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-400 bg-white transition-colors" />
               </div>
             </div>
             <div className="flex gap-3 mt-5">

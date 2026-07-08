@@ -115,7 +115,7 @@ export function WhyKoliSection() {
     <section
       className="relative py-6 overflow-hidden"
       style={{
-        backgroundImage: 'url(/wall/why-dropship.png)',
+        backgroundImage: 'url(/wall/why-dropship.webp)',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
       }}

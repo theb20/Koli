@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery, useQueries } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'motion/react'
@@ -11,8 +11,9 @@ import {
 } from 'lucide-react'
 import { useCart, fmtCart, type CartItem } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
-import { createOrder, fetchPromo, fetchProducts, fetchProduct, mapApiProduct, fetchDefaultTax } from '../lib/api'
+import { createOrder, fetchPromo, fetchProducts, fetchProduct, mapApiProduct, fetchDefaultTax, fetchAddresses, type ApiAddress } from '../lib/api'
 import { useSiteSettings, waLink, telLink } from '../hooks/useSiteSettings'
+import { VILLES_CI } from '../constants/villesCI'
 
 /* ═══════════════════════════════════════════════════════════════
    TYPES & CONSTANTES
@@ -54,58 +55,6 @@ const PAYMENT_OPTIONS = [
     badge: 'text-green-700 bg-green-100'  
   },
 ]
-
-/* ── Côte d'Ivoire : communes d'Abidjan + villes principales ── */
-const VILLES_CI = {
-  'Abidjan — Communes': [
-    'Abidjan – Abobo',
-    'Abidjan – Adjamé',
-    'Abidjan – Attécoubé',
-    'Abidjan – Cocody',
-    'Abidjan – Koumassi',
-    'Abidjan – Marcory',
-    'Abidjan – Plateau',
-    'Abidjan – Port-Bouët',
-    'Abidjan – Treichville',
-    'Abidjan – Yopougon',
-    'Abidjan – Bingerville',
-    'Abidjan – Anyama',
-    'Abidjan – Songon',
-    'Abidjan – Grand-Bassam',
-    'Abidjan – Jacqueville',
-  ],
-  'Autres villes': [
-    'Yamoussoukro',
-    'Bouaké',
-    'Daloa',
-    'Korhogo',
-    'San-Pédro',
-    'Man',
-    'Gagnoa',
-    'Abengourou',
-    'Divo',
-    'Soubré',
-    'Dimbokro',
-    'Agboville',
-    'Bondoukou',
-    'Ferkessédougou',
-    'Odienné',
-    'Séguéla',
-    'Touba',
-    'Bouna',
-    'Bangolo',
-    'Issia',
-    'Oumé',
-    'Daoukro',
-    'Bongouanou',
-    'Adzopé',
-    'Tiassalé',
-    'Guiglo',
-    'Duékoué',
-    'Tabou',
-  ],
-}
-
 
 const EMPTY_DELIVERY: DeliveryInfo = {
   prenom: '', nom: '', email: '', telephone: '', ville: '', quartier: '',
@@ -704,9 +653,11 @@ function SuggestedProducts({ currentIds }: { currentIds: number[] }) {
 /* ═══════════════════════════════════════════════════════════════
    ÉTAPE 2 — LIVRAISON
 ═══════════════════════════════════════════════════════════════ */
-function StepLivraison({ delivery, setDelivery, onNext, onBack, totalPrice }: {
+function StepLivraison({ delivery, setDelivery, onNext, onBack, totalPrice, addresses, selectedAddressId, onSelectAddress, onUseNewAddress }: {
   delivery: DeliveryInfo; setDelivery: (d: DeliveryInfo) => void
   onNext: () => void; onBack: () => void; totalPrice: number
+  addresses: ApiAddress[]; selectedAddressId: string | null
+  onSelectAddress: (addr: ApiAddress) => void; onUseNewAddress: () => void
 }) {
   const [errors, setErrors] = useState<Partial<Record<keyof DeliveryInfo, string>>>({})
   const set = (k: keyof DeliveryInfo) => (v: string) => {
@@ -793,6 +744,37 @@ function StepLivraison({ delivery, setDelivery, onNext, onBack, totalPrice }: {
           ))}
         </div>
       </div>
+
+      {/* Adresses enregistrées */}
+      {addresses.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <MapPin size={15} className="text-blue-500" /> Vos adresses enregistrées
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {addresses.map(addr => (
+              <button key={addr.id} type="button" onClick={() => onSelectAddress(addr)}
+                className={`text-left p-3.5 rounded-xl border-2 transition-all ${
+                  selectedAddressId === addr.id ? 'border-gray-900 bg-gray-50' : 'border-gray-100 hover:border-gray-200'
+                }`}>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-gray-900">{addr.label}</p>
+                  {addr.isDefault && <span className="text-[9px] text-emerald-600 font-semibold bg-emerald-50 px-1.5 py-0.5 rounded-full">Par défaut</span>}
+                </div>
+                <p className="text-xs text-gray-600 mt-1">{addr.prenom} {addr.nom}</p>
+                <p className="text-[11px] text-gray-400 mt-0.5">{addr.adresse}{addr.quartier ? `, ${addr.quartier}` : ''}, {addr.ville}</p>
+              </button>
+            ))}
+            <button type="button" onClick={onUseNewAddress}
+              className={`text-left p-3.5 rounded-xl border-2 border-dashed transition-all flex items-center gap-2 ${
+                selectedAddressId === 'new' ? 'border-gray-900 bg-gray-50' : 'border-gray-200 hover:border-gray-300'
+              }`}>
+              <Plus size={14} className="text-gray-500" />
+              <p className="text-xs font-semibold text-gray-600">Nouvelle adresse</p>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Formulaire adresse */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
@@ -1366,7 +1348,33 @@ export default function PanierPage() {
   const [loading,       setLoading]       = useState(false)
   const [orderError,    setOrderError]    = useState('')
 
-  /* Pré-remplir email depuis le compte connecté */
+  /* Clé d'idempotence — stable tant que la commande n'a pas abouti, pour qu'un double-clic
+     ou un retry réseau après timeout ne crée jamais deux commandes. Régénérée après succès. */
+  const requestIdRef = useRef(crypto.randomUUID())
+
+  /* Carnet d'adresses — même source que l'onglet "Mes adresses" du profil */
+  const { data: addresses = [] } = useQuery<ApiAddress[]>({
+    queryKey: ['addresses'],
+    queryFn:  () => fetchAddresses(token!),
+    enabled:  !!token,
+  })
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null)
+
+  const applyAddress = (addr: ApiAddress) => {
+    setDelivery(d => ({
+      ...d,
+      prenom:   addr.prenom,
+      nom:      addr.nom,
+      telephone: addr.telephone,
+      ville:    addr.ville,
+      quartier: addr.quartier ?? '',
+      adresse:  addr.adresse,
+    }))
+    setSelectedAddressId(addr.id)
+  }
+
+  /* Pré-remplir email depuis le compte connecté, et l'adresse depuis le carnet (par défaut
+     en priorité) dès qu'elle est disponible — sans écraser une saisie déjà commencée. */
   useEffect(() => {
     if (user) {
       setDelivery(d => ({
@@ -1377,6 +1385,14 @@ export default function PanierPage() {
       }))
     }
   }, [user])
+
+  useEffect(() => {
+    if (addresses.length === 0 || selectedAddressId !== null) return
+    if (delivery.ville || delivery.adresse) return // l'utilisateur a déjà commencé à saisir
+    const defaultAddr = addresses.find(a => a.isDefault) ?? addresses[0]!
+    applyAddress(defaultAddr)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addresses])
 
   const shipping = delivery.methode === 'express' ? SHIPPING_EXP
     : totalPrice >= SHIPPING_FREE ? 0 : SHIPPING_STD
@@ -1446,12 +1462,14 @@ export default function PanierPage() {
           })),
           promoCode: promoCode || undefined,
           notes:     delivery.notes || undefined,
+          clientRequestId: requestIdRef.current,
         },
         token,
       )
       setOrderId(res.data.orderNumber)
       clearCart()
       setStep('succes')
+      requestIdRef.current = crypto.randomUUID() // prêt pour une éventuelle prochaine commande
     } catch (err) {
       setOrderError(err instanceof Error ? err.message : 'Erreur lors de la commande. Réessayez.')
     } finally {
@@ -1520,7 +1538,10 @@ export default function PanierPage() {
                   )}
                   {step === 'livraison' && (
                     <StepLivraison delivery={delivery} setDelivery={setDelivery}
-                      totalPrice={totalPrice} onNext={goNext} onBack={goBack} />
+                      totalPrice={totalPrice} onNext={goNext} onBack={goBack}
+                      addresses={addresses} selectedAddressId={selectedAddressId}
+                      onSelectAddress={applyAddress}
+                      onUseNewAddress={() => { setSelectedAddressId('new'); setDelivery(d => ({ ...d, ville: '', quartier: '', adresse: '' })) }} />
                   )}
                   {step === 'paiement' && (
                     <StepPaiement selected={paymentMethod} onSelect={setPaymentMethod}

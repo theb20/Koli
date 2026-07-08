@@ -48,7 +48,53 @@ const createOrderSchema = z.object({
   promoCode: z.string().optional(),
   notes:     z.string().max(500).optional(),
 
+  // Idempotence — même clé envoyée deux fois (double-clic, retry réseau) → même commande renvoyée
+  clientRequestId: z.string().uuid().optional(),
 })
+
+/** Levée quand le stock a été vidé par une autre commande concurrente pendant la transaction. */
+class StockError extends Error {
+  constructor(productName: string) {
+    super(`Stock insuffisant pour "${productName}"`)
+  }
+}
+
+const ORDER_STATUSES = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded'] as const
+type OrderStatusValue = typeof ORDER_STATUSES[number]
+
+/**
+ * Applique un changement de statut de commande de façon cohérente :
+ * — restitue le stock une seule fois si la commande passe à annulée/remboursée
+ *   (et ne le refait pas si elle l'était déjà, pour éviter un double crédit) ;
+ * — maintient paymentStatus aligné avec l'avancement. Il n'y a pas d'intégration
+ *   de passerelle de paiement réelle ici : la progression du statut par un admin
+ *   fait office de confirmation manuelle du paiement.
+ */
+async function applyOrderStatusChange(orderId: string, status: OrderStatusValue) {
+  return prisma.$transaction(async (tx) => {
+    const order = await tx.order.findUnique({ where: { id: orderId }, include: { items: true } })
+    if (!order) return null
+
+    const wasFinalized      = order.status === 'cancelled' || order.status === 'refunded'
+    const becomingFinalized = status === 'cancelled' || status === 'refunded'
+
+    if (becomingFinalized && !wasFinalized) {
+      for (const item of order.items) {
+        await tx.product.update({
+          where: { id: item.productId },
+          data:  { stock: { increment: item.qty }, sold: { decrement: item.qty } },
+        })
+      }
+    }
+
+    const paymentStatus =
+      status === 'refunded'                                             ? 'refunded'
+      : ['confirmed', 'processing', 'shipped', 'delivered'].includes(status) ? 'paid'
+      : order.paymentStatus // 'pending'/'cancelled' : ne pas inventer un statut de paiement
+
+    return tx.order.update({ where: { id: orderId }, data: { status, paymentStatus } })
+  })
+}
 
 /* ─────────────────────────────────────────────────────────────
    POST /api/orders  — Créer une commande
@@ -69,7 +115,27 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
       }
     }
 
-    // 1. Récupérer les produits et vérifier le stock
+    // 0bis. Idempotence — requête déjà traitée (double-clic, retry réseau) → renvoyer la commande existante
+    if (body.clientRequestId) {
+      const existing = await prisma.order.findUnique({ where: { clientRequestId: body.clientRequestId } })
+      if (existing) {
+        res.status(200).json({
+          success: true,
+          message: 'Commande déjà créée',
+          data: {
+            orderNumber:   existing.orderNumber,
+            orderId:       existing.id,
+            total:         existing.total,
+            shippingCost:  existing.shippingCost,
+            promoDiscount: existing.promoDiscount,
+            pointsEarned:  existing.pointsEarned,
+          },
+        })
+        return
+      }
+    }
+
+    // 1. Récupérer les produits (infos affichage + pré-vérification amicale du stock)
     const productIds = body.items.map(i => i.productId)
     const products   = await prisma.product.findMany({
       where: { id: { in: productIds }, isActive: true },
@@ -81,7 +147,8 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
       return
     }
 
-    // Vérifier le stock
+    // Pré-vérification — message amical immédiat. Le garde-fou réel (contre les accès
+    // concurrents) est la décrémentation atomique faite plus bas, dans la transaction.
     for (const item of body.items) {
       const p = products.find(p => p.id === item.productId)!
       if (p.stock !== null && p.stock === 0) {
@@ -112,91 +179,120 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
     const taxRatePercent = defaultTax?.rate ?? 0
     const taxAmount      = Math.round(subtotal * taxRatePercent / 100)
 
-    // 4. Valider le code promo
+    // 4. Valider le code promo (lecture) — l'application définitive (et le contrôle du
+    //    quota d'utilisation contre les accès concurrents) se fait dans la transaction plus bas.
     let promoDiscount = 0
     let validatedCode: string | null = null
+    let promoId: number | null = null
+    let promoMaxUses: number | null = null
     if (body.promoCode) {
       const now = new Date()
       const promo = await prisma.promoCode.findFirst({
         where: {
           code:     body.promoCode.toUpperCase(),
           isActive: true,
-          AND: [
-            { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
-            { OR: [{ maxUses: null }, { maxUses: { gt: 0 } }] },
-          ],
+          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
         },
       })
-      if (promo && subtotal >= promo.minOrder) {
+      const quotaOk = !promo || promo.maxUses == null || promo.usedCount < promo.maxUses
+      if (promo && quotaOk && subtotal >= promo.minOrder) {
         promoDiscount = promo.type === 'percent'
           ? Math.round(subtotal * promo.value / 100)
           : promo.value
         validatedCode = promo.code
-        await prisma.promoCode.update({ where: { id: promo.id }, data: { usedCount: { increment: 1 } } })
+        promoId       = promo.id
+        promoMaxUses  = promo.maxUses
       }
     }
 
-    const total = subtotal + taxAmount - promoDiscount + shippingCost
-
-    // Points gagnés : 1 point par 100 FCFA dépensés
-    const pointsEarned = req.user?.userId ? Math.floor(total / 100) : 0
-
-    // 5. Créer la commande
+    // Points gagnés : 1 point par 100 FCFA dépensés (calcul optimiste, ajusté si la promo est perdue dans la course)
     const orderNumber = generateOrderNumber()
-    const order = await prisma.order.create({
-      data: {
-        orderNumber,
-        userId:          req.user?.userId ?? null,
-        clientPrenom:    body.clientPrenom,
-        clientNom:       body.clientNom,
-        clientEmail:     body.clientEmail,
-        clientTelephone: body.clientTelephone,
-        deliveryMethod:  body.deliveryMethod,
-        shippingAddress: JSON.stringify(body.shippingAddress),
-        shippingCost,
-        paymentMethod:   body.paymentMethod,
-        subtotal,
-        taxRate:         taxRatePercent,
-        taxAmount,
-        promoCode:       validatedCode,
-        promoDiscount,
-        pointsEarned,
-        total,
-        notes:           body.notes,
-        items: {
-          create: body.items.map(item => {
-            const p = products.find(p => p.id === item.productId)!
-            return {
-              productId: p.id,
-              name:      p.name,
-              brand:     p.brand,
-              price:     p.price,
-              qty:       item.qty,
-              image:     p.images[0]?.url ?? '',
-              color:     item.color,
-            }
-          }),
+
+    // 5. Transaction — décrémentation de stock + réservation du code promo + création de la
+    //    commande sont tout-ou-rien : soit tout réussit ensemble, soit rien n'est appliqué.
+    const order = await prisma.$transaction(async (tx) => {
+      // Décrémentation atomique du stock — la vraie garantie contre la survente.
+      // "stock >= qty" et la décrémentation se font dans la même requête ; Postgres sérialise
+      // les accès concurrents sur la même ligne, donc deux commandes ne peuvent jamais toutes
+      // les deux réussir sur le dernier exemplaire disponible.
+      for (const item of body.items) {
+        const updated = await tx.product.updateMany({
+          where: { id: item.productId, stock: { gte: item.qty } },
+          data:  { stock: { decrement: item.qty }, sold: { increment: item.qty } },
+        })
+        if (updated.count === 0) {
+          const p = products.find(pr => pr.id === item.productId)
+          throw new StockError(p?.name ?? String(item.productId))
+        }
+      }
+
+      // Réservation atomique du code promo — même logique que le stock : si un autre client
+      // a épuisé le quota entre-temps, on annule juste la remise (pas toute la commande).
+      let finalPromoDiscount = promoDiscount
+      let finalPromoCode     = validatedCode
+      if (promoId !== null) {
+        const promoUpdate = await tx.promoCode.updateMany({
+          where: {
+            id: promoId,
+            ...(promoMaxUses != null ? { usedCount: { lt: promoMaxUses } } : {}),
+          },
+          data: { usedCount: { increment: 1 } },
+        })
+        if (promoUpdate.count === 0) {
+          finalPromoDiscount = 0
+          finalPromoCode     = null
+        }
+      }
+
+      const finalTotal        = subtotal + taxAmount - finalPromoDiscount + shippingCost
+      const finalPointsEarned = req.user?.userId ? Math.floor(finalTotal / 100) : 0
+
+      return tx.order.create({
+        data: {
+          orderNumber,
+          clientRequestId: body.clientRequestId,
+          userId:          req.user?.userId ?? null,
+          clientPrenom:    body.clientPrenom,
+          clientNom:       body.clientNom,
+          clientEmail:     body.clientEmail,
+          clientTelephone: body.clientTelephone,
+          deliveryMethod:  body.deliveryMethod,
+          shippingAddress: JSON.stringify(body.shippingAddress),
+          shippingCost,
+          paymentMethod:   body.paymentMethod,
+          subtotal,
+          taxRate:         taxRatePercent,
+          taxAmount,
+          promoCode:       finalPromoCode,
+          promoDiscount:   finalPromoDiscount,
+          pointsEarned:    finalPointsEarned,
+          total:           finalTotal,
+          notes:           body.notes,
+          items: {
+            create: body.items.map(item => {
+              const p = products.find(p => p.id === item.productId)!
+              return {
+                productId: p.id,
+                name:      p.name,
+                brand:     p.brand,
+                price:     p.price,
+                qty:       item.qty,
+                image:     p.images[0]?.url ?? '',
+                color:     item.color,
+              }
+            }),
+          },
         },
-      },
-      include: { items: true },
+        include: { items: true },
+      })
     })
 
-    // 5. Décrémenter le stock
-    await Promise.all(
-      body.items.map(item =>
-        prisma.product.update({
-          where: { id: item.productId },
-          data: { stock: { decrement: item.qty }, sold: { increment: item.qty } },
-        })
-      )
-    )
-
-    // 6a. Fidélité : créditer les points gagnés
-    if (req.user?.userId && pointsEarned > 0) {
+    // 6a. Fidélité : créditer les points réellement gagnés (après résolution de la promo)
+    if (req.user?.userId && order.pointsEarned > 0) {
       await Promise.all([
-        prisma.user.update({ where: { id: req.user.userId }, data: { loyaltyPoints: { increment: pointsEarned } } }),
+        prisma.user.update({ where: { id: req.user.userId }, data: { loyaltyPoints: { increment: order.pointsEarned } } }),
         prisma.pointTransaction.create({
-          data: { userId: req.user.userId, orderId: order.id, type: 'earn', points: pointsEarned, note: `Gagnés sur commande ${orderNumber}` },
+          data: { userId: req.user.userId, orderId: order.id, type: 'earn', points: order.pointsEarned, note: `Gagnés sur commande ${orderNumber}` },
         }),
       ])
     }
@@ -204,7 +300,7 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
     // 6b. Notification en base (si utilisateur connecté)
     if (req.user?.userId) {
       const notifLines = [`Votre commande ${orderNumber} a bien été reçue.`]
-      if (pointsEarned > 0) notifLines.push(`+${pointsEarned} points Skignas crédités !`)
+      if (order.pointsEarned > 0) notifLines.push(`+${order.pointsEarned} points Skignas crédités !`)
       await prisma.notification.create({
         data: {
           userId: req.user.userId,
@@ -216,6 +312,37 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
       })
     }
 
+    // 6c. Sauvegarder l'adresse de livraison dans le carnet d'adresses si elle est nouvelle —
+    //     évite les doublons en comparant ville + adresse + téléphone (normalisés).
+    if (req.user?.userId) {
+      try {
+        const norm = (s: string) => s.trim().toLowerCase()
+        const existingAddresses = await prisma.address.findMany({ where: { userId: req.user.userId } })
+        const isDuplicate = existingAddresses.some(a =>
+          norm(a.ville) === norm(body.shippingAddress.ville) &&
+          norm(a.adresse) === norm(body.shippingAddress.adresse) &&
+          norm(a.telephone) === norm(body.clientTelephone)
+        )
+        if (!isDuplicate) {
+          await prisma.address.create({
+            data: {
+              userId:    req.user.userId,
+              label:     'Autre',
+              prenom:    body.clientPrenom,
+              nom:       body.clientNom,
+              telephone: body.clientTelephone,
+              ville:     body.shippingAddress.ville,
+              quartier:  body.shippingAddress.quartier,
+              adresse:   body.shippingAddress.adresse,
+              isDefault: existingAddresses.length === 0,
+            },
+          })
+        }
+      } catch (err) {
+        console.error('[orders] échec sauvegarde adresse auto', err) // non bloquant
+      }
+    }
+
     // 7. Email de confirmation (sans bloquer)
     sendOrderConfirmationEmail(body.clientEmail, {
       orderNumber,
@@ -223,8 +350,8 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
       items:         order.items.map(i => ({ name: i.name, qty: i.qty, price: i.price })),
       subtotal,
       shippingCost,
-      promoDiscount,
-      total,
+      promoDiscount: order.promoDiscount,
+      total:         order.total,
       paymentMethod: body.paymentMethod,
       deliveryMethod: body.deliveryMethod,
     }).catch(() => {})
@@ -235,13 +362,40 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
       data: {
         orderNumber:     order.orderNumber,
         orderId:         order.id,
-        total,
-        shippingCost,
-        promoDiscount,
-        pointsEarned,
+        total:           order.total,
+        shippingCost:    order.shippingCost,
+        promoDiscount:   order.promoDiscount,
+        pointsEarned:    order.pointsEarned,
       },
     })
   } catch (err) {
+    if (err instanceof StockError) {
+      res.status(400).json({ success: false, message: err.message })
+      return
+    }
+    // Idempotence : deux requêtes concurrentes avec la même clientRequestId — la seconde
+    // percute la contrainte unique plutôt que le pré-check (fenêtre de course très étroite).
+    if (err && typeof err === 'object' && 'code' in err && err.code === 'P2002') {
+      const clientRequestId = (req.body as { clientRequestId?: string }).clientRequestId
+      const existing = clientRequestId
+        ? await prisma.order.findUnique({ where: { clientRequestId } })
+        : null
+      if (existing) {
+        res.status(200).json({
+          success: true,
+          message: 'Commande déjà créée',
+          data: {
+            orderNumber:   existing.orderNumber,
+            orderId:       existing.id,
+            total:         existing.total,
+            shippingCost:  existing.shippingCost,
+            promoDiscount: existing.promoDiscount,
+            pointsEarned:  existing.pointsEarned,
+          },
+        })
+        return
+      }
+    }
     console.error(err)
     res.status(500).json({ success: false, message: 'Erreur lors de la création de la commande' })
   }
@@ -379,7 +533,7 @@ router.put('/:id/cancel', requireAuth, async (req, res) => {
       return
     }
 
-    await prisma.order.update({ where: { id: order.id }, data: { status: 'cancelled' } })
+    await applyOrderStatusChange(order.id, 'cancelled')
 
     res.json({ success: true, message: 'Commande annulée' })
   } catch {
@@ -392,18 +546,14 @@ router.put('/:id/cancel', requireAuth, async (req, res) => {
 ───────────────────────────────────────────────────────────── */
 router.put('/:id/status', requireAdmin, async (req, res) => {
   try {
-    const schema = z.object({ status: z.enum(['pending','confirmed','processing','shipped','delivered','cancelled','refunded']) })
+    const schema = z.object({ status: z.enum(ORDER_STATUSES) })
     const { status } = schema.parse(req.body)
 
-    const order = await prisma.order.findUnique({
-      where: { id: req.params['id'] },
-    })
+    const order = await applyOrderStatusChange(req.params['id']!, status)
     if (!order) {
       res.status(404).json({ success: false, message: 'Commande introuvable' })
       return
     }
-
-    await prisma.order.update({ where: { id: order.id }, data: { status } })
 
     // Email de mise à jour
     sendOrderStatusEmail(order.clientEmail, order.clientPrenom, order.orderNumber, status).catch(() => {})
@@ -430,14 +580,14 @@ router.put('/:id/status', requireAdmin, async (req, res) => {
 /* ── PATCH /api/orders/:id/status  [ADMIN] — alias PATCH ─── */
 router.patch('/:id/status', requireAdmin, async (req, res) => {
   try {
-    const { id }     = req.params
-    const { status } = req.body
-    const validStatuses = ['pending','confirmed','processing','shipped','delivered','cancelled','refunded']
-    if (!validStatuses.includes(status)) {
-      res.status(400).json({ success: false, message: 'Statut invalide' })
+    const schema = z.object({ status: z.enum(ORDER_STATUSES) })
+    const { status } = schema.parse(req.body)
+
+    const order = await applyOrderStatusChange(req.params['id']!, status)
+    if (!order) {
+      res.status(404).json({ success: false, message: 'Commande introuvable' })
       return
     }
-    const order = await prisma.order.update({ where: { id }, data: { status } })
     res.json({ success: true, data: { order } })
   } catch {
     res.status(500).json({ success: false, message: 'Erreur serveur' })

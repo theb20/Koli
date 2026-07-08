@@ -3,8 +3,8 @@ import { useState, useEffect, useRef } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import {
   Menu, X, ChevronDown, ChevronRight, ShoppingCart,
-  User, Package, Bell, Phone, Mail, Moon, Sun,
-  Zap, AlignJustify, HelpCircle, MapPin, Search, LogOut,
+  User, Package, Bell, Phone, Mail, 
+  Zap, AlignJustify, HelpCircle, PackageOpen, MapPin, Search, LogOut,
 } from 'lucide-react'
 import SearchBar from '../ui/Search'
 import { useCart } from '../../contexts/CartContext'
@@ -58,7 +58,6 @@ const NAV_LINKS: NavItem[] = [
    TOP INFO BAR (masquée sur mobile)
 ───────────────────────────────────────── */
 function TopBar() {
-  const [dark, setDark] = useState(false)
   const settings = useSiteSettings()
   return (
     <div className="bg-gray-900 text-white text-xs hidden sm:block">
@@ -74,7 +73,11 @@ function TopBar() {
           <span className="text-gray-600 hidden lg:block">|</span>
           <span className="text-gray-400 hidden lg:block">Livraison partout en Côte d&apos;Ivoire</span>
         </div>
+
         <div className="flex items-center gap-3 shrink-0">
+          <Link to="/demande" className="hidden md:flex items-center gap-1 text-gray-300 hover:text-white transition-colors">
+            <PackageOpen size={12} /> Faire une demande
+          </Link>
           <Link to="/commandes" className="hidden md:flex items-center gap-1 text-gray-300 hover:text-white transition-colors">
             <MapPin size={12} /> Suivre ma commande
           </Link>
@@ -84,9 +87,7 @@ function TopBar() {
           </Link>
           <span className="text-gray-600">|</span>
           <span className="text-gray-300">FR · CFA</span>
-          <button onClick={() => setDark(d => !d)} className="text-gray-300 hover:text-white transition-colors">
-            {dark ? <Sun size={13} /> : <Moon size={13} />}
-          </button>
+          
         </div>
       </div>
     </div>
@@ -152,7 +153,7 @@ function AccountButton() {
         {/* Bouton principal */}
         <button
           onClick={() => setMenuOpen(v => !v)}
-          className="flex items-center gap-2.5 group"
+          className="flex group items-center gap-2.5 "
         >
           {/* Avatar */}
           <div className="relative shrink-0">

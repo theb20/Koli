@@ -1,8 +1,23 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import BlurText from '../ui/BlurText'
 import TrueFocus from '../ui/TrueFocus'
 import Aurora from '../ui/Aurora'
 import LogoLoop from '../ui/LogoLoop'
+
+/** Vidéo de fond décorative — coûteuse en bande passante, désactivée sur mobile
+ *  et différée après le premier rendu pour ne pas pénaliser le LCP. */
+function useBackgroundVideoEnabled() {
+  const [enabled, setEnabled] = useState(false)
+  useEffect(() => {
+    const isMobile = window.matchMedia('(max-width: 768px)').matches
+    const saveData = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData
+    if (isMobile || saveData) return
+    const id = window.requestIdleCallback?.(() => setEnabled(true)) ?? window.setTimeout(() => setEnabled(true), 300)
+    return () => { window.cancelIdleCallback?.(id as number); window.clearTimeout(id as number) }
+  }, [])
+  return enabled
+}
 
 const partnerLogos = [
   // Icônes react-icons — format { node, title }
@@ -20,21 +35,27 @@ const partnerLogos = [
 ]
 
 export function PackifyHero() {
+  const videoEnabled = useBackgroundVideoEnabled()
+
   return (
     <section
       className="relative overflow-hidden min-h-[80vh] sm:min-h-[90vh] flex flex-col justify-center"
       style={{ background: '#000000ff' }}
     >
-      {/* Video background */}
-      <video
-        autoPlay
-        muted
-        loop
-        playsInline
-        className="absolute inset-0 w-full h-full object-cover opacity-30 pointer-events-none"
-      >
-        <source src="/vds/1.webm" type="video/webm" />
-      </video>
+      {/* Video background — desktop uniquement, montée après le premier rendu (perf mobile / LCP) */}
+      {videoEnabled && (
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="none"
+          className="absolute inset-0 w-full h-full object-cover opacity-30 pointer-events-none"
+        >
+          <source src="/vds/1.webm" type="video/webm" />
+          <source src="/vds/1.mp4" type="video/mp4" />
+        </video>
+      )}
 
       {/* Aurora full background */}
       <div className="absolute inset-0 pointer-events-none">

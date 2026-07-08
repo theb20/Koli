@@ -73,13 +73,8 @@ export default function LoginPage() {
       />
 
       <div className="relative min-h-screen overflow-hidden bg-black text-white">
-        {/* Vidéo de fond */}
-        <video autoPlay muted loop playsInline className="absolute inset-0 h-full w-full object-cover">
-          <source
-            src="https://media.istockphoto.com/id/2162665170/fr/vid%C3%A9o/concept-de-vision-robotique-dans-un-entrep%C3%B4t-des-travailleurs-g%C3%A8rent-les-stocks-au-centre.mp4?s=mp4-640x640-is&k=20&c=ADWTTgzfDHE04Yk9RF4AFkNic8ahiSmRMbDMb7lDJLw="
-            type="video/mp4"
-          />
-        </video>
+        {/* Image de fond */}
+        <img src="/wall/wall_login.webp" alt="" className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-black/70 backdrop-blur-[6px]" />
 
         <div className="relative z-10 flex min-h-screen items-center justify-center p-6">

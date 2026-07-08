@@ -41,7 +41,7 @@ const TEAM = [
    {
     name: 'Serge Soro',
     role: 'Fondateur & CEO',
-    img: '/wall/soro_serge.png',
+    img: '/wall/soro_serge.webp',
     quote: 'Notre ambition est de rendre la technologie accessible à tous, avec des produits fiables et un service irréprochable.'
   },
   {

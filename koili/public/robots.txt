@@ -9,12 +9,9 @@ User-agent: *
 Allow: /
 Allow: /shop
 Allow: /catalogue
-Allow: /nouveautes
-Allow: /ventes-flash
 Allow: /blog
 Allow: /about
 Allow: /contact
-Allow: /aide
 Allow: /cgu
 Allow: /legal
 Allow: /privacy

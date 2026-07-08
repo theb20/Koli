@@ -463,7 +463,7 @@ export function BlogPage() {
         {/* BG */}
         <div className="absolute inset-0 opacity-[0.04]"
           style={{ backgroundImage: 'linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px)', backgroundSize: '50px 50px' }} > 
-          <img src="/wall/blog.png" className="w-full h-full object-cover" />
+          <img src="/wall/blog.webp" alt="" className="w-full h-full object-cover" />
         </div>
         <div className="absolute top-0 right-0 w-96 h-96 rounded-full opacity-10 blur-3xl" style={{ background: BLUE }} />
 

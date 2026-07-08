@@ -210,7 +210,7 @@ export function Footer() {
         className="relative overflow-hidden"
         style={{
           background: GREEN_DARK,
-          backgroundImage: `url('/flyers/2.png')`,
+          backgroundImage: `url('/flyers/2.webp')`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundBlendMode: 'multiply',

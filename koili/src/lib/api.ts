@@ -268,6 +268,7 @@ export async function createOrder(
     items: { productId: number; qty: number; color?: string }[]
     promoCode?: string
     notes?: string
+    clientRequestId?: string
   },
   token?: string | null,
 ) {
@@ -386,6 +387,18 @@ export async function fetchReferral(token: string) {
   return apiFetch<ApiResponse<{ code: string; referrals: number; bonusPerReferral: number }>>(
     '/api/referral/me', token,
   )
+}
+
+/* ─── Adresses ──────────────────────────────────────────────── */
+export type ApiAddress = {
+  id: string; label: string; prenom: string; nom: string
+  telephone: string; ville: string; quartier?: string | null
+  adresse: string; isDefault: boolean
+}
+
+export async function fetchAddresses(token: string) {
+  const res = await apiFetch<ApiResponse<ApiAddress[]>>('/api/addresses', token)
+  return res.data
 }
 
 /* ─── Listes de cadeaux ─────────────────────────────────────── */

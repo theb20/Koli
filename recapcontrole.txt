@@ -1,0 +1,359 @@
+#mobile
+
+Découvrez l'expérience de vos utilisateurs
+Aucune donnée
+
+Analysez les problèmes de performances
+67
+Performances
+82
+Accessibilité
+92
+Bonnes pratiques
+92
+SEO
+1/3
+Navigation agentique
+67
+FCP
++5
+LCP
++0
+TBT
++29
+CLS
++25
+SI
++7
+Performances
+Les valeurs sont estimées et peuvent varier. Le calcul du score lié aux performances repose directement sur ces statistiques.Affichez la calculatrice.
+0–49
+50–89
+90–100
+Final Screenshot
+
+Statistiques
+Développer la vue
+First Contentful Paint
+2,9 s
+Largest Contentful Paint
+14,8 s
+Total Blocking Time
+100 ms
+Cumulative Layout Shift
+0
+Speed Index
+4,6 s
+Captured at 8 juil. 2026, 05:20 UTC+2
+Émulation du Moto G Power with Lighthouse 13.4.0
+Session avec consultation d'une seule page
+Chargement de page initial
+Connexion 4G lente
+Using HeadlessChromium 146.0.7680.177 with lr
+Consultez la carte proportionnelle
+Screenshot
+Screenshot
+Screenshot
+Screenshot
+Screenshot
+Screenshot
+Screenshot
+Screenshot
+Afficher les audits pertinents pour :
+
+All
+
+FCP
+
+LCP
+
+TBT
+
+CLS
+Insights
+Utiliser des durées de mise en cache efficaces Économies estimées : 2 197 Kio
+Améliorer l'affichage des images Économies estimées : 3 024 Kio
+Requêtes de blocage du rendu Économies estimées : 620 ms
+Latence de la demande de document Erreur
+Ajustement forcé de la mise en page
+Détection de la requête LCP
+Arborescence du réseau
+Causes des décalages de mise en page
+Optimiser la taille du DOM
+Répartition du LCP
+Tiers
+Ces insights sont également disponibles dans le panneau "Performances" des Outils pour les développeurs Chrome. Enregistrez une trace pour afficher des informations plus détaillées.
+Diagnostic
+Réduisez les ressources JavaScript inutilisées Économies estimées : 207 Kio
+Réduisez le travail du thread principal 3,4 s
+Les éléments d'image ne possèdent pas de width ni de height explicites
+Évitez d'énormes charges utiles de réseau La taille totale était de 3 817 Kio
+Évitez les tâches longues dans le thread principal 2 tâches longues trouvées
+Éviter les animations non composées 13 éléments animés trouvés
+Plus d'informations sur les performances de votre application. Ces chiffres n'ont pas d'incidence directe sur le score lié aux performances.
+Audits réussis (10)
+Afficher
+82
+Accessibilité
+Ces vérifications permettent de connaître les possibilités d'amélioration de l'accessibilité de votre application Web. La détection automatique ne peut détecter qu'une partie des problèmes et ne garantit pas l'accessibilité de votre application Web. Il est donc conseillé d'effectuer également un test manuel.
+Noms et étiquettes
+Les boutons n'ont pas de nom accessible
+Des éléments d'image n'ont pas d'attribut [alt]
+Certains éléments ne sont associés à aucun élément de libellé.
+Servez-vous de ces indications pour améliorer la sémantique des éléments de contrôle de votre application. Vous optimiserez ainsi l'expérience des utilisateurs de technologies d'assistance, comme les lecteurs d'écran.
+Contraste
+Les couleurs d'arrière-plan et de premier plan ne sont pas suffisamment contrastées
+Servez-vous de ces indications pour améliorer la lisibilité de votre contenu.
+Navigation
+Les éléments d'en-tête ne sont pas classés séquentiellement par ordre décroissant
+Servez-vous de ces indications pour améliorer la navigation au clavier de votre application.
+Audio et vidéo
+Les éléments <video> contiennent un élément <track> avec [kind="captions"]
+Servez-vous de ces indications pour fournir un contenu alternatif pour l'audio et la vidéo. Vous pourrez ainsi améliorer l'expérience des utilisateurs malvoyants ou malentendants.
+Autres éléments à vérifier manuellement (10)
+Afficher
+Ces éléments concernent des zones qu'un outil de test automatique ne peut pas couvrir. Consultez notre guide sur la réalisation d'un examen d'accessibilité.
+Audits réussis (24)
+Afficher
+Non applicable (33)
+Afficher
+92
+Bonnes pratiques
+Expérience utilisateur
+Images affichées dans un format incorrect
+Général
+Les erreurs de navigateur ont été enregistrées dans la console
+Mappages source manquants pour des fichiers JavaScript propriétaires volumineux
+Fiabilité et sécurité
+Garantir l'efficacité de la CSP contre les attaques XSS
+Utiliser une règle HSTS efficace
+Assurez l'isolation appropriée de l'origine avec COOP
+Limiter le clickjacking avec XFO ou CSP
+Atténuer les attaques XSS basées sur le DOM avec les Trusted Types
+Compatibilité du navigateur
+Fonctionnalités Baseline
+Audits réussis (10)
+Afficher
+Non applicable (2)
+Afficher
+92
+SEO
+Ces vérifications garantissent que votre page suit les conseils de base concernant le référencement naturel. De nombreux facteurs supplémentaires ne sont pas évalués par Lighthouse ici, mais peuvent affecter votre classement dans les résultats de recherche, y compris vos performances concernant les Core Web Vitals. En savoir plus sur les Essentiels de la recherche Google
+Bonnes pratiques relatives au contenu
+Des éléments d'image n'ont pas d'attribut [alt]
+Rédigez votre code HTML de sorte à autoriser les robots d'exploration à analyser le contenu de votre application.
+Autres éléments à vérifier manuellement (1)
+Afficher
+Exécutez ces outils de validation supplémentaires sur votre site pour vérifier les bonnes pratiques de SEO complémentaires.
+Audits réussis (9)
+Afficher
+1/3
+Navigation agentique
+Ces vérifications garantissent des sites Web de haute qualité et consultables pour les agents IA, et valident l'exactitude des intégrations WebMCP. Cette catégorie est encore en cours de développement et susceptible d'être modifiée.
+Accessibilité pour les agents
+L'arborescence d'accessibilité n'est pas bien formée
+llms.txt ne suit pas les recommandations
+Ces audits mettent en évidence les bonnes pratiques visant à améliorer l'accessibilité du site Web pour les agents IA.
+Audits réussis (1)
+Afficher
+Non applicable (3)
+Afficher
+
+
+#desktop
+Découvrez l'expérience de vos utilisateurs
+Aucune donnée
+
+Analysez les problèmes de performances
+74
+Performances
+82
+Accessibilité
+92
+Bonnes pratiques
+92
+SEO
+1/3
+Navigation agentique
+74
+FCP
++10
+LCP
++12
+TBT
++22
+CLS
++25
+SI
++6
+Performances
+Les valeurs sont estimées et peuvent varier. Le calcul du score lié aux performances repose directement sur ces statistiques.Affichez la calculatrice.
+0–49
+50–89
+90–100
+Final Screenshot
+
+Statistiques
+Développer la vue
+First Contentful Paint
+0,7 s
+Largest Contentful Paint
+2,5 s
+Total Blocking Time
+230 ms
+Cumulative Layout Shift
+0.009
+Speed Index
+2,1 s
+Captured at 8 juil. 2026, 05:20 UTC+2
+Émulation (ordinateur) with Lighthouse 13.4.0
+Session avec consultation d'une seule page
+Chargement de page initial
+Limitation personnalisée
+Using HeadlessChromium 146.0.7680.177 with lr
+Consultez la carte proportionnelle
+Screenshot
+Screenshot
+Screenshot
+Screenshot
+Screenshot
+Screenshot
+Screenshot
+Screenshot
+Afficher les audits pertinents pour :
+
+All
+
+FCP
+
+LCP
+
+TBT
+
+CLS
+Insights
+Utiliser des durées de mise en cache efficaces Économies estimées : 2 117 Kio
+Améliorer l'affichage des images Économies estimées : 3 060 Kio
+Requêtes de blocage du rendu Économies estimées : 180 ms
+Latence de la demande de document Erreur
+Ajustement forcé de la mise en page
+Répartition du LCP
+Arborescence du réseau
+Causes des décalages de mise en page
+Optimiser la taille du DOM
+Tiers
+Ces insights sont également disponibles dans le panneau "Performances" des Outils pour les développeurs Chrome. Enregistrez une trace pour afficher des informations plus détaillées.
+Diagnostic
+Réduisez le travail du thread principal 3,4 s
+Réduisez les ressources JavaScript inutilisées Économies estimées : 151 Kio
+Les éléments d'image ne possèdent pas de width ni de height explicites
+Évitez d'énormes charges utiles de réseau La taille totale était de 3 679 Kio
+Évitez les tâches longues dans le thread principal 4 tâches longues trouvées
+Éviter les animations non composées 13 éléments animés trouvés
+Plus d'informations sur les performances de votre application. Ces chiffres n'ont pas d'incidence directe sur le score lié aux performances.
+Audits réussis (11)
+Afficher
+82
+Accessibilité
+Ces vérifications permettent de connaître les possibilités d'amélioration de l'accessibilité de votre application Web. La détection automatique ne peut détecter qu'une partie des problèmes et ne garantit pas l'accessibilité de votre application Web. Il est donc conseillé d'effectuer également un test manuel.
+Noms et étiquettes
+Les boutons n'ont pas de nom accessible
+Des éléments d'image n'ont pas d'attribut [alt]
+Certains éléments ne sont associés à aucun élément de libellé.
+Servez-vous de ces indications pour améliorer la sémantique des éléments de contrôle de votre application. Vous optimiserez ainsi l'expérience des utilisateurs de technologies d'assistance, comme les lecteurs d'écran.
+Contraste
+Les couleurs d'arrière-plan et de premier plan ne sont pas suffisamment contrastées
+Servez-vous de ces indications pour améliorer la lisibilité de votre contenu.
+Navigation
+Les éléments d'en-tête ne sont pas classés séquentiellement par ordre décroissant
+Servez-vous de ces indications pour améliorer la navigation au clavier de votre application.
+Audio et vidéo
+Les éléments <video> contiennent un élément <track> avec [kind="captions"]
+Servez-vous de ces indications pour fournir un contenu alternatif pour l'audio et la vidéo. Vous pourrez ainsi améliorer l'expérience des utilisateurs malvoyants ou malentendants.
+Autres éléments à vérifier manuellement (10)
+Afficher
+Ces éléments concernent des zones qu'un outil de test automatique ne peut pas couvrir. Consultez notre guide sur la réalisation d'un examen d'accessibilité.
+Audits réussis (24)
+Afficher
+Non applicable (33)
+Afficher
+92
+Bonnes pratiques
+Expérience utilisateur
+Images affichées dans un format incorrect
+Général
+Les erreurs de navigateur ont été enregistrées dans la console
+Mappages source manquants pour des fichiers JavaScript propriétaires volumineux
+Fiabilité et sécurité
+Garantir l'efficacité de la CSP contre les attaques XSS
+Utiliser une règle HSTS efficace
+Assurez l'isolation appropriée de l'origine avec COOP
+Limiter le clickjacking avec XFO ou CSP
+Atténuer les attaques XSS basées sur le DOM avec les Trusted Types
+Compatibilité du navigateur
+Fonctionnalités Baseline
+Audits réussis (10)
+Masquer
+Requêtes HTTPS
+La page n'utilise pas d'API obsolètes
+Évite les cookies tiers
+Autoriser les utilisateurs à coller du texte dans les champs de saisie
+Aucune autorisation de géolocalisation n'est demandée au chargement de la page
+Aucune autorisation d'envoi de notifications n'est demandée au chargement de la page
+Images diffusées dans la résolution appropriée
+La page n'a pas d'attribut doctype HTML
+Le charset est défini correctement
+Aucun problème dans le panneau Issues des outils de développement Chrome
+Non applicable (2)
+Masquer
+Trafic HTTP redirigé vers HTTPS
+Bibliothèques JavaScript détectées
+92
+SEO
+Ces vérifications garantissent que votre page suit les conseils de base concernant le référencement naturel. De nombreux facteurs supplémentaires ne sont pas évalués par Lighthouse ici, mais peuvent affecter votre classement dans les résultats de recherche, y compris vos performances concernant les Core Web Vitals. En savoir plus sur les Essentiels de la recherche Google
+Bonnes pratiques relatives au contenu
+Des éléments d'image n'ont pas d'attribut [alt]
+Rédigez votre code HTML de sorte à autoriser les robots d'exploration à analyser le contenu de votre application.
+Autres éléments à vérifier manuellement (1)
+Afficher
+Exécutez ces outils de validation supplémentaires sur votre site pour vérifier les bonnes pratiques de SEO complémentaires.
+Audits réussis (9)
+Masquer
+L'indexation de cette page n'est pas bloquée
+Le document contient un élément <title>
+Le document contient un attribut "meta description"
+La page renvoie un code d'état HTTP de réussite
+Les liens contiennent un texte descriptif
+Les liens peuvent être explorés
+Le fichier robots.txt est valide
+L'attribut hreflang du document est valide
+L'attribut rel=canonical du document est valide
+1/3
+Navigation agentique
+Ces vérifications garantissent des sites Web de haute qualité et consultables pour les agents IA, et valident l'exactitude des intégrations WebMCP. Cette catégorie est encore en cours de développement et susceptible d'être modifiée.
+Accessibilité pour les agents
+L'arborescence d'accessibilité n'est pas bien formée
+Une arborescence d'accessibilité bien formée aide les agents IA à naviguer sur la page et à interagir avec elle.
+Audits ayant échoué
+Description
+Élément causant l'échec
+Buttons must have discernible text
+div.bg-gray-900 > div.max-w-7xl > div.flex > button.text-gray-300
+<button class="text-gray-300 hover:text-white transition-colors">
+Select element must have an accessible name
+Français
+<select class="appearance-none pl-7 pr-6 py-1.5 text-xs text-gray-600 bg-gray-50 border b…">
+llms.txt ne suit pas les recommandations
+Si votre fichier llms.txt ne suit pas les recommandations, il se peut que les grands modèles de langage ne comprennent pas comment votre site Web doit être exploré ou utilisé pour l'entraînement. Le fichier llms.txt doit être un fichier Markdown contenant au moins un en-tête H1.
+Error
+Il manque un en-tête H1 obligatoire dans le fichier (par exemple, "# Titre").
+Le fichier ne semble pas contenir de liens.
+Ces audits mettent en évidence les bonnes pratiques visant à améliorer l'accessibilité du site Web pour les agents IA.
+Audits réussis (1)
+Masquer
+Cumulative Layout Shift 0.009
+Non applicable (3)
+Masquer
+Couverture du formulaire WebMCP
+Outils WebMCP enregistrés
+Les schémas WebMCP sont valides

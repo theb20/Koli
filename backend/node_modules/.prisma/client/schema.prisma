@@ -170,6 +170,7 @@ model ProductSpec {
 model Order {
   id              String        @id @default(cuid())
   orderNumber     String        @unique
+  clientRequestId String?       @unique
   userId          String?
   clientPrenom    String
   clientNom       String

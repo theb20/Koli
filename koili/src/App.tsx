@@ -1,35 +1,40 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { CartProvider } from './contexts/CartContext'
 import { AuthProvider } from './contexts/AuthContext'
 import { CompareProvider } from './contexts/CompareContext'
 import { MainLayout } from './components/layout/MainLayout'
-import { HomePage } from './pages/HomePage'
-import { AboutPage } from './pages/AboutPage'
-import { BlogPage } from './pages/BlogPage'
-import BlogDetailPage from './pages/BlogDetailPage'
-import { ContactPage } from './pages/ContactPage'
 import { PageLoader } from './components/ui/PageLoader'
 import { CookieBanner } from './components/ui/CookieBanner'
 import { CompareBar } from './components/ui/CompareBar'
 import { PrivateRoute } from './components/auth/PrivateRoute'
-import Login from './pages/Login'
-import Register from './pages/Signup'
-import CguPage from './pages/CguPage'
-import LegalPage from './pages/LegalPage'
-import PrivacyPage from './pages/PrivacyPage'
-import CataloguePage from './pages/CataloguePage'
-import ProductPage from './pages/ProductPage'
-import OrderDetailPage from './pages/OrderDetailPage'
-import OrdersPage      from './pages/OrdersPage'
-import PanierPage from './pages/PanierPage'
-import ProfilPage from './pages/ProfilPage'
-import MagicLoginPage from './pages/MagicLoginPage'
-import OnboardingPage from './pages/OnboardingPage'
-import ComparePage from './pages/ComparePage'
-import GiftListPublicPage from './pages/GiftListPublicPage'
-import DeliveryPage from './pages/DeliveryPage'
-import SellerPage from './pages/SellerPage'
+import { RouteLoader } from './components/ui/RouteLoader'
+
+/* ── Pages en code-splitting — chaque route ne charge que son propre JS ── */
+const HomePage            = lazy(() => import('./pages/HomePage').then(m => ({ default: m.HomePage })))
+const AboutPage           = lazy(() => import('./pages/AboutPage').then(m => ({ default: m.AboutPage })))
+const BlogPage            = lazy(() => import('./pages/BlogPage').then(m => ({ default: m.BlogPage })))
+const BlogDetailPage      = lazy(() => import('./pages/BlogDetailPage'))
+const ContactPage         = lazy(() => import('./pages/ContactPage').then(m => ({ default: m.ContactPage })))
+const Login                = lazy(() => import('./pages/Login'))
+const Register             = lazy(() => import('./pages/Signup'))
+const CguPage              = lazy(() => import('./pages/CguPage'))
+const LegalPage            = lazy(() => import('./pages/LegalPage'))
+const PrivacyPage          = lazy(() => import('./pages/PrivacyPage'))
+const CataloguePage        = lazy(() => import('./pages/CataloguePage'))
+const ProductPage          = lazy(() => import('./pages/ProductPage'))
+const OrderDetailPage      = lazy(() => import('./pages/OrderDetailPage'))
+const OrdersPage           = lazy(() => import('./pages/OrdersPage'))
+const PanierPage           = lazy(() => import('./pages/PanierPage'))
+const ProfilPage           = lazy(() => import('./pages/ProfilPage'))
+const MagicLoginPage       = lazy(() => import('./pages/MagicLoginPage'))
+const OnboardingPage       = lazy(() => import('./pages/OnboardingPage'))
+const ComparePage          = lazy(() => import('./pages/ComparePage'))
+const GiftListPublicPage   = lazy(() => import('./pages/GiftListPublicPage'))
+const DeliveryPage         = lazy(() => import('./pages/DeliveryPage'))
+const SellerPage           = lazy(() => import('./pages/SellerPage'))
+const RequestProductPage   = lazy(() => import('./pages/RequestProductPage'))
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -44,8 +49,8 @@ function App() {
       <CartProvider>
       <CompareProvider>
 
-        {/* Loader plein écran — s'efface automatiquement après 2.4s */}
-        <PageLoader duration={2400} />
+        {/* Loader plein écran — s'efface automatiquement après 0.9s */}
+        <PageLoader duration={900} />
 
         {/* Cookie consent banner */}
         <CookieBanner />
@@ -54,6 +59,7 @@ function App() {
         <CompareBar />
 
         <BrowserRouter>
+          <Suspense fallback={<RouteLoader />}>
           <Routes>
             <Route element={<MainLayout />}>
               <Route path="/" element={<HomePage />} />
@@ -74,6 +80,7 @@ function App() {
               {/* ── Comparateur & listes publiques ── */}
               <Route path="/comparer"      element={<ComparePage />} />
               <Route path="/liste/:slug"   element={<GiftListPublicPage />} />
+              <Route path="/demande"   element={<RequestProductPage />} />
 
               {/* ── Routes protégées (nécessitent une connexion) ── */}
               <Route element={<PrivateRoute />}>
@@ -99,6 +106,7 @@ function App() {
               <Route path="/profil" element={<ProfilPage />} />
             </Route>
           </Routes>
+          </Suspense>
         </BrowserRouter>
 
       </CompareProvider>

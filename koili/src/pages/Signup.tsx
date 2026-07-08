@@ -175,13 +175,8 @@ export default function SignupPage() {
 
       <div className="relative min-h-screen overflow-hidden bg-black text-white">
 
-        {/* Vidéo de fond */}
-        <video autoPlay muted loop playsInline className="absolute inset-0 h-full w-full object-cover">
-          <source
-            src="https://media.istockphoto.com/id/2162665170/fr/vid%C3%A9o/concept-de-vision-robotique-dans-un-entrep%C3%B4t-des-travailleurs-g%C3%A8rent-les-stocks-au-centre.mp4?s=mp4-640x640-is&k=20&c=ADWTTgzfDHE04Yk9RF4AFkNic8ahiSmRMbDMb7lDJLw="
-            type="video/mp4"
-          />
-        </video>
+        {/* Image de fond */}
+        <img src="/wall/wall_login.webp" alt="" className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-black/75 backdrop-blur-[8px]" />
 
         {/* Orbes animés */}
@@ -197,7 +192,7 @@ export default function SignupPage() {
             <motion.div initial={{ opacity: 0, x: -40 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.85 }}
               className="hidden lg:flex lg:flex-col">
               <div className="w-90 h-20 flex items-center justify-center">
-                <img src="/imgs_dropship/logohori_dropship_white.png" className="mb-12 w-auto h-auto object-contain" alt="Koli" />
+                <img src="/imgs_dropship/skignas_white.png" className="mb-12 w-auto h-auto object-contain" alt="Koli" />
               </div>
               <h2 className="text-[1.9rem] leading-[1.1] tracking-tight">
                 Achetez vos produits

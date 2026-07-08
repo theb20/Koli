@@ -41,7 +41,7 @@ export function DropShopSection() {
           {/* Hero card */}
           <div className="relative rounded-2xl overflow-hidden flex flex-col min-h-[320px] sm:min-h-[420px] lg:min-h-[500px]">
             <img
-              src="/flyers/2.png"
+              src="/flyers/2.webp"
               alt="produits tendance"
               className="absolute inset-0 w-full h-full object-cover"
             />
@@ -55,9 +55,9 @@ export function DropShopSection() {
                 <span className="text-xs font-bold tracking-widest uppercase mb-4" style={{ color: '#fefefdff' }}>
                   Nouveautés
                 </span>
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl text-white mb-3">
+                <h2 className="text-2xl sm:text-3xl lg:text-4xl text-white mb-3">
                   Produits tendance<br /> Livrés chez vous
-                </h1>
+                </h2>
                 <p className="text-gray-200 text-sm leading-relaxed mb-6 max-w-xs">
                   Découvrez notre sélection de produits gagnants à prix mini.
                 </p>
@@ -107,7 +107,7 @@ export function DropShopSection() {
                   ) : (
                     /* Placeholder flyer si pas d'image */
                     <img
-                      src="/flyers/1.png"
+                      src="/flyers/1.webp"
                       alt={cat.name}
                       className="absolute inset-0 w-full h-full object-cover opacity-40"
                     />

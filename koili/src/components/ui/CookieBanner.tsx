@@ -171,6 +171,7 @@ export function CookieBanner() {
                         <Globe size={14} className="absolute left-2.5 text-gray-400 pointer-events-none" />
                         <select
                           defaultValue="fr"
+                          aria-label="Langue du site"
                           className="appearance-none pl-7 pr-6 py-1.5 text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-full hover:border-gray-300 focus:outline-none focus:border-gray-400 cursor-pointer transition-colors"
                         >
                           <option value="fr">Français</option>
@@ -271,6 +272,7 @@ export function CookieBanner() {
                         <Globe size={14} className="absolute left-2.5 text-gray-400 pointer-events-none" />
                         <select
                           defaultValue="fr"
+                          aria-label="Langue du site"
                           className="appearance-none pl-7 pr-6 py-1.5 text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-full hover:border-gray-300 focus:outline-none focus:border-gray-400 cursor-pointer transition-colors"
                         >
                           <option value="fr">Français</option>
