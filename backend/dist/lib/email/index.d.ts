@@ -12,4 +12,7 @@ export { sendFlashDealEmail } from './templates/flash-deal';
 export type { FlashDealProduct } from './templates/flash-deal';
 export { sendNewOrderAdminEmail } from './templates/new-order-admin';
 export type { NewOrderAdminPayload } from './templates/new-order-admin';
+export { sendNewProductRequestAdminEmail } from './templates/new-product-request-admin';
+export type { NewProductRequestAdminPayload } from './templates/new-product-request-admin';
+export { sendProductRequestReplyEmail } from './templates/product-request-reply';
 //# sourceMappingURL=index.d.ts.map

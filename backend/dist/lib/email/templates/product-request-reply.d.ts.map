@@ -1,0 +1,1 @@
+{"version":3,"file":"product-request-reply.d.ts","sourceRoot":"","sources":["../../../../src/lib/email/templates/product-request-reply.ts"],"names":[],"mappings":"AAQA,wBAAsB,4BAA4B,CAChD,EAAE,EAAE,MAAM,EACV,MAAM,EAAE,MAAM,EACd,WAAW,EAAE,MAAM,EACnB,YAAY,EAAE,MAAM,EACpB,WAAW,CAAC,EAAE,MAAM,GAAG,IAAI,GAC1B,OAAO,CAAC,IAAI,CAAC,CAyBf"}

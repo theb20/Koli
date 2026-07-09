@@ -9,7 +9,7 @@ async function sendWelcomeEmail(to, prenom) {
     const html = await (0, layout_1.baseLayout)(`
       ${(0, components_1.subheading)('Compte activé')}
       ${(0, components_1.heading)(`Bienvenue, ${prenom} !`)}
-      ${(0, components_1.paragraph)("Votre compte Skignas est prêt. Vous rejoignez <strong style=\"color:#111827\">+12&nbsp;000</strong> clients satisfaits à travers la Côte d'Ivoire.")}
+      ${(0, components_1.paragraph)("Votre compte Skignas est prêt. Vous rejoignez <strong style=\"color:#111827\">+1&nbsp;000</strong> clients satisfaits à travers la Côte d'Ivoire.")}
 
       ${(0, components_1.highlightBox)(`
         <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse">

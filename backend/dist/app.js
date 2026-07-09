@@ -36,6 +36,7 @@ const history_1 = __importDefault(require("./routes/history"));
 const seller_1 = __importDefault(require("./routes/seller"));
 const settings_1 = __importDefault(require("./routes/settings"));
 const deal_announcements_1 = __importDefault(require("./routes/deal-announcements"));
+const product_requests_1 = __importDefault(require("./routes/product-requests"));
 const app = (0, express_1.default)();
 /* ── CORS (must be before helmet) ──────────────────────────── */
 const ALLOWED_ORIGINS = [
@@ -84,6 +85,21 @@ const authActionLimiter = (0, express_rate_limit_1.rateLimit)({
     message: { success: false, message: 'Trop de tentatives, réessayez dans 15 minutes' },
     keyGenerator: (req) => req.ip ?? 'unknown',
 });
+// Formulaires publics qui déclenchent un envoi d'email ou une écriture disque
+// (contact, demande de sourcing, upload d'images) — cible anti-spam/anti-DoS,
+// plus stricte que la limite globale généreuse ci-dessus.
+const publicFormLimiter = (0, express_rate_limit_1.rateLimit)({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, message: 'Trop de demandes envoyées, réessayez dans 15 minutes' },
+    keyGenerator: (req) => req.ip ?? 'unknown',
+    // Ne cible que les soumissions publiques (POST) — laisse passer les GET/PATCH/DELETE
+    // admin (listing, statut...) qui utilisent déjà requireAdmin comme garde-fou et sont
+    // parfois interrogés fréquemment (badge de notification, polling).
+    skip: (req) => req.method !== 'POST',
+});
 /* ── Parsers ────────────────────────────────────────────────── */
 app.use(express_1.default.json({ limit: '10mb' }));
 app.use(express_1.default.urlencoded({ extended: true }));
@@ -120,7 +136,7 @@ app.use('/api/orders', orders_1.default);
 app.use('/api/addresses', addresses_1.default);
 app.use('/api/wishlist', wishlist_1.default);
 app.use('/api/reviews', reviews_1.default);
-app.use('/api/contact', contact_1.default);
+app.use('/api/contact', publicFormLimiter, contact_1.default);
 app.use('/api/promo', promo_1.default);
 app.use('/api/notifications', notifications_1.default);
 app.use('/api/blog', blog_1.default);
@@ -138,6 +154,7 @@ app.use('/api/history', history_1.default);
 app.use('/api/seller', seller_1.default);
 app.use('/api/settings', settings_1.default);
 app.use('/api/deal-announcements', deal_announcements_1.default);
+app.use('/api/product-requests', publicFormLimiter, product_requests_1.default);
 /* ── 404 ────────────────────────────────────────────────────── */
 app.use((_req, res) => {
     res.status(404).json({ success: false, message: 'Route introuvable' });

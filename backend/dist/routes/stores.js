@@ -80,7 +80,8 @@ router.post('/', async (req, res) => {
         return res.status(201).json({ success: true, data: { store } });
     }
     catch (err) {
-        return res.status(400).json({ success: false, message: 'Données invalides', detail: String(err) });
+        console.error(err);
+        return res.status(400).json({ success: false, message: 'Données invalides' });
     }
 });
 /* ─────────────────────────────────────────────────────────────
@@ -201,7 +202,7 @@ router.post('/:id/import', async (req, res) => {
     }
     catch (err) {
         console.error(err);
-        return res.status(400).json({ success: false, message: 'Données invalides', detail: String(err) });
+        return res.status(400).json({ success: false, message: 'Données invalides' });
     }
 });
 /* ─────────────────────────────────────────────────────────────
@@ -682,7 +683,7 @@ router.post('/:id/scrape', async (req, res) => {
     }
     catch (err) {
         console.error('[SCRAPE]', err);
-        return res.status(400).json({ success: false, message: `Erreur lors du scraping: ${String(err)}` });
+        return res.status(400).json({ success: false, message: 'Erreur lors du scraping de cette URL' });
     }
 });
 exports.default = router;
