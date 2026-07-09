@@ -13,6 +13,8 @@ Allow: /blog
 Allow: /about
 Allow: /contact
 Allow: /demande
+Allow: /comparer
+Allow: /liste/
 Allow: /cgu
 Allow: /legal
 Allow: /privacy
@@ -20,10 +22,12 @@ Allow: /privacy
 # ── Pages privées / fonctionnelles : exclues ─────────────────────
 Disallow: /login
 Disallow: /register
+Disallow: /onboarding
+Disallow: /auth/magic
+Disallow: /profil
+Disallow: /vendeur
 Disallow: /commandes
 Disallow: /panier
-Disallow: /suivi
-Disallow: /compte
 Disallow: /admin
 
 # ── Assets techniques : exclues ──────────────────────────────────

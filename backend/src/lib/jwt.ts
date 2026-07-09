@@ -1,6 +1,14 @@
 import jwt from 'jsonwebtoken'
 
-const SECRET  = process.env.JWT_SECRET ?? 'koli-dev-secret-key'
+// Aucun repli silencieux : un secret manquant ou faible doit faire échouer le
+// démarrage du serveur, pas se rabattre discrètement sur une valeur devinable.
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+  throw new Error(
+    'JWT_SECRET manquant ou trop court (min. 32 caractères) — défini-le dans .env avant de démarrer le serveur.'
+  )
+}
+
+const SECRET  = process.env.JWT_SECRET
 const EXPIRES = process.env.JWT_EXPIRES_IN ?? '7d'
 const REFRESH_EXPIRES = process.env.JWT_REFRESH_EXPIRES_IN ?? '30d'
 
@@ -20,7 +28,7 @@ export function signRefreshToken(payload: Pick<JwtPayload, 'userId'>): string {
   return jwt.sign(payload, SECRET + '_refresh', { expiresIn: REFRESH_EXPIRES } as jwt.SignOptions)
 }
 
-/** Vérifie et décode un access token */
+/** Vérifie et décode un access token **/
 export function verifyAccessToken(token: string): JwtPayload {
   return jwt.verify(token, SECRET) as JwtPayload
 }

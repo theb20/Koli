@@ -9,7 +9,7 @@ export async function sendMagicLinkEmail(to: string, prenom: string, link: strin
       ${paragraph('Vous avez demandé un lien de connexion à votre compte Skignas. Cliquez sur le bouton ci-dessous pour vous connecter instantanément.')}
 
       ${highlightBox(`
-        <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse">
+        <table width="100%" cellpadding="0" cellspacing="0"       role="presentation" style="border-collapse:collapse">
           <tr>
             <td style="vertical-align:middle;padding-right:12px;font-size:20px;width:32px">⏱</td>
             <td style="font-family:system-ui,-apple-system,sans-serif;font-size:13px;color:#374151;line-height:1.5">

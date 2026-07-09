@@ -89,6 +89,22 @@ const authActionLimiter = rateLimit({
   keyGenerator: (req) => req.ip ?? 'unknown',
 })
 
+// Formulaires publics qui déclenchent un envoi d'email ou une écriture disque
+// (contact, demande de sourcing, upload d'images) — cible anti-spam/anti-DoS,
+// plus stricte que la limite globale généreuse ci-dessus.
+const publicFormLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Trop de demandes envoyées, réessayez dans 15 minutes' },
+  keyGenerator: (req) => req.ip ?? 'unknown',
+  // Ne cible que les soumissions publiques (POST) — laisse passer les GET/PATCH/DELETE
+  // admin (listing, statut...) qui utilisent déjà requireAdmin comme garde-fou et sont
+  // parfois interrogés fréquemment (badge de notification, polling).
+  skip: (req) => req.method !== 'POST',
+})
+
 /* ── Parsers ────────────────────────────────────────────────── */
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true }))
@@ -128,7 +144,7 @@ app.use('/api/orders',        ordersRouter)
 app.use('/api/addresses',     addressesRouter)
 app.use('/api/wishlist',      wishlistRouter)
 app.use('/api/reviews',       reviewsRouter)
-app.use('/api/contact',       contactRouter)
+app.use('/api/contact',       publicFormLimiter, contactRouter)
 app.use('/api/promo',         promoRouter)
 app.use('/api/notifications', notificationsRouter)
 app.use('/api/blog',          blogRouter)
@@ -146,7 +162,7 @@ app.use('/api/history',        historyRouter)
 app.use('/api/seller',         sellerRouter)
 app.use('/api/settings',       settingsRouter)
 app.use('/api/deal-announcements', dealAnnouncementsRouter)
-app.use('/api/product-requests', productRequestsRouter)
+app.use('/api/product-requests', publicFormLimiter, productRequestsRouter)
 
 /* ── 404 ────────────────────────────────────────────────────── */
 app.use((_req, res) => {

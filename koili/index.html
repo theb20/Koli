@@ -4,15 +4,21 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- ============ SEO PRIMAIRE ============ -->
-  <title>SKIGNAS — Achetez vos produits préférés | Livraison rapide Cote d'ivoire</title>
-  <meta name="description" content="SKIGNAS, votre marketplace en ligne. Découvrez des milliers de produits sélectionnés, paiement sécurisé et livraison rapide partout en Cote d'ivoire. Commandez en toute confiance." />
-  <meta name="keywords" content="Skignas, achat en ligne, marketplace, e-commerce Cote d'ivoire, livraison rapide, produits tendance" />
+  <!-- ============ SEO PRIMAIRE ============
+       Ces balises sont le SEUL contenu vu par les crawlers qui n'exécutent pas
+       le JS (Facebook/WhatsApp/LinkedIn/Twitter — les aperçus de partage social).
+       <PageMeta> (React) surcharge title/description/OG pour Google et les
+       onglets du navigateur, MAIS PAS pour ces crawlers-là : gardez donc ces
+       valeurs par défaut aussi bonnes que possible, elles servent de filet pour
+       TOUTES les pages qui n'ont pas encore leur propre <PageMeta jsonLd=…>. -->
+  <title>Skignas — Marketplace tech n°1 en Côte d'Ivoire | Livraison rapide</title>
+  <meta name="description" content="Des milliers de produits tech sélectionnés, paiement Orange Money / MTN / Wave, livraison express 24-72h partout en Côte d'Ivoire. Commandez en toute confiance sur Skignas." />
   <meta name="author" content="Skignas" />
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
   <meta name="googlebot" content="index, follow" />
   <meta name="language" content="French" />
   <meta name="geo.region" content="CI" />
+  <meta name="geo.placename" content="Abidjan" />
   <meta name="theme-color" content="#FFFFFF" />
 
   <!-- ============ CANONICAL ============ -->
@@ -20,6 +26,14 @@
 
   <!-- ============ SITEMAP ============ -->
   <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+
+  <!-- ============ RESOURCE HINTS — Core Web Vitals ============
+       Établit la connexion TCP/TLS vers les origines tierces critiques avant
+       même que le CSS/JS ne les référence : réduit la latence perçue au
+       premier rendu (LCP/FCP) de ~100-300ms selon la localisation du visiteur. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://skignas.up.railway.app" />
 
   <!-- ============ FAVICONS ============ -->
   <link rel="icon" type="image/png" href="/imgs_dropship/favicon-96x96.png" sizes="96x96" />
@@ -29,55 +43,108 @@
   <meta name="apple-mobile-web-app-title" content="Skignas" />
   <link rel="manifest" href="/imgs_dropship/site.webmanifest" />
 
-  <!-- ============ OPEN GRAPH (Facebook, LinkedIn) ============ -->
+  <!-- ============ OPEN GRAPH (Facebook, LinkedIn, WhatsApp) ============ -->
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Skignas" />
-  <meta property="og:title" content="Skignas — Achetez vos produits préférés" />
-  <meta property="og:description" content="Skignas, votre marketplace en ligne. Découvrez des milliers de produits sélectionnés, paiement sécurisé et livraison rapide partout en Cote d'ivoire. Commandez en toute confiance." />
+  <meta property="og:title" content="Skignas — Marketplace tech n°1 en Côte d'Ivoire" />
+  <meta property="og:description" content="Des milliers de produits tech sélectionnés, paiement Orange Money / MTN / Wave, livraison express 24-72h partout en Côte d'Ivoire." />
   <meta property="og:image" content="https://skignas.com/wall/og-image.jpg" />
   <meta property="og:image:secure_url" content="https://skignas.com/wall/og-image.jpg" />
   <meta property="og:image:type" content="image/jpeg" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
-  <meta property="og:image:alt" content="Skignas — Marketplace nouvelle génération" />
+  <meta property="og:image:alt" content="Skignas — La tech qui vous simplifie la vie" />
   <meta property="og:url" content="https://skignas.com/" />
   <meta property="og:locale" content="fr_FR" />
 
   <!-- ============ TWITTER / X ============ -->
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:site" content="@skignas_fr" />
-  <meta name="twitter:creator" content="@skignas_fr" />
-  <meta name="twitter:title" content="Skignas — Achetez vos produits préférés en ligne" />
-  <meta name="twitter:description" content="Marketplace nouvelle génération. Livraison rapide partout en France." />
+  <meta name="twitter:site" content="@skignas" />
+  <meta name="twitter:creator" content="@skignas" />
+  <meta name="twitter:title" content="Skignas — Marketplace tech n°1 en Côte d'Ivoire" />
+  <meta name="twitter:description" content="Des milliers de produits tech sélectionnés, paiement mobile money, livraison express 24-72h partout en Côte d'Ivoire." />
   <meta name="twitter:image" content="https://skignas.com/wall/og-image.jpg" />
-  <meta name="twitter:image:alt" content="Skignas — Marketplace nouvelle génération" />
+  <meta name="twitter:image:alt" content="Skignas — La tech qui vous simplifie la vie" />
 
-  <!-- =======
-   il faut booster le referencement a 2000%
-  ===== SCHEMA.ORG (Rich Snippets Google) ============ -->
+  <!-- ============ SCHEMA.ORG (Rich Snippets Google) ============
+       Organization (identité de la marque, Knowledge Panel) + WebSite
+       (sitelinks search box). Le Product/BreadcrumbList par page se fait via
+       PageMeta jsonLd={…} sur chaque page produit — pas ici. -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
-    "@type": "OnlineStore",
-    "name": "Skignas",
-    "url": "https://skignas.com",
-    "logo": "https://skignas.com/imgs_dropship/favicon.svg",
-    "description": "Skignas, votre marketplace en ligne. Découvrez des milliers de produits sélectionnés, paiement sécurisé et livraison rapide partout en Cote d'ivoire. Commandez en toute confiance.",
-    "areaServed": {
-      "@type": "Country",
-      "name": "Cote d'ivoire"
-    },
-    "potentialAction": {
-      "@type": "SearchAction",
-      "target": "https://skignas.com/search?q={search_term_string}",
-      "query-input": "required name=search_term_string"
-    }
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://skignas.com/#organization",
+        "name": "Skignas",
+        "url": "https://skignas.com",
+        "logo": "https://skignas.com/imgs_dropship/favicon.svg",
+        "description": "Marketplace en ligne proposant des produits tech sélectionnés, paiement mobile money et livraison rapide en Côte d'Ivoire.",
+        "areaServed": {
+          "@type": "Country",
+          "name": "Côte d'Ivoire"
+        }
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://skignas.com/#website",
+        "name": "Skignas",
+        "url": "https://skignas.com",
+        "publisher": { "@id": "https://skignas.com/#organization" },
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": "https://skignas.com/catalogue?q={search_term_string}",
+          "query-input": "required name=search_term_string"
+        }
+      }
+    ]
   }
   </script>
 
 </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!--
+        Contenu de repli visible par les robots qui n'exécutent pas de JavaScript
+        (crawlers IA, certains bots de recherche). React remplace intégralement ce
+        bloc au montage (createRoot, pas hydrateRoot) — aucun risque de désync côté
+        utilisateurs réels, qui ne le voient qu'une fraction de seconde au premier
+        chargement. Le contenu reflète fidèlement le site réel (pas de cloaking).
+      -->
+      <main>
+        <h1>Skignas — Marketplace tech n°1 en Côte d'Ivoire</h1>
+        <p>
+          Skignas est une marketplace en ligne qui rassemble des milliers de produits tech
+          sélectionnés — smartphones, audio, informatique, maison connectée, gaming, caméras
+          de surveillance et accessoires — livrés partout en Côte d'Ivoire.
+        </p>
+        <p>
+          Paiement sécurisé par Orange Money, MTN Mobile Money, Wave ou à la livraison.
+          Livraison standard en 3 à 5 jours ouvrés (gratuite dès 25&nbsp;000 FCFA d'achat)
+          ou livraison express garantie sous 24 à 72h.
+        </p>
+        <h2>Pourquoi choisir Skignas</h2>
+        <ul>
+          <li>Produits vérifiés et sélectionnés avant mise en vente</li>
+          <li>Meilleurs prix négociés directement avec nos fournisseurs</li>
+          <li>Nouveautés ajoutées chaque semaine au catalogue</li>
+          <li>Support client disponible 7j/7</li>
+          <li>Retours facilités sous 30 jours</li>
+          <li>Programme de fidélité : points cumulés sur chaque commande</li>
+        </ul>
+        <h2>Explorer Skignas</h2>
+        <ul>
+          <li><a href="/catalogue">Catalogue complet des produits</a></li>
+          <li><a href="/catalogue?sort=newest">Nouveautés</a></li>
+          <li><a href="/catalogue?badges=sale">Ventes flash et promotions</a></li>
+          <li><a href="/blog">Blog Skignas</a></li>
+          <li><a href="/about">À propos de Skignas</a></li>
+          <li><a href="/demande">Trouver un produit — demande de sourcing</a></li>
+          <li><a href="/contact">Contacter le support</a></li>
+        </ul>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

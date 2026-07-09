@@ -608,6 +608,7 @@ function MobileOverlay({ open, onClose, onOpenCart, categories }: { open: boolea
               <div className="flex items-center justify-around pt-1 border-t border-gray-100 mt-1">
                 {[
                   { href: '/commandes',          icon: <Package size={18} />,   label: 'Commandes' },
+                  { href: '/demande',            icon: <PackageOpen size={18} />, label: 'Une demande' },
                   { href: '/catalogue?sort=newest', icon: <Bell size={18} />,      label: 'Nouveautés', badge: 5 },
                   { href: '/commandes',          icon: <MapPin size={18} />,    label: 'Suivi' },
                   { href: '/contact',            icon: <HelpCircle size={18} />, label: 'Aide' },

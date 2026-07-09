@@ -29,6 +29,8 @@ export type LegalLayoutProps = {
   lastUpdated: string;
   readTime?: string;
   sections: LegalSection[];
+  /** Email de contact affiché en pied de page — passez settings.supportEmail pour rester à jour. */
+  contactEmail?: string;
 };
 
 /* ── Prose helpers — réutilisables dans les pages ──────────────── */
@@ -93,6 +95,7 @@ export function LegalLayout({
   lastUpdated,
   readTime = "5 min",
   sections,
+  contactEmail = "legal@skignas.ahobaut.fr",
 }: LegalLayoutProps) {
   const [activeId, setActiveId] = useState(sections[0]?.id ?? "");
   const [showTop, setShowTop]   = useState(false);
@@ -383,11 +386,11 @@ export function LegalLayout({
                 <strong className="text-gray-600">{lastUpdated}</strong>.
                 Pour toute question, contactez-nous à{" "}
                 <a
-                  href="mailto:legal@skignas.ahobaut.fr"
+                  href={`mailto:${contactEmail}`}
                   className="font-medium underline underline-offset-2 hover:text-gray-700"
                   style={{ color: accentColor }}
                 >
-                  legal@skignas.ahobaut.fr
+                  {contactEmail}
                 </a>
               </p>
             </div>

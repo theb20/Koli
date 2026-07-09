@@ -8,7 +8,7 @@ export async function sendWelcomeEmail(to: string, prenom: string): Promise<void
   const html = await baseLayout(`
       ${subheading('Compte activé')}
       ${heading(`Bienvenue, ${prenom} !`)}
-      ${paragraph("Votre compte Skignas est prêt. Vous rejoignez <strong style=\"color:#111827\">+12&nbsp;000</strong> clients satisfaits à travers la Côte d'Ivoire.")}
+      ${paragraph("Votre compte Skignas est prêt. Vous rejoignez <strong style=\"color:#111827\">+1&nbsp;000</strong> clients satisfaits à travers la Côte d'Ivoire.")}
 
       ${highlightBox(`
         <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse">

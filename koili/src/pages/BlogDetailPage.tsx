@@ -7,6 +7,7 @@ import {
   User, Calendar, Tag, ChevronRight, BookOpen,
   ExternalLink, Link2, Check,
 } from 'lucide-react'
+import DOMPurify from 'dompurify'
 import { fetchBlogPost } from '../lib/api'
 import { PageMeta } from '../components/seo/PageMeta'
 
@@ -52,7 +53,7 @@ function ArticleBody({ html }: { html: string }) {
         prose-blockquote:border-l-4 prose-blockquote:border-blue-400 prose-blockquote:bg-blue-50 prose-blockquote:py-1 prose-blockquote:px-4 prose-blockquote:rounded-r-xl
         prose-code:bg-gray-100 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:text-blue-700
         prose-strong:text-gray-900"
-      dangerouslySetInnerHTML={{ __html: html }}
+      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }}
     />
   )
 }
