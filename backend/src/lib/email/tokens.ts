@@ -29,13 +29,15 @@ export type EmailDesignTokens = {
 
 export const DEFAULT_TOKENS: EmailDesignTokens = {
   primaryColor:       '#1a73e8',
-  headerGradientFrom: '#1a73e8',
-  headerGradientTo:   '#0f4fb3',
-  cardRadius:         12,
+  // Header à plat (pas de dégradé) — même couleur des deux côtés, matérialise
+  // le style "Google Material" : fond blanc, liseré 4 couleurs, logo noir.
+  headerGradientFrom: '#ffffff',
+  headerGradientTo:   '#ffffff',
+  cardRadius:         16,
   cardBg:             '#ffffff',
   bodyBg:             '#f1f3f4',
   footerText:         'Vous recevez cet email car vous avez un compte Skignas.',
-  logoUrl:            'https://skignas.com/imgs_dropship/skignas_white.png',
+  logoUrl:            'https://skignas.com/imgs_dropship/skignas_black.png',
   badgeText:           "Côte d'Ivoire",
 }
 

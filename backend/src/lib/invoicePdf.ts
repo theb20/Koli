@@ -35,7 +35,7 @@ export function buildInvoicePdf(order: OrderWithItems, settings: SiteSettings): 
   const addressLine = [shippingAddr.adresse, shippingAddr.quartier, shippingAddr.ville].filter(Boolean).join(', ')
 
   /* ── En-tête ── */
-  doc.fontSize(22).fillColor('#0421ff').text('Skignas', 50, 50)
+  doc.fontSize(22).fillColor('#000000ff').text('Skignas', 50, 50)
   doc.fontSize(9).fillColor('#6b7280')
     .text(settings.address, 50, 78)
     .text(`${settings.supportEmail} · ${settings.supportPhone}`, 50, 92)

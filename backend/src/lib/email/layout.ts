@@ -1,32 +1,28 @@
 /* ─────────────────────────────────────────────────────────────
-   Layout de base pour tous les emails Skignas
+   Layout de base pour tous les emails Skignas — design "Google
+   Material" (Google Sans/Roboto, header plat avec liseré 4
+   couleurs, cartes à ombre Material, boutons pilule).
    Compatible : Gmail, Outlook, Apple Mail, dark mode, mobile
 
-   Le design (header, carte, footer) est piloté par des DESIGN
-   TOKENS (voir ./tokens.ts), injectés dans les styles inline
-   ci-dessous — pas dans le <style> du <head>, qui est ignoré par
-   Gmail mobile et largement strippé par Outlook. Le <style> ne
-   contient que ce qui NE PEUT être fait qu'en CSS : le reset, les
-   :hover et les media queries (responsive + dark mode).
+   Le design (couleurs, rayon, logo, textes) est piloté par des
+   DESIGN TOKENS (voir ./tokens.ts), injectés dans les styles
+   inline ci-dessous — pas dans le <style> du <head>, qui est
+   ignoré par Gmail mobile et largement strippé par Outlook. Le
+   <style> ne contient que ce qui NE PEUT être fait qu'en CSS : le
+   reset, les :hover et les media queries (responsive + dark mode).
 
    Tokens éditables depuis le back-office → Templates email.
 ───────────────────────────────────────────────────────────── */
 import { getContactInfo, waLink } from './settings'
 import { getEmailTokens } from './tokens'
 
-/** #rrggbb → "r,g,b" pour une utilisation dans rgba(...) */
-function hexToRgbTriplet(hex: string): string {
-  const n = parseInt(hex.slice(1), 16)
-  return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`
-}
-
 const STATIC_STYLE = `
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     a{text-decoration:none;color:inherit}
     img{display:block;border:0;outline:0}
     .preheader{display:none;max-height:0;overflow:hidden;font-size:1px;line-height:1px;color:transparent;mso-hide:all}
-    .footer-link:hover{opacity:.8}
-    .cta:hover{opacity:.9}
+    .footer-link:hover{color:#1a73e8 !important}
+    .cta:hover{opacity:.92}
 
     @media only screen and (max-width:600px){
       .wrapper{padding:16px 8px !important}
@@ -40,8 +36,10 @@ const STATIC_STYLE = `
     @media (prefers-color-scheme:dark){
       body,.bg-outer{background:#202124 !important}
       .card{background:#292a2d !important;border-color:#3c4043 !important}
+      .card-header{background:#292a2d !important;border-bottom-color:#3c4043 !important}
       .card-body{background:#292a2d !important}
       .card-body *{color:#e8eaed}
+      .feature-block{background:#303134 !important}
       .support-block{background:#303134 !important;border-color:#3c4043 !important}
       .footer-bg{background:#202124 !important;border-color:#3c4043 !important}
       .footer-text,.footer-item{color:#9aa0a6 !important}
@@ -53,7 +51,6 @@ export async function baseLayout(content: string, preheader = ''): Promise<strin
   const frontUrl = process.env.FRONTEND_URL ?? 'https://skignas.com'
   const contact  = await getContactInfo()
   const t        = await getEmailTokens()
-  const shadowRgb = hexToRgbTriplet(t.primaryColor)
 
   return `<!DOCTYPE html>
 <html lang="fr" xmlns="http://www.w3.org/1999/xhtml">
@@ -75,14 +72,14 @@ export async function baseLayout(content: string, preheader = ''): Promise<strin
     <tr>
       <td class="wrapper" align="center" style="padding:44px 24px">
 
-        <!-- ══ CARD ══ -->
+        <!-- ══ CARD (élévation Material) ══ -->
         <table class="card" width="100%" cellpadding="0" cellspacing="0" role="presentation"
-          style="max-width:560px;background:${t.cardBg};border-radius:${t.cardRadius}px;border:1px solid #dde3f5;overflow:hidden;border-collapse:collapse;box-shadow:0 8px 32px rgba(${shadowRgb},.12)">
+          style="max-width:560px;background:${t.cardBg};border-radius:${t.cardRadius}px;border:1px solid #dadce0;overflow:hidden;border-collapse:collapse;box-shadow:0 1px 2px 0 rgba(60,64,67,.30),0 2px 6px 2px rgba(60,64,67,.15)">
 
           <!-- Header -->
           <tr>
             <td class="card-header"
-              style="background:linear-gradient(135deg,${t.headerGradientFrom} 0%,${t.headerGradientTo} 100%);padding:28px 40px">
+              style="background:linear-gradient(135deg,${t.headerGradientFrom} 0%,${t.headerGradientTo} 100%);border-bottom:1px solid #e8eaed;padding:24px 40px">
               <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
                 style="border-collapse:collapse">
                 <tr>
@@ -90,15 +87,24 @@ export async function baseLayout(content: string, preheader = ''): Promise<strin
                     <a href="${frontUrl}" style="text-decoration:none;display:block;line-height:0">
                       <img src="${t.logoUrl}"
                            alt="Skignas"
-                           width="150" height="40"
-                           style="display:block;border:0;outline:0;width:150px;height:40px" />
+                           width="130" height="34"
+                           style="display:block;border:0;outline:0;width:130px;height:34px" />
                     </a>
                   </td>
                   <td align="right" style="vertical-align:middle">
-                    <span style="display:inline-block;font-family:system-ui,-apple-system,sans-serif;font-size:10px;font-weight:700;color:rgba(255,255,255,.85);letter-spacing:.8px;text-transform:uppercase;background:rgba(255,255,255,.14);padding:6px 12px;border-radius:100px">
+                    <span style="display:inline-block;font-family:'Google Sans',Roboto,Arial,sans-serif;font-size:11px;font-weight:500;color:#5f6368;letter-spacing:.2px;background:#f1f3f4;padding:6px 12px;border-radius:8px">
                       ${t.badgeText}
                     </span>
                   </td>
+                </tr>
+              </table>
+              <!-- Liseré 4 couleurs, signature Google -->
+              <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse;margin-top:20px">
+                <tr>
+                  <td style="height:4px;background:#4285f4;border-radius:2px 0 0 2px;font-size:0;line-height:0">&nbsp;</td>
+                  <td style="height:4px;background:#ea4335;font-size:0;line-height:0">&nbsp;</td>
+                  <td style="height:4px;background:#fbbc05;font-size:0;line-height:0">&nbsp;</td>
+                  <td style="height:4px;background:#34a853;border-radius:0 2px 2px 0;font-size:0;line-height:0">&nbsp;</td>
                 </tr>
               </table>
             </td>
@@ -106,27 +112,27 @@ export async function baseLayout(content: string, preheader = ''): Promise<strin
 
           <!-- Corps -->
           <tr>
-            <td class="card-body" style="padding:44px 40px 36px">
+            <td class="card-body" style="padding:36px 40px 32px">
               ${content}
             </td>
           </tr>
 
           <!-- Bloc support -->
           <tr>
-            <td style="padding:0 40px 32px">
+            <td style="padding:0 40px 28px">
               <table class="support-block" width="100%" cellpadding="0" cellspacing="0" role="presentation"
-                style="background:#f8faff;border:1px solid #e5edff;border-radius:16px;border-collapse:separate">
+                style="background:#f8f9fa;border-radius:12px;border-collapse:separate">
                 <tr>
-                  <td style="padding:16px 20px">
+                  <td style="padding:14px 20px">
                     <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse">
                       <tr>
-                        <td style="font-family:system-ui,-apple-system,sans-serif;font-size:13px;color:#4b5563;vertical-align:middle">
+                        <td style="font-family:Roboto,Arial,sans-serif;font-size:13px;color:#5f6368;vertical-align:middle">
                           Besoin d'aide ? Notre équipe répond 7j/7.
                         </td>
                         <td align="right" style="white-space:nowrap;vertical-align:middle">
                           <a href="${waLink(contact.whatsappNumber)}"
-                            style="display:inline-block;font-family:system-ui,-apple-system,sans-serif;font-size:12px;font-weight:700;color:#059669;background:#ecfdf5;border:1px solid #a7f3d0;padding:8px 14px;border-radius:100px">
-                            💬 WhatsApp
+                            style="display:inline-block;font-family:'Google Sans',Roboto,Arial,sans-serif;font-size:12px;font-weight:500;color:#188038;background:#e6f4ea;padding:8px 14px;border-radius:16px">
+                            WhatsApp
                           </a>
                         </td>
                       </tr>
@@ -140,15 +146,15 @@ export async function baseLayout(content: string, preheader = ''): Promise<strin
           <!-- Footer carte -->
           <tr>
             <td class="footer-bg"
-              style="background:#f8faff;border-top:1px solid #dbe4ff;padding:20px 40px">
+              style="background:#f8f9fa;border-top:1px solid #e8eaed;padding:18px 40px">
               <table class="footer-row" width="100%" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse">
                 <tr>
-                  <td class="footer-item" style="font-family:system-ui,-apple-system,sans-serif;font-size:11px;color:#8898c8">
+                  <td class="footer-item" style="font-family:Roboto,Arial,sans-serif;font-size:11px;color:#9aa0a6">
                     © ${year} Skignas · Côte d'Ivoire
                   </td>
-                  <td class="footer-item" align="right" style="font-family:system-ui,-apple-system,sans-serif;font-size:11px">
-                    <a class="footer-link" href="mailto:${contact.supportEmail}" style="color:#6b7fb8;margin-right:14px">${contact.supportEmail}</a>
-                    <a class="footer-link" href="${frontUrl}/privacy" style="color:#8898c8">Confidentialité</a>
+                  <td class="footer-item" align="right" style="font-family:Roboto,Arial,sans-serif;font-size:11px">
+                    <a class="footer-link" href="mailto:${contact.supportEmail}" style="color:#5f6368;margin-right:14px">${contact.supportEmail}</a>
+                    <a class="footer-link" href="${frontUrl}/privacy" style="color:#9aa0a6">Confidentialité</a>
                   </td>
                 </tr>
               </table>
@@ -158,7 +164,7 @@ export async function baseLayout(content: string, preheader = ''): Promise<strin
         </table>
         <!-- FIN CARD -->
 
-        <p style="font-family:system-ui,-apple-system,sans-serif;font-size:11px;color:#a0aec0;text-align:center;margin:16px 0 0">
+        <p style="font-family:Roboto,Arial,sans-serif;font-size:11px;color:#9aa0a6;text-align:center;margin:16px 0 0">
           ${t.footerText}
         </p>
 
