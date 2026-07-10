@@ -1,30 +1,31 @@
 /* ─────────────────────────────────────────────────────────────
-   FICHIER TEMPORAIRE — édition live des templates email.
-   À supprimer (avec la route /dev/emails dans App.tsx et le fichier
-   backend/src/routes/dev-email-preview.ts) une fois la relecture finie.
+   Prévisualisation et édition du design des emails transactionnels.
 
-   Nécessite le backend lancé EN LOCAL sur le port 4000 (npm run dev
-   dans backend/) — appelle directement localhost, pas l'API de prod.
+   Le HTML affiché à gauche est le rendu RÉEL de chaque template
+   (généré côté serveur, aucun email n'est envoyé). Il est éditable
+   directement — chaque frappe met à jour l'aperçu à droite
+   instantanément, sans aller-retour serveur.
 
-   Flux : "Charger" récupère le HTML réel généré par le template.
-   Le HTML est ensuite éditable directement dans le champ de gauche —
-   chaque frappe met à jour l'aperçu à droite instantanément (rendu
-   100% côté navigateur, aucun aller-retour serveur). Une fois le
-   design qui te convient trouvé, copie-le et reporte les changements
-   dans le fichier .ts du template (ou demande-le).
+   Seul le bloc <style> (le design commun à tous les emails —
+   couleurs, espacements, polices, dark mode) peut être sauvegardé :
+   le reste du HTML contient les données de l'exemple (nom, montants...)
+   déjà substituées, donc pas réutilisable tel quel comme source.
+   Le design sauvegardé est stocké en base (pas sur disque, qui n'est
+   pas persistant en production) et s'applique immédiatement à tous
+   les emails réels envoyés par l'application.
 ───────────────────────────────────────────────────────────── */
 import { useEffect, useState } from 'react'
-import { RefreshCw, Mail, Copy, Check, Save } from 'lucide-react'
+import { RefreshCw, Mail, Copy, Check, Save, RotateCcw } from 'lucide-react'
+import { api } from '../lib/api'
 
-const BACKEND = 'http://localhost:4000'
-
-export default function DevEmailPreview() {
+export default function EmailTemplatesPage() {
   const [templates, setTemplates] = useState<string[]>([])
   const [selected, setSelected]   = useState<string | null>(null)
   const [html, setHtml]           = useState('')
   const [loading, setLoading]     = useState(false)
   const [copied, setCopied]       = useState(false)
   const [saving, setSaving]       = useState(false)
+  const [resetting, setResetting] = useState(false)
   const [saveMsg, setSaveMsg]     = useState<{ ok: boolean; text: string } | null>(null)
   const [error, setError]         = useState('')
 
@@ -32,23 +33,20 @@ export default function DevEmailPreview() {
     setSelected(name)
     setLoading(true)
     setError('')
-    fetch(`${BACKEND}/api/dev/email-preview/${name}`)
-      .then(res => res.text())
-      .then(setHtml)
+    api.get(`/api/email-templates/${name}`, { responseType: 'text' })
+      .then(res => setHtml(res.data as string))
       .catch(() => setError('Erreur de chargement du template.'))
       .finally(() => setLoading(false))
   }
 
   useEffect(() => {
-    fetch(`${BACKEND}/api/dev/email-preview`)
-      .then(res => res.json())
-      .then(json => {
-        setTemplates(json.data.templates)
-        const first = json.data.templates[0]
-        if (first) loadTemplate(first)
+    api.get('/api/email-templates')
+      .then(res => {
+        const list = res.data.data.templates as string[]
+        setTemplates(list)
+        if (list[0]) loadTemplate(list[0])
       })
-      .catch(() => setError("Impossible de contacter le backend local sur localhost:4000. Lancez `npm run dev` dans backend/."))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+      .catch(() => setError("Impossible de charger la liste des templates."))
   }, [])
 
   const copyHtml = () => {
@@ -58,38 +56,44 @@ export default function DevEmailPreview() {
   }
 
   const saveDesign = async () => {
-    console.log('[email-preview] saveDesign: click reçu, html length =', html.length)
     const match = html.match(/<style>([\s\S]*?)<\/style>/)
     if (!match) {
-      window.alert('Aucun bloc <style> trouvé dans le HTML actuel.')
-      setSaveMsg({ ok: false, text: 'Aucun bloc <style> trouvé dans le HTML actuel.' })
+      window.alert("Aucun bloc <style> trouvé dans le HTML actuel.")
       return
     }
     const ok = window.confirm(
-      "Ça va réécrire le bloc <style> partagé dans backend/src/lib/email/layout.ts, " +
-      "ce qui change le design de TOUS les emails réels envoyés par l'app. Continuer ?"
+      "Ça va remplacer le design commun à TOUS les emails réels envoyés par l'application (base de données, effet immédiat). Continuer ?"
     )
-    if (!ok) { console.log('[email-preview] confirm annulé'); return }
+    if (!ok) return
 
     setSaving(true)
     setSaveMsg(null)
     try {
-      const res = await fetch(`${BACKEND}/api/dev/email-preview/design/save-css`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ css: match[1] }),
-      })
-      const json = await res.json()
-      console.log('[email-preview] réponse save-css:', res.status, json)
-      const text = json.message ?? (res.ok ? 'Sauvegardé.' : 'Erreur.')
-      setSaveMsg({ ok: res.ok, text })
-      window.alert(res.ok ? `✅ ${text}` : `❌ ${text}`)
+      const res = await api.post('/api/email-templates/design/css', { css: match[1] })
+      const text = res.data.message ?? 'Sauvegardé.'
+      setSaveMsg({ ok: true, text })
+      window.alert(`✅ ${text}`)
     } catch (err) {
-      console.error('[email-preview] échec fetch save-css:', err)
-      setSaveMsg({ ok: false, text: 'Impossible de contacter le backend.' })
-      window.alert('❌ Impossible de contacter le backend local (localhost:4000). Vérifie qu\'il tourne bien.')
+      const text = (err as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Erreur lors de la sauvegarde.'
+      setSaveMsg({ ok: false, text })
+      window.alert(`❌ ${text}`)
     } finally {
       setSaving(false)
+    }
+  }
+
+  const resetDesign = async () => {
+    const ok = window.confirm("Restaurer le design par défaut pour tous les emails ? Le design personnalisé actuel sera perdu.")
+    if (!ok) return
+    setResetting(true)
+    try {
+      await api.delete('/api/email-templates/design/css')
+      window.alert('✅ Design par défaut restauré.')
+      if (selected) loadTemplate(selected)
+    } catch {
+      window.alert('❌ Erreur lors de la réinitialisation.')
+    } finally {
+      setResetting(false)
     }
   }
 
@@ -113,6 +117,13 @@ export default function DevEmailPreview() {
             {t}
           </button>
         ))}
+        <button
+          onClick={resetDesign}
+          disabled={resetting}
+          className="w-full flex items-center gap-1.5 text-left px-3 py-2 rounded-xl text-xs text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors mt-2 disabled:opacity-50"
+        >
+          <RotateCcw size={12} /> Restaurer le design par défaut
+        </button>
       </div>
 
       {/* Éditeur HTML */}

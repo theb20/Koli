@@ -1,15 +1,21 @@
 /* ─────────────────────────────────────────────────────────────
-   FICHIER TEMPORAIRE — à supprimer une fois la relecture des
-   templates email terminée. Ne pas déployer en production.
+   Prévisualisation et personnalisation des templates email —
+   feature admin permanente. Intercepte resend.emails.send() pour
+   capturer le HTML généré par chaque template réel (sans jamais
+   envoyer d'email) et le renvoie pour prévisualisation.
 
-   Intercepte resend.emails.send() pour capturer le HTML généré
-   par chaque template réel (sans envoyer d'email) et le renvoyer
-   pour prévisualisation dans un <iframe>.
+   Le design (CSS partagé par tous les emails) est éditable et
+   enregistré en base (SiteSettings.emailDesignCss) — pas sur le
+   disque, qui n'est pas persistant en production (Railway). Voir
+   src/lib/email/layout.ts pour l'utilisation de cette valeur.
 ───────────────────────────────────────────────────────────── */
 import { Router } from 'express'
-import fs from 'fs'
-import path from 'path'
+import { z } from 'zod'
+import { prisma } from '../lib/prisma'
+import { requireAdmin } from '../middleware/auth'
+import { validate } from '../middleware/validate'
 import { resend } from '../lib/email/client'
+import { getEmailDesignCss } from '../lib/email/settings'
 import {
   sendWelcomeEmail, sendMagicLinkEmail, sendPasswordResetEmail, sendPasswordChangedEmail,
   sendOrderConfirmationEmail, sendOrderStatusEmail, sendContactReply, sendBroadcastEmail,
@@ -18,6 +24,7 @@ import {
 import { sendFlashDealEmail } from '../lib/email/templates/flash-deal'
 
 const router = Router()
+router.use(requireAdmin)
 
 const DUMMY_ORDER_ITEMS = [
   { name: 'Casque Bluetooth Pro X', qty: 1, price: 25000 },
@@ -57,16 +64,17 @@ const TEMPLATES: Record<string, () => Promise<void>> = {
   ], new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)),
 }
 
+/* ── GET /api/email-templates — liste des templates disponibles ── */
 router.get('/', (_req, res) => {
   res.json({ success: true, data: { templates: Object.keys(TEMPLATES) } })
 })
 
+/* ── GET /api/email-templates/:name — rendu HTML réel (aucun envoi) ── */
 router.get('/:name', async (req, res) => {
   const name = req.params['name'] as string
   const fn = TEMPLATES[name]
-  if (!fn) { res.status(404).send('Template inconnu: ' + name); return }
+  if (!fn) { res.status(404).json({ success: false, message: 'Template inconnu: ' + name }); return }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const original = resend.emails.send.bind(resend.emails)
   let captured = ''
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -77,15 +85,10 @@ router.get('/:name', async (req, res) => {
 
   try {
     await fn()
-    // Helmet met X-Frame-Options: SAMEORIGIN + frame-ancestors 'self' par défaut sur
-    // toutes les réponses — koli-admin (localhost:5174) et le backend (localhost:4000)
-    // sont deux origines différentes, donc le navigateur refuse d'afficher l'iframe
-    // sans ça. Sans risque : route temporaire, non montée en production.
-    res.removeHeader('X-Frame-Options')
-    res.removeHeader('Content-Security-Policy')
     res.setHeader('Content-Type', 'text/html; charset=utf-8')
     res.send(captured || '<p>Aucun HTML capturé.</p>')
   } catch (err) {
+    console.error('[EMAIL-TEMPLATES]', err)
     res.status(500).send('<pre>' + String(err) + '</pre>')
   } finally {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -94,43 +97,34 @@ router.get('/:name', async (req, res) => {
 })
 
 /* ─────────────────────────────────────────────────────────────
-   Sauvegarde du design commun (layout.ts) — CSS uniquement.
-   Le HTML complet capturé par /:name ne peut pas être réinjecté tel
-   quel dans les templates : il contient les données de la commande
-   factice (nom, montants...) déjà substituées dans le texte. Le
-   <style> partagé, lui, ne contient jamais de donnée par email —
-   c'est la seule partie qu'on peut réécrire sans risque de figer
-   des valeurs de démo dans les vrais emails envoyés en production.
+   Design commun (CSS partagé par tous les emails) — persisté en
+   base (SiteSettings.emailDesignCss), pas sur disque : le disque
+   d'un déploiement Railway n'est pas garanti persistant.
 ───────────────────────────────────────────────────────────── */
-const LAYOUT_PATH = path.resolve(__dirname, '../lib/email/layout.ts')
-
-router.get('/design/current-css', (_req, res) => {
-  const source = fs.readFileSync(LAYOUT_PATH, 'utf-8')
-  const match = source.match(/<style>([\s\S]*?)<\/style>/)
-  if (!match) { res.status(500).json({ success: false, message: '<style> introuvable dans layout.ts' }); return }
-  res.json({ success: true, data: { css: match[1] } })
+router.get('/design/css', async (_req, res) => {
+  const css = await getEmailDesignCss()
+  res.json({ success: true, data: { css } })
 })
 
-router.post('/design/save-css', (req, res) => {
-  const css = req.body?.css
-  if (typeof css !== 'string' || !css.trim()) {
-    res.status(400).json({ success: false, message: 'CSS manquant' })
-    return
-  }
-  // layout.ts est un template literal — ces caractères casseraient le fichier TS.
-  if (css.includes('`') || css.includes('${')) {
-    res.status(400).json({ success: false, message: 'Le CSS ne peut pas contenir ` ou ${ (syntaxe réservée au template)' })
-    return
-  }
+const saveCssSchema = z.object({ css: z.string().min(1).max(20_000) })
 
-  const source = fs.readFileSync(LAYOUT_PATH, 'utf-8')
-  if (!/<style>[\s\S]*?<\/style>/.test(source)) {
-    res.status(500).json({ success: false, message: '<style> introuvable dans layout.ts' })
-    return
-  }
-  const updated = source.replace(/<style>[\s\S]*?<\/style>/, `<style>${css}</style>`)
-  fs.writeFileSync(LAYOUT_PATH, updated, 'utf-8')
-  res.json({ success: true, message: 'Design sauvegardé dans layout.ts' })
+router.post('/design/css', validate(saveCssSchema), async (req, res) => {
+  const { css } = req.body as z.infer<typeof saveCssSchema>
+  await prisma.siteSettings.upsert({
+    where: { id: 1 },
+    create: { emailDesignCss: css },
+    update: { emailDesignCss: css },
+  })
+  res.json({ success: true, message: 'Design enregistré — appliqué à tous les emails à partir de maintenant.' })
+})
+
+router.delete('/design/css', async (_req, res) => {
+  await prisma.siteSettings.upsert({
+    where: { id: 1 },
+    create: {},
+    update: { emailDesignCss: null },
+  })
+  res.json({ success: true, message: 'Design par défaut restauré.' })
 })
 
 export default router

@@ -34,7 +34,7 @@ import sellerRouter        from './routes/seller'
 import settingsRouter       from './routes/settings'
 import dealAnnouncementsRouter from './routes/deal-announcements'
 import productRequestsRouter   from './routes/product-requests'
-import devEmailPreviewRouter   from './routes/dev-email-preview' // TEMPORAIRE — cf. mount plus bas
+import emailTemplatesRouter    from './routes/email-templates'
 
 const app = express()
 
@@ -168,11 +168,7 @@ app.use('/api/seller',         sellerRouter)
 app.use('/api/settings',       settingsRouter)
 app.use('/api/deal-announcements', dealAnnouncementsRouter)
 app.use('/api/product-requests', publicFormLimiter, productRequestsRouter)
-
-// TEMPORAIRE — prévisualisation des templates email, à supprimer avec dev-email-preview.ts
-if (process.env.NODE_ENV !== 'production') {
-  app.use('/api/dev/email-preview', devEmailPreviewRouter)
-}
+app.use('/api/email-templates', emailTemplatesRouter)
 
 /* ── 404 ────────────────────────────────────────────────────── */
 app.use((_req, res) => {

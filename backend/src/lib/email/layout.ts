@@ -1,25 +1,15 @@
 /* ─────────────────────────────────────────────────────────────
    Layout de base pour tous les emails Skignas
    Compatible : Gmail, Outlook, Apple Mail, dark mode, mobile
+
+   Le <style> ci-dessous est le design PAR DÉFAUT. Il peut être
+   remplacé par un design personnalisé enregistré en base
+   (SiteSettings.emailDesignCss, éditable depuis le back-office
+   → Prévisualiser les emails) — voir getEmailDesignCss().
 ───────────────────────────────────────────────────────────── */
-import { getContactInfo, waLink } from './settings'
+import { getContactInfo, waLink, getEmailDesignCss } from './settings'
 
-export async function baseLayout(content: string, preheader = ''): Promise<string> {
-  const year     = new Date().getFullYear()
-  const frontUrl = process.env.FRONTEND_URL ?? 'https://skignas.com'
-  const contact  = await getContactInfo()
-
-  return `<!DOCTYPE html>
-<html lang="fr" xmlns="http://www.w3.org/1999/xhtml">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <meta name="x-apple-disable-message-reformatting"/>
-  <title>Skignas</title>
-  <!--[if mso]>
-  <noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
-  <![endif]-->
-  <style>
+const DEFAULT_STYLE = `
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     body{margin:0;padding:0;background:#f1f3f4;-webkit-font-smoothing:antialiased}
     a{text-decoration:none;color:inherit}
@@ -48,7 +38,25 @@ export async function baseLayout(content: string, preheader = ''): Promise<strin
       .footer-bg{background:#202124 !important;border-color:#3c4043 !important}
       .footer-text,.footer-item{color:#9aa0a6 !important}
     }
-  </style>
+`
+
+export async function baseLayout(content: string, preheader = ''): Promise<string> {
+  const year     = new Date().getFullYear()
+  const frontUrl = process.env.FRONTEND_URL ?? 'https://skignas.com'
+  const contact  = await getContactInfo()
+  const style    = (await getEmailDesignCss()) ?? DEFAULT_STYLE
+
+  return `<!DOCTYPE html>
+<html lang="fr" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta name="x-apple-disable-message-reformatting"/>
+  <title>Skignas</title>
+  <!--[if mso]>
+  <noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
+  <![endif]-->
+  <style>${style}</style>
 </head>
 <body style="margin:0;padding:0;background:#eef1f8">
   ${preheader ? `<div class="preheader">${preheader}</div>` : ''}

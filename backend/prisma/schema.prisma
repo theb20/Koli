@@ -533,6 +533,9 @@ model SiteSettings {
   /// Destinataires internes des emails "nouvelle commande" — liste séparée par des virgules,
   /// jamais exposée sur GET /api/settings (public)
   orderNotifyEmails String @default("skignass@gmail.com")
+  /// Surcharge du <style> commun à tous les emails (design), éditée depuis le
+  /// back-office. NULL = design par défaut codé dans layout.ts.
+  emailDesignCss String?
   updatedAt      DateTime @updatedAt
 
   @@map("site_settings")

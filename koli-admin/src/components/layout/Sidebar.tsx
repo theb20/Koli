@@ -23,7 +23,7 @@ const nav = [
   { to: '/reviews',  label: 'Avis',           icon: Star },
   { to: '/contact',  label: 'Messages',       icon: MessageSquare },
   { to: '/stats',    label: 'Statistiques',   icon: BarChart2 },
-  { to: '/dev/emails', label: 'Prévisualiser les emails', icon: Send }, // TEMPORAIRE
+  { to: '/emails',   label: 'Templates email', icon: Send },
 ]
 
 export function Sidebar() {
