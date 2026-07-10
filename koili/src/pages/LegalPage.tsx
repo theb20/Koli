@@ -8,7 +8,7 @@ const SECTIONS = [
     content: (
       <>
         <P>
-          Le site <Strong>skignas.ahobaut.fr</Strong> est édité par la société :
+          Le site <Strong>skignas.com</Strong> est édité par la société :
         </P>
         <div className="mb-4 overflow-hidden rounded-xl border border-gray-100 bg-gray-50">
           <table className="w-full text-sm">
@@ -20,7 +20,7 @@ const SECTIONS = [
                 ["RCS",              "Paris B 123 456 789"],
                 ["Siège social",      "42 rue du Commerce, 75015 Paris, France"],
                 ["Téléphone",         "+33 1 23 45 67 89"],
-                ["E-mail",            "legal@skignas.ahobaut.fr"],
+                ["E-mail",            "legal@skignas.com"],
                 ["N° TVA intracommunautaire", "FR 12 345 678 901"],
               ].map(([k, v]) => (
                 <tr key={k} className="border-b border-gray-100 last:border-none">
@@ -45,8 +45,8 @@ const SECTIONS = [
         </P>
         <P>
           Toute demande relative au contenu éditorial du site peut être adressée à :
-          {" "}<a href="mailto:direction@skignas.ahobaut.fr" className="text-blue-600 underline underline-offset-2">
-            direction@skignas.ahobaut.fr
+          {" "}<a href="mailto:direction@skignas.com" className="text-blue-600 underline underline-offset-2">
+            direction@skignas.com
           </a>
         </P>
       </>
@@ -58,7 +58,7 @@ const SECTIONS = [
     content: (
       <>
         <P>
-          Le site skignas.ahobaut.fr est hébergé par :
+          Le site skignas.com est hébergé par :
         </P>
         <div className="mb-4 overflow-hidden rounded-xl border border-gray-100 bg-gray-50">
           <table className="w-full text-sm">
@@ -121,8 +121,8 @@ const SECTIONS = [
         <P>
           Le responsable du traitement est Skignas SAS, représenté par son Président.
           Un délégué à la protection des données (DPO) est joignable à :
-          {" "}<a href="mailto:dpo@skignas.ahobaut.fr" className="text-blue-600 underline underline-offset-2">
-            dpo@skignas.ahobaut.fr
+          {" "}<a href="mailto:dpo@skignas.com" className="text-blue-600 underline underline-offset-2">
+            dpo@skignas.com
           </a>
         </P>
         <InfoBox variant="blue">
@@ -140,7 +140,7 @@ const SECTIONS = [
     content: (
       <>
         <P>
-          Le site skignas.ahobaut.fr utilise des cookies et traceurs afin d'améliorer votre expérience
+          Le site skignas.com utilise des cookies et traceurs afin d'améliorer votre expérience
           de navigation, mesurer l'audience et personnaliser les contenus et publicités affichés.
         </P>
         <SubTitle>Types de cookies utilisés</SubTitle>
@@ -218,7 +218,7 @@ export default function LegalPage() {
         badge="Mentions légales"
         accentColor="#2563eb"
         title="Mentions légales"
-        subtitle="Informations légales relatives à l'éditeur du site, à l'hébergement, à la propriété intellectuelle et aux conditions d'utilisation de skignas.ahobaut.fr."
+        subtitle="Informations légales relatives à l'éditeur du site, à l'hébergement, à la propriété intellectuelle et aux conditions d'utilisation de skignas.com."
         lastUpdated="1er janvier 2025"
         readTime="5 min"
         sections={SECTIONS}

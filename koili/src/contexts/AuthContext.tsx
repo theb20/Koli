@@ -13,6 +13,7 @@ export type AuthUser = {
   email: string
   avatar?: string
   role: 'customer' | 'admin'
+  naissance?: string
 }
 
 type AuthContextValue = {
@@ -23,8 +24,9 @@ type AuthContextValue = {
   authError: string | null
   login: (email: string, password: string) => Promise<void>
   register: (data: RegisterData) => Promise<void>
-  loginWithGoogle: () => Promise<void>
-  loginWithMagicToken: (token: string) => Promise<void>
+  loginWithGoogle: () => Promise<{ needsBirthdate: boolean }>
+  loginWithMagicToken: (token: string) => Promise<{ needsBirthdate: boolean }>
+  completeBirthdate: (naissance: string) => Promise<void>
   logout: () => void
   updateUser: (data: Partial<AuthUser>) => void
 }
@@ -35,6 +37,7 @@ type RegisterData = {
   email: string
   password: string
   telephone?: string
+  naissance: string
 }
 
 /* ─── API helper ─────────────────────────────────────────────── */
@@ -132,6 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(data.user)
       setToken(data.accessToken)
       // navigation gérée par la page appelante (navigate('/profil'))
+      return { needsBirthdate: !!data.needsBirthdate }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
       // popup fermée volontairement → pas d'erreur à afficher
@@ -154,6 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       setUser(data.user)
       setToken(data.accessToken)
+      return { needsBirthdate: !!data.needsBirthdate }
     } finally {
       setIsLoading(false)
     }
@@ -177,11 +182,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(prev => prev ? { ...prev, ...data } : null)
   }, [])
 
+  /* ── Compléter la date de naissance (comptes Google, requis 18+) ── */
+  const completeBirthdate = useCallback(async (naissance: string) => {
+    if (!token) throw new Error('Non connecté')
+    const { data } = await apiFetch('/api/auth/profile', {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ naissance }),
+    })
+    setUser(prev => prev ? { ...prev, naissance: data.naissance } : null)
+  }, [token])
+
   return (
     <AuthContext.Provider value={{
       user, token, isLoading, authError,
       isAuthenticated: !!user,
-      login, register, loginWithGoogle, loginWithMagicToken, logout, updateUser,
+      login, register, loginWithGoogle, loginWithMagicToken, completeBirthdate, logout, updateUser,
     }}>
       {children}
     </AuthContext.Provider>

@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   CheckCircle2, ChevronRight, ShieldCheck, FileText,
-  Lock, Star, Truck, RotateCcw, Package, Zap,
-  Check, ArrowRight, Sparkles,
+  Lock, Star, Truck, RotateCcw, Package, Zap, Gift,
+  Check, ArrowRight,
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { useSiteSettings } from '../hooks/useSiteSettings'
 
 /* ═══════════════════════════════════════════════════════════════
    HELPERS
@@ -69,9 +70,9 @@ function StepBienvenue({ prenom, onNext }: { prenom: string; onNext: () => void 
         initial={{ scale: 0, rotate: -20 }}
         animate={{ scale: 1, rotate: 0 }}
         transition={{ type: 'spring', stiffness: 260, damping: 18, delay: 0.1 }}
-        className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-2xl shadow-blue-500/30"
+        className="w-24 h-24 rounded-full flex items-center justify-center "
       >
-        <Sparkles size={44} className="text-white" />
+        <img src="/imgs_dropship/sk_black.png" alt="logo Skignas" />
       </motion.div>
 
       <div>
@@ -79,17 +80,17 @@ function StepBienvenue({ prenom, onNext }: { prenom: string; onNext: () => void 
           Bienvenue, {prenom} ! 🎉
         </h1>
         <p className="text-gray-500 mt-2 leading-relaxed max-w-sm">
-          Votre compte Koli est prêt. Avant de commencer vos achats, prenez 2 minutes pour lire nos engagements.
+          Votre compte Skignas est prêt. Avant de commencer vos achats, prenez 2 minutes pour lire nos engagements.
         </p>
       </div>
 
       {/* Avantages */}
       <div className="w-full grid grid-cols-2 gap-3 mt-2">
         {[
-          { icon: <Truck size={18} />,     color: 'text-blue-600 bg-blue-50',    label: 'Livraison rapide',    desc: '48h–72h' },
-          { icon: <ShieldCheck size={18}/>, color: 'text-emerald-600 bg-emerald-50', label: 'Paiement sécurisé', desc: 'Mobile Money & Cash' },
-          { icon: <RotateCcw size={18} />, color: 'text-orange-600 bg-orange-50', label: 'Retours faciles',    desc: '30 jours' },
-          { icon: <Star size={18} />,      color: 'text-yellow-600 bg-yellow-50', label: 'Qualité garantie',   desc: 'Produits vérifiés' },
+          { icon: <Truck size={18} />,     color: 'text-blue-600 bg-blue-50',    label: 'Livraison rapide',    desc: 'Standard 3–5j ou Express 24–72h' },
+          { icon: <ShieldCheck size={18}/>, color: 'text-emerald-600 bg-emerald-50', label: 'Paiement sécurisé', desc: 'Orange Money, MTN, Wave, cash' },
+          { icon: <RotateCcw size={18} />, color: 'text-orange-600 bg-orange-50', label: 'Suivi en temps réel', desc: 'Email à chaque étape' },
+          { icon: <Gift size={18} />,      color: 'text-yellow-600 bg-yellow-50', label: 'Programme fidélité',  desc: 'Points sur chaque achat' },
         ].map(item => (
           <div key={item.label} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100">
             <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${item.color}`}>
@@ -135,22 +136,22 @@ function StepCGU({ onNext }: { onNext: () => void }) {
           {
             icon: <Package size={15} />, color: 'bg-blue-50 text-blue-600',
             title: 'Commandes et livraison',
-            body: 'Toute commande passée sur Koli est ferme et définitive après confirmation du paiement. Koli s\'engage à livrer votre commande dans les délais indiqués (48h express, 3–5j standard). En cas d\'indisponibilité, vous serez remboursé intégralement.',
+            body: 'Toute commande est ferme et définitive après confirmation du paiement. Deux modes de livraison : Standard (3 à 5 jours, 1 500 FCFA, gratuite dès 25 000 FCFA d\'achat) ou Express (24 à 72h garanties, 3 500 FCFA). Un email vous est envoyé à chaque changement de statut de votre commande.',
           },
           {
             icon: <RotateCcw size={15} />, color: 'bg-orange-50 text-orange-600',
-            title: 'Retours et remboursements',
-            body: 'Vous disposez de 30 jours après réception pour retourner un article non conforme ou défectueux. Le remboursement sera effectué sous 5 jours ouvrés via le même moyen de paiement. Les articles utilisés ou endommagés par le client ne peuvent être retournés.',
-          },
-          {
-            icon: <ShieldCheck size={15} />, color: 'bg-emerald-50 text-emerald-600',
-            title: 'Garanties',
-            body: 'Tous les produits vendus sur Koli bénéficient de la garantie légale de conformité de 2 ans. En cas de défaut, contactez notre SAV via WhatsApp ou email. Nous nous engageons à résoudre tout problème sous 48h ouvrées.',
+            title: 'Annulation et remboursement',
+            body: 'Vous pouvez annuler gratuitement une commande tant qu\'elle est au statut « en attente » ou « confirmée », directement depuis « Mes commandes ». Au-delà, l\'annulation doit être demandée auprès du service client. Toute commande annulée ou remboursée fait l\'objet d\'un email de confirmation.',
           },
           {
             icon: <Zap size={15} />, color: 'bg-purple-50 text-purple-600',
+            title: 'Produit introuvable ?',
+            body: 'Vous ne trouvez pas ce que vous cherchez ? Soumettez une demande de sourcing (nom, description, photos, budget indicatif) depuis la page « Trouver un produit ». Nous étudions chaque demande et répondons par email, généralement sous 24 à 48 heures.',
+          },
+          {
+            icon: <Lock size={15} />, color: 'bg-emerald-50 text-emerald-600',
             title: 'Utilisation du compte',
-            body: 'Votre compte Koli est personnel et non transférable. Vous êtes responsable de la confidentialité de votre accès. Toute utilisation frauduleuse doit nous être signalée immédiatement. Koli se réserve le droit de suspendre tout compte en cas d\'activité anormale.',
+            body: 'Votre compte Skignas est personnel et non transférable. Vous êtes responsable de la confidentialité de votre accès. Toute utilisation frauduleuse doit nous être signalée immédiatement. L\'accès est réservé aux personnes de 18 ans ou plus.',
           },
         ].map(item => (
           <div key={item.title} className="p-4 rounded-xl border border-gray-100 bg-white">
@@ -166,12 +167,12 @@ function StepCGU({ onNext }: { onNext: () => void }) {
 
         <p className="text-[11px] text-gray-400 text-center pt-2">
           Document complet disponible sur{' '}
-          <a href="/cgu" target="_blank" className="text-blue-600 underline">skignas.ahobaut.fr/cgu</a>
+          <a href="/cgu" target="_blank" rel="noreferrer" className="text-blue-600 underline">skignas.com/cgu</a>
         </p>
       </div>
 
       <AcceptBox checked={accepted} onToggle={() => setAccepted(v => !v)}>
-        J'ai lu et j'accepte les <strong>Conditions Générales d'Utilisation</strong> de Koli. Je comprends mes droits et obligations en tant qu'acheteur.
+        J'ai lu et j'accepte les <strong>Conditions Générales d'Utilisation</strong> de Skignas. Je comprends mes droits et obligations en tant qu'acheteur.
       </AcceptBox>
 
       <button
@@ -186,7 +187,7 @@ function StepCGU({ onNext }: { onNext: () => void }) {
 }
 
 /* ── Étape 2 : Politique de confidentialité ── */
-function StepConfidentialite({ onNext }: { onNext: () => void }) {
+function StepConfidentialite({ onNext, supportEmail }: { onNext: () => void; supportEmail: string }) {
   const [accepted, setAccepted] = useState(false)
 
   return (
@@ -205,19 +206,23 @@ function StepConfidentialite({ onNext }: { onNext: () => void }) {
         {[
           {
             icon: '📋', title: 'Données collectées',
-            body: 'Nous collectons uniquement les informations nécessaires : nom, email, adresse de livraison et historique d\'achats. Aucune donnée bancaire n\'est stockée sur nos serveurs. Les paiements Mobile Money sont traités directement par les opérateurs.',
+            body: 'Nous collectons uniquement les informations nécessaires : nom, email, adresse de livraison et historique d\'achats. Aucune donnée bancaire n\'est stockée sur nos serveurs — les paiements Mobile Money sont traités directement par les opérateurs.',
           },
           {
             icon: '🔒', title: 'Utilisation de vos données',
-            body: 'Vos données sont utilisées exclusivement pour gérer vos commandes, vous envoyer des confirmations et améliorer votre expérience. Nous ne vendons, ne louons ni ne partageons jamais vos informations personnelles avec des tiers sans votre consentement.',
+            body: 'Vos données servent exclusivement à gérer vos commandes, vous envoyer des confirmations et améliorer votre expérience. Nous ne vendons, ne louons ni ne partageons jamais vos informations personnelles avec des tiers sans votre consentement.',
           },
           {
             icon: '⚙️', title: 'Vos droits (RGPD)',
-            body: 'Vous disposez d\'un droit d\'accès, de rectification, d\'effacement et de portabilité de vos données. Pour exercer ces droits, contactez-nous à dpo@skignas.ahobaut.fr. Toute demande sera traitée sous 30 jours conformément au RGPD.',
+            body: `Vous disposez d'un droit d'accès, de rectification, d'effacement et de portabilité de vos données. Pour exercer ces droits, contactez-nous à ${supportEmail}. Toute demande est traitée sous 30 jours conformément au RGPD.`,
           },
           {
             icon: '🍪', title: 'Cookies',
-            body: 'Koli utilise des cookies fonctionnels (nécessaires au fonctionnement) et des cookies analytiques anonymes pour améliorer le service. Vous pouvez désactiver les cookies non essentiels via les paramètres de votre navigateur.',
+            body: 'Skignas utilise uniquement des cookies fonctionnels indispensables à votre connexion (session sécurisée). Nos statistiques de fréquentation sont mesurées via Plausible Analytics, une solution sans cookies et respectueuse de la vie privée.',
+          },
+          {
+            icon: '🔞', title: 'Âge minimum',
+            body: 'Skignas est réservé aux personnes de 18 ans ou plus. Nous ne collectons pas sciemment de données concernant des mineurs.',
           },
           {
             icon: '📧', title: 'Communications',
@@ -232,12 +237,12 @@ function StepConfidentialite({ onNext }: { onNext: () => void }) {
 
         <p className="text-[11px] text-gray-400 text-center pt-2">
           Politique complète sur{' '}
-          <a href="/privacy" target="_blank" className="text-blue-600 underline">skignas.ahobaut.fr/privacy</a>
+          <a href="/privacy" target="_blank" rel="noreferrer" className="text-blue-600 underline">skignas.com/privacy</a>
         </p>
       </div>
 
       <AcceptBox checked={accepted} onToggle={() => setAccepted(v => !v)}>
-        J'accepte la <strong>Politique de confidentialité</strong> de Koli et le traitement de mes données personnelles tel que décrit ci-dessus.
+        J'accepte la <strong>Politique de confidentialité</strong> de Skignas et le traitement de mes données personnelles tel que décrit ci-dessus.
       </AcceptBox>
 
       <button
@@ -327,6 +332,7 @@ function StepConfirmation({ prenom, onFinish }: { prenom: string; onFinish: (des
 export default function OnboardingPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const settings = useSiteSettings()
   const [step, setStep] = useState(0)
 
   const prenom = user?.prenom ?? 'là'
@@ -345,7 +351,7 @@ export default function OnboardingPage() {
         <div className="max-w-lg mx-auto flex items-center justify-between">
           <img src="/imgs_dropship/logohori_dropship_white.png"
             className="h-7 invert opacity-80"
-            alt="Koli"
+            alt="Skignas"
             onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
           />
           <ProgressBar step={step} />
@@ -366,7 +372,7 @@ export default function OnboardingPage() {
             >
               {step === 0 && <StepBienvenue prenom={prenom} onNext={next} />}
               {step === 1 && <StepCGU onNext={next} />}
-              {step === 2 && <StepConfidentialite onNext={next} />}
+              {step === 2 && <StepConfidentialite onNext={next} supportEmail={settings.supportEmail} />}
               {step === 3 && <StepConfirmation prenom={prenom} onFinish={finish} />}
             </motion.div>
           </AnimatePresence>
@@ -376,7 +382,7 @@ export default function OnboardingPage() {
       {/* ── Footer minimal ── */}
       <div className="py-4 text-center">
         <p className="text-[11px] text-gray-300">
-          © {new Date().getFullYear()} Koli · Douala, Cameroun
+          © {new Date().getFullYear()} Skignas · {settings.address}
         </p>
       </div>
     </div>

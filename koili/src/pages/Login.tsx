@@ -49,8 +49,8 @@ export default function LoginPage() {
     setError('')
     setGoogleLoad(true)
     try {
-      await loginWithGoogle()
-      navigate('/')
+      const { needsBirthdate } = await loginWithGoogle()
+      navigate(needsBirthdate ? '/completer-naissance' : '/')
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : ''
       if (!msg.includes('popup-closed') && !msg.includes('cancelled')) {

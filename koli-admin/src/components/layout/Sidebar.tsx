@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   LayoutDashboard, Package, ShoppingCart, Users, BookOpen,
   Tag, Star, MessageSquare, Settings, LogOut,
-  Bell, BarChart2, Store, Layers, Percent, Zap, PackageSearch,
+  Bell, BarChart2, Store, Layers, Percent, Zap, PackageSearch, Send
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { api } from '../../lib/api'
@@ -23,6 +23,7 @@ const nav = [
   { to: '/reviews',  label: 'Avis',           icon: Star },
   { to: '/contact',  label: 'Messages',       icon: MessageSquare },
   { to: '/stats',    label: 'Statistiques',   icon: BarChart2 },
+  { to: '/dev/emails', label: 'Prévisualiser les emails', icon: Send }, // TEMPORAIRE
 ]
 
 export function Sidebar() {

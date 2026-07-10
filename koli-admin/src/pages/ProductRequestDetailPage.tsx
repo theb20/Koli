@@ -58,6 +58,13 @@ export default function ProductRequestDetailPage() {
   const deleteMutation = useMutation({
     mutationFn: () => api.delete(`/api/product-requests/${id}`),
     onSuccess: () => navigate('/product-requests'),
+    onError: (err) => {
+      // 404 = déjà supprimée (double-clic, liste obsolète) — l'état voulu est
+      // déjà atteint, on quitte la page comme si la suppression avait réussi.
+      if ((err as { response?: { status?: number } }).response?.status === 404) {
+        navigate('/product-requests')
+      }
+    },
   })
 
   if (isLoading || !request) {

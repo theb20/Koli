@@ -242,7 +242,16 @@ router.patch('/:id/status', requireAdmin, async (req, res) => {
 
     const request = await prisma.productRequest.update({ where: { id: req.params['id']! }, data: { status } })
     res.json({ success: true, data: { request } })
-  } catch {
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ success: false, message: 'Statut invalide' })
+      return
+    }
+    if (err && typeof err === 'object' && 'code' in err && err.code === 'P2025') {
+      res.status(404).json({ success: false, message: 'Demande introuvable' })
+      return
+    }
+    console.error('[PATCH product-request status]', err)
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
 })
@@ -299,7 +308,13 @@ router.delete('/:id', requireAdmin, async (req, res) => {
   try {
     await prisma.productRequest.delete({ where: { id: req.params['id']! } })
     res.json({ success: true, message: 'Demande supprimée' })
-  } catch {
+  } catch (err) {
+    if (err && typeof err === 'object' && 'code' in err && err.code === 'P2025') {
+      // Déjà supprimée (double-clic, liste obsolète côté client) — pas une vraie erreur serveur.
+      res.status(404).json({ success: false, message: 'Demande déjà supprimée' })
+      return
+    }
+    console.error('[DELETE product-request]', err)
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
 })

@@ -8,7 +8,7 @@ export const SECTIONS = [
       <>
         <P>
           <Strong>Skignas SAS</Strong> (ci-après « Skignas », « nous ») est responsable du
-          traitement des données personnelles collectées via la plateforme skignas.ahobaut.fr et ses
+          traitement des données personnelles collectées via la plateforme skignas.com et ses
           services associés. Nous attachons la plus grande importance à la protection de votre
           vie privée et nous nous engageons à traiter vos données de manière transparente,
           loyale et sécurisée.
@@ -206,8 +206,8 @@ export const SECTIONS = [
         <SubTitle>Comment exercer vos droits</SubTitle>
         <P>
           Adressez votre demande par e-mail à notre DPO :{" "}
-          <a href="mailto:dpo@skignas.ahobaut.fr" className="font-medium text-blue-600 underline underline-offset-2">
-            dpo@skignas.ahobaut.fr
+          <a href="mailto:dpo@skignas.com" className="font-medium text-blue-600 underline underline-offset-2">
+            dpo@skignas.com
           </a>
           {" "}ou par courrier à Skignas SAS – DPO, 42 rue du Commerce, 75015 Paris.
           Nous vous répondrons dans un délai d'un mois (prorogeable de deux mois en cas de
@@ -271,8 +271,8 @@ export const SECTIONS = [
           Si nous apprenons qu'un mineur nous a fourni des données sans le consentement de ses
           parents ou tuteurs légaux, nous procéderons à la suppression de ces données dans les
           meilleurs délais. Veuillez nous contacter à{" "}
-          <a href="mailto:privacy@skignas.ahobaut.fr" className="text-blue-600 underline underline-offset-2">
-            privacy@skignas.ahobaut.fr
+          <a href="mailto:privacy@skignas.com" className="text-blue-600 underline underline-offset-2">
+            privacy@skignas.com
           </a>{" "}
           si vous avez connaissance d'une telle situation.
         </P>
@@ -297,7 +297,7 @@ export const SECTIONS = [
         <InfoBox variant="green">
           La version en vigueur est toujours disponible à l'adresse{" "}
           <a href="/privacy" className="font-semibold underline underline-offset-2">
-            skignas.ahobaut.fr/privacy
+            skignas.com/privacy
           </a>
           .
           La date de dernière mise à jour est indiquée en haut de ce document.

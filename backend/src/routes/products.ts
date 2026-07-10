@@ -52,6 +52,7 @@ const createProductSchema = z.object({
   colors:      z.array(z.string()).optional(),
   images:      z.array(z.string().url()).min(1).max(4),
   specs:       z.array(z.object({ label: z.string(), value: z.string() })).optional(),
+  isActive:    z.boolean().optional(),
   /* Promo programmée (Deals du jour / vente flash) */
   salePrice:    z.number().int().positive().nullable().optional(),
   saleStartsAt: z.coerce.date().nullable().optional(),

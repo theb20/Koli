@@ -8,6 +8,7 @@ import { validate, zPassword } from '../middleware/validate'
 import { requireAuth, requireAdmin } from '../middleware/auth'
 import { sendWelcomeEmail, sendMagicLinkEmail, sendPasswordResetEmail, sendPasswordChangedEmail } from '../lib/mailer'
 import { ALLOWED_ORIGINS } from '../lib/allowedOrigins'
+import { getAge, MIN_AGE } from '../lib/age'
 
 const router = Router()
 
@@ -19,6 +20,10 @@ const registerSchema = z.object({
   email:     z.string().email('Email invalide'),
   password:  zPassword.optional(),   // optionnel — inscription sans mot de passe
   telephone: z.string().optional(),
+  naissance: z.coerce.date({ required_error: 'Date de naissance requise', invalid_type_error: 'Date de naissance invalide' }),
+}).refine(d => getAge(d.naissance) >= MIN_AGE, {
+  message: `Vous devez avoir au moins ${MIN_AGE} ans pour créer un compte`,
+  path: ['naissance'],
 })
 
 const loginSchema = z.object({
@@ -33,6 +38,9 @@ const updateProfileSchema = z.object({
   genre:     z.enum(['Homme', 'Femme', 'Autre']).optional(),
   naissance: z.string().optional(),
   avatar:    z.string().optional(),   // URL ou base64
+}).refine(d => !d.naissance || getAge(new Date(d.naissance)) >= MIN_AGE, {
+  message: `Vous devez avoir au moins ${MIN_AGE} ans`,
+  path: ['naissance'],
 })
 
 const changePasswordSchema = z.object({
@@ -70,7 +78,7 @@ function setAuthCookies(res: import('express').Response, accessToken: string, re
 ───────────────────────────────────────────────────────────── */
 router.post('/register', validate(registerSchema), async (req, res) => {
   try {
-    const { prenom, nom, email, telephone } = req.body as z.infer<typeof registerSchema>
+    const { prenom, nom, email, telephone, naissance } = req.body as z.infer<typeof registerSchema>
     const rawPassword: string | undefined = req.body.password
 
     const exists = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } })
@@ -84,7 +92,7 @@ router.post('/register', validate(registerSchema), async (req, res) => {
     const hashed = await bcrypt.hash(passwordToHash, 12)
 
     const user = await prisma.user.create({
-      data: { prenom, nom, email: email.toLowerCase().trim(), password: hashed, telephone },
+      data: { prenom, nom, email: email.toLowerCase().trim(), password: hashed, telephone, naissance },
     })
 
     /* ── Mode sans mot de passe : envoyer un magic link ── */
@@ -149,6 +157,13 @@ router.post('/login', validate(loginSchema), async (req, res) => {
     const valid = await bcrypt.compare(password, user.password)
     if (!valid) {
       res.status(401).json({ success: false, message: 'Email ou mot de passe incorrect' })
+      return
+    }
+
+    // Ne bloque que si une date de naissance est connue et indique moins de 18 ans —
+    // on ne peut pas vérifier l'âge des comptes créés avant que ce champ n'existe.
+    if (user.naissance && getAge(user.naissance) < MIN_AGE) {
+      res.status(403).json({ success: false, message: `L'accès est réservé aux personnes de ${MIN_AGE} ans et plus` })
       return
     }
 
@@ -475,6 +490,11 @@ router.post('/google', async (req, res) => {
       // Email de bienvenue
       sendWelcomeEmail(user.email, user.prenom).catch(() => {})
     } else {
+      // Ne bloque que si une date de naissance est connue et indique moins de 18 ans.
+      if (user.naissance && getAge(user.naissance) < MIN_AGE) {
+        res.status(403).json({ success: false, message: `L'accès est réservé aux personnes de ${MIN_AGE} ans et plus` })
+        return
+      }
       // Mettre à jour l'avatar si on en a un nouveau
       if (body.avatar && !user.avatar) {
         await prisma.user.update({ where: { id: user.id }, data: { avatar: body.avatar } })
@@ -508,6 +528,9 @@ router.post('/google', async (req, res) => {
           role:   user.role,
         },
         accessToken,
+        // Google ne fournit pas la date de naissance — le front doit la demander
+        // avant de laisser l'utilisateur accéder au reste du site.
+        needsBirthdate: !user.naissance,
       },
     })
   } catch (err) {
@@ -718,6 +741,11 @@ router.post('/magic-link/verify', async (req, res) => {
       return
     }
 
+    if (user.naissance && getAge(user.naissance) < MIN_AGE) {
+      res.status(403).json({ success: false, message: `L'accès est réservé aux personnes de ${MIN_AGE} ans et plus` })
+      return
+    }
+
     const accessToken  = signAccessToken({ userId: user.id, email: user.email, role: user.role })
     const refreshToken = signRefreshToken({ userId: user.id })
 
@@ -737,6 +765,7 @@ router.post('/magic-link/verify', async (req, res) => {
       data: {
         user: { id: user.id, prenom: user.prenom, nom: user.nom, email: user.email, role: user.role, avatar: user.avatar },
         accessToken,
+        needsBirthdate: !user.naissance,
       },
     })
   } catch (err) {

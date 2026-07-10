@@ -107,12 +107,19 @@
     <div id="root">
       <!--
         Contenu de repli visible par les robots qui n'exécutent pas de JavaScript
-        (crawlers IA, certains bots de recherche). React remplace intégralement ce
-        bloc au montage (createRoot, pas hydrateRoot) — aucun risque de désync côté
-        utilisateurs réels, qui ne le voient qu'une fraction de seconde au premier
-        chargement. Le contenu reflète fidèlement le site réel (pas de cloaking).
+        (crawlers IA, certains bots de recherche, aperçus de liens Facebook/WhatsApp/
+        Twitter). React remplace intégralement ce bloc au montage (createRoot, pas
+        hydrateRoot) — aucun risque de désync côté utilisateurs réels.
+
+        style="display:none" — appliqué dès le parsing du HTML, donc aucun flash
+        visible pour un vrai navigateur (avant, ce bloc s'affichait brièvement le
+        temps que le JS charge, puis disparaissait au montage de React). Les
+        crawlers qui n'exécutent pas de JS/CSS (c'est justement leur cas d'usage
+        ici) lisent le texte brut du HTML et ignorent cet attribut — le contenu
+        leur reste pleinement visible. Le contenu reflète fidèlement le site réel
+        (pas de cloaking).
       -->
-      <main>
+      <main style="display:none">
         <h1>Skignas — Marketplace tech n°1 en Côte d'Ivoire</h1>
         <p>
           Skignas est une marketplace en ligne qui rassemble des milliers de produits tech
@@ -130,7 +137,7 @@
           <li>Meilleurs prix négociés directement avec nos fournisseurs</li>
           <li>Nouveautés ajoutées chaque semaine au catalogue</li>
           <li>Support client disponible 7j/7</li>
-          <li>Retours facilités sous 30 jours</li>
+          <li>Annulation gratuite tant que la commande n'est pas expédiée</li>
           <li>Programme de fidélité : points cumulés sur chaque commande</li>
         </ul>
         <h2>Explorer Skignas</h2>

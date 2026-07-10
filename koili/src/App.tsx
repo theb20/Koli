@@ -29,6 +29,7 @@ const OrdersPage           = lazy(() => import('./pages/OrdersPage'))
 const PanierPage           = lazy(() => import('./pages/PanierPage'))
 const ProfilPage           = lazy(() => import('./pages/ProfilPage'))
 const MagicLoginPage       = lazy(() => import('./pages/MagicLoginPage'))
+const CompleteBirthdatePage = lazy(() => import('./pages/CompleteBirthdatePage'))
 const OnboardingPage       = lazy(() => import('./pages/OnboardingPage'))
 const ComparePage          = lazy(() => import('./pages/ComparePage'))
 const GiftListPublicPage   = lazy(() => import('./pages/GiftListPublicPage'))
@@ -99,6 +100,7 @@ function App() {
             <Route path="/login"       element={<Login />} />
             <Route path="/register"    element={<Register />} />
             <Route path="/auth/magic"  element={<MagicLoginPage />} />
+            <Route path="/completer-naissance" element={<CompleteBirthdatePage />} />
             <Route path="/onboarding" element={<OnboardingPage />} />
 
             {/* Profil — protégé, sans layout standard */}

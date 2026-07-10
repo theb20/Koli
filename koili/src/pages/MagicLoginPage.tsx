@@ -21,9 +21,10 @@ export default function MagicLoginPage() {
     const isNew = params.get('new') === '1'
 
     loginWithMagicToken(token)
-      .then(() => {
+      .then(({ needsBirthdate }) => {
         setStatus('success')
-        setTimeout(() => navigate(isNew ? '/onboarding' : '/profil', { replace: true }), 1500)
+        const dest = needsBirthdate ? '/completer-naissance' : (isNew ? '/onboarding' : '/profil')
+        setTimeout(() => navigate(dest, { replace: true }), 1500)
       })
       .catch(() => setStatus('error'))
   // eslint-disable-next-line react-hooks/exhaustive-deps

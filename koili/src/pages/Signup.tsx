@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Mail, User, ArrowRight, Check, Loader2, AlertCircle, CheckCircle } from 'lucide-react'
+import { Mail, User, Calendar, ArrowRight, Check, Loader2, AlertCircle, CheckCircle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import Button from '../components/ui/btnStyle'
 import CardUniverse from '../components/ui/Card-universe'
 import { PageMeta } from '../components/seo/PageMeta'
 import { API_BASE } from '../lib/api'
+
+const MIN_AGE = 18
 
 const fadeUp = (delay = 0) => ({
   initial:    { opacity: 0, y: 16 },
@@ -20,11 +22,22 @@ function splitName(fullName: string): { prenom: string; nom: string } {
   return { prenom: parts[0], nom: parts.slice(1).join(' ') }
 }
 
+function computeAge(dateStr: string): number {
+  const birth = new Date(dateStr)
+  const now = new Date()
+  let age = now.getFullYear() - birth.getFullYear()
+  const hadBirthday = now.getMonth() > birth.getMonth() ||
+    (now.getMonth() === birth.getMonth() && now.getDate() >= birth.getDate())
+  if (!hadBirthday) age--
+  return age
+}
+
 export default function SignupPage() {
   const navigate = useNavigate()
 
   const [nomComplet, setNomComplet] = useState('')
   const [email,      setEmail]      = useState('')
+  const [naissance,  setNaissance]  = useState('')
   const [agreed,     setAgreed]     = useState(false)
   const [error,      setError]      = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -37,6 +50,8 @@ export default function SignupPage() {
   const validate = (): string => {
     if (!nomComplet.trim() || nomComplet.trim().length < 2) return 'Veuillez saisir votre nom complet.'
     if (!email.trim() || !email.includes('@'))              return 'Adresse e-mail invalide.'
+    if (!naissance)                                          return 'Veuillez indiquer votre date de naissance.'
+    if (computeAge(naissance) < MIN_AGE)                     return `Vous devez avoir au moins ${MIN_AGE} ans pour créer un compte.`
     if (!agreed)                                            return 'Vous devez accepter les conditions d\'utilisation.'
     return ''
   }
@@ -56,7 +71,7 @@ export default function SignupPage() {
         method:      'POST',
         credentials: 'include',
         headers:     { 'Content-Type': 'application/json' },
-        body:        JSON.stringify({ prenom, nom, email: email.trim().toLowerCase() }),
+        body:        JSON.stringify({ prenom, nom, email: email.trim().toLowerCase(), naissance }),
       })
       const data = await res.json()
 
@@ -101,7 +116,7 @@ export default function SignupPage() {
       // Stocker dans AuthContext via localStorage (pattern existant)
       localStorage.setItem('koli_token', data.data.accessToken)
       localStorage.setItem('koli_user',  JSON.stringify(data.data.user))
-      navigate('/profil')
+      navigate(data.data.needsBirthdate ? '/completer-naissance' : '/profil')
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : ''
       if (!msg.includes('popup-closed') && !msg.includes('cancelled')) {
@@ -123,7 +138,7 @@ export default function SignupPage() {
           transition={{ duration: 0.5 }}
           className="relative z-10 w-full max-w-sm text-center space-y-6"
         >
-          <img src="/public/imgs_dropship/skignas_white.png" className="h-10 mx-auto mb-2" alt="Koli" />
+          <img src="/imgs_dropship/skignas_white.png" className="h-10 mx-auto mb-2" alt="Koli" />
 
           <motion.div
             initial={{ scale: 0 }} animate={{ scale: 1 }}
@@ -303,6 +318,25 @@ export default function SignupPage() {
                       className="w-full bg-transparent px-3 py-[14px] text-sm outline-none placeholder:text-white/30 disabled:opacity-50"
                     />
                   </div>
+                </motion.div>
+
+                {/* Date de naissance */}
+                <motion.div {...fadeUp(0.41)}>
+                  <label className="mb-2 block text-[11px] font-medium uppercase tracking-widest text-white/40">
+                    Date de naissance
+                  </label>
+                  <div className="group flex items-center rounded-2xl border border-white/[0.08] bg-white/[0.04] px-4 transition-all focus-within:border-violet-500/50 focus-within:bg-white/[0.07] hover:border-white/[0.14]">
+                    <Calendar className="h-4 w-4 shrink-0 text-white/30 transition-colors group-focus-within:text-violet-400" />
+                    <input
+                      type="date"
+                      value={naissance}
+                      onChange={e => { setNaissance(e.target.value); setError('') }}
+                      disabled={busy}
+                      max={new Date().toISOString().slice(0, 10)}
+                      className="w-full bg-transparent px-3 py-[14px] text-sm outline-none placeholder:text-white/30 disabled:opacity-50 [color-scheme:dark]"
+                    />
+                  </div>
+                  <p className="mt-1.5 text-[11px] text-white/30">Vous devez avoir 18 ans ou plus pour créer un compte.</p>
                 </motion.div>
 
                 {/* CGU */}

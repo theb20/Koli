@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Search, Edit, Trash2, Eye, EyeOff, Package, Store, Upload } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, Eye, EyeOff, Package, Store, Upload, X } from 'lucide-react'
 import { api, fmt, fmtDate } from '../../lib/api'
 import { Button } from '../../components/ui/Button'
 import { Badge } from '../../components/ui/Badge'
@@ -29,6 +29,8 @@ export default function ProductsPage() {
   const [storeId, setStoreId]   = useState('')
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [bulkOpen, setBulkOpen] = useState(false)
+  const [selected, setSelected] = useState<Set<number>>(new Set())
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
   const debouncedSearch = useDebouncedValue(search, 300)
 
   const { data: storesData } = useQuery({
@@ -62,8 +64,40 @@ export default function ProductsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
   })
 
+  const bulkSetActive = useMutation({
+    mutationFn: (isActive: boolean) =>
+      Promise.all([...selected].map(id => api.put(`/api/products/${id}`, { isActive }))),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['products'] }); setSelected(new Set()) },
+  })
+
+  const bulkDelete = useMutation({
+    mutationFn: () => Promise.all([...selected].map(id => api.delete(`/api/products/${id}`))),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['products'] })
+      setSelected(new Set())
+      setBulkDeleteConfirm(false)
+    },
+  })
+
   const products: Product[] = data?.products ?? []
   const pagination          = data?.pagination
+
+  const allOnPageSelected = products.length > 0 && products.every(p => selected.has(p.id))
+  const toggleSelectAll = () => {
+    setSelected(prev => {
+      if (allOnPageSelected) return new Set([...prev].filter(id => !products.some(p => p.id === id)))
+      const next = new Set(prev)
+      products.forEach(p => next.add(p.id))
+      return next
+    })
+  }
+  const toggleSelectOne = (id: number) => {
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
 
   const inputCls = "w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 focus:outline-none transition-all"
 
@@ -87,12 +121,12 @@ export default function ProductsPage() {
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             value={search}
-            onChange={e => { setSearch(e.target.value); setPage(1) }}
+            onChange={e => { setSearch(e.target.value); setPage(1); setSelected(new Set()) }}
             placeholder="Rechercher un produit..."
             className={`${inputCls} pl-9`}
           />
         </div>
-        <select value={category} onChange={e => { setCategory(e.target.value); setPage(1) }} className={inputCls} style={{ width: 'auto' }}>
+        <select value={category} onChange={e => { setCategory(e.target.value); setPage(1); setSelected(new Set()) }} className={inputCls} style={{ width: 'auto' }}>
           {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
         </select>
         <select value={sort} onChange={e => setSort(e.target.value)} className={inputCls} style={{ width: 'auto' }}>
@@ -103,18 +137,47 @@ export default function ProductsPage() {
           <option value="rating">Mieux notés</option>
         </select>
         {(storesData?.length ?? 0) > 0 && (
-          <select value={storeId} onChange={e => { setStoreId(e.target.value); setPage(1) }} className={inputCls} style={{ width: 'auto' }}>
+          <select value={storeId} onChange={e => { setStoreId(e.target.value); setPage(1); setSelected(new Set()) }} className={inputCls} style={{ width: 'auto' }}>
             <option value="">Tous les magasins</option>
             {storesData?.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
         )}
       </div>
 
+      {/* Barre d'actions groupées */}
+      {selected.size > 0 && (
+        <div className="flex items-center gap-3 bg-indigo-50 border border-indigo-200 rounded-2xl px-4 py-3">
+          <span className="text-sm font-medium text-indigo-700">{selected.size} produit{selected.size > 1 ? 's' : ''} sélectionné{selected.size > 1 ? 's' : ''}</span>
+          <div className="flex items-center gap-2 ml-auto">
+            <Button variant="secondary" size="sm" icon={<Eye size={13} />} loading={bulkSetActive.isPending} onClick={() => bulkSetActive.mutate(true)}>
+              Activer
+            </Button>
+            <Button variant="secondary" size="sm" icon={<EyeOff size={13} />} loading={bulkSetActive.isPending} onClick={() => bulkSetActive.mutate(false)}>
+              Désactiver
+            </Button>
+            <Button variant="danger" size="sm" icon={<Trash2 size={13} />} onClick={() => setBulkDeleteConfirm(true)}>
+              Supprimer
+            </Button>
+            <button onClick={() => setSelected(new Set())} className="p-1.5 rounded-lg hover:bg-indigo-100 text-indigo-400 hover:text-indigo-700 transition-colors" title="Annuler la sélection">
+              <X size={15} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Table */}
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
         <table className="w-full">
           <thead className="bg-slate-50">
             <tr className="border-b border-slate-200">
+              <th className="px-4 py-3 w-10">
+                <input
+                  type="checkbox"
+                  checked={allOnPageSelected}
+                  onChange={toggleSelectAll}
+                  className="w-4 h-4 rounded accent-indigo-600"
+                />
+              </th>
               {['Produit', 'Catégorie', 'Prix', 'Stock', 'Vendu', 'Note', 'Badge', 'Statut', 'Créé le', ''].map(h => (
                 <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
               ))}
@@ -123,16 +186,24 @@ export default function ProductsPage() {
           <tbody className="divide-y divide-slate-100">
             {isLoading ? (
               Array.from({ length: 8 }).map((_, i) => (
-                <tr key={i}><td colSpan={10} className="px-4 py-3"><div className="h-8 bg-slate-100 rounded-lg animate-pulse" /></td></tr>
+                <tr key={i}><td colSpan={11} className="px-4 py-3"><div className="h-8 bg-slate-100 rounded-lg animate-pulse" /></td></tr>
               ))
             ) : products.length === 0 ? (
-              <tr><td colSpan={10} className="py-16 text-center">
+              <tr><td colSpan={11} className="py-16 text-center">
                 <Package size={32} className="mx-auto text-slate-300 mb-2" />
                 <p className="text-slate-400 text-sm">Aucun produit trouvé</p>
               </td></tr>
             ) : (
               products.map(p => (
-                <tr key={p.id} className="hover:bg-slate-50 transition-colors group">
+                <tr key={p.id} className={`hover:bg-slate-50 transition-colors group ${selected.has(p.id) ? 'bg-indigo-50/50' : ''}`}>
+                  <td className="px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(p.id)}
+                      onChange={() => toggleSelectOne(p.id)}
+                      className="w-4 h-4 rounded accent-indigo-600"
+                    />
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-slate-100 overflow-hidden shrink-0">
@@ -189,7 +260,7 @@ export default function ProductsPage() {
           </tbody>
         </table>
         {pagination && (
-          <Pagination page={page} totalPages={pagination.totalPages} total={pagination.total} limit={15} onChange={setPage} />
+          <Pagination page={page} totalPages={pagination.totalPages} total={pagination.total} limit={15} onChange={p => { setPage(p); setSelected(new Set()) }} />
         )}
       </div>
 
@@ -200,6 +271,15 @@ export default function ProductsPage() {
         loading={deleteMutation.isPending}
         title="Supprimer le produit ?"
         message="Cette action désactivera le produit (il ne sera plus visible sur le site)."
+      />
+
+      <Confirm
+        open={bulkDeleteConfirm}
+        onClose={() => setBulkDeleteConfirm(false)}
+        onConfirm={() => bulkDelete.mutate()}
+        loading={bulkDelete.isPending}
+        title={`Supprimer ${selected.size} produit${selected.size > 1 ? 's' : ''} ?`}
+        message="Cette action désactivera les produits sélectionnés (ils ne seront plus visibles sur le site)."
       />
     </div>
   )

@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import { PageMeta } from '../components/seo/PageMeta'
 import { useAuth } from '../contexts/AuthContext'
-import { fetchOrder, apiFetch, type ApiOrder, type ApiResponse } from '../lib/api'
+import { fetchOrder, apiFetch, API_BASE, type ApiOrder, type ApiResponse } from '../lib/api'
 import { useSiteSettings, waLink, telLink } from '../hooks/useSiteSettings'
 
 /* ═══════════════════════════════════════════════════════════════
@@ -271,6 +271,31 @@ export default function OrderDetailPage() {
   const queryClient = useQueryClient()
   const [cancelling, setCancelling] = useState(false)
   const [cancelError, setCancelError] = useState('')
+  const [downloadingInvoice, setDownloadingInvoice] = useState(false)
+  const [invoiceError, setInvoiceError] = useState('')
+
+  const handleDownloadInvoice = async () => {
+    if (!id) return
+    setDownloadingInvoice(true)
+    setInvoiceError('')
+    try {
+      const res = await fetch(`${API_BASE}/api/orders/${encodeURIComponent(id)}/invoice`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      })
+      if (!res.ok) throw new Error()
+      const blob = await res.blob()
+      const url  = URL.createObjectURL(blob)
+      const a    = document.createElement('a')
+      a.href = url
+      a.download = `facture-${id}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      setInvoiceError('Impossible de télécharger la facture pour le moment.')
+    } finally {
+      setDownloadingInvoice(false)
+    }
+  }
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['order', id],
@@ -381,8 +406,12 @@ export default function OrderDetailPage() {
 
             {/* Actions rapides */}
             <div className="flex items-center gap-2 flex-wrap">
-              <button className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:border-gray-300 hover:text-gray-800 transition-colors">
-                <Download size={14} />
+              <button
+                onClick={handleDownloadInvoice}
+                disabled={downloadingInvoice}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:border-gray-300 hover:text-gray-800 transition-colors disabled:opacity-50"
+              >
+                {downloadingInvoice ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
                 Facture PDF
               </button>
               {canCancel && (
@@ -400,6 +429,9 @@ export default function OrderDetailPage() {
                 </button>
               )}
             </div>
+            {invoiceError && (
+              <p className="w-full text-xs text-red-500 mt-1">{invoiceError}</p>
+            )}
           </motion.div>
 
           {/* ── Main grid ── */}

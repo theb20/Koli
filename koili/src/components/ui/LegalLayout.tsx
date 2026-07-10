@@ -95,7 +95,7 @@ export function LegalLayout({
   lastUpdated,
   readTime = "5 min",
   sections,
-  contactEmail = "legal@skignas.ahobaut.fr",
+  contactEmail = "legal@skignas.com",
 }: LegalLayoutProps) {
   const [activeId, setActiveId] = useState(sections[0]?.id ?? "");
   const [showTop, setShowTop]   = useState(false);

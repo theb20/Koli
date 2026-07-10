@@ -25,6 +25,7 @@ import StoresPage         from './pages/stores/StoresPage'
 import StoreDetailPage    from './pages/stores/StoreDetailPage'
 import CategoriesPage     from './pages/categories/CategoriesPage'
 import TaxPage            from './pages/TaxPage'
+import DevEmailPreview    from './pages/DevEmailPreview' // TEMPORAIRE — à retirer avec la route ci-dessous
 
 const qc = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
@@ -62,6 +63,7 @@ export default function App() {
             <Route path="/settings"      element={<SettingsPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/tax"           element={<TaxPage />} />
+            <Route path="/dev/emails"    element={<DevEmailPreview />} /> {/* TEMPORAIRE */}
           </Route>
         </Routes>
       </BrowserRouter>

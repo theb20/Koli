@@ -21,33 +21,32 @@ export async function baseLayout(content: string, preheader = ''): Promise<strin
   <![endif]-->
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    body{margin:0;padding:0;background:#eef1f8;-webkit-font-smoothing:antialiased}
+    body{margin:0;padding:0;background:#f1f3f4;-webkit-font-smoothing:antialiased}
     a{text-decoration:none;color:inherit}
     img{display:block;border:0;outline:0}
     .preheader{display:none;max-height:0;overflow:hidden;font-size:1px;line-height:1px;color:transparent;mso-hide:all}
-    .footer-link:hover{color:#0421ff !important}
+    .footer-link:hover{color:#1a73e8 !important}
+    .cta:hover{background:#1765cc !important;box-shadow:0 1px 3px 1px rgba(26,115,232,.35) !important}
 
-    /* ── Responsive ── */
     @media only screen and (max-width:600px){
-      .wrapper{padding:20px 12px !important}
-      .card{border-radius:20px !important}
-      .card-header{padding:22px 24px !important}
-      .card-body{padding:32px 24px !important}
-      .footer-bg{padding:20px 24px !important}
+      .wrapper{padding:16px 8px !important}
+      .card{border-radius:12px !important}
+      .card-header{padding:20px 24px !important}
+      .card-body{padding:28px 24px !important}
+      .footer-bg{padding:18px 24px !important}
       .footer-row{display:block !important}
       .footer-item{display:block !important;margin:0 0 8px !important}
     }
 
-    /* ── Dark mode ── */
     @media (prefers-color-scheme:dark){
-      body,.bg-outer{background:#0b0f19 !important}
-      .card{background:#161b22 !important;border-color:#262c38 !important}
-      .card-header{background:linear-gradient(135deg,#0318cc 0%,#020a80 100%) !important}
-      .card-body{background:#161b22 !important}
-      .card-body *{color:#c9d1d9}
-      .support-block{background:#1c2333 !important;border-color:#2a3244 !important}
-      .footer-bg{background:#0f1420 !important;border-color:#232a38 !important}
-      .footer-text,.footer-item{color:#6b7280 !important}
+      body,.bg-outer{background:#202124 !important}
+      .card{background:#292a2d !important;border-color:#3c4043 !important}
+      .card-header{background:#292a2d !important;border-bottom-color:#3c4043 !important}
+      .card-body{background:#292a2d !important}
+      .card-body *{color:#e8eaed}
+      .support-block{background:#303134 !important;border-color:#3c4043 !important}
+      .footer-bg{background:#202124 !important;border-color:#3c4043 !important}
+      .footer-text,.footer-item{color:#9aa0a6 !important}
     }
   </style>
 </head>

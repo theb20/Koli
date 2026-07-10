@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma'
 import { requireAuth, requireAdmin, optionalAuth } from '../middleware/auth'
 import { validate } from '../middleware/validate'
 import { sendOrderConfirmationEmail, sendOrderStatusEmail, sendNewOrderAdminEmail } from '../lib/mailer'
+import { buildInvoicePdf } from '../lib/invoicePdf'
 
 const router = Router()
 
@@ -568,6 +569,48 @@ router.get('/:id', optionalAuth, async (req, res) => {
     res.json({ success: true, data: order })
   } catch {
     res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/* ─────────────────────────────────────────────────────────────
+   GET /api/orders/:id/invoice  — Facture PDF
+   Même règle d'accès que GET /:id (propriétaire, commande invité, ou admin).
+───────────────────────────────────────────────────────────── */
+router.get('/:id/invoice', optionalAuth, async (req, res) => {
+  try {
+    const paramId = req.params['id'] ?? ''
+    const isAdmin = req.user?.role === 'admin'
+
+    const order = await prisma.order.findFirst({
+      where: {
+        AND: [
+          { OR: [{ id: paramId }, { orderNumber: paramId }] },
+          ...(isAdmin
+            ? []
+            : req.user
+              ? [{ OR: [{ userId: req.user.userId }, { userId: null }] }]
+              : [{ userId: null }]),
+        ],
+      },
+      include: { items: true },
+    })
+
+    if (!order) {
+      res.status(404).json({ success: false, message: 'Commande introuvable' })
+      return
+    }
+
+    const settings = await prisma.siteSettings.upsert({ where: { id: 1 }, create: {}, update: {} })
+
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="facture-${order.orderNumber}.pdf"`)
+
+    const doc = buildInvoicePdf(order, settings)
+    doc.pipe(res)
+    doc.end()
+  } catch (err) {
+    console.error('[INVOICE]', err)
+    res.status(500).json({ success: false, message: 'Erreur lors de la génération de la facture' })
   }
 })
 
