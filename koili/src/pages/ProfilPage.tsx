@@ -40,9 +40,7 @@ async function apiFetch<T = unknown>(
   return json.data as T
 }
 
-/* ─────────────────────────────────────────────────────────────
-   Types
-───────────────────────────────────────────────────────────── */
+/* Types*/
 type Tab = 'profil' | 'commandes' | 'adresses' | 'favoris' | 'notifications' | 'securite' | 'fidelite'
 
 type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded'

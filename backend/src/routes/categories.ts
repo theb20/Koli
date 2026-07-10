@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import type { Request, Response, NextFunction } from 'express'
 import { z } from 'zod'
 import path from 'path'
 import fs from 'fs'
@@ -26,10 +27,23 @@ const catUpload = multer({
   storage: catStorage,
   limits: { fileSize: 5 * 1024 * 1024 },   // 5 MB max
   fileFilter: (_req, file, cb) => {
-    if (/^image\/(jpeg|png|webp|gif)$/.test(file.mimetype)) cb(null, true)
-    else cb(new Error('Seuls les fichiers image sont acceptés (jpg, png, webp)'))
+    if (/^image\/(jpeg|png|webp|gif|heic|heif|avif)$/.test(file.mimetype)) cb(null, true)
+    else cb(new Error('Seuls les fichiers image sont acceptés (jpg, png, webp, heic, avif)'))
   },
 })
+
+/** Cf. product-requests.ts — évite qu'une erreur multer ressorte en 500 générique */
+function handleCatImageUpload(req: Request, res: Response, next: NextFunction) {
+  catUpload.single('image')(req, res, (err: unknown) => {
+    if (!err) { next(); return }
+    if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+      res.status(400).json({ success: false, message: 'Image trop volumineuse (5 Mo maximum)' })
+      return
+    }
+    const message = err instanceof Error ? err.message : 'Fichier invalide'
+    res.status(400).json({ success: false, message })
+  })
+}
 
 const router = Router()
 
@@ -189,7 +203,7 @@ router.delete('/:id', requireAdmin, async (req, res) => {
    POST /api/categories/:id/image [ADMIN] — uploader une image
    Stocke dans uploads/cat/ et met à jour le champ image
 ───────────────────────────────────────────────────────────── */
-router.post('/:id/image', requireAdmin, catUpload.single('image'), async (req, res) => {
+router.post('/:id/image', requireAdmin, handleCatImageUpload, async (req, res) => {
   try {
     const id = parseInt(req.params['id'] ?? '0')
     if (!id) { res.status(400).json({ success: false, message: 'ID invalide' }); return }

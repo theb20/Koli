@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import type { Request, Response, NextFunction } from 'express'
 import { z } from 'zod'
 import path from 'path'
 import fs from 'fs'
@@ -27,10 +28,37 @@ const reqUpload = multer({
   storage: reqStorage,
   limits: { fileSize: 5 * 1024 * 1024, files: 4 },
   fileFilter: (_req, file, cb) => {
-    if (/^image\/(jpeg|png|webp|gif)$/.test(file.mimetype)) cb(null, true)
-    else cb(new Error('Seuls les fichiers image sont acceptés (jpg, png, webp)'))
+    // heic/heif = format par défaut des photos iPhone — sans ça, l'upload
+    // échoue silencieusement (500 générique) pour une bonne partie des mobiles.
+    if (/^image\/(jpeg|png|webp|gif|heic|heif|avif)$/.test(file.mimetype)) cb(null, true)
+    else cb(new Error('Seuls les fichiers image sont acceptés (jpg, png, webp, heic, avif)'))
   },
 })
+
+/**
+ * Enveloppe reqUpload pour intercepter les erreurs multer (type de fichier
+ * refusé, taille dépassée, trop de fichiers) et répondre avec un message
+ * clair en 400 — sans ce wrapper, ces erreurs tombent dans le handler
+ * d'erreur générique de l'app et ressortent en 500 "Erreur interne du
+ * serveur", ce qui rend l'échec impossible à diagnostiquer côté client.
+ */
+function handleImageUpload(req: Request, res: Response, next: NextFunction) {
+  reqUpload.array('images', 4)(req, res, (err: unknown) => {
+    if (!err) { next(); return }
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        res.status(400).json({ success: false, message: 'Image trop volumineuse (5 Mo maximum)' })
+        return
+      }
+      if (err.code === 'LIMIT_FILE_COUNT' || err.code === 'LIMIT_UNEXPECTED_FILE') {
+        res.status(400).json({ success: false, message: '4 images maximum' })
+        return
+      }
+    }
+    const message = err instanceof Error ? err.message : 'Fichier invalide'
+    res.status(400).json({ success: false, message })
+  })
+}
 
 /* ── Schemas ─────────────────────────────────────────────────── */
 const createSchema = z.object({
@@ -55,7 +83,7 @@ const replySchema = z.object({
 /* ─────────────────────────────────────────────────────────────
    POST /api/product-requests/upload-images — images de la demande
 ───────────────────────────────────────────────────────────── */
-router.post('/upload-images', reqUpload.array('images', 4), async (req, res) => {
+router.post('/upload-images', handleImageUpload, async (req, res) => {
   try {
     const files = (req.files as Express.Multer.File[] | undefined) ?? []
     if (files.length === 0) {

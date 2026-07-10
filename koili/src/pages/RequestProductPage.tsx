@@ -317,14 +317,14 @@ export default function RequestProductPage() {
                       </p>
 
                       <span className="mt-1 text-sm text-slate-500">
-                        PNG, JPG, WEBP
+                        PNG, JPG, WEBP, HEIC
                       </span>
 
                       <input
                         multiple
                         hidden
                         type="file"
-                        accept="image/png,image/jpeg,image/webp"
+                        accept="image/png,image/jpeg,image/webp,image/heic,image/heif,image/avif"
                         disabled={images.length >= 4}
                         onChange={handleImages}
                       />
