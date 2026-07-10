@@ -8,6 +8,7 @@ import { requireAdmin } from '../middleware/auth'
 import { validate } from '../middleware/validate'
 import { cacheControl } from '../middleware/cache'
 import { getBackendUrl } from '../lib/backendUrl'
+import { deleteLocalUpload } from '../lib/deleteLocalUpload'
 
 /* ── Multer — stockage dans uploads/cat/ ─────────────────────── */
 const catUploadDir = path.resolve(process.env.UPLOAD_DIR ?? './uploads', 'cat')
@@ -174,7 +175,10 @@ router.delete('/:id', requireAdmin, async (req, res) => {
     const id = parseInt(req.params['id'] ?? '0')
     if (!id) { res.status(400).json({ success: false, message: 'ID invalide' }); return }
 
+    const cat = await prisma.category.findUnique({ where: { id }, select: { image: true } })
     await prisma.category.delete({ where: { id } })
+    if (cat?.image) deleteLocalUpload(cat.image)
+
     res.json({ success: true, message: 'Catégorie supprimée' })
   } catch {
     res.status(500).json({ success: false, message: 'Erreur lors de la suppression' })
@@ -196,10 +200,7 @@ router.post('/:id/image', requireAdmin, catUpload.single('image'), async (req, r
 
     // Supprimer l'ancienne image si c'est un fichier local
     const cat = await prisma.category.findUnique({ where: { id } })
-    if (cat?.image && cat.image.includes('/uploads/cat/')) {
-      const oldPath = path.resolve(catUploadDir, path.basename(cat.image))
-      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath)
-    }
+    if (cat?.image) deleteLocalUpload(cat.image)
 
     const updated = await prisma.category.update({
       where: { id },

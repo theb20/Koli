@@ -9,6 +9,7 @@ import { validate } from '../middleware/validate'
 import { cacheControl } from '../middleware/cache'
 import { rehostImages } from '../lib/rehostImage'
 import { getBackendUrl } from '../lib/backendUrl'
+import { deleteLocalUpload } from '../lib/deleteLocalUpload'
 
 const router = Router()
 
@@ -657,6 +658,12 @@ router.put('/:id', requireAdmin, validate(createProductSchema.partial()), async 
     const BASE_URL = getBackendUrl()
     const rehostedImages = images ? await rehostImages(images, BASE_URL) : undefined
 
+    // Images actuelles — nécessaires pour nettoyer sur disque celles qui vont
+    // être remplacées (Prisma ne fait que deleteMany les lignes, pas les fichiers).
+    const previousImages = rehostedImages
+      ? await prisma.productImage.findMany({ where: { productId: id }, select: { url: true } })
+      : []
+
     const product = await prisma.product.update({
       where: { id },
       data: {
@@ -678,6 +685,13 @@ router.put('/:id', requireAdmin, validate(createProductSchema.partial()), async 
       },
       include: { images: true, specs: true },
     })
+
+    if (rehostedImages) {
+      const keptUrls = new Set(rehostedImages)
+      for (const old of previousImages) {
+        if (!keptUrls.has(old.url)) deleteLocalUpload(old.url)
+      }
+    }
 
     res.json({ success: true, data: product })
   } catch {
