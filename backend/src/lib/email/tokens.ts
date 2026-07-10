@@ -24,6 +24,8 @@ export type EmailDesignTokens = {
   bodyBg:             string
   footerText:         string
   logoUrl:            string
+  logoWidth:          number
+  logoHeight:         number
   badgeText:           string
 }
 
@@ -38,6 +40,8 @@ export const DEFAULT_TOKENS: EmailDesignTokens = {
   bodyBg:             '#f1f3f4',
   footerText:         'Vous recevez cet email car vous avez un compte Skignas.',
   logoUrl:            'https://skignas.com/imgs_dropship/skignas_black.png',
+  logoWidth:          130,
+  logoHeight:         34,
   badgeText:           "Côte d'Ivoire",
 }
 
@@ -65,6 +69,10 @@ function validRadius(v: unknown, fallback: number): number {
   const n = typeof v === 'number' ? v : Number(v)
   return Number.isInteger(n) && n >= 0 && n <= 40 ? n : fallback
 }
+function validDimension(v: unknown, fallback: number): number {
+  const n = typeof v === 'number' ? v : Number(v)
+  return Number.isInteger(n) && n >= 10 && n <= 600 ? n : fallback
+}
 function validText(v: unknown, fallback: string, maxLen: number): string {
   return typeof v === 'string' && v.trim().length > 0 && v.length <= maxLen ? v.trim() : fallback
 }
@@ -80,6 +88,8 @@ export function sanitizeTokens(input: Record<string, unknown>): Partial<EmailDes
   if ('bodyBg'             in input) out.bodyBg             = validColor(input['bodyBg'], DEFAULT_TOKENS.bodyBg)
   if ('footerText'         in input) out.footerText         = validText(input['footerText'], DEFAULT_TOKENS.footerText, 200)
   if ('logoUrl'            in input) out.logoUrl            = validUrl(input['logoUrl'], DEFAULT_TOKENS.logoUrl)
+  if ('logoWidth'          in input) out.logoWidth          = validDimension(input['logoWidth'], DEFAULT_TOKENS.logoWidth)
+  if ('logoHeight'         in input) out.logoHeight         = validDimension(input['logoHeight'], DEFAULT_TOKENS.logoHeight)
   if ('badgeText'          in input) out.badgeText          = validText(input['badgeText'], DEFAULT_TOKENS.badgeText, 40)
   return out
 }
@@ -115,6 +125,8 @@ export async function getRawEmailTokens(): Promise<EmailDesignTokens> {
       bodyBg:             s.emailBodyBg             ?? DEFAULT_TOKENS.bodyBg,
       footerText:         s.emailFooterText         ?? DEFAULT_TOKENS.footerText,
       logoUrl:            s.emailLogoUrl            ?? DEFAULT_TOKENS.logoUrl,
+      logoWidth:          s.emailLogoWidth           ?? DEFAULT_TOKENS.logoWidth,
+      logoHeight:         s.emailLogoHeight          ?? DEFAULT_TOKENS.logoHeight,
       badgeText:           s.emailBadgeText           ?? DEFAULT_TOKENS.badgeText,
     }
   } catch {

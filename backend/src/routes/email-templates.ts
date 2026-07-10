@@ -25,6 +25,7 @@ import {
   sendWelcomeEmail, sendMagicLinkEmail, sendPasswordResetEmail, sendPasswordChangedEmail,
   sendOrderConfirmationEmail, sendOrderStatusEmail, sendContactReply, sendBroadcastEmail,
   sendNewOrderAdminEmail, sendNewProductRequestAdminEmail, sendProductRequestReplyEmail,
+  sendReturnStatusEmail, sendNewReturnAdminEmail,
 } from '../lib/email'
 import { sendFlashDealEmail } from '../lib/email/templates/flash-deal'
 
@@ -67,6 +68,16 @@ const TEMPLATES: Record<string, () => Promise<void>> = {
     { id: 1, name: 'Casque Bluetooth Pro X', image: 'https://m.media-amazon.com/images/I/61dB1oxSpUL._AC_SL1500_.jpg', price: 25000, salePrice: 18000 },
     { id: 2, name: 'Enceinte portable', image: 'https://m.media-amazon.com/images/I/71rP1hs8caL._AC_SL1500_.jpg', price: 15000, salePrice: 11000 },
   ], new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)),
+  'return-requested': () => sendReturnStatusEmail('preview@example.com', 'Awa', 'SKG-00042', 'requested'),
+  'return-approved':  () => sendReturnStatusEmail('preview@example.com', 'Awa', 'SKG-00042', 'approved'),
+  'return-rejected':  () => sendReturnStatusEmail('preview@example.com', 'Awa', 'SKG-00042', 'rejected', 'Article reçu hors délai de 14 jours'),
+  'return-received':  () => sendReturnStatusEmail('preview@example.com', 'Awa', 'SKG-00042', 'received'),
+  'return-refunded':  () => sendReturnStatusEmail('preview@example.com', 'Awa', 'SKG-00042', 'refunded'),
+  'return-cancelled': () => sendReturnStatusEmail('preview@example.com', 'Awa', 'SKG-00042', 'cancelled'),
+  'new-return-admin': () => sendNewReturnAdminEmail('preview@example.com', {
+    orderNumber: 'SKG-00042', clientNom: 'Awa Koné', clientEmail: 'awa@example.com',
+    reason: 'defective', itemsLabel: 'Casque Bluetooth Pro X ×1', returnId: 'clxxxxxxxxxxxxxx',
+  }),
 }
 
 /* ── GET /api/email-templates — liste des templates disponibles ── */
@@ -133,6 +144,8 @@ const tokensSchema = z.object({
   bodyBg:             z.string().regex(HEX_COLOR_RE, 'Couleur hexadécimale invalide'),
   footerText:         z.string().min(1).max(200),
   logoUrl:            z.string().regex(HTTPS_URL_RE, 'URL invalide (https uniquement)'),
+  logoWidth:          z.coerce.number().int().min(10).max(600),
+  logoHeight:         z.coerce.number().int().min(10).max(600),
   badgeText:          z.string().min(1).max(40),
 }).partial()
 
@@ -144,7 +157,8 @@ router.put('/design/tokens', validate(tokensSchema), async (req, res) => {
       emailPrimaryColor: tokens.primaryColor, emailHeaderGradientFrom: tokens.headerGradientFrom,
       emailHeaderGradientTo: tokens.headerGradientTo, emailCardRadius: tokens.cardRadius,
       emailCardBg: tokens.cardBg, emailBodyBg: tokens.bodyBg, emailFooterText: tokens.footerText,
-      emailLogoUrl: tokens.logoUrl, emailBadgeText: tokens.badgeText,
+      emailLogoUrl: tokens.logoUrl, emailLogoWidth: tokens.logoWidth, emailLogoHeight: tokens.logoHeight,
+      emailBadgeText: tokens.badgeText,
     },
     update: {
       ...(tokens.primaryColor       !== undefined && { emailPrimaryColor: tokens.primaryColor }),
@@ -155,6 +169,8 @@ router.put('/design/tokens', validate(tokensSchema), async (req, res) => {
       ...(tokens.bodyBg             !== undefined && { emailBodyBg: tokens.bodyBg }),
       ...(tokens.footerText         !== undefined && { emailFooterText: tokens.footerText }),
       ...(tokens.logoUrl            !== undefined && { emailLogoUrl: tokens.logoUrl }),
+      ...(tokens.logoWidth          !== undefined && { emailLogoWidth: tokens.logoWidth }),
+      ...(tokens.logoHeight         !== undefined && { emailLogoHeight: tokens.logoHeight }),
       ...(tokens.badgeText          !== undefined && { emailBadgeText: tokens.badgeText }),
     },
   })
@@ -168,7 +184,8 @@ router.delete('/design/tokens', async (_req, res) => {
     update: {
       emailPrimaryColor: null, emailHeaderGradientFrom: null, emailHeaderGradientTo: null,
       emailCardRadius: null, emailCardBg: null, emailBodyBg: null,
-      emailFooterText: null, emailLogoUrl: null, emailBadgeText: null,
+      emailFooterText: null, emailLogoUrl: null, emailLogoWidth: null, emailLogoHeight: null,
+      emailBadgeText: null,
     },
   })
   res.json({ success: true, message: 'Design par défaut restauré.' })

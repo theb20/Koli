@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   LayoutDashboard, Package, ShoppingCart, Users, BookOpen,
   Tag, Star, MessageSquare, Settings, LogOut,
-  Bell, BarChart2, Store, Layers, Percent, Zap, PackageSearch, Send
+  Bell, BarChart2, Store, Layers, Percent, Zap, PackageSearch, Send, RotateCcw
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { api } from '../../lib/api'
@@ -16,6 +16,7 @@ const nav = [
   { to: '/stores',     label: 'Magasins',      icon: Store },
   { to: '/orders',   label: 'Commandes',      icon: ShoppingCart },
   { to: '/product-requests', label: 'Demandes de sourcing', icon: PackageSearch },
+  { to: '/returns',   label: 'Retours',        icon: RotateCcw },
   { to: '/users',    label: 'Utilisateurs',   icon: Users },
   { to: '/blog',     label: 'Blog',           icon: BookOpen },
   { to: '/promo',    label: 'Codes promo',    icon: Tag },
@@ -41,6 +42,12 @@ export function Sidebar() {
   const { data: newRequestsCount = 0 } = useQuery({
     queryKey: ['product-requests-new-count'],
     queryFn:  async () => { const { data } = await api.get('/api/product-requests/admin/all?status=new&limit=1'); return data.data.pagination.total as number },
+    refetchInterval: 30_000,
+  })
+
+  const { data: pendingReturnsCount = 0 } = useQuery({
+    queryKey: ['returns-pending-count'],
+    queryFn:  async () => { const { data } = await api.get('/api/returns/admin/all?status=requested'); return (data.data as unknown[]).length },
     refetchInterval: 30_000,
   })
 
@@ -76,6 +83,11 @@ export function Sidebar() {
             {to === '/product-requests' && newRequestsCount > 0 && (
               <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
                 {newRequestsCount > 99 ? '99+' : newRequestsCount}
+              </span>
+            )}
+            {to === '/returns' && pendingReturnsCount > 0 && (
+              <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                {pendingReturnsCount > 99 ? '99+' : pendingReturnsCount}
               </span>
             )}
           </NavLink>

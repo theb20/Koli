@@ -93,7 +93,10 @@ async function applyOrderStatusChange(orderId: string, status: OrderStatusValue)
       : ['confirmed', 'processing', 'shipped', 'delivered'].includes(status) ? 'paid'
       : order.paymentStatus // 'pending'/'cancelled' : ne pas inventer un statut de paiement
 
-    const updated = await tx.order.update({ where: { id: orderId }, data: { status, paymentStatus } })
+    // Verrouillé à la première livraison — base du calcul d'éligibilité au retour.
+    const deliveredAt = status === 'delivered' && order.status !== 'delivered' ? new Date() : undefined
+
+    const updated = await tx.order.update({ where: { id: orderId }, data: { status, paymentStatus, deliveredAt } })
     return { updated, changed: order.status !== status }
   })
   if (!result) return null

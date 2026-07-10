@@ -27,6 +27,8 @@ type EmailDesignTokens = {
   bodyBg:             string
   footerText:         string
   logoUrl:            string
+  logoWidth:          number
+  logoHeight:         number
   badgeText:          string
 }
 
@@ -39,6 +41,8 @@ const FIELD_LABELS: Record<keyof EmailDesignTokens, string> = {
   bodyBg:             'Fond général',
   footerText:         'Texte de bas de page',
   logoUrl:            'URL du logo (https)',
+  logoWidth:          'Largeur du logo (px)',
+  logoHeight:         'Hauteur du logo (px)',
   badgeText:          'Texte du badge (header)',
 }
 
@@ -213,6 +217,27 @@ export default function EmailTemplatesPage() {
                   onChange={e => setField('logoUrl', e.target.value)}
                   className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-mono outline-none focus:border-indigo-400"
                 />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1.5">{FIELD_LABELS.logoWidth}</label>
+                  <input
+                    type="number" min={10} max={600}
+                    value={tokens.logoWidth}
+                    onChange={e => setField('logoWidth', Number(e.target.value))}
+                    className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-indigo-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1.5">{FIELD_LABELS.logoHeight}</label>
+                  <input
+                    type="number" min={10} max={600}
+                    value={tokens.logoHeight}
+                    onChange={e => setField('logoHeight', Number(e.target.value))}
+                    className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-indigo-400"
+                  />
+                </div>
               </div>
 
               <div>

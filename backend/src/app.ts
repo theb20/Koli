@@ -35,6 +35,7 @@ import settingsRouter       from './routes/settings'
 import dealAnnouncementsRouter from './routes/deal-announcements'
 import productRequestsRouter   from './routes/product-requests'
 import emailTemplatesRouter    from './routes/email-templates'
+import returnsRouter           from './routes/returns'
 
 const app = express()
 
@@ -169,6 +170,7 @@ app.use('/api/settings',       settingsRouter)
 app.use('/api/deal-announcements', dealAnnouncementsRouter)
 app.use('/api/product-requests', publicFormLimiter, productRequestsRouter)
 app.use('/api/email-templates', emailTemplatesRouter)
+app.use('/api/returns',       returnsRouter)
 
 /* ── 404 ────────────────────────────────────────────────────── */
 app.use((_req, res) => {

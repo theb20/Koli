@@ -26,6 +26,8 @@ import StoreDetailPage    from './pages/stores/StoreDetailPage'
 import CategoriesPage     from './pages/categories/CategoriesPage'
 import TaxPage            from './pages/TaxPage'
 import EmailTemplatesPage from './pages/EmailTemplatesPage'
+import ReturnsPage        from './pages/ReturnsPage'
+import ReturnDetailPage   from './pages/ReturnDetailPage'
 
 const qc = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
@@ -64,6 +66,8 @@ export default function App() {
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/tax"           element={<TaxPage />} />
             <Route path="/emails"        element={<EmailTemplatesPage />} />
+            <Route path="/returns"       element={<ReturnsPage />} />
+            <Route path="/returns/:id"   element={<ReturnDetailPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

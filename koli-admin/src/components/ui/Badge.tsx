@@ -23,6 +23,9 @@ const colors: Record<string, string> = {
   quoted:     'bg-cyan-50 text-cyan-700 border-cyan-200',
   fulfilled:  'bg-green-50 text-green-700 border-green-200',
   rejected:   'bg-red-50 text-red-600 border-red-200',
+  requested:  'bg-yellow-50 text-yellow-700 border-yellow-200',
+  approved:   'bg-blue-50 text-blue-700 border-blue-200',
+  received:   'bg-cyan-50 text-cyan-700 border-cyan-200',
   default:    'bg-slate-100 text-slate-600 border-slate-200',
 }
 
@@ -33,6 +36,7 @@ const labels: Record<string, string> = {
   admin: 'Admin', customer: 'Client', active: 'Actif', inactive: 'Inactif',
   published: 'Publié', draft: 'Brouillon',
   quoted: 'Devis envoyé', fulfilled: 'Traitée', rejected: 'Refusée',
+  requested: 'Demandé', approved: 'Approuvé', received: 'Reçu',
 }
 
 export function Badge({ label, color }: Props) {

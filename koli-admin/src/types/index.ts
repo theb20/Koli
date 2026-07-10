@@ -200,6 +200,42 @@ export type ProductRequest = {
   updatedAt: string
 }
 
+export type OrderReturnStatus = 'requested' | 'approved' | 'rejected' | 'received' | 'refunded' | 'cancelled'
+export type OrderReturnReason = 'defective' | 'wrong_item' | 'not_as_described' | 'no_longer_needed' | 'other'
+
+export type OrderReturnItem = {
+  id: number
+  returnId: string
+  orderItemId: number
+  quantity: number
+  orderItem: { id: number; name: string; brand: string; price: number; qty: number; image: string; color?: string | null }
+}
+
+export type OrderReturn = {
+  id: string
+  orderId: string
+  userId: string
+  status: OrderReturnStatus
+  reason: OrderReturnReason
+  customerComment?: string | null
+  adminNotes?: string | null
+  rejectionReason?: string | null
+  photos?: string | null
+  refundAmount?: number | null
+  refundMethod?: string | null
+  requestedAt: string
+  approvedAt?: string | null
+  rejectedAt?: string | null
+  receivedAt?: string | null
+  refundedAt?: string | null
+  cancelledAt?: string | null
+  createdAt: string
+  updatedAt: string
+  items: OrderReturnItem[]
+  order: { orderNumber: string; clientEmail: string; clientPrenom: string; total: number; status: string }
+  user?: { id: string; prenom: string; nom: string; email: string }
+}
+
 export type Category = {
   id: number
   slug: string

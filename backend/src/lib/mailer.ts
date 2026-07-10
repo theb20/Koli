@@ -14,6 +14,8 @@ export {
   sendNewOrderAdminEmail,
   sendNewProductRequestAdminEmail,
   sendProductRequestReplyEmail,
+  sendReturnStatusEmail,
+  sendNewReturnAdminEmail,
 } from './email'
 
-export type { OrderItem, OrderConfirmationPayload, NewOrderAdminPayload, NewProductRequestAdminPayload } from './email'
+export type { OrderItem, OrderConfirmationPayload, NewOrderAdminPayload, NewProductRequestAdminPayload, NewReturnAdminPayload } from './email'

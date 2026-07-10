@@ -12,6 +12,19 @@ import { PageMeta } from '../components/seo/PageMeta'
 import { useAuth } from '../contexts/AuthContext'
 import { fetchOrder, apiFetch, API_BASE, type ApiOrder, type ApiResponse } from '../lib/api'
 import { useSiteSettings, waLink, telLink } from '../hooks/useSiteSettings'
+import { ReturnRequestModal } from '../components/orders/ReturnRequestModal'
+
+type OrderReturnStatus = 'requested' | 'approved' | 'rejected' | 'received' | 'refunded' | 'cancelled'
+type OrderReturnSummary = { id: string; orderId: string; status: OrderReturnStatus }
+
+const RETURN_STATUS_LABELS: Record<OrderReturnStatus, { label: string; color: string; bg: string }> = {
+  requested: { label: 'Retour en attente',   color: '#d97706', bg: '#fffbeb' },
+  approved:  { label: 'Retour approuvé',     color: '#0421ff', bg: '#eef2ff' },
+  received:  { label: 'Article reçu',        color: '#0891b2', bg: '#ecfeff' },
+  refunded:  { label: 'Retour remboursé',    color: '#059669', bg: '#ecfdf5' },
+  rejected:  { label: 'Retour refusé',       color: '#dc2626', bg: '#fef2f2' },
+  cancelled: { label: 'Retour annulé',       color: '#6b7280', bg: '#f9fafb' },
+}
 
 /* ═══════════════════════════════════════════════════════════════
    TYPES & HELPERS
@@ -267,12 +280,21 @@ export default function OrderDetailPage() {
   const [ratingOpen, setRatingOpen]   = useState(false)
   const [stars, setStars]             = useState(0)
   const [showCancel, setShowCancel]   = useState(false)
+  const [showReturnModal, setShowReturnModal] = useState(false)
+  const [cancellingReturn, setCancellingReturn] = useState(false)
 
   const queryClient = useQueryClient()
   const [cancelling, setCancelling] = useState(false)
   const [cancelError, setCancelError] = useState('')
   const [downloadingInvoice, setDownloadingInvoice] = useState(false)
   const [invoiceError, setInvoiceError] = useState('')
+
+  const { data: returnsData } = useQuery({
+    queryKey: ['order-returns', id],
+    queryFn:  () => apiFetch<ApiResponse<OrderReturnSummary[]>>('/api/returns/mine', token),
+    enabled:  !!token,
+    retry:    false,
+  })
 
   const handleDownloadInvoice = async () => {
     if (!id) return
@@ -348,8 +370,24 @@ export default function OrderDetailPage() {
     )
   }
 
-  const order      = mapOrder(data.data)
+  const rawOrder = data.data
+  const order      = mapOrder(rawOrder)
   const statusCfg  = STATUS_CONFIG[order.status]
+  const activeReturn = returnsData?.data?.find(r => r.orderId === rawOrder.id && r.status !== 'cancelled' && r.status !== 'rejected')
+    ?? returnsData?.data?.find(r => r.orderId === rawOrder.id)
+
+  const handleCancelReturn = async () => {
+    if (!activeReturn) return
+    setCancellingReturn(true)
+    try {
+      await apiFetch<ApiResponse<unknown>>(`/api/returns/${activeReturn.id}/cancel`, token, { method: 'PUT' })
+      queryClient.invalidateQueries({ queryKey: ['order-returns', id] })
+    } catch {
+      /* silencieux — l'utilisateur peut réessayer */
+    } finally {
+      setCancellingReturn(false)
+    }
+  }
   const canCancel  = order.status === 'pending'
   const canReturn  = order.status === 'delivered'
 
@@ -422,10 +460,32 @@ export default function OrderDetailPage() {
                   Annuler
                 </button>
               )}
-              {canReturn && (
-                <button className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:border-gray-300 hover:text-gray-800 transition-colors">
+              {canReturn && !activeReturn && (
+                <button
+                  onClick={() => setShowReturnModal(true)}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:border-gray-300 hover:text-gray-800 transition-colors"
+                >
                   <RotateCcw size={14} />
                   Retourner
+                </button>
+              )}
+              {activeReturn && (
+                <span
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold"
+                  style={{ color: RETURN_STATUS_LABELS[activeReturn.status].color, background: RETURN_STATUS_LABELS[activeReturn.status].bg }}
+                >
+                  <RotateCcw size={12} />
+                  {RETURN_STATUS_LABELS[activeReturn.status].label}
+                </span>
+              )}
+              {activeReturn && (activeReturn.status === 'requested' || activeReturn.status === 'approved') && (
+                <button
+                  onClick={handleCancelReturn}
+                  disabled={cancellingReturn}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-red-200 text-sm text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                >
+                  {cancellingReturn ? <Loader2 size={13} className="animate-spin" /> : null}
+                  Annuler le retour
                 </button>
               )}
             </div>
@@ -696,6 +756,19 @@ export default function OrderDetailPage() {
             </div>
           </motion.div>
         </div>
+      )}
+
+      {/* ── Modal demande de retour ── */}
+      {showReturnModal && (
+        <ReturnRequestModal
+          order={rawOrder}
+          token={token}
+          onClose={() => setShowReturnModal(false)}
+          onSuccess={() => {
+            setShowReturnModal(false)
+            queryClient.invalidateQueries({ queryKey: ['order-returns', id] })
+          }}
+        />
       )}
     </>
   )

@@ -87,8 +87,8 @@ export async function baseLayout(content: string, preheader = ''): Promise<strin
                     <a href="${frontUrl}" style="text-decoration:none;display:block;line-height:0">
                       <img src="${t.logoUrl}"
                            alt="Skignas"
-                           width="130" height="34"
-                           style="display:block;border:0;outline:0;width:130px;height:34px" />
+                           width="${t.logoWidth}" height="${t.logoHeight}"
+                           style="display:block;border:0;outline:0;width:${t.logoWidth}px;height:${t.logoHeight}px" />
                     </a>
                   </td>
                   <td align="right" style="vertical-align:middle">
