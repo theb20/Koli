@@ -6,6 +6,7 @@ import compression from 'compression'
 import cookieParser from 'cookie-parser'
 import { rateLimit } from 'express-rate-limit'
 import path from 'path'
+import { ALLOWED_ORIGINS } from './lib/allowedOrigins'
 
 // Routes
 import authRouter          from './routes/auth'
@@ -37,19 +38,6 @@ import productRequestsRouter   from './routes/product-requests'
 const app = express()
 
 /* ── CORS (must be before helmet) ──────────────────────────── */
-const ALLOWED_ORIGINS = [
-  process.env.FRONTEND_URL ?? 
-  'http://localhost:3000',
-  'http://localhost:5174',
-  'http://192.168.1.29:3001',
-  'http://192.168.1.29:5174',
-  'https://skignas.ahobaut.fr',
-  'https://adminskignas.web.app',
-  'https://skignas.com',
-  'https://www.skignas.com',
-
-]
-
 app.use(cors({
   origin: (origin, callback) => {
     // allow requests with no origin (mobile apps, curl, Postman)
@@ -105,6 +93,21 @@ const publicFormLimiter = rateLimit({
   skip: (req) => req.method !== 'POST',
 })
 
+// Lecture du catalogue public (produits, catégories, blog) — le limiteur global
+// exempte volontairement les GET (usage normal très fréquent), ce qui laissait
+// la voie libre à l'aspiration automatisée du catalogue. Plafond généreux pour
+// un visiteur normal, mais qui ralentit fortement un scraping en masse.
+const publicDataLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Trop de requêtes, réessayez dans 15 minutes' },
+  keyGenerator: (req) => req.ip ?? 'unknown',
+  // les écritures admin (POST/PUT/PATCH/DELETE) restent protégées par requireAdmin uniquement
+  skip: (req) => req.method !== 'GET' && req.method !== 'HEAD',
+})
+
 /* ── Parsers ────────────────────────────────────────────────── */
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true }))
@@ -136,10 +139,11 @@ app.get('/health', (_req, res) => {
 app.use('/api/auth/login',          authActionLimiter)
 app.use('/api/auth/register',       authActionLimiter)
 app.use('/api/auth/forgot-password',authActionLimiter)
+app.use('/api/auth/reset-password', authActionLimiter)
 app.use('/api/auth/magic',          authActionLimiter)
 app.use('/api/auth/password',       authActionLimiter)
 app.use('/api/auth',                authRouter)
-app.use('/api/products',      productsRouter)
+app.use('/api/products',      publicDataLimiter, productsRouter)
 app.use('/api/orders',        ordersRouter)
 app.use('/api/addresses',     addressesRouter)
 app.use('/api/wishlist',      wishlistRouter)
@@ -147,13 +151,13 @@ app.use('/api/reviews',       reviewsRouter)
 app.use('/api/contact',       publicFormLimiter, contactRouter)
 app.use('/api/promo',         promoRouter)
 app.use('/api/notifications', notificationsRouter)
-app.use('/api/blog',          blogRouter)
+app.use('/api/blog',          publicDataLimiter, blogRouter)
 app.use('/api/stores',        storesRouter)
-app.use('/api/categories',   categoriesRouter)
+app.use('/api/categories',   publicDataLimiter, categoriesRouter)
 app.use('/api/tax',          taxRouter)
 app.use('/api/newsletter',   newsletterRouter)
 app.use('/api/loyalty',       loyaltyRouter)
-app.use('/api/flash',         flashRouter)
+app.use('/api/flash',         publicDataLimiter, flashRouter)
 app.use('/api/stock-alerts',  stockAlertsRouter)
 app.use('/api/referral',      referralRouter)
 app.use('/api/gift-lists',    giftListsRouter)

@@ -5,6 +5,8 @@
 export {
   sendWelcomeEmail,
   sendMagicLinkEmail,
+  sendPasswordResetEmail,
+  sendPasswordChangedEmail,
   sendOrderConfirmationEmail,
   sendOrderStatusEmail,
   sendContactReply,

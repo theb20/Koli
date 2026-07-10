@@ -24,6 +24,8 @@ model User {
   loyaltyPoints          Int                @default(0)
   referralCode           String?            @unique
   referredById           String?
+  resetTokenHash         String?            @unique
+  resetTokenExpiresAt    DateTime?
   createdAt              DateTime           @default(now())
   updatedAt              DateTime           @updatedAt
   addresses              Address[]

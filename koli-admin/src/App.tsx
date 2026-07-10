@@ -1,7 +1,9 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AdminLayout } from './components/layout/AdminLayout'
-import LoginPage        from './pages/LoginPage'
+import LoginPage           from './pages/LoginPage'
+import ForgotPasswordPage  from './pages/ForgotPasswordPage'
+import ResetPasswordPage   from './pages/ResetPasswordPage'
 import DashboardPage    from './pages/DashboardPage'
 import ProductsPage     from './pages/products/ProductsPage'
 import ProductFormPage  from './pages/products/ProductFormPage'
@@ -33,7 +35,9 @@ export default function App() {
     <QueryClientProvider client={qc}>
       <BrowserRouter>
         <Routes>
-          <Route path="/login" element={<LoginPage />} />
+          <Route path="/login"                    element={<LoginPage />} />
+          <Route path="/mot-de-passe-oublie"      element={<ForgotPasswordPage />} />
+          <Route path="/reinitialiser-mot-de-passe" element={<ResetPasswordPage />} />
           <Route element={<AdminLayout />}>
             <Route path="/"              element={<DashboardPage />} />
             <Route path="/products"      element={<ProductsPage />} />

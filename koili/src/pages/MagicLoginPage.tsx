@@ -42,9 +42,9 @@ export default function MagicLoginPage() {
       >
         {/* Logo */}
         <img
-          src="/imgs_dropship/logohori_dropship_white.png"
+          src='/imgs_dropship/sk_black.png'
           className="h-10 mx-auto mb-2"
-          alt="Koli"
+          alt="Skignas"
         />
 
         {status === 'loading' && (

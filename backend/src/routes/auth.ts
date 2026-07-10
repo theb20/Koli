@@ -6,7 +6,8 @@ import { prisma } from '../lib/prisma'
 import { signAccessToken, signRefreshToken, verifyRefreshToken, signMagicToken, verifyMagicToken } from '../lib/jwt'
 import { validate, zPassword } from '../middleware/validate'
 import { requireAuth, requireAdmin } from '../middleware/auth'
-import { sendWelcomeEmail, sendMagicLinkEmail } from '../lib/mailer'
+import { sendWelcomeEmail, sendMagicLinkEmail, sendPasswordResetEmail, sendPasswordChangedEmail } from '../lib/mailer'
+import { ALLOWED_ORIGINS } from '../lib/allowedOrigins'
 
 const router = Router()
 
@@ -37,6 +38,15 @@ const updateProfileSchema = z.object({
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1),
   newPassword:     zPassword,
+})
+
+const forgotPasswordSchema = z.object({
+  email: z.string().email(),
+})
+
+const resetPasswordSchema = z.object({
+  token:    z.string().min(1, 'Token requis'),
+  password: zPassword,
 })
 
 /* ── Helpers ─────────────────────────────────────────────────── */
@@ -300,6 +310,86 @@ router.put('/password', requireAuth, validate(changePasswordSchema), async (req,
 
     res.json({ success: true, message: 'Mot de passe modifié avec succès' })
   } catch {
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/* ─────────────────────────────────────────────────────────────
+   POST /api/auth/forgot-password
+   Réponse toujours générique — ne révèle jamais si l'email existe
+   (protection contre l'énumération de comptes).
+───────────────────────────────────────────────────────────── */
+router.post('/forgot-password', validate(forgotPasswordSchema), async (req, res) => {
+  try {
+    const { email } = req.body as z.infer<typeof forgotPasswordSchema>
+    const normalizedEmail = email.toLowerCase().trim()
+
+    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } })
+
+    if (user) {
+      // Token opaque à usage unique — seul son hash SHA-256 est stocké en base,
+      // pour qu'une fuite de la base ne permette pas de réutiliser le lien.
+      const rawToken  = crypto.randomBytes(32).toString('hex')
+      const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex')
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          resetTokenHash:       tokenHash,
+          resetTokenExpiresAt:  new Date(Date.now() + 30 * 60 * 1000), // 30 min
+        },
+      })
+
+      // L'Origin n'atteint cette route que si cors() l'a déjà validée contre
+      // ALLOWED_ORIGINS — on ne construit donc jamais un lien vers un domaine
+      // arbitraire fourni par le client.
+      const origin = req.headers.origin && ALLOWED_ORIGINS.includes(req.headers.origin)
+        ? req.headers.origin
+        : (process.env.FRONTEND_URL ?? 'http://localhost:3000')
+      const link = `${origin}/reinitialiser-mot-de-passe?token=${rawToken}`
+
+      sendPasswordResetEmail(user.email, user.prenom, link).catch(err => console.error('[password-reset email]', err))
+    }
+
+    res.json({ success: true, message: 'Si un compte existe avec cet email, un lien de réinitialisation a été envoyé.' })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/* ─────────────────────────────────────────────────────────────
+   POST /api/auth/reset-password
+   Consomme le token à usage unique, change le mot de passe et
+   révoque toutes les sessions existantes de l'utilisateur.
+───────────────────────────────────────────────────────────── */
+router.post('/reset-password', validate(resetPasswordSchema), async (req, res) => {
+  try {
+    const { token, password } = req.body as z.infer<typeof resetPasswordSchema>
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex')
+
+    const user = await prisma.user.findUnique({ where: { resetTokenHash: tokenHash } })
+    if (!user || !user.resetTokenExpiresAt || user.resetTokenExpiresAt < new Date()) {
+      res.status(400).json({ success: false, message: 'Lien invalide ou expiré, demandez-en un nouveau.' })
+      return
+    }
+
+    const hashed = await bcrypt.hash(password, 12)
+
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: user.id },
+        data: { password: hashed, resetTokenHash: null, resetTokenExpiresAt: null },
+      }),
+      // Un mot de passe réinitialisé invalide toute session existante — potentiellement compromise.
+      prisma.session.deleteMany({ where: { userId: user.id } }),
+    ])
+
+    sendPasswordChangedEmail(user.email, user.prenom, req.ip).catch(err => console.error('[password-changed email]', err))
+
+    res.json({ success: true, message: 'Mot de passe réinitialisé avec succès. Reconnectez-vous.' })
+  } catch (err) {
+    console.error(err)
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
 })

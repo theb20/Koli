@@ -7,6 +7,7 @@ import { prisma } from '../lib/prisma'
 import { requireAdmin } from '../middleware/auth'
 import { validate } from '../middleware/validate'
 import { cacheControl } from '../middleware/cache'
+import { getBackendUrl } from '../lib/backendUrl'
 
 /* ── Multer — stockage dans uploads/cat/ ─────────────────────── */
 const catUploadDir = path.resolve(process.env.UPLOAD_DIR ?? './uploads', 'cat')
@@ -190,7 +191,7 @@ router.post('/:id/image', requireAdmin, catUpload.single('image'), async (req, r
     if (!id) { res.status(400).json({ success: false, message: 'ID invalide' }); return }
     if (!req.file) { res.status(400).json({ success: false, message: 'Aucun fichier reçu' }); return }
 
-    const BASE_URL = process.env.BACKEND_URL ?? `http://localhost:${process.env.PORT ?? 4000}`
+    const BASE_URL = getBackendUrl()
     const imageUrl = `${BASE_URL}/uploads/cat/${req.file.filename}`
 
     // Supprimer l'ancienne image si c'est un fichier local

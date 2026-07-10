@@ -2,6 +2,8 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { requireAdmin } from '../middleware/auth'
+import { rehostImages } from '../lib/rehostImage'
+import { getBackendUrl } from '../lib/backendUrl'
 
 const router = Router()
 router.use(requireAdmin)
@@ -165,6 +167,8 @@ router.post('/:id/import', async (req, res) => {
     const categories = await prisma.category.findMany({ select: { id: true, slug: true } })
     const categoryIdBySlug = new Map(categories.map(c => [c.slug, c.id]))
 
+    const BASE_URL = getBackendUrl()
+
     let created = 0
     const skipped: string[] = []
     for (const item of items) {
@@ -174,14 +178,15 @@ router.post('/:id/import', async (req, res) => {
         continue
       }
       const { images, specs, ...rest } = item
+      const rehostedImages = images?.length ? await rehostImages(images, BASE_URL) : undefined
       await prisma.product.create({
         data: {
           ...rest,
           categoryId,
           storeId,
           isActive: true,
-          images: images?.length
-            ? { create: images.map((url, i) => ({ url, position: i })) }
+          images: rehostedImages?.length
+            ? { create: rehostedImages.map((url, i) => ({ url, position: i })) }
             : undefined,
           specs: specs?.length
             ? { create: specs.map((s, i) => ({ ...s, position: i })) }

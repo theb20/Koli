@@ -11,6 +11,8 @@ export * from './types'
 
 export { sendWelcomeEmail }               from './templates/welcome'
 export { sendMagicLinkEmail }             from './templates/magic-link'
+export { sendPasswordResetEmail }         from './templates/password-reset'
+export { sendPasswordChangedEmail }       from './templates/password-changed'
 export { sendOrderConfirmationEmail }     from './templates/order-confirmation'
 export { sendOrderStatusEmail }           from './templates/order-status'
 export { sendContactReply }               from './templates/contact-reply'

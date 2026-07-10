@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Search, Edit, Trash2, Eye, EyeOff, Package, Store } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, Eye, EyeOff, Package, Store, Upload } from 'lucide-react'
 import { api, fmt, fmtDate } from '../../lib/api'
 import { Button } from '../../components/ui/Button'
 import { Badge } from '../../components/ui/Badge'
@@ -9,6 +9,7 @@ import { Confirm } from '../../components/ui/Modal'
 import { Pagination } from '../../components/ui/Pagination'
 import { PageTitle } from '../../components/layout/Sidebar'
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
+import { BulkImportModal } from './BulkImportModal'
 import type { Product, Category } from '../../types'
 
 
@@ -27,6 +28,7 @@ export default function ProductsPage() {
   const [sort, setSort]         = useState('newest')
   const [storeId, setStoreId]   = useState('')
   const [deleteId, setDeleteId] = useState<number | null>(null)
+  const [bulkOpen, setBulkOpen] = useState(false)
   const debouncedSearch = useDebouncedValue(search, 300)
 
   const { data: storesData } = useQuery({
@@ -70,8 +72,14 @@ export default function ProductsPage() {
       <PageTitle
         title="Produits"
         sub={`${pagination?.total ?? 0} produits au total`}
-        action={<Button icon={<Plus size={15} />} onClick={() => navigate('/products/new')}>Nouveau produit</Button>}
+        action={
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" icon={<Upload size={15} />} onClick={() => setBulkOpen(true)}>Import CSV</Button>
+            <Button icon={<Plus size={15} />} onClick={() => navigate('/products/new')}>Nouveau produit</Button>
+          </div>
+        }
       />
+      <BulkImportModal open={bulkOpen} onClose={() => setBulkOpen(false)} />
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">

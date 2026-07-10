@@ -24,8 +24,8 @@ const blogSchema = z.object({
 /* ── GET /api/blog ──────────────────────────────────────────── */
 router.get('/', cacheControl(60), async (req, res) => {
   try {
-    const page     = parseInt(req.query['page'] as string) || 1
-    const limit    = parseInt(req.query['limit'] as string) || 9
+    const page     = Math.max(1, parseInt(req.query['page'] as string) || 1)
+    const limit    = Math.min(50, Math.max(1, parseInt(req.query['limit'] as string) || 9))
     const category = req.query['category'] as string | undefined
     const q        = req.query['q'] as string | undefined
 

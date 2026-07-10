@@ -7,6 +7,7 @@ import { prisma } from '../lib/prisma'
 import { requireAdmin, optionalAuth } from '../middleware/auth'
 import { validate } from '../middleware/validate'
 import { sendNewProductRequestAdminEmail, sendProductRequestReplyEmail } from '../lib/mailer'
+import { getBackendUrl } from '../lib/backendUrl'
 
 const router = Router()
 
@@ -61,7 +62,7 @@ router.post('/upload-images', reqUpload.array('images', 4), async (req, res) => 
       res.status(400).json({ success: false, message: 'Aucun fichier reçu' })
       return
     }
-    const BASE_URL = process.env.BACKEND_URL ?? `http://localhost:${process.env.PORT ?? 4000}`
+    const BASE_URL = getBackendUrl()
     const urls = files.map(f => `${BASE_URL}/uploads/requests/${f.filename}`)
     res.json({ success: true, data: { urls } })
   } catch (err) {
