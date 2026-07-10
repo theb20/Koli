@@ -20,10 +20,6 @@ export function validate<T>(schema: ZodSchema<T>) {
 
 /* ─── Schemas Zod réutilisables ─────────────────────────────── */
 
-export const zPhoneCM = z.string()
-  .regex(/^(6|2)[0-9]{8}$/, 'Numéro camerounais invalide (ex: 655123456)')
-  .optional()
-
 export const zPassword = z.string()
   .min(8, 'Minimum 8 caractères')
   .regex(/[A-Z]/, 'Au moins 1 majuscule')

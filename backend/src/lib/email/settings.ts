@@ -27,13 +27,3 @@ export function waLink(whatsappNumber: string, text?: string): string {
   const base = `https://wa.me/${whatsappNumber}`
   return text ? `${base}?text=${encodeURIComponent(text)}` : base
 }
-
-/** CSS personnalisé du design email (édité depuis le back-office), ou null si non défini. */
-export async function getEmailDesignCss(): Promise<string | null> {
-  try {
-    const s = await prisma.siteSettings.findUnique({ where: { id: 1 } })
-    return s?.emailDesignCss ?? null
-  } catch {
-    return null
-  }
-}

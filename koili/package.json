@@ -9,7 +9,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "deploy": "npm run build && firebase deploy --project skignas-cb817"
+    "deploy": "npm run build && firebase deploy"
   },
   "dependencies": {
     "@tabler/icons-react": "^3.44.0",

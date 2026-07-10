@@ -14,4 +14,5 @@ export const ALLOWED_ORIGINS = [
   'https://adminskignas.web.app',
   'https://skignas.com',
   'https://www.skignas.com',
+  'https://admin.skignas.com'
 ]

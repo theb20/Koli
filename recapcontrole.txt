@@ -1,359 +1,140 @@
-#mobile
+Je vais tracer le flux complet : édition/sauvegarde du template dans koli-admin → stockage backend → utilisation réelle à l'envoi du mail. Le bug est presque toujours à la jointure de ces trois maillons.Démêlant le flux de gestion des emails personnalisésDémêlant le flux de gestion des emails personnalisésLe fil rouge est clair : la dernière migration est add_email_design_css, et le design est probablement stocké dans SiteSettings. Le bug se situe entre « ce que l'admin sauvegarde » et « ce que le layout d'envoi lit ». Je lis les 4 fichiers clés.Vérifiant la logique backend et les mécanismes d'injection CSSVérifiant la logique backend et les mécanismes d'injection CSSLe champ emailDesignCss existe et est censé surcharger le <style> commun de tous les mails, lu depuis layout.ts. Maintenant je regarde si layout.ts lit réellement ce champ — c'est le maillon décisif.Vérifiant le montage des routes et scrutant la sauvegarde CSSVérifiant le montage des routes et scrutant la sauvegarde CSSCôté lecture, le backend est correct : baseLayout() fait bien const style = (await getEmailDesignCss()) ?? DEFAULT_STYLE et l'injecte. Donc si le CSS était bien enregistré, il serait utilisé. Le problème est donc soit côté écriture (l'admin ne persiste pas le champ), soit plus subtil. Je lis la route backend + la page admin + le montage de la route.Décortiquant la fonction saveDesign et son extraction regex problématiqueDécortiquant la fonction saveDesign et son extraction regex problématiqueLa route d'écriture (POST /design/css) et l'upsert sont corrects. Il me reste à vérifier (1) que la route est bien montée dans app.ts, et surtout (2) ce que la page admin sauvegarde réellement et ce que l'utilisateur croit modifier.Démêlant l'architecture technique du système de templatesDémêlant l'architecture technique du système de templatesJe tiens le mécanisme. Le point critique est la fonction saveDesign (ligne 58) : l'admin édite le HTML complet dans un textarea, mais à la sauvegarde un match[1] extrait seulement une partie. Je lis ce bloc précisément.Diagnosed root causes of email template save functionality failureDiagnosed root causes of email template save functionality failureJ'ai la chaîne complète. Verdict : le câblage technique fonctionne, mais la fonctionnalité est bancale par conception. Tes modifs ne « se prennent pas en charge » pour deux raisons cumulées.
+Cause n°1 (la principale) — la sauvegarde ne garde que le <style>, pas tes modifs
+Dans koli-admin/src/pages/EmailTemplatesPage.tsx, le textarea te laisse éditer tout le HTML du mail, et l'aperçu à droite se met à jour à chaque frappe. Sauf que saveDesign() fait ça :
+jsconst match = html.match(/<style>([\s\S]*?)<\/style>/)
+// ... POST { css: match[1] }
+→ Il extrait uniquement le contenu du bloc <style> et jette tout le reste. Donc si tu changes la couleur du header, un texte, un padding, une image… directement dans le corps HTML (ce que fait 90 % des gens), rien de tout ça n'est envoyé au serveur. Seul le <style> part en base.
+Le piège vicieux : l'aperçu de droite affiche l'état local html (tes modifs inline visibles → « ça marche ! »), mais l'email réel ne reçoit que le <style>. D'où exactement ton symptôme : « je modifie, je sauvegarde, l'email réel ne bouge pas. »
+Cause n°2 — même un <style> bien sauvegardé ne change presque rien
+Dans backend/src/lib/email/layout.ts, tout le design visible est en styles inline : le gradient bleu du header, le fond de carte, les border-radius, paddings, couleurs, footer… tout est écrit en style="…" sur les balises. Le bloc <style> (DEFAULT_STYLE) ne contient que : le reset CSS, les :hover et les @media (responsive + dark mode).
+Deux conséquences :
 
-Découvrez l'expérience de vos utilisateurs
-Aucune donnée
+Spécificité CSS : un style inline bat toujours un sélecteur de classe. Si tu ajoutes .card-header{background:red} dans le <style>, ça ne surchargera jamais le style="background:linear-gradient(...)" inline du même élément (sauf !important).
+Clients mail : Gmail (surtout mobile) et Outlook ignorent ou strippent largement le <head><style>. C'est précisément pour ça que le layout a été écrit en inline… ce qui rend l'édition du <style> inopérante en pratique.
 
-Analysez les problèmes de performances
-67
-Performances
-82
-Accessibilité
-92
-Bonnes pratiques
-92
-SEO
-1/3
-Navigation agentique
-67
-FCP
-+5
-LCP
-+0
-TBT
-+29
-CLS
-+25
-SI
-+7
-Performances
-Les valeurs sont estimées et peuvent varier. Le calcul du score lié aux performances repose directement sur ces statistiques.Affichez la calculatrice.
-0–49
-50–89
-90–100
-Final Screenshot
+Autrement dit : la seule chose que tu peux réellement modifier via cet éditeur aujourd'hui, c'est le hover / le dark mode / le responsive — pas l'apparence de base.
+Ce qu'il faut décider pour corriger
+Le vrai problème est architectural : on ne peut pas personnaliser un design inline en surchargeant un <style>. Trois directions possibles, par ambition croissante :
 
-Statistiques
-Développer la vue
-First Contentful Paint
-2,9 s
-Largest Contentful Paint
-14,8 s
-Total Blocking Time
-100 ms
-Cumulative Layout Shift
-0
-Speed Index
-4,6 s
-Captured at 8 juil. 2026, 05:20 UTC+2
-Émulation du Moto G Power with Lighthouse 13.4.0
-Session avec consultation d'une seule page
-Chargement de page initial
-Connexion 4G lente
-Using HeadlessChromium 146.0.7680.177 with lr
-Consultez la carte proportionnelle
-Screenshot
-Screenshot
-Screenshot
-Screenshot
-Screenshot
-Screenshot
-Screenshot
-Screenshot
-Afficher les audits pertinents pour :
+Rapide / honnête — assumer que seul le <style> est éditable : dans layout.ts, remplacer les styles inline structurants par des classes (.card, .card-header, .cta…) définies dans DEFAULT_STYLE, avec !important sur les surcharges. L'éditeur devient alors réellement fonctionnel. Compromis : légère perte de compat Outlook sur certains points.
+Le plus solide pour l'email — arrêter d'éditer du CSS, et exposer plutôt un jeu de tokens (couleur primaire, couleur header, rayon, logo, texte footer…) stockés en base et réinjectés dans les styles inline de layout.ts au moment du rendu. C'est robuste sur tous les clients mail et bien plus simple à utiliser côté admin.
+Full custom — stocker le HTML complet du layout en base (pas juste le <style>) avec des placeholders {{content}}, {{preheader}}… et laisser baseLayout() l'hydrater. Puissant mais tu déportes la responsabilité de la compat email sur l'éditeur admin (risqué).
 
-All
+Ma reco : option 2 — c'est celle qui correspond à ce que tu veux vraiment (« changer le design depuis le back-office ») sans casser le rendu sur Gmail/Outlook.
+Tu veux que je te code laquelle ?Quels sont les directives que je peut donner à mon IA pour corriger çaArchitected actionable directive brief for AI coding assistantArchitected actionable directive brief for AI coding assistantVoici un brief prêt à coller dans ton IA de code (Cursor / Claude Code / autre). Il est écrit pour l'option 2 (tokens) — la plus robuste — et il verrouille les pièges qu'on a identifiés pour que ton IA ne les reproduise pas.
 
-FCP
+CONTEXTE
+Monorepo Koli. Backend Node/TS + Prisma (backend/), admin React/TS (koli-admin/). Une feature « éditeur de design email » existe déjà mais ne fonctionne pas : le design édité dans le back-office ne s'applique pas aux emails réels.
+Deux causes racines à corriger :
 
-LCP
+koli-admin/src/pages/EmailTemplatesPage.tsx → saveDesign() n'extrait que le bloc <style> du HTML (html.match(/<style>...<\/style>/)) et jette toute modification faite ailleurs. L'aperçu local trompe l'utilisateur.
+backend/src/lib/email/layout.ts → tout le design visible est en styles inline. Surcharger le <style> (via SiteSettings.emailDesignCss) est donc inopérant (spécificité CSS inline > classes, et Gmail/Outlook ignorent <style>).
 
-TBT
+OBJECTIF
+Remplacer l'approche « surcharge de CSS » par un système de design tokens stockés en base et réinjectés dans les styles inline de layout.ts au moment du rendu.
+CONTRAINTES (à respecter absolument)
 
-CLS
-Insights
-Utiliser des durées de mise en cache efficaces Économies estimées : 2 197 Kio
-Améliorer l'affichage des images Économies estimées : 3 024 Kio
-Requêtes de blocage du rendu Économies estimées : 620 ms
-Latence de la demande de document Erreur
-Ajustement forcé de la mise en page
-Détection de la requête LCP
-Arborescence du réseau
-Causes des décalages de mise en page
-Optimiser la taille du DOM
-Répartition du LCP
-Tiers
-Ces insights sont également disponibles dans le panneau "Performances" des Outils pour les développeurs Chrome. Enregistrez une trace pour afficher des informations plus détaillées.
-Diagnostic
-Réduisez les ressources JavaScript inutilisées Économies estimées : 207 Kio
-Réduisez le travail du thread principal 3,4 s
-Les éléments d'image ne possèdent pas de width ni de height explicites
-Évitez d'énormes charges utiles de réseau La taille totale était de 3 817 Kio
-Évitez les tâches longues dans le thread principal 2 tâches longues trouvées
-Éviter les animations non composées 13 éléments animés trouvés
-Plus d'informations sur les performances de votre application. Ces chiffres n'ont pas d'incidence directe sur le score lié aux performances.
-Audits réussis (10)
-Afficher
-82
-Accessibilité
-Ces vérifications permettent de connaître les possibilités d'amélioration de l'accessibilité de votre application Web. La détection automatique ne peut détecter qu'une partie des problèmes et ne garantit pas l'accessibilité de votre application Web. Il est donc conseillé d'effectuer également un test manuel.
-Noms et étiquettes
-Les boutons n'ont pas de nom accessible
-Des éléments d'image n'ont pas d'attribut [alt]
-Certains éléments ne sont associés à aucun élément de libellé.
-Servez-vous de ces indications pour améliorer la sémantique des éléments de contrôle de votre application. Vous optimiserez ainsi l'expérience des utilisateurs de technologies d'assistance, comme les lecteurs d'écran.
-Contraste
-Les couleurs d'arrière-plan et de premier plan ne sont pas suffisamment contrastées
-Servez-vous de ces indications pour améliorer la lisibilité de votre contenu.
-Navigation
-Les éléments d'en-tête ne sont pas classés séquentiellement par ordre décroissant
-Servez-vous de ces indications pour améliorer la navigation au clavier de votre application.
-Audio et vidéo
-Les éléments <video> contiennent un élément <track> avec [kind="captions"]
-Servez-vous de ces indications pour fournir un contenu alternatif pour l'audio et la vidéo. Vous pourrez ainsi améliorer l'expérience des utilisateurs malvoyants ou malentendants.
-Autres éléments à vérifier manuellement (10)
-Afficher
-Ces éléments concernent des zones qu'un outil de test automatique ne peut pas couvrir. Consultez notre guide sur la réalisation d'un examen d'accessibilité.
-Audits réussis (24)
-Afficher
-Non applicable (33)
-Afficher
-92
-Bonnes pratiques
-Expérience utilisateur
-Images affichées dans un format incorrect
-Général
-Les erreurs de navigateur ont été enregistrées dans la console
-Mappages source manquants pour des fichiers JavaScript propriétaires volumineux
-Fiabilité et sécurité
-Garantir l'efficacité de la CSP contre les attaques XSS
-Utiliser une règle HSTS efficace
-Assurez l'isolation appropriée de l'origine avec COOP
-Limiter le clickjacking avec XFO ou CSP
-Atténuer les attaques XSS basées sur le DOM avec les Trusted Types
-Compatibilité du navigateur
-Fonctionnalités Baseline
-Audits réussis (10)
-Afficher
-Non applicable (2)
-Afficher
-92
-SEO
-Ces vérifications garantissent que votre page suit les conseils de base concernant le référencement naturel. De nombreux facteurs supplémentaires ne sont pas évalués par Lighthouse ici, mais peuvent affecter votre classement dans les résultats de recherche, y compris vos performances concernant les Core Web Vitals. En savoir plus sur les Essentiels de la recherche Google
-Bonnes pratiques relatives au contenu
-Des éléments d'image n'ont pas d'attribut [alt]
-Rédigez votre code HTML de sorte à autoriser les robots d'exploration à analyser le contenu de votre application.
-Autres éléments à vérifier manuellement (1)
-Afficher
-Exécutez ces outils de validation supplémentaires sur votre site pour vérifier les bonnes pratiques de SEO complémentaires.
-Audits réussis (9)
-Afficher
-1/3
-Navigation agentique
-Ces vérifications garantissent des sites Web de haute qualité et consultables pour les agents IA, et valident l'exactitude des intégrations WebMCP. Cette catégorie est encore en cours de développement et susceptible d'être modifiée.
-Accessibilité pour les agents
-L'arborescence d'accessibilité n'est pas bien formée
-llms.txt ne suit pas les recommandations
-Ces audits mettent en évidence les bonnes pratiques visant à améliorer l'accessibilité du site Web pour les agents IA.
-Audits réussis (1)
-Afficher
-Non applicable (3)
-Afficher
+Ne PAS s'appuyer sur le bloc <style> pour le design de base : les tokens doivent modifier les styles inline.
+Garder une compat email (Gmail mobile, Outlook, Apple Mail, dark mode).
+Repli propre : si un token est absent → valeur par défaut actuelle. Aucun email ne doit casser.
+Ne rien changer au contenu métier des templates (templates/*.ts).
+
+TÂCHES
+
+Prisma : sur model SiteSettings, remplacer/compléter emailDesignCss par des champs de tokens (ou un JSON emailDesignTokens). Tokens minimum : primaryColor, headerGradientFrom, headerGradientTo, cardRadius, cardBg, bodyBg, footerText, logoUrl, badgeText. Créer la migration.
+layout.ts : ajouter getEmailTokens() (lecture SiteSettings + defaults = valeurs actuelles hardcodées). Injecter ces tokens dans les style="…" inline du header, de la carte, du footer et du badge. Supprimer la logique getEmailDesignCss() du <style> (le <style> ne garde que reset/hover/media).
+Route email-templates.ts : remplacer GET/POST /design/css par GET/PUT /design/tokens (validation Zod par champ, upsert SiteSettings id:1). Garder DELETE = reset aux defaults.
+EmailTemplatesPage.tsx : supprimer l'édition de HTML brut comme source de sauvegarde. Créer un formulaire de tokens (color pickers + inputs), aperçu live à droite = rendu serveur avec tokens appliqués. La sauvegarde envoie les tokens, pas du HTML.
+
+CRITÈRES D'ACCEPTATION
+
+Je change headerGradientFrom dans l'admin → l'email réel envoyé a bien le nouveau header (vérifiable via l'aperçu serveur ET un envoi test).
+DELETE /design/tokens restaure exactement le design actuel.
+Aucun template ne throw ; repli defaults si base vide.
+L'aperçu admin reflète le rendu réel (pas seulement l'état local du textarea).
 
 
-#desktop
-Découvrez l'expérience de vos utilisateurs
-Aucune donnée
+Deux options avant que tu lances :
 
-Analysez les problèmes de performances
-74
-Performances
-82
-Accessibilité
-92
-Bonnes pratiques
-92
-SEO
-1/3
-Navigation agentique
-74
-FCP
-+10
-LCP
-+12
-TBT
-+22
-CLS
-+25
-SI
-+6
-Performances
-Les valeurs sont estimées et peuvent varier. Le calcul du score lié aux performances repose directement sur ces statistiques.Affichez la calculatrice.
-0–49
-50–89
-90–100
-Final Screenshot
+Tu veux que je remplace emailDesignCss proprement (migration + suppression de l'ancien champ) ou que je le garde en fallback le temps de la transition ? Ça change une ligne du brief.
+Si tu préfères que je code directement l'option 2 plutôt que déléguer, je te sors les 4 fichiers prêts à coller. Dis juste le mot.
 
-Statistiques
-Développer la vue
-First Contentful Paint
-0,7 s
-Largest Contentful Paint
-2,5 s
-Total Blocking Time
-230 ms
-Cumulative Layout Shift
-0.009
-Speed Index
-2,1 s
-Captured at 8 juil. 2026, 05:20 UTC+2
-Émulation (ordinateur) with Lighthouse 13.4.0
-Session avec consultation d'une seule page
-Chargement de page initial
-Limitation personnalisée
-Using HeadlessChromium 146.0.7680.177 with lr
-Consultez la carte proportionnelle
-Screenshot
-Screenshot
-Screenshot
-Screenshot
-Screenshot
-Screenshot
-Screenshot
-Screenshot
-Afficher les audits pertinents pour :
 
-All
+Failure de security?
 
-FCP
 
-LCP
+Identificando vulnerabilidades de inyección HTML en emails
+Identificando vulnerabilidades de inyección HTML en emails
+Bonne question — et oui, il y en a. Laisse-moi vérifier concrètement plutôt que supposer. Je regarde surtout l'auth de la route et les points d'injection.
 
-TBT
 
-CLS
-Insights
-Utiliser des durées de mise en cache efficaces Économies estimées : 2 117 Kio
-Améliorer l'affichage des images Économies estimées : 3 060 Kio
-Requêtes de blocage du rendu Économies estimées : 180 ms
-Latence de la demande de document Erreur
-Ajustement forcé de la mise en page
-Répartition du LCP
-Arborescence du réseau
-Causes des décalages de mise en page
-Optimiser la taille du DOM
-Tiers
-Ces insights sont également disponibles dans le panneau "Performances" des Outils pour les développeurs Chrome. Enregistrez une trace pour afficher des informations plus détaillées.
-Diagnostic
-Réduisez le travail du thread principal 3,4 s
-Réduisez les ressources JavaScript inutilisées Économies estimées : 151 Kio
-Les éléments d'image ne possèdent pas de width ni de height explicites
-Évitez d'énormes charges utiles de réseau La taille totale était de 3 679 Kio
-Évitez les tâches longues dans le thread principal 4 tâches longues trouvées
-Éviter les animations non composées 13 éléments animés trouvés
-Plus d'informations sur les performances de votre application. Ces chiffres n'ont pas d'incidence directe sur le score lié aux performances.
-Audits réussis (11)
-Afficher
-82
-Accessibilité
-Ces vérifications permettent de connaître les possibilités d'amélioration de l'accessibilité de votre application Web. La détection automatique ne peut détecter qu'une partie des problèmes et ne garantit pas l'accessibilité de votre application Web. Il est donc conseillé d'effectuer également un test manuel.
-Noms et étiquettes
-Les boutons n'ont pas de nom accessible
-Des éléments d'image n'ont pas d'attribut [alt]
-Certains éléments ne sont associés à aucun élément de libellé.
-Servez-vous de ces indications pour améliorer la sémantique des éléments de contrôle de votre application. Vous optimiserez ainsi l'expérience des utilisateurs de technologies d'assistance, comme les lecteurs d'écran.
-Contraste
-Les couleurs d'arrière-plan et de premier plan ne sont pas suffisamment contrastées
-Servez-vous de ces indications pour améliorer la lisibilité de votre contenu.
-Navigation
-Les éléments d'en-tête ne sont pas classés séquentiellement par ordre décroissant
-Servez-vous de ces indications pour améliorer la navigation au clavier de votre application.
-Audio et vidéo
-Les éléments <video> contiennent un élément <track> avec [kind="captions"]
-Servez-vous de ces indications pour fournir un contenu alternatif pour l'audio et la vidéo. Vous pourrez ainsi améliorer l'expérience des utilisateurs malvoyants ou malentendants.
-Autres éléments à vérifier manuellement (10)
-Afficher
-Ces éléments concernent des zones qu'un outil de test automatique ne peut pas couvrir. Consultez notre guide sur la réalisation d'un examen d'accessibilité.
-Audits réussis (24)
-Afficher
-Non applicable (33)
-Afficher
-92
-Bonnes pratiques
-Expérience utilisateur
-Images affichées dans un format incorrect
-Général
-Les erreurs de navigateur ont été enregistrées dans la console
-Mappages source manquants pour des fichiers JavaScript propriétaires volumineux
-Fiabilité et sécurité
-Garantir l'efficacité de la CSP contre les attaques XSS
-Utiliser une règle HSTS efficace
-Assurez l'isolation appropriée de l'origine avec COOP
-Limiter le clickjacking avec XFO ou CSP
-Atténuer les attaques XSS basées sur le DOM avec les Trusted Types
-Compatibilité du navigateur
-Fonctionnalités Baseline
-Audits réussis (10)
-Masquer
-Requêtes HTTPS
-La page n'utilise pas d'API obsolètes
-Évite les cookies tiers
-Autoriser les utilisateurs à coller du texte dans les champs de saisie
-Aucune autorisation de géolocalisation n'est demandée au chargement de la page
-Aucune autorisation d'envoi de notifications n'est demandée au chargement de la page
-Images diffusées dans la résolution appropriée
-La page n'a pas d'attribut doctype HTML
-Le charset est défini correctement
-Aucun problème dans le panneau Issues des outils de développement Chrome
-Non applicable (2)
-Masquer
-Trafic HTTP redirigé vers HTTPS
-Bibliothèques JavaScript détectées
-92
-SEO
-Ces vérifications garantissent que votre page suit les conseils de base concernant le référencement naturel. De nombreux facteurs supplémentaires ne sont pas évalués par Lighthouse ici, mais peuvent affecter votre classement dans les résultats de recherche, y compris vos performances concernant les Core Web Vitals. En savoir plus sur les Essentiels de la recherche Google
-Bonnes pratiques relatives au contenu
-Des éléments d'image n'ont pas d'attribut [alt]
-Rédigez votre code HTML de sorte à autoriser les robots d'exploration à analyser le contenu de votre application.
-Autres éléments à vérifier manuellement (1)
-Afficher
-Exécutez ces outils de validation supplémentaires sur votre site pour vérifier les bonnes pratiques de SEO complémentaires.
-Audits réussis (9)
-Masquer
-L'indexation de cette page n'est pas bloquée
-Le document contient un élément <title>
-Le document contient un attribut "meta description"
-La page renvoie un code d'état HTTP de réussite
-Les liens contiennent un texte descriptif
-Les liens peuvent être explorés
-Le fichier robots.txt est valide
-L'attribut hreflang du document est valide
-L'attribut rel=canonical du document est valide
-1/3
-Navigation agentique
-Ces vérifications garantissent des sites Web de haute qualité et consultables pour les agents IA, et valident l'exactitude des intégrations WebMCP. Cette catégorie est encore en cours de développement et susceptible d'être modifiée.
-Accessibilité pour les agents
-L'arborescence d'accessibilité n'est pas bien formée
-Une arborescence d'accessibilité bien formée aide les agents IA à naviguer sur la page et à interagir avec elle.
-Audits ayant échoué
-Description
-Élément causant l'échec
-Buttons must have discernible text
-div.bg-gray-900 > div.max-w-7xl > div.flex > button.text-gray-300
-<button class="text-gray-300 hover:text-white transition-colors">
-Select element must have an accessible name
-Français
-<select class="appearance-none pl-7 pr-6 py-1.5 text-xs text-gray-600 bg-gray-50 border b…">
-llms.txt ne suit pas les recommandations
-Si votre fichier llms.txt ne suit pas les recommandations, il se peut que les grands modèles de langage ne comprennent pas comment votre site Web doit être exploré ou utilisé pour l'entraînement. Le fichier llms.txt doit être un fichier Markdown contenant au moins un en-tête H1.
-Error
-Il manque un en-tête H1 obligatoire dans le fichier (par exemple, "# Titre").
-Le fichier ne semble pas contenir de liens.
-Ces audits mettent en évidence les bonnes pratiques visant à améliorer l'accessibilité du site Web pour les agents IA.
-Audits réussis (1)
-Masquer
-Cumulative Layout Shift 0.009
-Non applicable (3)
-Masquer
-Couverture du formulaire WebMCP
-Outils WebMCP enregistrés
-Les schémas WebMCP sont valides
+Identified admin-only route vulnerabilities and sanitization gaps
+Identified admin-only route vulnerabilities and sanitization gaps
+Vérifié dans le code. Bonne nouvelle d'abord : la route est correctement protégée — requireAdmin fait bien auth JWT + role === 'admin', donc pas de trou ouvert au public. Les problèmes sont des failles de durcissement (defense-in-depth), pas une porte grande ouverte. Mais il y en a trois réelles, dont une qui concerne directement le fix qu'on prépare.
+
+1. Injection HTML/CSS stockée dans TOUS les emails (le vrai sujet)
+POST /design/css valide seulement z.string().min(1).max(20_000) — aucune sanitisation du contenu. Le CSS est ensuite injecté brut : <style>${style}</style> dans layout.ts. Un admin peut écrire :
+
+</style><script>…</script>
+ou n'importe quel HTML qui atterrit dans chaque email sortant (reset password inclus). C'est une injection stockée et diffusée à toute ta base clients. Surface limitée à l'admin, mais : si un compte admin est compromis, ça devient un vecteur de phishing/tracking sur tous tes utilisateurs. Sévérité : moyenne (admin-only), impact large.
+
+2. ⚠️ Le fix par tokens réintroduit la même faille s'il est mal fait
+C'est le point important pour ta directive IA. Injecter headerGradientFrom, logoUrl, etc. directement dans un style="…" inline sans valider = injection par évasion d'attribut :
+
+headerGradientFrom = "red"><script>…   // casse l'attribut, injecte du HTML
+→ Il faut whitelister chaque token : couleurs en regex hex (/^#[0-9a-fA-F]{6}$/), logoUrl en https:// uniquement, cardRadius en enum ou nombre borné. À ajouter au brief.
+
+3. Le monkey-patch de resend.emails.send (bug de concurrence)
+La preview remplace globalement resend.emails.send sur le singleton partagé, puis restaure dans finally. Si un vrai email part pendant une preview (ou deux previews simultanées), la fonction de vrai envoi est écrasée → l'email réel peut être silencieusement avalé par le stub de preview et jamais envoyé. Pour un mail de réinitialisation de mot de passe, c'est un incident. Fiabilité/sécurité-adjacente, faible probabilité mais réel. Fix : rendre le template pur (retourner le HTML) au lieu d'intercepter l'envoi.
+
+Bonus non-sécurité repéré au passage : dans validate.ts, zPhoneCM valide un « Numéro camerounais » (/^(6|2)[0-9]{8}$/) — reliquat de la migration Cameroun → Côte d'Ivoire. À corriger vers un format ivoirien (10 chiffres, 07/05/01…).
+
+À ajouter à ta directive IA (bloc CONTRAINTES) :
+
+Sécurité — obligatoire : valider chaque token en liste blanche avant injection dans un style inline. Couleurs : regex ^#[0-9a-fA-F]{6}$. URLs (logo) : https:// uniquement, host autorisé. Rayon/tailles : nombre borné ou enum. Rejeter (400) toute valeur non conforme. Ne jamais interpoler une valeur de token non validée dans du HTML/CSS. Supprimer l'injection brute de emailDesignCss dans <style>.
+
+Tu veux que je te réécrive le brief complet de la question précédente avec ce durcissement intégré ?
+
+Quels sont les dépendance que je peux ajouter pour me sécuriser
+
+
+Identifiant les lacunes de sécurité existantes
+Identifiant les lacunes de sécurité existantes
+Je regarde d'abord ce que tu as déjà pour ne pas te recommander des doublons.
+
+
+Évaluant les dépendances CSRF et les configurations de cookies
+Évaluant les dépendances CSRF et les configurations de cookies
+Ton socle est déjà solide — tu as helmet, cors, express-rate-limit (avec des limiteurs granulaires), compression, bcryptjs, jsonwebtoken, zod, cookie-parser. Donc pas de doublon à te vendre. Je te donne seulement les vrais manques. Je vérifie deux-trois recos dont la version « recommandée aujourd'hui » a pu bouger (le CSRF notamment).
+
+
+Évalué les dépendances de sécurité prioritaires et leurs cas d'usage
+Évalué les dépendances de sécurité prioritaires et leurs cas d'usage
+Ton socle est déjà au niveau — donc je te donne seulement ce qui comble un vrai trou, par priorité. Et un avertissement d'abord : les trois failles qu'on a trouvées (injection dans les emails, monkey-patch de resend, tokens non validés) se corrigent en code, pas en installant un paquet. Aucune dépendance ne les règle. Ceci dit, voici les ajouts pertinents :
+
+Prioritaires
+csrf-csrf (v4) — c'est ton principal manque. Ton auth accepte le token en cookie (req.cookies.access_token) avec cors({ credentials: true }) cross-origin → tu es exposé au CSRF sur toutes tes routes mutantes. L'ancien csurf est archivé et déprécié, sans maintenance ni correctif de sécurité. Le remplaçant maintenu aujourd'hui est csrf-csrf (v4), qui implémente le pattern double-submit cookie signé recommandé par l'OWASP. Nuance : si tu passes ton JWT uniquement en header Authorization: Bearer (jamais en cookie auto-envoyé), le CSRF classique ne s'applique plus — c'est une alternative valable à csrf-csrf. 
+npm
+SHAttered
+
+file-type — tu utilises multer pour les uploads d'images (rehostImage). Ne fais jamais confiance au mime-type envoyé par le client : file-type lit les magic bytes du fichier pour vérifier que c'est vraiment une image. Bloque l'upload d'un .php/.svg piégé déguisé en .png.
+
+npm audit (intégré, gratuit) + Dependabot (gratuit sur GitHub) — pas une dépendance runtime, mais indispensable : scan automatique des CVE de tes ~20 paquets. Active Dependabot dans les settings du repo, c'est deux clics.
+
+Utiles, peu coûteux
+hpp — protège contre la pollution de paramètres HTTP (?role=user&role=admin). Un middleware, une ligne, aucun inconvénient.
+
+envalid (ou juste ton zod existant) — valide tes variables d'env au démarrage. Aujourd'hui si JWT_SECRET est absent en prod, ça peut démarrer silencieusement avec un secret vide → catastrophe. Fais échouer le boot bruyamment.
+
+Situationnel
+sanitize-html — seulement si tu gardes un champ qui accepte du HTML libre (ex. réponses de contact, broadcast). Pour le design email par tokens, tu n'en as pas besoin : ton zod + une whitelist regex (hex, https://, enum) suffisent et sont plus sûrs.
+
+rate-limiter-flexible — uniquement si tu passes en multi-instance. Ton express-rate-limit actuel stocke les compteurs en mémoire : sur plusieurs instances Railway, la limite devient contournable (chaque instance compte séparément). Avec 1 seule instance, ton setup actuel est très bien — n'ajoute rien.
+
+À NE PAS ajouter
+express-mongo-sanitize — inutile chez toi. Tu es sur Prisma/SQL, pas MongoDB ; Prisma paramétrise déjà les requêtes (pas d'injection NoSQL à sanitiser).
+
+En résumé, l'ordre concret : csrf-csrf (ou Bearer-only) → file-type → Dependabot/npm audit → hpp + validation d'env. Le reste selon ton évolution.
+
+Tu veux que je te génère le code de câblage pour l'un d'eux (le CSRF est le plus délicat à brancher proprement avec ton cookie-parser et ton CORS actuels) ?
+

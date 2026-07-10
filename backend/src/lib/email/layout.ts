@@ -2,25 +2,34 @@
    Layout de base pour tous les emails Skignas
    Compatible : Gmail, Outlook, Apple Mail, dark mode, mobile
 
-   Le <style> ci-dessous est le design PAR DÉFAUT. Il peut être
-   remplacé par un design personnalisé enregistré en base
-   (SiteSettings.emailDesignCss, éditable depuis le back-office
-   → Prévisualiser les emails) — voir getEmailDesignCss().
-───────────────────────────────────────────────────────────── */
-import { getContactInfo, waLink, getEmailDesignCss } from './settings'
+   Le design (header, carte, footer) est piloté par des DESIGN
+   TOKENS (voir ./tokens.ts), injectés dans les styles inline
+   ci-dessous — pas dans le <style> du <head>, qui est ignoré par
+   Gmail mobile et largement strippé par Outlook. Le <style> ne
+   contient que ce qui NE PEUT être fait qu'en CSS : le reset, les
+   :hover et les media queries (responsive + dark mode).
 
-const DEFAULT_STYLE = `
+   Tokens éditables depuis le back-office → Templates email.
+───────────────────────────────────────────────────────────── */
+import { getContactInfo, waLink } from './settings'
+import { getEmailTokens } from './tokens'
+
+/** #rrggbb → "r,g,b" pour une utilisation dans rgba(...) */
+function hexToRgbTriplet(hex: string): string {
+  const n = parseInt(hex.slice(1), 16)
+  return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`
+}
+
+const STATIC_STYLE = `
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    body{margin:0;padding:0;background:#f1f3f4;-webkit-font-smoothing:antialiased}
     a{text-decoration:none;color:inherit}
     img{display:block;border:0;outline:0}
     .preheader{display:none;max-height:0;overflow:hidden;font-size:1px;line-height:1px;color:transparent;mso-hide:all}
-    .footer-link:hover{color:#1a73e8 !important}
-    .cta:hover{background:#1765cc !important;box-shadow:0 1px 3px 1px rgba(26,115,232,.35) !important}
+    .footer-link:hover{opacity:.8}
+    .cta:hover{opacity:.9}
 
     @media only screen and (max-width:600px){
       .wrapper{padding:16px 8px !important}
-      .card{border-radius:12px !important}
       .card-header{padding:20px 24px !important}
       .card-body{padding:28px 24px !important}
       .footer-bg{padding:18px 24px !important}
@@ -31,7 +40,6 @@ const DEFAULT_STYLE = `
     @media (prefers-color-scheme:dark){
       body,.bg-outer{background:#202124 !important}
       .card{background:#292a2d !important;border-color:#3c4043 !important}
-      .card-header{background:#292a2d !important;border-bottom-color:#3c4043 !important}
       .card-body{background:#292a2d !important}
       .card-body *{color:#e8eaed}
       .support-block{background:#303134 !important;border-color:#3c4043 !important}
@@ -44,7 +52,8 @@ export async function baseLayout(content: string, preheader = ''): Promise<strin
   const year     = new Date().getFullYear()
   const frontUrl = process.env.FRONTEND_URL ?? 'https://skignas.com'
   const contact  = await getContactInfo()
-  const style    = (await getEmailDesignCss()) ?? DEFAULT_STYLE
+  const t        = await getEmailTokens()
+  const shadowRgb = hexToRgbTriplet(t.primaryColor)
 
   return `<!DOCTYPE html>
 <html lang="fr" xmlns="http://www.w3.org/1999/xhtml">
@@ -56,30 +65,30 @@ export async function baseLayout(content: string, preheader = ''): Promise<strin
   <!--[if mso]>
   <noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
   <![endif]-->
-  <style>${style}</style>
+  <style>${STATIC_STYLE}</style>
 </head>
-<body style="margin:0;padding:0;background:#eef1f8">
+<body style="margin:0;padding:0;background:${t.bodyBg}">
   ${preheader ? `<div class="preheader">${preheader}</div>` : ''}
 
   <table class="bg-outer" width="100%" cellpadding="0" cellspacing="0" role="presentation"
-    style="background:#eef1f8;border-collapse:collapse">
+    style="background:${t.bodyBg};border-collapse:collapse">
     <tr>
       <td class="wrapper" align="center" style="padding:44px 24px">
 
         <!-- ══ CARD ══ -->
         <table class="card" width="100%" cellpadding="0" cellspacing="0" role="presentation"
-          style="max-width:560px;background:#ffffff;border-radius:24px;border:1px solid #dde3f5;overflow:hidden;border-collapse:collapse;box-shadow:0 8px 32px rgba(4,33,255,.08)">
+          style="max-width:560px;background:${t.cardBg};border-radius:${t.cardRadius}px;border:1px solid #dde3f5;overflow:hidden;border-collapse:collapse;box-shadow:0 8px 32px rgba(${shadowRgb},.12)">
 
-          <!-- Header bleu -->
+          <!-- Header -->
           <tr>
             <td class="card-header"
-              style="background:linear-gradient(135deg,#0421ff 0%,#0318cc 55%,#2b0aad 100%);padding:28px 40px">
+              style="background:linear-gradient(135deg,${t.headerGradientFrom} 0%,${t.headerGradientTo} 100%);padding:28px 40px">
               <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
                 style="border-collapse:collapse">
                 <tr>
                   <td style="vertical-align:middle">
                     <a href="${frontUrl}" style="text-decoration:none;display:block;line-height:0">
-                      <img src="https://skignas.com/imgs_dropship/skignas_white.png"
+                      <img src="${t.logoUrl}"
                            alt="Skignas"
                            width="150" height="40"
                            style="display:block;border:0;outline:0;width:150px;height:40px" />
@@ -87,7 +96,7 @@ export async function baseLayout(content: string, preheader = ''): Promise<strin
                   </td>
                   <td align="right" style="vertical-align:middle">
                     <span style="display:inline-block;font-family:system-ui,-apple-system,sans-serif;font-size:10px;font-weight:700;color:rgba(255,255,255,.85);letter-spacing:.8px;text-transform:uppercase;background:rgba(255,255,255,.14);padding:6px 12px;border-radius:100px">
-                      Côte d'Ivoire
+                      ${t.badgeText}
                     </span>
                   </td>
                 </tr>
@@ -150,7 +159,7 @@ export async function baseLayout(content: string, preheader = ''): Promise<strin
         <!-- FIN CARD -->
 
         <p style="font-family:system-ui,-apple-system,sans-serif;font-size:11px;color:#a0aec0;text-align:center;margin:16px 0 0">
-          Vous recevez cet email car vous avez un compte Skignas.
+          ${t.footerText}
         </p>
 
       </td>
