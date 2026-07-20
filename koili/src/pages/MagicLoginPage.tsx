@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Loader2, CheckCircle, AlertCircle } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { PageMeta } from '../components/seo/PageMeta'
 
 export default function MagicLoginPage() {
   const [params]   = useSearchParams()
@@ -32,6 +33,7 @@ export default function MagicLoginPage() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-black text-white flex items-center justify-center p-6">
+      <PageMeta title="Connexion par lien magique" noIndex />
       {/* Fond décoratif */}
       <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-900" />
 

@@ -658,8 +658,12 @@ export default function CataloguePage() {
     <>
       <PageMeta
         title={`Catalogue${category!=='all'?` — ${currentCat.name}`:''}`}
-        description="Explorez notre catalogue complet : high-tech, maison, beauté, sport, mode et jeux. Filtrez par prix, note et promotion."
-        path="/catalogue"
+        description={
+          category!=='all'
+            ? `Découvrez notre sélection ${currentCat.name} : les meilleurs produits au meilleur prix, livrés partout en Côte d'Ivoire.`
+            : "Explorez notre catalogue complet : high-tech, maison, beauté, sport, mode et jeux. Filtrez par prix, note et promotion."
+        }
+        path={category!=='all' ? `/catalogue?cat=${category}` : '/catalogue'}
       />
 
       <div className="min-h-screen bg-gray-50/50">

@@ -373,6 +373,7 @@ function ImageGallery({ images, name }: { images: [string,string,string,string];
             key={idx}
             src={images[idx]}
             alt={name}
+            fetchPriority="high"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

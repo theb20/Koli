@@ -15,6 +15,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { fetchLoyalty, fetchReferral, fetchMyGiftLists, createGiftList, fetchAddresses } from '../lib/api'
 import { useSiteSettings, waLink } from '../hooks/useSiteSettings'
 import { VILLES_CI } from '../constants/villesCI'
+import { PageMeta } from '../components/seo/PageMeta'
 
 /* ─────────────────────────────────────────────────────────────
    API helper
@@ -1416,6 +1417,7 @@ export default function ProfilPage() {
 
   return (
     <div className="min-h-screen bg-gray-50/70 py-8 px-4 sm:px-6">
+      <PageMeta title="Mon compte" noIndex />
       <div className="max-w-6xl mx-auto">
 
         {/* Breadcrumb */}

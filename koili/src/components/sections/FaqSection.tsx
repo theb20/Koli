@@ -174,8 +174,19 @@ export function FaqSection() {
 
   const toggle = (i: number) => setOpenIdx(prev => (prev === i ? null : i))
 
+  const faqJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: FAQS.map(faq => ({
+      '@type': 'Question',
+      name: faq.q,
+      acceptedAnswer: { '@type': 'Answer', text: faq.a },
+    })),
+  }
+
   return (
     <section className="relative overflow-hidden bg-white py-24 sm:py-32">
+      <script type="application/ld+json">{JSON.stringify(faqJsonLd)}</script>
 
       {/* Background decoration */}
       <div

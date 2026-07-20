@@ -13,6 +13,7 @@ import { useCart, fmtCart, type CartItem } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
 import { createOrder, fetchPromo, fetchProducts, fetchProduct, mapApiProduct, fetchDefaultTax, fetchAddresses, type ApiAddress } from '../lib/api'
 import { useSiteSettings, waLink, telLink } from '../hooks/useSiteSettings'
+import { PageMeta } from '../components/seo/PageMeta'
 import { VILLES_CI } from '../constants/villesCI'
 import { PaymentNoticeModal } from '../components/ui/PaymentNoticeModal'
 
@@ -1483,6 +1484,7 @@ export default function PanierPage() {
 
   return (
     <div className="min-h-screen bg-gray-50/70">
+      <PageMeta title="Mon panier" noIndex />
       {/* Top bar */}
       <div className="bg-white border-b border-gray-100 sticky top-0 z-30 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">

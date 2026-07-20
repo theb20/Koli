@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { Calendar, AlertCircle, Loader2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { PageMeta } from '../components/seo/PageMeta'
 
 const MIN_AGE = 18
 
@@ -45,6 +46,7 @@ export default function CompleteBirthdatePage() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-black text-white flex items-center justify-center p-6">
+      <PageMeta title="Compléter mon profil" noIndex />
       <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-900" />
 
       <motion.div

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useSiteSettings } from '../hooks/useSiteSettings'
+import { PageMeta } from '../components/seo/PageMeta'
 
 /* ═══════════════════════════════════════════════════════════════
    HELPERS
@@ -345,6 +346,7 @@ export default function OnboardingPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
+      <PageMeta title="Bienvenue" noIndex />
 
       {/* ── Header minimal ── */}
       <div className="sticky top-0 z-10 bg-white/90 backdrop-blur-md border-b border-gray-100 px-4 py-3">
