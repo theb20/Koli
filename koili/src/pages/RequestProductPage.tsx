@@ -164,7 +164,18 @@ export default function RequestProductPage() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message ?? "Erreur lors de l'envoi de la demande");
+      if (!res.ok) {
+        const fieldErrors = data.errors as Record<string, string[]> | undefined;
+        if (fieldErrors) {
+          setErrors(e => ({
+            ...e,
+            ...Object.fromEntries(
+              Object.entries(fieldErrors).map(([field, msgs]) => [field, msgs[0] ?? "Champ invalide"])
+            ),
+          }));
+        }
+        throw new Error(data.message ?? "Erreur lors de l'envoi de la demande");
+      }
 
       setSent(true);
     } catch (err) {
