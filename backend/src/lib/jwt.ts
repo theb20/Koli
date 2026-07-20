@@ -38,6 +38,22 @@ export function verifyRefreshToken(token: string): Pick<JwtPayload, 'userId'> {
   return jwt.verify(token, SECRET + '_refresh') as Pick<JwtPayload, 'userId'>
 }
 
+export function isTokenExpiredError(err: unknown): boolean {
+  return err instanceof jwt.TokenExpiredError
+}
+
+/**
+ * Extrait le userId d'un refresh token SANS vérifier sa validité — à
+ * n'appeler qu'après avoir confirmé via isTokenExpiredError() que jsonwebtoken
+ * a déjà validé la signature avant de rejeter pour cause d'expiration (jwt.verify
+ * vérifie toujours la signature avant de contrôler `exp` — TokenExpiredError
+ * ne peut donc être levée que pour un token dont la signature est authentique).
+ */
+export function unsafeDecodeExpiredRefreshToken(token: string): string | null {
+  const decoded = jwt.decode(token) as { userId?: string } | null
+  return decoded?.userId ?? null
+}
+
 /** Génère un magic-link token (15 min) */
 export function signMagicToken(userId: string, email: string): string {
   return jwt.sign(

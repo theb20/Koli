@@ -1,6 +1,12 @@
 .env
 .env.example
 
+# Dépendances et build — jamais commités, régénérés via npm install / npm run build
+node_modules
+dist
+*.log
+.DS_Store
+
 # Clés de compte de service Google Cloud (téléchargées en JSON) — jamais commitées
 skignas-bc817-cf07619e8f0d.json
 *-firebase-adminsdk-*.json

@@ -1,1 +1,0 @@
-{"version":3,"file":"settings.d.ts","sourceRoot":"","sources":["../../../src/lib/email/settings.ts"],"names":[],"mappings":"AAEA,MAAM,MAAM,gBAAgB,GAAG;IAC7B,cAAc,EAAE,MAAM,CAAA;IACtB,YAAY,EAAI,MAAM,CAAA;IACtB,YAAY,EAAI,MAAM,CAAA;CACvB,CAAA;AAQD,iFAAiF;AACjF,wBAAsB,cAAc,IAAI,OAAO,CAAC,gBAAgB,CAAC,CAQhE;AAED,wBAAgB,MAAM,CAAC,cAAc,EAAE,MAAM,EAAE,IAAI,CAAC,EAAE,MAAM,GAAG,MAAM,CAGpE"}

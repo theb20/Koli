@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'
-import { signAccessToken, signRefreshToken, verifyRefreshToken, signMagicToken, verifyMagicToken } from '../lib/jwt'
+import { signAccessToken, signRefreshToken, verifyRefreshToken, signMagicToken, verifyMagicToken, isTokenExpiredError, unsafeDecodeExpiredRefreshToken } from '../lib/jwt'
 import { validate, validateParams, zPassword, zCuidIdParam } from '../middleware/validate'
 import { requireAuth, requireAdmin } from '../middleware/auth'
 import { sendWelcomeEmail, sendMagicLinkEmail, sendPasswordResetEmail, sendPasswordChangedEmail } from '../lib/mailer'
@@ -60,6 +60,14 @@ const resetPasswordSchema = z.object({
 })
 
 /* ── Helpers ─────────────────────────────────────────────────── */
+
+/** User-Agent client tronqué avant stockage — header entièrement
+ * contrôlé par l'appelant, aucune limite HTTP ne garantit une taille
+ * raisonnable avant d'atteindre la base. */
+function safeUserAgent(req: import('express').Request): string | undefined {
+  const raw = req.headers['user-agent']
+  return typeof raw === 'string' ? raw.slice(0, 255) : undefined
+}
 
 function setAuthCookies(res: import('express').Response, accessToken: string, refreshToken: string) {
   const isProd = process.env.NODE_ENV === 'production'
@@ -136,7 +144,7 @@ router.post('/register', validate(registerSchema), async (req, res) => {
       data: {
         userId: user.id,
         refreshToken,
-        userAgent: req.headers['user-agent'],
+        userAgent: safeUserAgent(req),
         ipAddress: req.ip,
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       },
@@ -193,7 +201,7 @@ router.post('/login', validate(loginSchema), async (req, res) => {
       data: {
         userId: user.id,
         refreshToken,
-        userAgent: req.headers['user-agent'],
+        userAgent: safeUserAgent(req),
         ipAddress: req.ip,
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       },
@@ -224,9 +232,30 @@ router.post('/refresh', async (req, res) => {
       return
     }
 
-    const payload = verifyRefreshToken(token)
+    let payload: Pick<import('../lib/jwt').JwtPayload, 'userId'>
+    try {
+      payload = verifyRefreshToken(token)
+    } catch (err) {
+      // Signature authentique mais expirée : jsonwebtoken valide toujours la
+      // signature avant de vérifier `exp`, donc le contenu reste fiable ici.
+      // Un refresh token expiré révoque TOUTES les sessions de l'utilisateur,
+      // pas seulement celle-ci — force une reconnexion complète sur tous les
+      // appareils plutôt que de laisser d'anciennes sessions traîner.
+      if (isTokenExpiredError(err)) {
+        const userId = unsafeDecodeExpiredRefreshToken(token)
+        if (userId) await prisma.session.deleteMany({ where: { userId } })
+      }
+      res.status(401).json({ success: false, message: 'Session expirée, reconnectez-vous' })
+      return
+    }
+
     const session = await prisma.session.findUnique({ where: { refreshToken: token } })
     if (!session || session.expiresAt < new Date()) {
+      // Signature valide mais aucune session correspondante (déjà tournée,
+      // déjà révoquée ailleurs...) — signal possible de réutilisation d'un
+      // ancien refresh token : on révoque tout par précaution plutôt que de
+      // se contenter d'un 401 silencieux.
+      await prisma.session.deleteMany({ where: { userId: payload.userId } })
       res.status(401).json({ success: false, message: 'Session expirée, reconnectez-vous' })
       return
     }
@@ -526,7 +555,7 @@ router.post('/google', async (req, res) => {
       data: {
         userId:       user.id,
         refreshToken,
-        userAgent:    req.headers['user-agent'],
+        userAgent:    safeUserAgent(req),
         ipAddress:    req.ip,
         expiresAt:    new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       },
@@ -773,7 +802,7 @@ router.post('/magic-link/verify', validate(magicLinkVerifySchema), async (req, r
       data: {
         userId:    user.id,
         refreshToken,
-        userAgent: req.headers['user-agent'],
+        userAgent: safeUserAgent(req),
         ipAddress: req.ip,
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       },

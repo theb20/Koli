@@ -1,2 +1,0 @@
-export declare function sendProductRequestReplyEmail(to: string, prenom: string, productName: string, replyMessage: string, quotedPrice?: number | null): Promise<void>;
-//# sourceMappingURL=product-request-reply.d.ts.map
