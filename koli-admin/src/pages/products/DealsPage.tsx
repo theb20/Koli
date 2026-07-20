@@ -274,12 +274,12 @@ export default function DealsPage() {
       {/* ── Panneau de configuration de la sélection ──────────────────── */}
       {selectedList.length > 0 && (
         <div className={`${cardCls} border-indigo-200 ring-1 ring-indigo-100`}>
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
             <h3 className="text-sm font-semibold text-slate-800">
               {selectedList.length} produit{selectedList.length > 1 ? 's' : ''} sélectionné{selectedList.length > 1 ? 's' : ''}
             </h3>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center bg-slate-100 rounded-lg p-0.5 text-xs font-semibold">
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center bg-slate-100 rounded-lg p-0.5 text-xs font-semibold flex-wrap">
                 <button type="button" onClick={() => setSameSettings(true)}
                   className={`px-3 py-1.5 rounded-md transition-all ${sameSettings ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}>
                   Même réglage pour tous
@@ -296,7 +296,7 @@ export default function DealsPage() {
           </div>
 
           {sameSettings ? (
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Input label="Prix promo (FCFA)" type="number" min={1} step={1}
                 value={sharedSale.salePrice} onChange={e => setSharedSale(s => ({ ...s, salePrice: e.target.value }))} placeholder="4500" />
               <Input label="Début (optionnel — immédiat si vide)" type="datetime-local"
@@ -310,7 +310,7 @@ export default function DealsPage() {
                 const s = perProductSale[p.id] ?? EMPTY_SALE
                 const setField = (patch: Partial<SaleFields>) => setPerProductSale(prev => ({ ...prev, [p.id]: { ...s, ...patch } }))
                 return (
-                  <div key={p.id} className="grid grid-cols-4 gap-3 items-end border-b border-slate-50 pb-3 last:border-0 last:pb-0">
+                  <div key={p.id} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end border-b border-slate-50 pb-3 last:border-0 last:pb-0">
                     <p className="text-sm font-medium text-slate-900 truncate">{p.name}</p>
                     <Input label="Prix promo" type="number" min={1} step={1} value={s.salePrice} onChange={e => setField({ salePrice: e.target.value })} placeholder="4500" />
                     <Input label="Début" type="datetime-local" value={s.saleStartsAt} onChange={e => setField({ saleStartsAt: e.target.value })} />
@@ -338,7 +338,7 @@ export default function DealsPage() {
 
               {announceEnabled && (
                 <div className="pl-6 space-y-3">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Select label="Destinataires" value={announceSegment}
                       onChange={e => setAnnounceSegment(e.target.value as typeof announceSegment)}
                       options={SEGMENTS} />
@@ -348,8 +348,8 @@ export default function DealsPage() {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center bg-slate-100 rounded-lg p-0.5 text-xs font-semibold">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <div className="flex items-center bg-slate-100 rounded-lg p-0.5 text-xs font-semibold flex-wrap">
                       <button type="button" onClick={() => setScheduleMode('immediate')}
                         className={`px-3 py-1.5 rounded-md transition-all ${scheduleMode === 'immediate' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}>
                         Envoi immédiat

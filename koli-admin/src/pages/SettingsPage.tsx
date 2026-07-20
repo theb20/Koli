@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
-import { Save, Bell, Send, AlertTriangle, Phone, Mail, X, Plus } from 'lucide-react'
+import { Save, Bell, Send, AlertTriangle, Phone, Mail, X, Plus, Download, Archive } from 'lucide-react'
 import { api } from '../lib/api'
 import { AxiosError } from 'axios'
 import { useAuth } from '../hooks/useAuth'
@@ -93,6 +93,18 @@ export default function SettingsPage() {
     onSuccess: () => { setNotifSuccess(true); setNotifMsg(''); setNotifTitle(''); setTimeout(() => setNotifSuccess(false), 3000) },
   })
 
+  const exportImagesMutation = useMutation({
+    mutationFn: async () => {
+      const res = await api.get('/api/settings/images-export', { responseType: 'blob' })
+      const url = URL.createObjectURL(res.data as Blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `skignas-images-${new Date().toISOString().slice(0, 10)}.zip`
+      a.click()
+      URL.revokeObjectURL(url)
+    },
+  })
+
   const cardCls = "bg-white border border-slate-200 rounded-2xl p-6 shadow-sm"
 
   return (
@@ -103,7 +115,7 @@ export default function SettingsPage() {
       <div className={cardCls}>
         <h2 className="text-sm font-semibold text-slate-900 mb-5">Profil administrateur</h2>
         <form onSubmit={handleSubmit(d => profileMutation.mutate(d))} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Prénom" {...register('prenom')} />
             <Input label="Nom" {...register('nom')} />
           </div>
@@ -170,20 +182,20 @@ export default function SettingsPage() {
           <div className="h-40 bg-slate-50 rounded-xl animate-pulse" />
         ) : (
           <form onSubmit={handleSubmitSite(d => siteMutation.mutate(d))} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input label="Téléphone affiché" {...registerSite('supportPhone')} placeholder="+225 01 41 00 00 12" />
               <Input label="Numéro WhatsApp (chiffres uniquement)" {...registerSite('whatsappNumber')} placeholder="2250700000000" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input label="Email support (SAV)" {...registerSite('supportEmail')} type="email" placeholder="support@skignas.com" />
               <Input label="Email de contact général" {...registerSite('contactEmail')} type="email" placeholder="hello@skignas.com" />
             </div>
             <Input label="Adresse" {...registerSite('address')} placeholder="Cocody, Abidjan - Côte d'Ivoire" />
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input label="Facebook" {...registerSite('facebookUrl')} placeholder="https://facebook.com/skignas" />
               <Input label="Instagram" {...registerSite('instagramUrl')} placeholder="https://instagram.com/skignas" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input label="YouTube" {...registerSite('youtubeUrl')} placeholder="https://youtube.com/@skignas" />
               <Input label="TikTok" {...registerSite('tiktokUrl')} placeholder="https://tiktok.com/@skignas" />
             </div>
@@ -243,6 +255,30 @@ export default function SettingsPage() {
             {siteMutation.isError && <p className="text-red-600 text-sm mt-2">{apiErrorMessage(siteMutation.error)}</p>}
           </>
         )}
+      </div>
+
+      {/* Export des images */}
+      <div className={cardCls}>
+        <div className="flex items-center gap-2 mb-2">
+          <Archive size={16} className="text-indigo-600" />
+          <h2 className="text-sm font-semibold text-slate-900">Export des images</h2>
+        </div>
+        <p className="text-xs text-slate-500 mb-5">
+          Télécharge une archive ZIP contenant toutes les images actuellement stockées sur le serveur
+          (produits, catégories, demandes, retours) — utile pour une sauvegarde manuelle.
+        </p>
+        <div className="flex items-center gap-3">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => exportImagesMutation.mutate()}
+            loading={exportImagesMutation.isPending}
+            icon={<Download size={15} />}
+          >
+            {exportImagesMutation.isPending ? 'Préparation du ZIP…' : 'Télécharger toutes les images (ZIP)'}
+          </Button>
+          {exportImagesMutation.isError && <p className="text-red-600 text-sm">{apiErrorMessage(exportImagesMutation.error)}</p>}
+        </div>
       </div>
 
       {/* App info */}

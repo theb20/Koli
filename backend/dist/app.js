@@ -11,6 +11,7 @@ const compression_1 = __importDefault(require("compression"));
 const cookie_parser_1 = __importDefault(require("cookie-parser"));
 const express_rate_limit_1 = require("express-rate-limit");
 const path_1 = __importDefault(require("path"));
+const allowedOrigins_1 = require("./lib/allowedOrigins");
 // Routes
 const auth_1 = __importDefault(require("./routes/auth"));
 const products_1 = __importDefault(require("./routes/products"));
@@ -37,25 +38,16 @@ const seller_1 = __importDefault(require("./routes/seller"));
 const settings_1 = __importDefault(require("./routes/settings"));
 const deal_announcements_1 = __importDefault(require("./routes/deal-announcements"));
 const product_requests_1 = __importDefault(require("./routes/product-requests"));
+const email_templates_1 = __importDefault(require("./routes/email-templates"));
+const returns_1 = __importDefault(require("./routes/returns"));
 const app = (0, express_1.default)();
 /* ── CORS (must be before helmet) ──────────────────────────── */
-const ALLOWED_ORIGINS = [
-    process.env.FRONTEND_URL ??
-        'http://localhost:3000',
-    'http://localhost:5174',
-    'http://192.168.1.29:3001',
-    'http://192.168.1.29:5174',
-    'https://skignas.ahobaut.fr',
-    'https://adminskignas.web.app',
-    'https://skignas.com',
-    'https://www.skignas.com',
-];
 app.use((0, cors_1.default)({
     origin: (origin, callback) => {
         // allow requests with no origin (mobile apps, curl, Postman)
         if (!origin)
             return callback(null, true);
-        if (ALLOWED_ORIGINS.includes(origin))
+        if (allowedOrigins_1.ALLOWED_ORIGINS.includes(origin))
             return callback(null, true);
         return callback(new Error(`CORS: origin ${origin} not allowed`));
     },
@@ -100,6 +92,20 @@ const publicFormLimiter = (0, express_rate_limit_1.rateLimit)({
     // parfois interrogés fréquemment (badge de notification, polling).
     skip: (req) => req.method !== 'POST',
 });
+// Lecture du catalogue public (produits, catégories, blog) — le limiteur global
+// exempte volontairement les GET (usage normal très fréquent), ce qui laissait
+// la voie libre à l'aspiration automatisée du catalogue. Plafond généreux pour
+// un visiteur normal, mais qui ralentit fortement un scraping en masse.
+const publicDataLimiter = (0, express_rate_limit_1.rateLimit)({
+    windowMs: 15 * 60 * 1000,
+    max: 300,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, message: 'Trop de requêtes, réessayez dans 15 minutes' },
+    keyGenerator: (req) => req.ip ?? 'unknown',
+    // les écritures admin (POST/PUT/PATCH/DELETE) restent protégées par requireAdmin uniquement
+    skip: (req) => req.method !== 'GET' && req.method !== 'HEAD',
+});
 /* ── Parsers ────────────────────────────────────────────────── */
 app.use(express_1.default.json({ limit: '10mb' }));
 app.use(express_1.default.urlencoded({ extended: true }));
@@ -128,10 +134,11 @@ app.get('/health', (_req, res) => {
 app.use('/api/auth/login', authActionLimiter);
 app.use('/api/auth/register', authActionLimiter);
 app.use('/api/auth/forgot-password', authActionLimiter);
+app.use('/api/auth/reset-password', authActionLimiter);
 app.use('/api/auth/magic', authActionLimiter);
 app.use('/api/auth/password', authActionLimiter);
 app.use('/api/auth', auth_1.default);
-app.use('/api/products', products_1.default);
+app.use('/api/products', publicDataLimiter, products_1.default);
 app.use('/api/orders', orders_1.default);
 app.use('/api/addresses', addresses_1.default);
 app.use('/api/wishlist', wishlist_1.default);
@@ -139,13 +146,13 @@ app.use('/api/reviews', reviews_1.default);
 app.use('/api/contact', publicFormLimiter, contact_1.default);
 app.use('/api/promo', promo_1.default);
 app.use('/api/notifications', notifications_1.default);
-app.use('/api/blog', blog_1.default);
+app.use('/api/blog', publicDataLimiter, blog_1.default);
 app.use('/api/stores', stores_1.default);
-app.use('/api/categories', categories_1.default);
+app.use('/api/categories', publicDataLimiter, categories_1.default);
 app.use('/api/tax', tax_1.default);
 app.use('/api/newsletter', newsletter_1.default);
 app.use('/api/loyalty', loyalty_1.default);
-app.use('/api/flash', flash_1.default);
+app.use('/api/flash', publicDataLimiter, flash_1.default);
 app.use('/api/stock-alerts', stock_alerts_1.default);
 app.use('/api/referral', referral_1.default);
 app.use('/api/gift-lists', gift_lists_1.default);
@@ -155,6 +162,8 @@ app.use('/api/seller', seller_1.default);
 app.use('/api/settings', settings_1.default);
 app.use('/api/deal-announcements', deal_announcements_1.default);
 app.use('/api/product-requests', publicFormLimiter, product_requests_1.default);
+app.use('/api/email-templates', email_templates_1.default);
+app.use('/api/returns', returns_1.default);
 /* ── 404 ────────────────────────────────────────────────────── */
 app.use((_req, res) => {
     res.status(404).json({ success: false, message: 'Route introuvable' });

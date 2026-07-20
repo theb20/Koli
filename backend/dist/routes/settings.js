@@ -1,7 +1,13 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const zod_1 = require("zod");
+const path_1 = __importDefault(require("path"));
+const fs_1 = __importDefault(require("fs"));
+const archiver_1 = __importDefault(require("archiver"));
 const prisma_1 = require("../lib/prisma");
 const auth_1 = require("../middleware/auth");
 const validate_1 = require("../middleware/validate");
@@ -76,6 +82,33 @@ router.put('/', auth_1.requireAdmin, (0, validate_1.validate)(settingsSchema.par
     catch {
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
+});
+/* ─────────────────────────────────────────────────────────────
+   GET /api/settings/images-export  [ADMIN] — toutes les images du
+   site (uploads/cat, products, requests, returns) en une archive ZIP.
+   Streamée directement, jamais bufferisée en mémoire ni écrite sur
+   disque côté serveur.
+───────────────────────────────────────────────────────────── */
+router.get('/images-export', auth_1.requireAdmin, (_req, res) => {
+    const uploadDir = path_1.default.resolve(process.env.UPLOAD_DIR ?? './uploads');
+    if (!fs_1.default.existsSync(uploadDir)) {
+        res.status(404).json({ success: false, message: 'Aucune image trouvée' });
+        return;
+    }
+    const filename = `skignas-images-${new Date().toISOString().slice(0, 10)}.zip`;
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    const archive = (0, archiver_1.default)('zip', { zlib: { level: 9 } });
+    archive.on('error', (err) => {
+        console.error('[settings] échec export ZIP', err);
+        if (!res.headersSent)
+            res.status(500).json({ success: false, message: 'Erreur lors de la génération du ZIP' });
+        else
+            res.end();
+    });
+    archive.pipe(res);
+    archive.directory(uploadDir, false);
+    archive.finalize();
 });
 exports.default = router;
 //# sourceMappingURL=settings.js.map

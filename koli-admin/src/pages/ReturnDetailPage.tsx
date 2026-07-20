@@ -61,13 +61,13 @@ export default function ReturnDetailPage() {
 
   return (
     <div className="space-y-5 max-w-5xl">
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 flex-wrap">
         <button onClick={() => navigate('/returns')}
-          className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-all">
+          className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-all shrink-0">
           <ArrowLeft size={18} />
         </button>
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-xl font-bold text-slate-900">Retour · {ret.order.orderNumber}</h1>
             <Badge label={ret.status} />
           </div>
@@ -107,7 +107,7 @@ export default function ReturnDetailPage() {
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                   <ImageIcon size={13} /> Photos jointes
                 </p>
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {photos.map((url, i) => (
                     <a key={i} href={url} target="_blank" rel="noopener noreferrer"
                       className="aspect-square rounded-xl overflow-hidden bg-slate-100 border border-slate-200">

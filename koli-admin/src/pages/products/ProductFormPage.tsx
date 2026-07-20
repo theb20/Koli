@@ -159,11 +159,11 @@ export default function ProductFormPage() {
         {/* Infos de base */}
         <div className={cardCls}>
           <h3 className="text-sm font-semibold text-slate-800 mb-2">Informations générales</h3>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Nom du produit" {...register('name')} error={errors.name?.message} placeholder="Ex: iPhone 15 Pro" />
             <Input label="Marque" {...register('brand')} error={errors.brand?.message} placeholder="Ex: Apple" />
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Select
               label="Catégorie"
               {...register('category')}
@@ -184,7 +184,7 @@ export default function ProductFormPage() {
         {/* Prix & stock */}
         <div className={cardCls}>
           <h3 className="text-sm font-semibold text-slate-800 mb-2">Prix & Stock</h3>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
 
             {/* Prix */}
             <div className="space-y-1">
@@ -236,11 +236,11 @@ export default function ProductFormPage() {
 
         {/* Vente flash / Deal du jour */}
         <div className={cardCls}>
-          <div className="flex items-center justify-between mb-1">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-1">
             <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
               <Zap size={15} className="text-orange-500" /> Vente flash / Deal du jour
             </h3>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               {saleState !== 'none' && (
                 <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border ${SALE_STATE_BADGE[saleState].cls}`}>
                   {SALE_STATE_BADGE[saleState].label}
@@ -257,7 +257,7 @@ export default function ProductFormPage() {
           <p className="text-xs text-slate-500 mb-3">
             Programmez un prix promo temporaire — le produit apparaît automatiquement dans les Deals du jour et ventes flash du site pendant cette période, puis revient au prix normal.
           </p>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Input
               label="Prix promo (FCFA)"
               type="number"
@@ -324,7 +324,7 @@ export default function ProductFormPage() {
           </div>
           {specFields.length === 0 && <p className="text-xs text-slate-400">Aucune spec ajoutée</p>}
           {specFields.map((f, i) => (
-            <div key={f.id} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-start">
+            <div key={f.id} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2 items-start">
               <Input {...register(`specs.${i}.label`)} placeholder="Ex: Processeur" error={errors.specs?.[i]?.label?.message} />
               <Input {...register(`specs.${i}.value`)} placeholder="Ex: Apple M3" error={errors.specs?.[i]?.value?.message} />
               <button type="button" onClick={() => removeSpec(i)} className="p-2 mt-2 text-red-400 hover:text-red-600 transition-colors">

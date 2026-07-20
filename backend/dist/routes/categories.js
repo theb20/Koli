@@ -12,28 +12,38 @@ const prisma_1 = require("../lib/prisma");
 const auth_1 = require("../middleware/auth");
 const validate_1 = require("../middleware/validate");
 const cache_1 = require("../middleware/cache");
-/* ── Multer — stockage dans uploads/cat/ ─────────────────────── */
+const backendUrl_1 = require("../lib/backendUrl");
+const deleteLocalUpload_1 = require("../lib/deleteLocalUpload");
+const imageProcessing_1 = require("../lib/imageProcessing");
+/* ── Multer — buffer en mémoire, converti en WebP avant écriture ── */
 const catUploadDir = path_1.default.resolve(process.env.UPLOAD_DIR ?? './uploads', 'cat');
 if (!fs_1.default.existsSync(catUploadDir))
     fs_1.default.mkdirSync(catUploadDir, { recursive: true });
-const catStorage = multer_1.default.diskStorage({
-    destination: (_req, _file, cb) => cb(null, catUploadDir),
-    filename: (_req, file, cb) => {
-        const ext = path_1.default.extname(file.originalname).toLowerCase() || '.jpg';
-        const name = `cat-${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
-        cb(null, name);
-    },
-});
 const catUpload = (0, multer_1.default)({
-    storage: catStorage,
+    storage: multer_1.default.memoryStorage(),
     limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB max
     fileFilter: (_req, file, cb) => {
-        if (/^image\/(jpeg|png|webp|gif)$/.test(file.mimetype))
+        if (/^image\/(jpeg|png|webp|gif|heic|heif|avif)$/.test(file.mimetype))
             cb(null, true);
         else
-            cb(new Error('Seuls les fichiers image sont acceptés (jpg, png, webp)'));
+            cb(new Error('Seuls les fichiers image sont acceptés (jpg, png, webp, heic, avif)'));
     },
 });
+/** Cf. product-requests.ts — évite qu'une erreur multer ressorte en 500 générique */
+function handleCatImageUpload(req, res, next) {
+    catUpload.single('image')(req, res, (err) => {
+        if (!err) {
+            next();
+            return;
+        }
+        if (err instanceof multer_1.default.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+            res.status(400).json({ success: false, message: 'Image trop volumineuse (5 Mo maximum)' });
+            return;
+        }
+        const message = err instanceof Error ? err.message : 'Fichier invalide';
+        res.status(400).json({ success: false, message });
+    });
+}
 const router = (0, express_1.Router)();
 /* ── Schema ──────────────────────────────────────────────────── */
 const categorySchema = zod_1.z.object({
@@ -174,7 +184,10 @@ router.delete('/:id', auth_1.requireAdmin, async (req, res) => {
             res.status(400).json({ success: false, message: 'ID invalide' });
             return;
         }
+        const cat = await prisma_1.prisma.category.findUnique({ where: { id }, select: { image: true } });
         await prisma_1.prisma.category.delete({ where: { id } });
+        if (cat?.image)
+            (0, deleteLocalUpload_1.deleteLocalUpload)(cat.image);
         res.json({ success: true, message: 'Catégorie supprimée' });
     }
     catch {
@@ -185,7 +198,7 @@ router.delete('/:id', auth_1.requireAdmin, async (req, res) => {
    POST /api/categories/:id/image [ADMIN] — uploader une image
    Stocke dans uploads/cat/ et met à jour le champ image
 ───────────────────────────────────────────────────────────── */
-router.post('/:id/image', auth_1.requireAdmin, catUpload.single('image'), async (req, res) => {
+router.post('/:id/image', auth_1.requireAdmin, handleCatImageUpload, async (req, res) => {
     try {
         const id = parseInt(req.params['id'] ?? '0');
         if (!id) {
@@ -196,15 +209,15 @@ router.post('/:id/image', auth_1.requireAdmin, catUpload.single('image'), async 
             res.status(400).json({ success: false, message: 'Aucun fichier reçu' });
             return;
         }
-        const BASE_URL = process.env.BACKEND_URL ?? `http://localhost:${process.env.PORT ?? 4000}`;
-        const imageUrl = `${BASE_URL}/uploads/cat/${req.file.filename}`;
+        const webp = await (0, imageProcessing_1.toWebp)(req.file.buffer);
+        const filename = `cat-${Date.now()}-${Math.random().toString(36).slice(2)}.webp`;
+        fs_1.default.writeFileSync(path_1.default.join(catUploadDir, filename), webp);
+        const BASE_URL = (0, backendUrl_1.getBackendUrl)();
+        const imageUrl = `${BASE_URL}/uploads/cat/${filename}`;
         // Supprimer l'ancienne image si c'est un fichier local
         const cat = await prisma_1.prisma.category.findUnique({ where: { id } });
-        if (cat?.image && cat.image.includes('/uploads/cat/')) {
-            const oldPath = path_1.default.resolve(catUploadDir, path_1.default.basename(cat.image));
-            if (fs_1.default.existsSync(oldPath))
-                fs_1.default.unlinkSync(oldPath);
-        }
+        if (cat?.image)
+            (0, deleteLocalUpload_1.deleteLocalUpload)(cat.image);
         const updated = await prisma_1.prisma.category.update({
             where: { id },
             data: { image: imageUrl },

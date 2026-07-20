@@ -12,29 +12,52 @@ const prisma_1 = require("../lib/prisma");
 const auth_1 = require("../middleware/auth");
 const validate_1 = require("../middleware/validate");
 const mailer_1 = require("../lib/mailer");
+const backendUrl_1 = require("../lib/backendUrl");
+const imageProcessing_1 = require("../lib/imageProcessing");
 const router = (0, express_1.Router)();
-/* ── Multer — stockage dans uploads/requests/ ──────────────────── */
+/* ── Multer — buffer en mémoire, converti en WebP avant écriture ── */
 const reqUploadDir = path_1.default.resolve(process.env.UPLOAD_DIR ?? './uploads', 'requests');
 if (!fs_1.default.existsSync(reqUploadDir))
     fs_1.default.mkdirSync(reqUploadDir, { recursive: true });
-const reqStorage = multer_1.default.diskStorage({
-    destination: (_req, _file, cb) => cb(null, reqUploadDir),
-    filename: (_req, file, cb) => {
-        const ext = path_1.default.extname(file.originalname).toLowerCase() || '.jpg';
-        const name = `req-${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
-        cb(null, name);
-    },
-});
 const reqUpload = (0, multer_1.default)({
-    storage: reqStorage,
+    storage: multer_1.default.memoryStorage(),
     limits: { fileSize: 5 * 1024 * 1024, files: 4 },
     fileFilter: (_req, file, cb) => {
-        if (/^image\/(jpeg|png|webp|gif)$/.test(file.mimetype))
+        // heic/heif = format par défaut des photos iPhone — sans ça, l'upload
+        // échoue silencieusement (500 générique) pour une bonne partie des mobiles.
+        if (/^image\/(jpeg|png|webp|gif|heic|heif|avif)$/.test(file.mimetype))
             cb(null, true);
         else
-            cb(new Error('Seuls les fichiers image sont acceptés (jpg, png, webp)'));
+            cb(new Error('Seuls les fichiers image sont acceptés (jpg, png, webp, heic, avif)'));
     },
 });
+/**
+ * Enveloppe reqUpload pour intercepter les erreurs multer (type de fichier
+ * refusé, taille dépassée, trop de fichiers) et répondre avec un message
+ * clair en 400 — sans ce wrapper, ces erreurs tombent dans le handler
+ * d'erreur générique de l'app et ressortent en 500 "Erreur interne du
+ * serveur", ce qui rend l'échec impossible à diagnostiquer côté client.
+ */
+function handleImageUpload(req, res, next) {
+    reqUpload.array('images', 4)(req, res, (err) => {
+        if (!err) {
+            next();
+            return;
+        }
+        if (err instanceof multer_1.default.MulterError) {
+            if (err.code === 'LIMIT_FILE_SIZE') {
+                res.status(400).json({ success: false, message: 'Image trop volumineuse (5 Mo maximum)' });
+                return;
+            }
+            if (err.code === 'LIMIT_FILE_COUNT' || err.code === 'LIMIT_UNEXPECTED_FILE') {
+                res.status(400).json({ success: false, message: '4 images maximum' });
+                return;
+            }
+        }
+        const message = err instanceof Error ? err.message : 'Fichier invalide';
+        res.status(400).json({ success: false, message });
+    });
+}
 /* ── Schemas ─────────────────────────────────────────────────── */
 const createSchema = zod_1.z.object({
     clientPrenom: zod_1.z.string().min(2),
@@ -56,15 +79,20 @@ const replySchema = zod_1.z.object({
 /* ─────────────────────────────────────────────────────────────
    POST /api/product-requests/upload-images — images de la demande
 ───────────────────────────────────────────────────────────── */
-router.post('/upload-images', reqUpload.array('images', 4), async (req, res) => {
+router.post('/upload-images', handleImageUpload, async (req, res) => {
     try {
         const files = req.files ?? [];
         if (files.length === 0) {
             res.status(400).json({ success: false, message: 'Aucun fichier reçu' });
             return;
         }
-        const BASE_URL = process.env.BACKEND_URL ?? `http://localhost:${process.env.PORT ?? 4000}`;
-        const urls = files.map(f => `${BASE_URL}/uploads/requests/${f.filename}`);
+        const BASE_URL = (0, backendUrl_1.getBackendUrl)();
+        const urls = await Promise.all(files.map(async (f) => {
+            const webp = await (0, imageProcessing_1.toWebp)(f.buffer);
+            const filename = `req-${Date.now()}-${Math.random().toString(36).slice(2)}.webp`;
+            fs_1.default.writeFileSync(path_1.default.join(reqUploadDir, filename), webp);
+            return `${BASE_URL}/uploads/requests/${filename}`;
+        }));
         res.json({ success: true, data: { urls } });
     }
     catch (err) {
@@ -211,7 +239,16 @@ router.patch('/:id/status', auth_1.requireAdmin, async (req, res) => {
         const request = await prisma_1.prisma.productRequest.update({ where: { id: req.params['id'] }, data: { status } });
         res.json({ success: true, data: { request } });
     }
-    catch {
+    catch (err) {
+        if (err instanceof zod_1.z.ZodError) {
+            res.status(400).json({ success: false, message: 'Statut invalide' });
+            return;
+        }
+        if (err && typeof err === 'object' && 'code' in err && err.code === 'P2025') {
+            res.status(404).json({ success: false, message: 'Demande introuvable' });
+            return;
+        }
+        console.error('[PATCH product-request status]', err);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });
@@ -263,7 +300,13 @@ router.delete('/:id', auth_1.requireAdmin, async (req, res) => {
         await prisma_1.prisma.productRequest.delete({ where: { id: req.params['id'] } });
         res.json({ success: true, message: 'Demande supprimée' });
     }
-    catch {
+    catch (err) {
+        if (err && typeof err === 'object' && 'code' in err && err.code === 'P2025') {
+            // Déjà supprimée (double-clic, liste obsolète côté client) — pas une vraie erreur serveur.
+            res.status(404).json({ success: false, message: 'Demande déjà supprimée' });
+            return;
+        }
+        console.error('[DELETE product-request]', err);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });

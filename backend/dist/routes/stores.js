@@ -4,6 +4,8 @@ const express_1 = require("express");
 const zod_1 = require("zod");
 const prisma_1 = require("../lib/prisma");
 const auth_1 = require("../middleware/auth");
+const rehostImage_1 = require("../lib/rehostImage");
+const backendUrl_1 = require("../lib/backendUrl");
 const router = (0, express_1.Router)();
 router.use(auth_1.requireAdmin);
 /* ── Schemas ─────────────────────────────────────────────────── */
@@ -160,6 +162,7 @@ router.post('/:id/import', async (req, res) => {
         const items = zod_1.z.array(importProductSchema).parse(req.body.products);
         const categories = await prisma_1.prisma.category.findMany({ select: { id: true, slug: true } });
         const categoryIdBySlug = new Map(categories.map(c => [c.slug, c.id]));
+        const BASE_URL = (0, backendUrl_1.getBackendUrl)();
         let created = 0;
         const skipped = [];
         for (const item of items) {
@@ -169,14 +172,15 @@ router.post('/:id/import', async (req, res) => {
                 continue;
             }
             const { images, specs, ...rest } = item;
+            const rehostedImages = images?.length ? await (0, rehostImage_1.rehostImages)(images, BASE_URL) : undefined;
             await prisma_1.prisma.product.create({
                 data: {
                     ...rest,
                     categoryId,
                     storeId,
                     isActive: true,
-                    images: images?.length
-                        ? { create: images.map((url, i) => ({ url, position: i })) }
+                    images: rehostedImages?.length
+                        ? { create: rehostedImages.map((url, i) => ({ url, position: i })) }
                         : undefined,
                     specs: specs?.length
                         ? { create: specs.map((s, i) => ({ ...s, position: i })) }

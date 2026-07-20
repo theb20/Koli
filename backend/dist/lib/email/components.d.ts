@@ -4,10 +4,19 @@ export declare function subheading(text: string): string;
 export declare function heading(text: string): string;
 /** Paragraphe de corps de texte */
 export declare function paragraph(text: string, extraStyle?: string): string;
-/** Séparateur horizontal en dégradé */
+/** Séparateur horizontal */
 export declare function divider(): string;
-/** Bouton CTA principal */
+/** Bouton CTA principal (pilule, style Material) */
 export declare function ctaButton(label: string, url: string, color?: string): string;
+/** Badge de confirmation avec coche (ex: "Compte activé") */
+export declare function checkBadge(label: string, color?: string): string;
+/** Bloc de fonctionnalités (icône + titre + description), fond gris clair */
+export declare function featureBlock(items: Array<{
+    icon: string;
+    iconBg: string;
+    title: string;
+    desc: string;
+}>): string;
 /** Pill de statut (badge arrondi) avec puce */
 export declare function statusTag(label: string, accent: string, accentBg: string): string;
 /** Bloc encadré avec fond coloré et bordure discrète */

@@ -50,6 +50,7 @@ export default function BlogPage() {
       />
 
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-slate-50">
             <tr className="border-b border-slate-200">
@@ -88,7 +89,7 @@ export default function BlogPage() {
                   <td className="px-4 py-3"><Badge label={p.isPublished ? 'published' : 'draft'} color={p.isPublished ? 'published' : 'draft'} /></td>
                   <td className="px-4 py-3 text-xs text-slate-500">{p.publishedAt ? fmtDate(p.publishedAt) : '—'}</td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                       <button onClick={() => navigate(`/blog/${p.id}`)}
                         className="p-1.5 rounded-lg hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 transition-all" title="Modifier">
                         <Edit size={14} />
@@ -108,6 +109,7 @@ export default function BlogPage() {
             )}
           </tbody>
         </table>
+        </div>
         {data?.pagination && (
           <Pagination page={page} totalPages={data.pagination.totalPages} total={data.pagination.total} limit={15} onChange={setPage} />
         )}

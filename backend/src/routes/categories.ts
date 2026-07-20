@@ -10,21 +10,14 @@ import { validate } from '../middleware/validate'
 import { cacheControl } from '../middleware/cache'
 import { getBackendUrl } from '../lib/backendUrl'
 import { deleteLocalUpload } from '../lib/deleteLocalUpload'
+import { toWebp } from '../lib/imageProcessing'
 
-/* ── Multer — stockage dans uploads/cat/ ─────────────────────── */
+/* ── Multer — buffer en mémoire, converti en WebP avant écriture ── */
 const catUploadDir = path.resolve(process.env.UPLOAD_DIR ?? './uploads', 'cat')
 if (!fs.existsSync(catUploadDir)) fs.mkdirSync(catUploadDir, { recursive: true })
 
-const catStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, catUploadDir),
-  filename: (_req, file, cb) => {
-    const ext  = path.extname(file.originalname).toLowerCase() || '.jpg'
-    const name = `cat-${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`
-    cb(null, name)
-  },
-})
 const catUpload = multer({
-  storage: catStorage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },   // 5 MB max
   fileFilter: (_req, file, cb) => {
     if (/^image\/(jpeg|png|webp|gif|heic|heif|avif)$/.test(file.mimetype)) cb(null, true)
@@ -209,8 +202,12 @@ router.post('/:id/image', requireAdmin, handleCatImageUpload, async (req, res) =
     if (!id) { res.status(400).json({ success: false, message: 'ID invalide' }); return }
     if (!req.file) { res.status(400).json({ success: false, message: 'Aucun fichier reçu' }); return }
 
+    const webp = await toWebp(req.file.buffer)
+    const filename = `cat-${Date.now()}-${Math.random().toString(36).slice(2)}.webp`
+    fs.writeFileSync(path.join(catUploadDir, filename), webp)
+
     const BASE_URL = getBackendUrl()
-    const imageUrl = `${BASE_URL}/uploads/cat/${req.file.filename}`
+    const imageUrl = `${BASE_URL}/uploads/cat/${filename}`
 
     // Supprimer l'ancienne image si c'est un fichier local
     const cat = await prisma.category.findUnique({ where: { id } })

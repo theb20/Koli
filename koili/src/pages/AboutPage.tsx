@@ -55,7 +55,7 @@ const TEAM = [
 const TESTIMONIALS = [
   { name: 'Aya K.',       city: 'Cocody, Abidjan',   text: 'J\'ai commandé une montre connectée, payée avec Wave, livrée chez moi à Cocody en moins de 24h. La qualité était exactement celle des photos. Je recommande Skignas à tout le monde !', stars: 5, img: 'https://media.licdn.com/dms/image/v2/C4D03AQETq5RZ_MigKQ/profile-displayphoto-shrink_200_200/profile-displayphoto-shrink_200_200/0/1523605897645?e=2147483647&v=beta&t=1xq1DSAAn4csLAneB-m7JUjZGKQ0d_amva7NfosPOo4' },
   { name: 'Konan Y.',     city: 'Bouaké',            text: 'Service client exceptionnel. J\'avais un souci avec ma commande et l\'équipe a tout réglé en moins de 2h sur WhatsApp. Même depuis Bouaké, la livraison a suivi sans problème. C\'est rare de voir ça !', stars: 5, img: 'https://media.licdn.com/dms/image/v2/D5603AQFFAUYtwSTgfA/profile-displayphoto-shrink_200_200/profile-displayphoto-shrink_200_200/0/1712179821336?e=2147483647&v=beta&t=chQwDJ110RIhsjplDsWddbj14cJ9UZSkq3sMdLljRtw' },
-  { name: 'Aminata T.',   city: 'Yopougon, Abidjan', text: 'Les prix sont imbattables par rapport à ce qu\'on trouve en boutique à Abidjan. Paiement Orange Money accepté, tout est simple. Koli est devenue ma boutique préférée.', stars: 5, img: 'https://upload.wikimedia.org/wikipedia/commons/7/70/Bagayoko_Aminita_TRAORE.jpg' },
+  { name: 'Aminata T.',   city: 'Yopougon, Abidjan', text: 'Les prix sont imbattables par rapport à ce qu\'on trouve en boutique à Abidjan. Paiement Orange Money accepté, tout est simple. Skignas est devenue ma boutique préférée.', stars: 5, img: 'https://upload.wikimedia.org/wikipedia/commons/7/70/Bagayoko_Aminita_TRAORE.jpg' },
   { name: 'Kouadio N\'G.', city: 'Yamoussoukro',      text: 'Première commande un peu stressé de payer avant de recevoir, mais le suivi en temps réel m\'a rassuré. Colis reçu au point relais comme prévu. Je commande à nouveau sans hésiter.', stars: 5, img: 'https://www.wakatsera.com/wp-content/uploads/2025/06/Kouadio-300x194.jpg' },
   { name: 'Mariam C.',    city: 'San-Pédro',         text: 'Habitant loin d\'Abidjan, je craignais pour la livraison. Finalement reçu en 3 jours, bien emballé. Le rapport qualité-prix est vraiment top. Merci à toute l\'équipe.', stars: 4, img: 'https://cdn.prod.website-files.com/660a7aaf0d2e1e2cd2ff2737/677ce8885c9edf6735f69638_mariam-ba-lagare-looks-2.png' },
   { name: 'Ibrahim B.',   city: 'Marcory, Abidjan',  text: 'Écouteurs commandés le matin, livrés l\'après-midi à Marcory. Paiement mobile money en deux clics, aucun stress. Franchement, c\'est du sérieux.', stars: 5, img: 'https://prod.cdn-medias.jeuneafrique.com/cdn-cgi/image/q=auto,f=auto,metadata=none,width=1215,fit=cover/https://prod.cdn-medias.jeuneafrique.com/medias/2010/09/09/009092010154826000000ibk-large.jpg' },
@@ -116,7 +116,7 @@ export function AboutPage() {
     <div className="bg-white">
       <PageMeta
         title="À propos de Skignas"
-        description="Découvrez l'histoire de Koli : notre mission, nos valeurs et pourquoi plus de 12 000 Camerounais nous font confiance."
+        description="Découvrez l'histoire de Skignas : notre mission, nos valeurs et pourquoi plus de 12 000 Camerounais nous font confiance."
         path="/about"
         image="/wall/og-about.jpg"
       />
@@ -160,7 +160,7 @@ export function AboutPage() {
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.25 }}
               className="text-white/60 text-lg leading-relaxed max-w-xl mb-10"
             >
-              Koli est née d'une conviction simple : chaque Camerounais mérite accès aux meilleurs produits mondiaux,
+              Skignas est née d'une conviction simple : chaque Ivoirrien mérite accès aux meilleurs produits mondiaux,
               livrés rapidement et à des prix justes. Depuis 2020, nous transformons cette vision en réalité.
             </motion.p>
 
@@ -241,7 +241,7 @@ export function AboutPage() {
             <div className="rounded-3xl overflow-hidden aspect-[4/3]">
               <img
                 src="https://images.unsplash.com/photo-1556741533-974f8e62a92d?q=80&w=900"
-                alt="Équipe Koli"
+                alt="Équipe Skignas"
                 className="w-full h-full object-cover"
               />
             </div>

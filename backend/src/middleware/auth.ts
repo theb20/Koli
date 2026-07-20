@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from 'express'
+import crypto from 'crypto'
 import { verifyAccessToken } from '../lib/jwt'
 
 /** Middleware — vérifie le JWT (Bearer header ou cookie) */
@@ -43,4 +44,32 @@ export function optionalAuth(req: Request, _res: Response, next: NextFunction): 
     // Token invalide ignoré
   }
   next()
+}
+
+/**
+ * Middleware — protège une route par clé API statique (header `x-api-key`
+ * ou paramètre `?key=`), pour les intégrations externes qui ne peuvent pas
+ * gérer un token JWT qui expire (ex: Google Sheets / Apps Script).
+ * Comparaison en temps constant pour éviter une attaque par timing.
+ */
+export function requireApiKey(envVar: string) {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const expected = process.env[envVar]
+    const provided = (req.headers['x-api-key'] as string | undefined) ?? (req.query['key'] as string | undefined)
+
+    if (!expected || !provided) {
+      res.status(401).json({ success: false, message: 'Clé API requise' })
+      return
+    }
+
+    const a = Buffer.from(provided)
+    const b = Buffer.from(expected)
+    const valid = a.length === b.length && crypto.timingSafeEqual(a, b)
+    if (!valid) {
+      res.status(401).json({ success: false, message: 'Clé API invalide' })
+      return
+    }
+
+    next()
+  }
 }

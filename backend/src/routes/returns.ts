@@ -32,23 +32,16 @@ import { requireAuth, requireAdmin } from '../middleware/auth'
 import { validate } from '../middleware/validate'
 import { getBackendUrl } from '../lib/backendUrl'
 import { sendReturnStatusEmail, sendNewReturnAdminEmail } from '../lib/mailer'
+import { toWebp } from '../lib/imageProcessing'
 
 const router = Router()
 
-/* ── Multer — stockage dans uploads/returns/ ───────────────────── */
+/* ── Multer — buffer en mémoire, converti en WebP avant écriture ── */
 const returnsUploadDir = path.resolve(process.env.UPLOAD_DIR ?? './uploads', 'returns')
 if (!fs.existsSync(returnsUploadDir)) fs.mkdirSync(returnsUploadDir, { recursive: true })
 
-const returnsStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, returnsUploadDir),
-  filename: (_req, file, cb) => {
-    const ext  = path.extname(file.originalname).toLowerCase() || '.jpg'
-    const name = `ret-${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`
-    cb(null, name)
-  },
-})
 const returnsUpload = multer({
-  storage: returnsStorage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024, files: 4 },
   fileFilter: (_req, file, cb) => {
     if (/^image\/(jpeg|png|webp|gif|heic|heif|avif)$/.test(file.mimetype)) cb(null, true)
@@ -82,7 +75,12 @@ router.post('/upload-images', requireAuth, handleImageUpload, async (req, res) =
       return
     }
     const BASE_URL = getBackendUrl()
-    const urls = files.map(f => `${BASE_URL}/uploads/returns/${f.filename}`)
+    const urls = await Promise.all(files.map(async f => {
+      const webp = await toWebp(f.buffer)
+      const filename = `ret-${Date.now()}-${Math.random().toString(36).slice(2)}.webp`
+      fs.writeFileSync(path.join(returnsUploadDir, filename), webp)
+      return `${BASE_URL}/uploads/returns/${filename}`
+    }))
     res.json({ success: true, data: { urls } })
   } catch (err) {
     console.error(err)

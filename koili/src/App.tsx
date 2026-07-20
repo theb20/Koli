@@ -36,6 +36,7 @@ const GiftListPublicPage   = lazy(() => import('./pages/GiftListPublicPage'))
 const DeliveryPage         = lazy(() => import('./pages/DeliveryPage'))
 const SellerPage           = lazy(() => import('./pages/SellerPage'))
 const RequestProductPage   = lazy(() => import('./pages/RequestProductPage'))
+const NotFoundPage         = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })))
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -107,6 +108,9 @@ function App() {
             <Route element={<PrivateRoute />}>
               <Route path="/profil" element={<ProfilPage />} />
             </Route>
+
+            {/* Route de secours — toute URL non reconnue (Firebase réécrit tout vers index.html) */}
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
           </Suspense>
         </BrowserRouter>

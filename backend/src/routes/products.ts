@@ -4,12 +4,13 @@ import multer from 'multer'
 import { parse } from 'csv-parse/sync'
 import ExcelJS from 'exceljs'
 import { prisma } from '../lib/prisma'
-import { requireAdmin, optionalAuth } from '../middleware/auth'
+import { requireAdmin, optionalAuth, requireApiKey } from '../middleware/auth'
 import { validate } from '../middleware/validate'
 import { cacheControl } from '../middleware/cache'
 import { rehostImages } from '../lib/rehostImage'
 import { getBackendUrl } from '../lib/backendUrl'
 import { deleteLocalUpload } from '../lib/deleteLocalUpload'
+import { syncAllProductsToMerchant, isMerchantConfigured } from '../lib/merchantFeed'
 
 const router = Router()
 
@@ -171,6 +172,48 @@ router.get('/featured', cacheControl(60), async (_req, res) => {
     res.json({ success: true, data: { hot, new: newItems, topRated } })
   } catch {
     res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/* ─────────────────────────────────────────────────────────────
+   GET /api/products/export   — tous les produits, actifs et inactifs,
+   sans pagination. Protégé par clé API statique (PRODUCTS_EXPORT_API_KEY),
+   pensé pour une intégration externe (ex: Google Sheets / Apps Script)
+   qui ne peut pas gérer un token JWT expirant.
+───────────────────────────────────────────────────────────── */
+router.get('/export', requireApiKey('PRODUCTS_EXPORT_API_KEY'), async (_req, res) => {
+  try {
+    const products = await prisma.product.findMany({
+      orderBy: { id: 'asc' },
+      include: {
+        images:      { orderBy: { position: 'asc' } },
+        specs:       { orderBy: { position: 'asc' } },
+        store:       { select: { id: true, name: true } },
+        categoryRel: { select: { id: true, slug: true, name: true } },
+      },
+    })
+    res.json({ success: true, data: { products, total: products.length } })
+  } catch {
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/* ─────────────────────────────────────────────────────────────
+   POST /api/products/sync-merchant  [ADMIN] — pousse tous les
+   produits actifs vers Google Merchant Center (API Merchant).
+   Voir lib/merchantFeed.ts pour la configuration requise.
+───────────────────────────────────────────────────────────── */
+router.post('/sync-merchant', requireAdmin, async (_req, res) => {
+  try {
+    if (!isMerchantConfigured()) {
+      res.status(400).json({ success: false, message: 'Google Merchant Center non configuré côté serveur (variables GOOGLE_MERCHANT_* manquantes)' })
+      return
+    }
+    const result = await syncAllProductsToMerchant()
+    res.json({ success: true, data: result })
+  } catch (err) {
+    console.error('[products] échec sync Merchant', err)
+    res.status(500).json({ success: false, message: err instanceof Error ? err.message : 'Erreur lors de la synchronisation' })
   }
 })
 

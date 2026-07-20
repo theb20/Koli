@@ -5,6 +5,7 @@ import { requireAuth, requireAdmin, optionalAuth } from '../middleware/auth'
 import { validate } from '../middleware/validate'
 import { sendOrderConfirmationEmail, sendOrderStatusEmail, sendNewOrderAdminEmail } from '../lib/mailer'
 import { buildInvoicePdf } from '../lib/invoicePdf'
+import { sendNewOrderWhatsAppNotification } from '../lib/whatsapp/newOrderNotification'
 
 const router = Router()
 
@@ -386,7 +387,7 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
           })
         }
 
-        const settings = await prisma.siteSettings.findUnique({ where: { id: 1 }, select: { orderNotifyEmails: true } })
+        const settings = await prisma.siteSettings.findUnique({ where: { id: 1 }, select: { orderNotifyEmails: true, whatsappNumber: true } })
         const recipients = (settings?.orderNotifyEmails ?? '').split(',').map(e => e.trim()).filter(Boolean)
         await Promise.allSettled(recipients.map(email => sendNewOrderAdminEmail(email, {
           orderNumber,
@@ -399,6 +400,19 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
           deliveryMethod:  body.deliveryMethod,
           orderId:         order.id,
         })))
+
+        // Notification WhatsApp équipe — best-effort, silencieuse tant que
+        // WHATSAPP_ACCESS_TOKEN/WHATSAPP_PHONE_NUMBER_ID ne sont pas configurés.
+        if (settings?.whatsappNumber) {
+          sendNewOrderWhatsAppNotification(settings.whatsappNumber, {
+            orderNumber,
+            orderId:         order.id,
+            clientNom:       `${body.clientPrenom} ${body.clientNom}`,
+            clientTelephone: body.clientTelephone,
+            total:           order.total,
+            paymentMethod:   body.paymentMethod,
+          }).catch(err => console.error('[orders] échec notification WhatsApp', err))
+        }
       } catch (err) {
         console.error('[orders] échec notification admin', err) // non bloquant
       }

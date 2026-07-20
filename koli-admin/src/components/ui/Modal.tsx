@@ -14,14 +14,14 @@ export function Modal({ open, onClose, title, children, width = 'max-w-xl' }: Pr
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
-      <div className={`relative w-full ${width} bg-white border border-slate-200 rounded-2xl shadow-xl`}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+      <div className={`relative w-full ${width} max-h-[90vh] flex flex-col bg-white border border-slate-200 rounded-2xl shadow-xl`}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
           <h2 className="text-base font-semibold text-slate-900">{title}</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors">
             <X size={16} />
           </button>
         </div>
-        <div className="p-6">{children}</div>
+        <div className="p-6 overflow-y-auto">{children}</div>
       </div>
     </div>
   )

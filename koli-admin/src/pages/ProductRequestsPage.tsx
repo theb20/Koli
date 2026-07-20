@@ -73,6 +73,7 @@ export default function ProductRequestsPage() {
       </div>
 
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-slate-50">
             <tr className="border-b border-slate-200">
@@ -121,6 +122,7 @@ export default function ProductRequestsPage() {
             )}
           </tbody>
         </table>
+        </div>
         {pagination && (
           <Pagination page={page} totalPages={pagination.totalPages} total={pagination.total} limit={20} onChange={setPage} />
         )}

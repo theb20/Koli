@@ -107,7 +107,7 @@ export default function TaxPage() {
       <PageTitle title="TVA & Taxes" sub="Gérer les taux de TVA appliqués aux commandes" />
 
       {/* KPI row */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { label: 'Taux créés',   value: taxes.length,                                              color: 'bg-indigo-50 text-indigo-700' },
           { label: 'Actifs',       value: taxes.filter(t => t.isActive).length,                      color: 'bg-emerald-50 text-emerald-700' },
@@ -139,6 +139,7 @@ export default function TaxPage() {
             <p className="text-xs mt-1">Créez votre premier taux pour l'appliquer aux commandes.</p>
           </div>
         ) : (
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-100">
@@ -210,6 +211,7 @@ export default function TaxPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 

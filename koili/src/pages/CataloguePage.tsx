@@ -532,30 +532,37 @@ export default function CataloguePage() {
   const [page,      setPage]      = useState(1)
   const [accumulated, setAccumulated] = useState<ReturnType<typeof mapApiProduct>[]>([])
   const sortRef = useRef<HTMLDivElement>(null)
-  const isSyncingRef = useRef(false) // Flag pour éviter les boucles
 
-  /* ── Sync URL → State (quand on clique sur un lien depuis le menu Header) ── */
+  /* ── Sync URL → State (ex: navigation depuis un lien du Header) ──
+     Chaque setter ne déclenche un re-render que si la valeur change
+     réellement (bail-out natif de React pour les primitives ; pour
+     `badges`, on renvoie explicitement la même référence de tableau
+     si le contenu est identique). Cette idempotence — plutôt qu'un
+     verrou manuel (ref + setTimeout) — est ce qui empêche la boucle
+     avec l'effet Sync État→URL ci-dessous, sans jamais avaler un clic
+     utilisateur légitime (ancien bug : le filtre catégorie nécessitait
+     deux clics de suite pour se mettre à jour). */
   useEffect(() => {
-    if (isSyncingRef.current) return // Ignore si on est en train de sync State→URL
-    isSyncingRef.current = true
+    const urlCategory = searchParams.get('cat') ?? 'all'
+    const urlSort     = searchParams.get('sort') ?? 'popular'
+    const urlPmin     = +(searchParams.get('pmin') ?? 0)
+    const urlPmax     = +(searchParams.get('pmax') ?? PRICE_MAX_LIMIT)
+    const urlRating   = +(searchParams.get('rating') ?? 0)
+    const urlBadges   = (searchParams.get('badges')?.split(',').filter(Boolean) ?? []) as Badge[]
+    const urlSearch   = searchParams.get('q') ?? ''
 
-    setCategory(searchParams.get('cat') ?? 'all')
-    setSortBy(searchParams.get('sort') ?? 'popular')
-    setPriceMin(+(searchParams.get('pmin') ?? 0))
-    setPriceMax(+(searchParams.get('pmax') ?? PRICE_MAX_LIMIT))
-    setMinRating(+(searchParams.get('rating') ?? 0))
-    setBadges((searchParams.get('badges')?.split(',').filter(Boolean) ?? []) as Badge[])
-    setSearch(searchParams.get('q') ?? '')
+    setCategory(c => c === urlCategory ? c : urlCategory)
+    setSortBy(s => s === urlSort ? s : urlSort)
+    setPriceMin(p => p === urlPmin ? p : urlPmin)
+    setPriceMax(p => p === urlPmax ? p : urlPmax)
+    setMinRating(r => r === urlRating ? r : urlRating)
+    setBadges(b => (b.length === urlBadges.length && b.every((x, i) => x === urlBadges[i])) ? b : urlBadges)
+    setSearch(s => s === urlSearch ? s : urlSearch)
     setPage(1)
-
-    setTimeout(() => { isSyncingRef.current = false }, 0)
   }, [searchParams])
 
-  /* ── Sync State → URL ── */
+  /* ── Sync État → URL (filtres modifiés localement) ── */
   useEffect(() => {
-    if (isSyncingRef.current) return // Ignore si on est en train de sync URL→State
-    isSyncingRef.current = true
-
     const p: Record<string,string> = {}
     if (category!=='all')          p.cat    = category
     if (sortBy!=='popular')        p.sort   = sortBy
@@ -567,8 +574,6 @@ export default function CataloguePage() {
     setSearchParams(p, { replace:true })
     setPage(1)
     setAccumulated([])
-
-    setTimeout(() => { isSyncingRef.current = false }, 0)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category, sortBy, priceMin, priceMax, minRating, badges, search])
 

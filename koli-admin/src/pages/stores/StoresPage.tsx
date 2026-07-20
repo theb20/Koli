@@ -293,11 +293,11 @@ export default function StoresPage() {
           </div>
 
           <Input label="Description" {...register('description')} placeholder="Description courte du magasin" />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input label="Adresse" {...register('address')} placeholder="Rue, Quartier, Ville" />
             <Input label="Téléphone" {...register('phone')} placeholder="+237 6XX XXX XXX" />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input label="Email" {...register('email')} error={errors.email?.message} placeholder="contact@boutique.cm" />
             <Input label="Site web" {...register('website')} error={errors.website?.message} placeholder="https://..." />
           </div>

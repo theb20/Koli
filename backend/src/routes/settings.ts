@@ -1,5 +1,8 @@
 import { Router } from 'express'
 import { z } from 'zod'
+import path from 'path'
+import fs from 'fs'
+import archiver from 'archiver'
 import { prisma } from '../lib/prisma'
 import { requireAdmin } from '../middleware/auth'
 import { validate } from '../middleware/validate'
@@ -82,6 +85,35 @@ router.put('/', requireAdmin, validate(settingsSchema.partial()), async (req, re
   } catch {
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
+})
+
+/* ─────────────────────────────────────────────────────────────
+   GET /api/settings/images-export  [ADMIN] — toutes les images du
+   site (uploads/cat, products, requests, returns) en une archive ZIP.
+   Streamée directement, jamais bufferisée en mémoire ni écrite sur
+   disque côté serveur.
+───────────────────────────────────────────────────────────── */
+router.get('/images-export', requireAdmin, (_req, res) => {
+  const uploadDir = path.resolve(process.env.UPLOAD_DIR ?? './uploads')
+  if (!fs.existsSync(uploadDir)) {
+    res.status(404).json({ success: false, message: 'Aucune image trouvée' })
+    return
+  }
+
+  const filename = `skignas-images-${new Date().toISOString().slice(0, 10)}.zip`
+  res.setHeader('Content-Type', 'application/zip')
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+
+  const archive = archiver('zip', { zlib: { level: 9 } })
+  archive.on('error', (err: Error) => {
+    console.error('[settings] échec export ZIP', err)
+    if (!res.headersSent) res.status(500).json({ success: false, message: 'Erreur lors de la génération du ZIP' })
+    else res.end()
+  })
+
+  archive.pipe(res)
+  archive.directory(uploadDir, false)
+  archive.finalize()
 })
 
 export default router

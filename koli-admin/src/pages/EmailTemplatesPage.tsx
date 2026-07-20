@@ -127,29 +127,31 @@ export default function EmailTemplatesPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-2rem)] gap-4">
+    <div className="flex flex-col lg:flex-row lg:h-[calc(100vh-2rem)] gap-4">
       {/* Liste des templates */}
-      <div className="w-56 shrink-0 bg-white border border-slate-200 rounded-2xl p-3 overflow-y-auto">
+      <div className="w-full lg:w-56 lg:shrink-0 bg-white border border-slate-200 rounded-2xl p-3 lg:overflow-y-auto">
         <div className="flex items-center gap-2 px-2 py-2 mb-1">
           <Mail size={15} className="text-indigo-600" />
           <h2 className="text-sm font-semibold text-slate-900">Templates</h2>
         </div>
         {error && <p className="text-xs text-red-500 px-2">{error}</p>}
-        {templates.map(t => (
-          <button
-            key={t}
-            onClick={() => setSelected(t)}
-            className={`w-full text-left px-3 py-2 rounded-xl text-sm mb-0.5 transition-colors ${
-              selected === t ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            {t}
-          </button>
-        ))}
+        <div className="flex flex-wrap lg:flex-col gap-1.5 lg:gap-0.5 max-h-48 lg:max-h-none overflow-y-auto lg:overflow-visible">
+          {templates.map(t => (
+            <button
+              key={t}
+              onClick={() => setSelected(t)}
+              className={`text-left px-3 py-2 rounded-xl text-sm transition-colors lg:w-full ${
+                selected === t ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Formulaire de tokens */}
-      <div className="w-[34%] shrink-0 bg-white border border-slate-200 rounded-2xl overflow-hidden flex flex-col">
+      <div className="w-full lg:w-[34%] lg:shrink-0 bg-white border border-slate-200 rounded-2xl overflow-hidden flex flex-col">
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
           <p className="text-sm font-medium text-slate-700 flex items-center gap-1.5"><Palette size={14} /> Design</p>
           <div className="flex items-center gap-1">
@@ -219,7 +221,7 @@ export default function EmailTemplatesPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1.5">{FIELD_LABELS.logoWidth}</label>
                   <input
@@ -265,7 +267,7 @@ export default function EmailTemplatesPage() {
       </div>
 
       {/* Aperçu — rendu réel du serveur */}
-      <div className="flex-1 bg-white border border-slate-200 rounded-2xl overflow-hidden flex flex-col">
+      <div className="lg:flex-1 bg-white border border-slate-200 rounded-2xl overflow-hidden flex flex-col">
         <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
           <p className="text-sm font-medium text-slate-700">{selected ?? '—'}</p>
           {loadingPreview && <span className="text-xs text-slate-400">Actualisation…</span>}
@@ -273,7 +275,7 @@ export default function EmailTemplatesPage() {
         <iframe
           srcDoc={html}
           title="Aperçu email"
-          className="flex-1 w-full"
+          className="w-full h-[70vh] lg:h-auto lg:flex-1"
         />
       </div>
     </div>

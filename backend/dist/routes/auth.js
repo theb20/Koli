@@ -12,6 +12,8 @@ const jwt_1 = require("../lib/jwt");
 const validate_1 = require("../middleware/validate");
 const auth_1 = require("../middleware/auth");
 const mailer_1 = require("../lib/mailer");
+const allowedOrigins_1 = require("../lib/allowedOrigins");
+const age_1 = require("../lib/age");
 const router = (0, express_1.Router)();
 /* ── Schemas ─────────────────────────────────────────────────── */
 const registerSchema = zod_1.z.object({
@@ -20,6 +22,10 @@ const registerSchema = zod_1.z.object({
     email: zod_1.z.string().email('Email invalide'),
     password: validate_1.zPassword.optional(), // optionnel — inscription sans mot de passe
     telephone: zod_1.z.string().optional(),
+    naissance: zod_1.z.coerce.date({ required_error: 'Date de naissance requise', invalid_type_error: 'Date de naissance invalide' }),
+}).refine(d => (0, age_1.getAge)(d.naissance) >= age_1.MIN_AGE, {
+    message: `Vous devez avoir au moins ${age_1.MIN_AGE} ans pour créer un compte`,
+    path: ['naissance'],
 });
 const loginSchema = zod_1.z.object({
     email: zod_1.z.string().email(),
@@ -32,10 +38,20 @@ const updateProfileSchema = zod_1.z.object({
     genre: zod_1.z.enum(['Homme', 'Femme', 'Autre']).optional(),
     naissance: zod_1.z.string().optional(),
     avatar: zod_1.z.string().optional(), // URL ou base64
+}).refine(d => !d.naissance || (0, age_1.getAge)(new Date(d.naissance)) >= age_1.MIN_AGE, {
+    message: `Vous devez avoir au moins ${age_1.MIN_AGE} ans`,
+    path: ['naissance'],
 });
 const changePasswordSchema = zod_1.z.object({
     currentPassword: zod_1.z.string().min(1),
     newPassword: validate_1.zPassword,
+});
+const forgotPasswordSchema = zod_1.z.object({
+    email: zod_1.z.string().email(),
+});
+const resetPasswordSchema = zod_1.z.object({
+    token: zod_1.z.string().min(1, 'Token requis'),
+    password: validate_1.zPassword,
 });
 /* ── Helpers ─────────────────────────────────────────────────── */
 function setAuthCookies(res, accessToken, refreshToken) {
@@ -56,7 +72,7 @@ function setAuthCookies(res, accessToken, refreshToken) {
 ───────────────────────────────────────────────────────────── */
 router.post('/register', (0, validate_1.validate)(registerSchema), async (req, res) => {
     try {
-        const { prenom, nom, email, telephone } = req.body;
+        const { prenom, nom, email, telephone, naissance } = req.body;
         const rawPassword = req.body.password;
         const exists = await prisma_1.prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
         if (exists) {
@@ -67,7 +83,7 @@ router.post('/register', (0, validate_1.validate)(registerSchema), async (req, r
         const passwordToHash = rawPassword ?? crypto_1.default.randomBytes(32).toString('hex');
         const hashed = await bcryptjs_1.default.hash(passwordToHash, 12);
         const user = await prisma_1.prisma.user.create({
-            data: { prenom, nom, email: email.toLowerCase().trim(), password: hashed, telephone },
+            data: { prenom, nom, email: email.toLowerCase().trim(), password: hashed, telephone, naissance },
         });
         /* ── Mode sans mot de passe : envoyer un magic link ── */
         if (!rawPassword) {
@@ -124,6 +140,12 @@ router.post('/login', (0, validate_1.validate)(loginSchema), async (req, res) =>
         const valid = await bcryptjs_1.default.compare(password, user.password);
         if (!valid) {
             res.status(401).json({ success: false, message: 'Email ou mot de passe incorrect' });
+            return;
+        }
+        // Ne bloque que si une date de naissance est connue et indique moins de 18 ans —
+        // on ne peut pas vérifier l'âge des comptes créés avant que ce champ n'existe.
+        if (user.naissance && (0, age_1.getAge)(user.naissance) < age_1.MIN_AGE) {
+            res.status(403).json({ success: false, message: `L'accès est réservé aux personnes de ${age_1.MIN_AGE} ans et plus` });
             return;
         }
         const accessToken = (0, jwt_1.signAccessToken)({ userId: user.id, email: user.email, role: user.role });
@@ -277,6 +299,75 @@ router.put('/password', auth_1.requireAuth, (0, validate_1.validate)(changePassw
     }
 });
 /* ─────────────────────────────────────────────────────────────
+   POST /api/auth/forgot-password
+   Réponse toujours générique — ne révèle jamais si l'email existe
+   (protection contre l'énumération de comptes).
+───────────────────────────────────────────────────────────── */
+router.post('/forgot-password', (0, validate_1.validate)(forgotPasswordSchema), async (req, res) => {
+    try {
+        const { email } = req.body;
+        const normalizedEmail = email.toLowerCase().trim();
+        const user = await prisma_1.prisma.user.findUnique({ where: { email: normalizedEmail } });
+        if (user) {
+            // Token opaque à usage unique — seul son hash SHA-256 est stocké en base,
+            // pour qu'une fuite de la base ne permette pas de réutiliser le lien.
+            const rawToken = crypto_1.default.randomBytes(32).toString('hex');
+            const tokenHash = crypto_1.default.createHash('sha256').update(rawToken).digest('hex');
+            await prisma_1.prisma.user.update({
+                where: { id: user.id },
+                data: {
+                    resetTokenHash: tokenHash,
+                    resetTokenExpiresAt: new Date(Date.now() + 30 * 60 * 1000), // 30 min
+                },
+            });
+            // L'Origin n'atteint cette route que si cors() l'a déjà validée contre
+            // ALLOWED_ORIGINS — on ne construit donc jamais un lien vers un domaine
+            // arbitraire fourni par le client.
+            const origin = req.headers.origin && allowedOrigins_1.ALLOWED_ORIGINS.includes(req.headers.origin)
+                ? req.headers.origin
+                : (process.env.FRONTEND_URL ?? 'http://localhost:3000');
+            const link = `${origin}/reinitialiser-mot-de-passe?token=${rawToken}`;
+            (0, mailer_1.sendPasswordResetEmail)(user.email, user.prenom, link).catch(err => console.error('[password-reset email]', err));
+        }
+        res.json({ success: true, message: 'Si un compte existe avec cet email, un lien de réinitialisation a été envoyé.' });
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+/* ─────────────────────────────────────────────────────────────
+   POST /api/auth/reset-password
+   Consomme le token à usage unique, change le mot de passe et
+   révoque toutes les sessions existantes de l'utilisateur.
+───────────────────────────────────────────────────────────── */
+router.post('/reset-password', (0, validate_1.validate)(resetPasswordSchema), async (req, res) => {
+    try {
+        const { token, password } = req.body;
+        const tokenHash = crypto_1.default.createHash('sha256').update(token).digest('hex');
+        const user = await prisma_1.prisma.user.findUnique({ where: { resetTokenHash: tokenHash } });
+        if (!user || !user.resetTokenExpiresAt || user.resetTokenExpiresAt < new Date()) {
+            res.status(400).json({ success: false, message: 'Lien invalide ou expiré, demandez-en un nouveau.' });
+            return;
+        }
+        const hashed = await bcryptjs_1.default.hash(password, 12);
+        await prisma_1.prisma.$transaction([
+            prisma_1.prisma.user.update({
+                where: { id: user.id },
+                data: { password: hashed, resetTokenHash: null, resetTokenExpiresAt: null },
+            }),
+            // Un mot de passe réinitialisé invalide toute session existante — potentiellement compromise.
+            prisma_1.prisma.session.deleteMany({ where: { userId: user.id } }),
+        ]);
+        (0, mailer_1.sendPasswordChangedEmail)(user.email, user.prenom, req.ip).catch(err => console.error('[password-changed email]', err));
+        res.json({ success: true, message: 'Mot de passe réinitialisé avec succès. Reconnectez-vous.' });
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+/* ─────────────────────────────────────────────────────────────
    DELETE /api/auth/account — Suppression définitive du compte
 ───────────────────────────────────────────────────────────── */
 router.delete('/account', auth_1.requireAuth, async (req, res) => {
@@ -356,6 +447,11 @@ router.post('/google', async (req, res) => {
             (0, mailer_1.sendWelcomeEmail)(user.email, user.prenom).catch(() => { });
         }
         else {
+            // Ne bloque que si une date de naissance est connue et indique moins de 18 ans.
+            if (user.naissance && (0, age_1.getAge)(user.naissance) < age_1.MIN_AGE) {
+                res.status(403).json({ success: false, message: `L'accès est réservé aux personnes de ${age_1.MIN_AGE} ans et plus` });
+                return;
+            }
             // Mettre à jour l'avatar si on en a un nouveau
             if (body.avatar && !user.avatar) {
                 await prisma_1.prisma.user.update({ where: { id: user.id }, data: { avatar: body.avatar } });
@@ -386,6 +482,9 @@ router.post('/google', async (req, res) => {
                     role: user.role,
                 },
                 accessToken,
+                // Google ne fournit pas la date de naissance — le front doit la demander
+                // avant de laisser l'utilisateur accéder au reste du site.
+                needsBirthdate: !user.naissance,
             },
         });
     }
@@ -591,6 +690,10 @@ router.post('/magic-link/verify', async (req, res) => {
             res.status(401).json({ success: false, message: 'Compte introuvable' });
             return;
         }
+        if (user.naissance && (0, age_1.getAge)(user.naissance) < age_1.MIN_AGE) {
+            res.status(403).json({ success: false, message: `L'accès est réservé aux personnes de ${age_1.MIN_AGE} ans et plus` });
+            return;
+        }
         const accessToken = (0, jwt_1.signAccessToken)({ userId: user.id, email: user.email, role: user.role });
         const refreshToken = (0, jwt_1.signRefreshToken)({ userId: user.id });
         await prisma_1.prisma.session.create({
@@ -608,6 +711,7 @@ router.post('/magic-link/verify', async (req, res) => {
             data: {
                 user: { id: user.id, prenom: user.prenom, nom: user.nom, email: user.email, role: user.role, avatar: user.avatar },
                 accessToken,
+                needsBirthdate: !user.naissance,
             },
         });
     }

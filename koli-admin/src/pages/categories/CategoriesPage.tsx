@@ -400,7 +400,7 @@ export default function CategoriesPage() {
             {categories.map((cat, i) => (
               <div key={cat.id} className="flex items-center gap-4 px-5 py-4 hover:bg-slate-50 transition-colors group">
                 {/* Up/down */}
-                <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex flex-col gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                   <button disabled={i === 0} onClick={() => moveItem(i, i - 1)}
                     className="w-5 h-4 flex items-center justify-center text-slate-300 hover:text-slate-600 disabled:opacity-20 disabled:cursor-not-allowed text-[10px]">▲</button>
                   <button disabled={i === categories.length - 1} onClick={() => moveItem(i, i + 1)}
@@ -440,7 +440,7 @@ export default function CategoriesPage() {
                 <div className="text-xs font-mono text-slate-300 w-8 text-center hidden md:block">#{cat.position}</div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                   <button
                     onClick={() => toggleMut.mutate(cat.id)}
                     className={`p-1.5 rounded-lg transition-all ${cat.isActive ? 'hover:bg-amber-50 text-slate-400 hover:text-amber-500' : 'hover:bg-emerald-50 text-slate-300 hover:text-emerald-500'}`}

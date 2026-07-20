@@ -17,10 +17,10 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen w-full flex bg-[#f5f5f7]">
+    <div className="min-h-screen w-full flex flex-col lg:flex-row bg-[#f5f5f7]">
 
       {/* Left: form panel */}
-      <div className="flex-1 basis-[46%] min-w-0 flex items-start justify-center px-12 py-10 overflow-y-auto">
+      <div className="flex-1 lg:basis-[46%] min-w-0 flex items-start justify-center px-6 sm:px-12 py-10 overflow-y-auto">
 
         <div className="w-full max-w-md my-auto">
 
@@ -134,8 +134,8 @@ export default function LoginPage() {
 
       </div>
 
-      {/* Right: image panel */}
-      <div className="flex-1 basis-[54%] min-w-0 flex p-5 pl-0">
+      {/* Right: image panel — masqué en dessous de lg, priorité au formulaire */}
+      <div className="hidden lg:flex lg:flex-1 lg:basis-[54%] min-w-0 p-5 pl-0">
         <div className="relative w-full h-full rounded-[28px] overflow-hidden">
           
             <img src="/image.png" alt="" className="absolute inset-0 h-full w-full object-cover" />

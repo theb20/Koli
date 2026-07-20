@@ -19,7 +19,7 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sendProductRequestReplyEmail = exports.sendNewProductRequestAdminEmail = exports.sendNewOrderAdminEmail = exports.sendFlashDealEmail = exports.sendBroadcastEmail = exports.sendContactReply = exports.sendOrderStatusEmail = exports.sendOrderConfirmationEmail = exports.sendMagicLinkEmail = exports.sendWelcomeEmail = exports.baseLayout = exports.FROM = exports.resend = exports.send = void 0;
+exports.sendNewReturnAdminEmail = exports.sendReturnStatusEmail = exports.sendProductRequestReplyEmail = exports.sendNewProductRequestAdminEmail = exports.sendNewOrderAdminEmail = exports.sendFlashDealEmail = exports.sendBroadcastEmail = exports.sendContactReply = exports.sendOrderStatusEmail = exports.sendOrderConfirmationEmail = exports.sendPasswordChangedEmail = exports.sendPasswordResetEmail = exports.sendMagicLinkEmail = exports.sendWelcomeEmail = exports.baseLayout = exports.FROM = exports.resend = exports.send = void 0;
 var client_1 = require("./client");
 Object.defineProperty(exports, "send", { enumerable: true, get: function () { return client_1.send; } });
 Object.defineProperty(exports, "resend", { enumerable: true, get: function () { return client_1.resend; } });
@@ -32,6 +32,10 @@ var welcome_1 = require("./templates/welcome");
 Object.defineProperty(exports, "sendWelcomeEmail", { enumerable: true, get: function () { return welcome_1.sendWelcomeEmail; } });
 var magic_link_1 = require("./templates/magic-link");
 Object.defineProperty(exports, "sendMagicLinkEmail", { enumerable: true, get: function () { return magic_link_1.sendMagicLinkEmail; } });
+var password_reset_1 = require("./templates/password-reset");
+Object.defineProperty(exports, "sendPasswordResetEmail", { enumerable: true, get: function () { return password_reset_1.sendPasswordResetEmail; } });
+var password_changed_1 = require("./templates/password-changed");
+Object.defineProperty(exports, "sendPasswordChangedEmail", { enumerable: true, get: function () { return password_changed_1.sendPasswordChangedEmail; } });
 var order_confirmation_1 = require("./templates/order-confirmation");
 Object.defineProperty(exports, "sendOrderConfirmationEmail", { enumerable: true, get: function () { return order_confirmation_1.sendOrderConfirmationEmail; } });
 var order_status_1 = require("./templates/order-status");
@@ -48,4 +52,8 @@ var new_product_request_admin_1 = require("./templates/new-product-request-admin
 Object.defineProperty(exports, "sendNewProductRequestAdminEmail", { enumerable: true, get: function () { return new_product_request_admin_1.sendNewProductRequestAdminEmail; } });
 var product_request_reply_1 = require("./templates/product-request-reply");
 Object.defineProperty(exports, "sendProductRequestReplyEmail", { enumerable: true, get: function () { return product_request_reply_1.sendProductRequestReplyEmail; } });
+var return_status_1 = require("./templates/return-status");
+Object.defineProperty(exports, "sendReturnStatusEmail", { enumerable: true, get: function () { return return_status_1.sendReturnStatusEmail; } });
+var new_return_admin_1 = require("./templates/new-return-admin");
+Object.defineProperty(exports, "sendNewReturnAdminEmail", { enumerable: true, get: function () { return new_return_admin_1.sendNewReturnAdminEmail; } });
 //# sourceMappingURL=index.js.map

@@ -1,2 +1,8 @@
 .env
 .env.example
+
+# Clés de compte de service Google Cloud (téléchargées en JSON) — jamais commitées
+skignas-bc817-cf07619e8f0d.json
+*-firebase-adminsdk-*.json
+*service-account*.json
+skikey.json

@@ -92,7 +92,7 @@ export default function NotificationsPage() {
       />
 
       {/* Stats rapides */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { label: 'Total', value: data?.pagination?.total ?? 0, color: 'text-slate-900' },
           { label: 'Non lues', value: data?.unread ?? 0, color: 'text-amber-600' },
@@ -113,7 +113,7 @@ export default function NotificationsPage() {
         </div>
 
         <div className="grid grid-cols-1 gap-3">
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="col-span-2">
               <Input
                 label="Titre"
@@ -136,7 +136,7 @@ export default function NotificationsPage() {
             rows={3}
             placeholder="Contenu de la notification..."
           />
-          <div className="flex items-center justify-between pt-1">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-1">
             <p className="text-xs text-amber-600 flex items-center gap-1.5 font-medium">
               <AlertTriangle size={12} />
               Sera envoyée à tous les utilisateurs inscrits
@@ -161,6 +161,7 @@ export default function NotificationsPage() {
         <div className="px-5 py-4 border-b border-slate-100">
           <h3 className="text-sm font-semibold text-slate-900">Historique des notifications</h3>
         </div>
+        <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-slate-50">
             <tr className="border-b border-slate-200">
@@ -205,6 +206,7 @@ export default function NotificationsPage() {
             )}
           </tbody>
         </table>
+        </div>
         {data?.pagination && data.pagination.totalPages > 1 && (
           <Pagination
             page={page}

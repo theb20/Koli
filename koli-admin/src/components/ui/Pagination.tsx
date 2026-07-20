@@ -14,11 +14,11 @@ export function Pagination({ page, totalPages, total, limit, onChange }: Props) 
   const to   = Math.min(page * limit, total)
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100">
+    <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-slate-100">
       <p className="text-xs text-slate-500">
         {from}–{to} sur {total.toLocaleString('fr-FR')} résultats
       </p>
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 flex-wrap">
         <button
           onClick={() => onChange(page - 1)}
           disabled={page === 1}

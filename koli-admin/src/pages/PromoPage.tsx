@@ -79,7 +79,7 @@ export default function PromoPage() {
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { label: 'Total codes', value: promos.length },
           { label: 'Actifs', value: promos.filter(p => p.isActive).length },
@@ -94,6 +94,7 @@ export default function PromoPage() {
 
       {/* Table */}
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-slate-50">
             <tr className="border-b border-slate-200">
@@ -137,7 +138,7 @@ export default function PromoPage() {
                   <td className="px-4 py-3 text-xs text-slate-500">{p.expiresAt ? fmtDate(p.expiresAt) : 'Illimité'}</td>
                   <td className="px-4 py-3"><Badge label={p.isActive ? 'active' : 'inactive'} /></td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                       <button onClick={() => toggleMutation.mutate({ id: p.id, isActive: p.isActive })}
                         className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-all" title="Activer/désactiver">
                         {p.isActive ? <ToggleRight size={14} className="text-green-500" /> : <ToggleLeft size={14} />}
@@ -153,6 +154,7 @@ export default function PromoPage() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Create modal */}
@@ -163,18 +165,18 @@ export default function PromoPage() {
               Erreur — code déjà utilisé ou données invalides
             </div>
           )}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Code" {...register('code')} error={errors.code?.message} placeholder="SKIGNAS20" className="uppercase" />
             <Select label="Type" {...register('type')} options={[
               { value: 'percent', label: 'Pourcentage (%)' },
               { value: 'fixed',   label: 'Montant fixe (FCFA)' },
             ]} />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Valeur (entrez % ou FCFA)" type="number" min={1} step={1} {...register('value')} error={errors.value?.message} placeholder="20 ou 5000" />
             <Input label="Commande min. (FCFA, 0 = aucune)" type="number" min={0} step={1} {...register('minOrder')} placeholder="0" />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Nb max d'utilisations" type="number" {...register('maxUses')} placeholder="Illimité" />
             <Input label="Date d'expiration" type="date" {...register('expiresAt')} />
           </div>

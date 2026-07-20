@@ -406,7 +406,7 @@ function SimpleNavLink({ item }: { item: NavItem }) {
 function CategoriesBtn() {
   return (
     <Link
-      to="/magasin"
+      to="/catalogue"
       className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold text-gray-800 hover:bg-gray-800 hover:text-white transition-all shrink-0"
     >
       <AlignJustify size={15} />

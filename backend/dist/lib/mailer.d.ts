@@ -1,3 +1,3 @@
-export { sendWelcomeEmail, sendMagicLinkEmail, sendOrderConfirmationEmail, sendOrderStatusEmail, sendContactReply, sendBroadcastEmail, sendNewOrderAdminEmail, sendNewProductRequestAdminEmail, sendProductRequestReplyEmail, } from './email';
-export type { OrderItem, OrderConfirmationPayload, NewOrderAdminPayload, NewProductRequestAdminPayload } from './email';
+export { sendWelcomeEmail, sendMagicLinkEmail, sendPasswordResetEmail, sendPasswordChangedEmail, sendOrderConfirmationEmail, sendOrderStatusEmail, sendContactReply, sendBroadcastEmail, sendNewOrderAdminEmail, sendNewProductRequestAdminEmail, sendProductRequestReplyEmail, sendReturnStatusEmail, sendNewReturnAdminEmail, } from './email';
+export type { OrderItem, OrderConfirmationPayload, NewOrderAdminPayload, NewProductRequestAdminPayload, NewReturnAdminPayload } from './email';
 //# sourceMappingURL=mailer.d.ts.map

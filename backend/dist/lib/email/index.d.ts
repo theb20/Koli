@@ -4,6 +4,8 @@ export * from './components';
 export * from './types';
 export { sendWelcomeEmail } from './templates/welcome';
 export { sendMagicLinkEmail } from './templates/magic-link';
+export { sendPasswordResetEmail } from './templates/password-reset';
+export { sendPasswordChangedEmail } from './templates/password-changed';
 export { sendOrderConfirmationEmail } from './templates/order-confirmation';
 export { sendOrderStatusEmail } from './templates/order-status';
 export { sendContactReply } from './templates/contact-reply';
@@ -15,4 +17,7 @@ export type { NewOrderAdminPayload } from './templates/new-order-admin';
 export { sendNewProductRequestAdminEmail } from './templates/new-product-request-admin';
 export type { NewProductRequestAdminPayload } from './templates/new-product-request-admin';
 export { sendProductRequestReplyEmail } from './templates/product-request-reply';
+export { sendReturnStatusEmail } from './templates/return-status';
+export { sendNewReturnAdminEmail } from './templates/new-return-admin';
+export type { NewReturnAdminPayload } from './templates/new-return-admin';
 //# sourceMappingURL=index.d.ts.map

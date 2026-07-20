@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Search, Edit, Trash2, Eye, EyeOff, Package, Store, Upload, X } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, Eye, EyeOff, Package, Store, Upload, X, RefreshCw } from 'lucide-react'
 import { api, fmt, fmtDate } from '../../lib/api'
 import { Button } from '../../components/ui/Button'
 import { Badge } from '../../components/ui/Badge'
@@ -31,7 +31,28 @@ export default function ProductsPage() {
   const [bulkOpen, setBulkOpen] = useState(false)
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
+  const [syncMsg, setSyncMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const debouncedSearch = useDebouncedValue(search, 300)
+
+  type MerchantSyncResult = {
+    total: number; succeeded: number
+    failed: { productId: number; name: string; error: string }[]
+    skippedNoImage: { productId: number; name: string }[]
+  }
+
+  const syncMerchantMutation = useMutation({
+    mutationFn: async () => { const { data } = await api.post('/api/products/sync-merchant'); return data.data as MerchantSyncResult },
+    onSuccess: (result) => {
+      const parts = [`${result.succeeded}/${result.total} produits synchronisés`]
+      if (result.skippedNoImage.length) parts.push(`${result.skippedNoImage.length} ignoré(s) (sans image)`)
+      if (result.failed.length) parts.push(`${result.failed.length} échec(s)`)
+      setSyncMsg({ ok: result.failed.length === 0, text: parts.join(' · ') })
+    },
+    onError: (err) => {
+      const text = (err as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Erreur lors de la synchronisation'
+      setSyncMsg({ ok: false, text })
+    },
+  })
 
   const { data: storesData } = useQuery({
     queryKey: ['stores-list'],
@@ -107,12 +128,25 @@ export default function ProductsPage() {
         title="Produits"
         sub={`${pagination?.total ?? 0} produits au total`}
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              variant="secondary"
+              icon={<RefreshCw size={15} className={syncMerchantMutation.isPending ? 'animate-spin' : ''} />}
+              loading={syncMerchantMutation.isPending}
+              onClick={() => { setSyncMsg(null); syncMerchantMutation.mutate() }}
+            >
+              Synchroniser Google
+            </Button>
             <Button variant="secondary" icon={<Upload size={15} />} onClick={() => setBulkOpen(true)}>Import CSV</Button>
             <Button icon={<Plus size={15} />} onClick={() => navigate('/products/new')}>Nouveau produit</Button>
           </div>
         }
       />
+      {syncMsg && (
+        <div className={`text-sm px-4 py-2.5 rounded-xl border ${syncMsg.ok ? 'text-emerald-700 bg-emerald-50 border-emerald-100' : 'text-amber-700 bg-amber-50 border-amber-100'}`}>
+          {syncMsg.text}
+        </div>
+      )}
       <BulkImportModal open={bulkOpen} onClose={() => setBulkOpen(false)} />
 
       {/* Filters */}
@@ -146,9 +180,9 @@ export default function ProductsPage() {
 
       {/* Barre d'actions groupées */}
       {selected.size > 0 && (
-        <div className="flex items-center gap-3 bg-indigo-50 border border-indigo-200 rounded-2xl px-4 py-3">
+        <div className="flex items-center gap-3 flex-wrap bg-indigo-50 border border-indigo-200 rounded-2xl px-4 py-3">
           <span className="text-sm font-medium text-indigo-700">{selected.size} produit{selected.size > 1 ? 's' : ''} sélectionné{selected.size > 1 ? 's' : ''}</span>
-          <div className="flex items-center gap-2 ml-auto">
+          <div className="flex items-center gap-2 flex-wrap sm:ml-auto">
             <Button variant="secondary" size="sm" icon={<Eye size={13} />} loading={bulkSetActive.isPending} onClick={() => bulkSetActive.mutate(true)}>
               Activer
             </Button>
@@ -167,6 +201,7 @@ export default function ProductsPage() {
 
       {/* Table */}
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-slate-50">
             <tr className="border-b border-slate-200">
@@ -239,7 +274,7 @@ export default function ProductsPage() {
                   <td className="px-4 py-3"><Badge label={p.isActive ? 'active' : 'inactive'} /></td>
                   <td className="px-4 py-3 text-xs text-slate-400">{fmtDate(p.createdAt)}</td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                       <button onClick={() => navigate(`/products/${p.id}`)}
                         className="p-1.5 rounded-lg hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 transition-all" title="Modifier">
                         <Edit size={14} />
@@ -259,6 +294,7 @@ export default function ProductsPage() {
             )}
           </tbody>
         </table>
+        </div>
         {pagination && (
           <Pagination page={page} totalPages={pagination.totalPages} total={pagination.total} limit={15} onChange={p => { setPage(p); setSelected(new Set()) }} />
         )}

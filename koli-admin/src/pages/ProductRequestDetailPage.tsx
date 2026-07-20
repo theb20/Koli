@@ -73,13 +73,13 @@ export default function ProductRequestDetailPage() {
 
   return (
     <div className="space-y-5 max-w-5xl">
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 flex-wrap">
         <button onClick={() => navigate('/product-requests')}
-          className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-all">
+          className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-all shrink-0">
           <ArrowLeft size={18} />
         </button>
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-xl font-bold text-slate-900">{request.productName}</h1>
             <Badge label={request.status} />
           </div>
@@ -101,7 +101,7 @@ export default function ProductRequestDetailPage() {
             <p className="text-sm text-slate-700 whitespace-pre-line leading-relaxed">{request.description}</p>
 
             {request.images.length > 0 && (
-              <div className="mt-4 grid grid-cols-4 gap-2">
+              <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {request.images.map((url, i) => (
                   <a key={i} href={url} target="_blank" rel="noopener noreferrer"
                     className="aspect-square rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
@@ -111,7 +111,7 @@ export default function ProductRequestDetailPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4 mt-5 pt-5 border-t border-slate-100">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-5 pt-5 border-t border-slate-100">
               <div className="flex items-center gap-2">
                 <Box size={14} className="text-slate-400" />
                 <span className="text-sm text-slate-600">Quantité : <strong>{request.quantity ?? '—'}</strong></span>

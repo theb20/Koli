@@ -9,23 +9,16 @@ import { requireAdmin, optionalAuth } from '../middleware/auth'
 import { validate } from '../middleware/validate'
 import { sendNewProductRequestAdminEmail, sendProductRequestReplyEmail } from '../lib/mailer'
 import { getBackendUrl } from '../lib/backendUrl'
+import { toWebp } from '../lib/imageProcessing'
 
 const router = Router()
 
-/* ── Multer — stockage dans uploads/requests/ ──────────────────── */
+/* ── Multer — buffer en mémoire, converti en WebP avant écriture ── */
 const reqUploadDir = path.resolve(process.env.UPLOAD_DIR ?? './uploads', 'requests')
 if (!fs.existsSync(reqUploadDir)) fs.mkdirSync(reqUploadDir, { recursive: true })
 
-const reqStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, reqUploadDir),
-  filename: (_req, file, cb) => {
-    const ext  = path.extname(file.originalname).toLowerCase() || '.jpg'
-    const name = `req-${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`
-    cb(null, name)
-  },
-})
 const reqUpload = multer({
-  storage: reqStorage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024, files: 4 },
   fileFilter: (_req, file, cb) => {
     // heic/heif = format par défaut des photos iPhone — sans ça, l'upload
@@ -91,7 +84,12 @@ router.post('/upload-images', handleImageUpload, async (req, res) => {
       return
     }
     const BASE_URL = getBackendUrl()
-    const urls = files.map(f => `${BASE_URL}/uploads/requests/${f.filename}`)
+    const urls = await Promise.all(files.map(async f => {
+      const webp = await toWebp(f.buffer)
+      const filename = `req-${Date.now()}-${Math.random().toString(36).slice(2)}.webp`
+      fs.writeFileSync(path.join(reqUploadDir, filename), webp)
+      return `${BASE_URL}/uploads/requests/${filename}`
+    }))
     res.json({ success: true, data: { urls } })
   } catch (err) {
     console.error(err)

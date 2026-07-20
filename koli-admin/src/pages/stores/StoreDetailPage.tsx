@@ -110,11 +110,11 @@ function ScrapedProductCard({
         {item.images.length > 1 && (
           <>
             <button onClick={prevImg}
-              className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 bg-white/80 rounded-full flex items-center justify-center shadow opacity-0 group-hover:opacity-100 transition-opacity">
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 bg-white/80 rounded-full flex items-center justify-center shadow opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
               <ChevronLeft size={14} />
             </button>
             <button onClick={nextImg}
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 bg-white/80 rounded-full flex items-center justify-center shadow opacity-0 group-hover:opacity-100 transition-opacity">
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 bg-white/80 rounded-full flex items-center justify-center shadow opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
               <ChevronRight size={14} />
             </button>
             <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
@@ -229,7 +229,7 @@ function ScrapedProductCard({
                         onError={e => { (e.target as HTMLImageElement).style.display='none' }} />
                     </div>
                     <button onClick={() => removeImg(j)}
-                      className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity">
+                      className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover/img:opacity-100 transition-opacity">
                       <X size={9} />
                     </button>
                   </div>
@@ -467,13 +467,13 @@ export default function StoreDetailPage() {
     <div className="space-y-5 max-w-7xl">
 
       {/* ── Header ─────────────────────────────────────────── */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 flex-wrap">
         <button onClick={() => navigate('/stores')}
           className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-all">
           <ArrowLeft size={18} />
         </button>
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-xl font-bold text-slate-900">{store?.name ?? '…'}</h1>
             {store && <Badge label={store.isActive ? 'active' : 'inactive'} />}
           </div>
@@ -533,6 +533,7 @@ export default function StoreDetailPage() {
               Importer des produits
             </Button>
           </div>
+          <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-slate-50">
               <tr className="border-b border-slate-200">
@@ -575,7 +576,7 @@ export default function StoreDetailPage() {
                     <td className="px-4 py-3"><Badge label={p.isActive ? 'active' : 'inactive'} /></td>
                     <td className="px-4 py-3 text-xs text-slate-400">{fmtDate(p.createdAt)}</td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                         <button onClick={() => toggleActive.mutate({ pid: p.id, isActive: p.isActive })}
                           className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-all">
                           {p.isActive ? <EyeOff size={13} /> : <Eye size={13} />}
@@ -591,6 +592,7 @@ export default function StoreDetailPage() {
               }
             </tbody>
           </table>
+          </div>
           {pagination && (
             <Pagination page={page} totalPages={pagination.totalPages} total={pagination.total} limit={15} onChange={setPage} />
           )}
@@ -639,7 +641,7 @@ export default function StoreDetailPage() {
 
             <div className="mt-4 bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-3">
               <p className="text-xs font-semibold text-indigo-700 mb-1.5">💡 Conseils pour de meilleurs résultats</p>
-              <div className="grid grid-cols-2 gap-x-6 text-xs text-indigo-600 space-y-0.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 text-xs text-indigo-600 space-y-0.5">
                 <p>• URL de fiche produit individuelle</p>
                 <p>• Sites Shopify, WooCommerce détectés auto</p>
                 <p>• Amazon, Jumia, AliExpress supportés</p>
@@ -652,8 +654,8 @@ export default function StoreDetailPage() {
           {scraped.length > 0 && (
             <>
               {/* Top bar */}
-              <div className="flex items-center justify-between bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm">
-                <div className="flex items-center gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm">
+                <div className="flex items-center gap-3 flex-wrap">
                   <span className="text-sm font-semibold text-slate-900">
                     {scraped.length} produit{scraped.length > 1 ? 's' : ''} détecté{scraped.length > 1 ? 's' : ''}
                   </span>
@@ -664,7 +666,7 @@ export default function StoreDetailPage() {
                   )}
                   <span className="text-xs text-slate-400">{scrapedSelected} sélectionné{scrapedSelected > 1 ? 's' : ''}</span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <button onClick={() => setScraped(s => s.map(p => ({ ...p, selected: true })))}
                     className="text-xs text-indigo-600 hover:underline font-medium">Tout sélectionner</button>
                   <span className="text-slate-300 text-xs">|</span>
@@ -774,14 +776,14 @@ export default function StoreDetailPage() {
 
           {jsonPreview.length > 0 && (
             <>
-              <div className="flex items-center justify-between bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm">
-                <div className="flex items-center gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm">
+                <div className="flex items-center gap-3 flex-wrap">
                   <span className="text-sm font-semibold text-slate-900">
                     {jsonPreview.length} produit{jsonPreview.length > 1 ? 's' : ''} dans le JSON
                   </span>
                   <span className="text-xs text-slate-400">{jsonSelected} sélectionné{jsonSelected > 1 ? 's' : ''}</span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <button onClick={() => setJsonPreview(s => s.map(p => ({ ...p, selected: true })))}
                     className="text-xs text-indigo-600 hover:underline font-medium">Tout sélectionner</button>
                   <span className="text-slate-300 text-xs">|</span>

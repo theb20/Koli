@@ -2,6 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import net from 'net'
 import dns from 'dns/promises'
+import { toWebp } from './imageProcessing'
 
 const UPLOAD_DIR    = process.env.UPLOAD_DIR ?? './uploads'
 const PRODUCTS_DIR  = path.resolve(UPLOAD_DIR, 'products')
@@ -121,9 +122,9 @@ export async function rehostImage(sourceUrl: string, backendBaseUrl: string): Pr
     const buf = Buffer.concat(chunks.map(c => Buffer.from(c)))
     if (buf.length === 0) return sourceUrl
 
-    const ext = (contentType.split('/')[1] ?? 'jpg').replace(/[^a-z0-9]/gi, '').slice(0, 5) || 'jpg'
-    const filename = `prod-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-    fs.writeFileSync(path.join(PRODUCTS_DIR, filename), buf)
+    const webp = await toWebp(buf)
+    const filename = `prod-${Date.now()}-${Math.random().toString(36).slice(2)}.webp`
+    fs.writeFileSync(path.join(PRODUCTS_DIR, filename), webp)
 
     return `${backendBaseUrl}/uploads/products/${filename}`
   } catch (err) {

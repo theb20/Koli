@@ -23,8 +23,8 @@ const blogSchema = zod_1.z.object({
 /* ── GET /api/blog ──────────────────────────────────────────── */
 router.get('/', (0, cache_1.cacheControl)(60), async (req, res) => {
     try {
-        const page = parseInt(req.query['page']) || 1;
-        const limit = parseInt(req.query['limit']) || 9;
+        const page = Math.max(1, parseInt(req.query['page']) || 1);
+        const limit = Math.min(50, Math.max(1, parseInt(req.query['limit']) || 9));
         const category = req.query['category'];
         const q = req.query['q'];
         const where = {

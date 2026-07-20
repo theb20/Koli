@@ -105,7 +105,7 @@ export default function UsersPage() {
       />
 
       {/* Stats mini */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {[
           { label: 'Total inscrits', value: totalAll, icon: Users,     color: 'text-indigo-600 bg-indigo-50' },
           { label: 'Administrateurs', value: data?.stats?.admins ?? 0, icon: Shield,    color: 'text-purple-600 bg-purple-50' },
@@ -145,6 +145,7 @@ export default function UsersPage() {
 
       {/* Table */}
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-slate-50">
             <tr className="border-b border-slate-200">
@@ -199,7 +200,7 @@ export default function UsersPage() {
 
                   {/* Actions */}
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                       {/* Voir détail */}
                       <button onClick={() => setDetailUser(u)}
                         className="p-1.5 rounded-lg hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 transition-all" title="Voir commandes">
@@ -238,6 +239,7 @@ export default function UsersPage() {
             )}
           </tbody>
         </table>
+        </div>
         {data?.pagination && (
           <Pagination page={page} totalPages={data.pagination.totalPages} total={data.pagination.total} limit={20} onChange={setPage} />
         )}
@@ -255,7 +257,7 @@ export default function UsersPage() {
               Erreur lors de la modification
             </div>
           )}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input label="Prénom" {...register('prenom', { required: 'Requis' })} error={errors.prenom?.message} />
             <Input label="Nom" {...register('nom', { required: 'Requis' })} error={errors.nom?.message} />
           </div>
@@ -292,7 +294,7 @@ export default function UsersPage() {
             {/* Body */}
             <div className="flex-1 overflow-y-auto p-5 space-y-5">
               {/* Info */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {[
                   { label: 'Rôle', value: <Badge label={detailUser.role} /> },
                   { label: 'Statut', value: detailUser.isBanned ? <Badge label="banned" /> : <Badge label="active" /> },

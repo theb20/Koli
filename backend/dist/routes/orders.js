@@ -6,6 +6,8 @@ const prisma_1 = require("../lib/prisma");
 const auth_1 = require("../middleware/auth");
 const validate_1 = require("../middleware/validate");
 const mailer_1 = require("../lib/mailer");
+const invoicePdf_1 = require("../lib/invoicePdf");
+const newOrderNotification_1 = require("../lib/whatsapp/newOrderNotification");
 const router = (0, express_1.Router)();
 /* ── Helpers ─────────────────────────────────────────────────── */
 function generateOrderNumber() {
@@ -76,7 +78,9 @@ async function applyOrderStatusChange(orderId, status) {
         const paymentStatus = status === 'refunded' ? 'refunded'
             : ['confirmed', 'processing', 'shipped', 'delivered'].includes(status) ? 'paid'
                 : order.paymentStatus; // 'pending'/'cancelled' : ne pas inventer un statut de paiement
-        const updated = await tx.order.update({ where: { id: orderId }, data: { status, paymentStatus } });
+        // Verrouillé à la première livraison — base du calcul d'éligibilité au retour.
+        const deliveredAt = status === 'delivered' && order.status !== 'delivered' ? new Date() : undefined;
+        const updated = await tx.order.update({ where: { id: orderId }, data: { status, paymentStatus, deliveredAt } });
         return { updated, changed: order.status !== status };
     });
     if (!result)
@@ -347,7 +351,7 @@ router.post('/', auth_1.optionalAuth, (0, validate_1.validate)(createOrderSchema
                         })),
                     });
                 }
-                const settings = await prisma_1.prisma.siteSettings.findUnique({ where: { id: 1 }, select: { orderNotifyEmails: true } });
+                const settings = await prisma_1.prisma.siteSettings.findUnique({ where: { id: 1 }, select: { orderNotifyEmails: true, whatsappNumber: true } });
                 const recipients = (settings?.orderNotifyEmails ?? '').split(',').map(e => e.trim()).filter(Boolean);
                 await Promise.allSettled(recipients.map(email => (0, mailer_1.sendNewOrderAdminEmail)(email, {
                     orderNumber,
@@ -360,6 +364,18 @@ router.post('/', auth_1.optionalAuth, (0, validate_1.validate)(createOrderSchema
                     deliveryMethod: body.deliveryMethod,
                     orderId: order.id,
                 })));
+                // Notification WhatsApp équipe — best-effort, silencieuse tant que
+                // WHATSAPP_ACCESS_TOKEN/WHATSAPP_PHONE_NUMBER_ID ne sont pas configurés.
+                if (settings?.whatsappNumber) {
+                    (0, newOrderNotification_1.sendNewOrderWhatsAppNotification)(settings.whatsappNumber, {
+                        orderNumber,
+                        orderId: order.id,
+                        clientNom: `${body.clientPrenom} ${body.clientNom}`,
+                        clientTelephone: body.clientTelephone,
+                        total: order.total,
+                        paymentMethod: body.paymentMethod,
+                    }).catch(err => console.error('[orders] échec notification WhatsApp', err));
+                }
             }
             catch (err) {
                 console.error('[orders] échec notification admin', err); // non bloquant
@@ -524,6 +540,43 @@ router.get('/:id', auth_1.optionalAuth, async (req, res) => {
     }
     catch {
         res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+/* ─────────────────────────────────────────────────────────────
+   GET /api/orders/:id/invoice  — Facture PDF
+   Même règle d'accès que GET /:id (propriétaire, commande invité, ou admin).
+───────────────────────────────────────────────────────────── */
+router.get('/:id/invoice', auth_1.optionalAuth, async (req, res) => {
+    try {
+        const paramId = req.params['id'] ?? '';
+        const isAdmin = req.user?.role === 'admin';
+        const order = await prisma_1.prisma.order.findFirst({
+            where: {
+                AND: [
+                    { OR: [{ id: paramId }, { orderNumber: paramId }] },
+                    ...(isAdmin
+                        ? []
+                        : req.user
+                            ? [{ OR: [{ userId: req.user.userId }, { userId: null }] }]
+                            : [{ userId: null }]),
+                ],
+            },
+            include: { items: true },
+        });
+        if (!order) {
+            res.status(404).json({ success: false, message: 'Commande introuvable' });
+            return;
+        }
+        const settings = await prisma_1.prisma.siteSettings.upsert({ where: { id: 1 }, create: {}, update: {} });
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="facture-${order.orderNumber}.pdf"`);
+        const doc = (0, invoicePdf_1.buildInvoicePdf)(order, settings);
+        doc.pipe(res);
+        doc.end();
+    }
+    catch (err) {
+        console.error('[INVOICE]', err);
+        res.status(500).json({ success: false, message: 'Erreur lors de la génération de la facture' });
     }
 });
 /* ─────────────────────────────────────────────────────────────

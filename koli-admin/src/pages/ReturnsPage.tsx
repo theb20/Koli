@@ -75,6 +75,7 @@ export default function ReturnsPage() {
       </div>
 
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-slate-50">
             <tr className="border-b border-slate-200">
@@ -116,6 +117,7 @@ export default function ReturnsPage() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   )

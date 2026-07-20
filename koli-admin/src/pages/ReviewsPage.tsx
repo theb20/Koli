@@ -45,6 +45,7 @@ export default function ReviewsPage() {
       <PageTitle title="Avis clients" sub={`${data?.pagination?.total ?? 0} avis`} />
 
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-slate-50">
             <tr className="border-b border-slate-200">
@@ -76,7 +77,7 @@ export default function ReviewsPage() {
                   <td className="px-4 py-3 text-xs text-slate-500">{fmtDate(r.createdAt)}</td>
                   <td className="px-4 py-3">
                     <button onClick={() => setDeleteId(r.id)}
-                      className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-all">
+                      className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-all">
                       <Trash2 size={14} />
                     </button>
                   </td>
@@ -85,6 +86,7 @@ export default function ReviewsPage() {
             )}
           </tbody>
         </table>
+        </div>
         {data?.pagination && (
           <Pagination page={page} totalPages={data.pagination.totalPages} total={data.pagination.total} limit={20} onChange={setPage} />
         )}

@@ -1,6 +1,8 @@
 "use strict";
 /* ─────────────────────────────────────────────────────────────
-   Composants HTML réutilisables pour les emails Skignas
+   Composants HTML réutilisables pour les emails Skignas — design
+   "Google Material" (Google Sans/Roboto, couleurs Material,
+   boutons pilule, ombres douces).
    Chaque fonction retourne une chaîne HTML inline-stylée,
    compatible Gmail, Outlook, Apple Mail et dark mode.
 ───────────────────────────────────────────────────────────── */
@@ -10,50 +12,90 @@ exports.heading = heading;
 exports.paragraph = paragraph;
 exports.divider = divider;
 exports.ctaButton = ctaButton;
+exports.checkBadge = checkBadge;
+exports.featureBlock = featureBlock;
 exports.statusTag = statusTag;
 exports.highlightBox = highlightBox;
 exports.metaTable = metaTable;
 exports.orderItemsTable = orderItemsTable;
 exports.dealProductCard = dealProductCard;
 exports.iconRow = iconRow;
+const FONT_BRAND = "'Google Sans',Roboto,Arial,sans-serif";
+const FONT_BODY = 'Roboto,Arial,sans-serif';
 /** Sous-titre bleu en capslock avant le heading, avec puce */
 function subheading(text) {
-    return `<p style="font-family:system-ui,-apple-system,sans-serif;font-size:12px;font-weight:700;color:#0421ff;letter-spacing:.8px;text-transform:uppercase;margin:0 0 14px">
-    <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#0421ff;margin-right:8px;vertical-align:middle"></span>${text}
+    return `<p style="font-family:${FONT_BRAND};font-size:12px;font-weight:600;color:#1967d2;letter-spacing:.2px;text-transform:uppercase;margin:0 0 14px">
+    <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#1a73e8;margin-right:8px;vertical-align:middle"></span>${text}
   </p>`;
 }
 /** Titre principal H1 */
 function heading(text) {
-    return `<h1 style="font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:25px;font-weight:800;color:#0f172a;line-height:1.25;margin:0 0 14px;letter-spacing:-0.5px">${text}</h1>`;
+    return `<h1 style="font-family:${FONT_BRAND};font-size:22px;font-weight:500;color:#202124;line-height:1.35;margin:0 0 10px;letter-spacing:0">${text}</h1>`;
 }
 /** Paragraphe de corps de texte */
 function paragraph(text, extraStyle = '') {
-    return `<p style="font-family:system-ui,-apple-system,sans-serif;font-size:15px;color:#4b5563;line-height:1.75;margin:0 0 16px${extraStyle ? ';' + extraStyle : ''}">${text}</p>`;
+    return `<p style="font-family:${FONT_BODY};font-size:14px;color:#5f6368;line-height:1.7;margin:0 0 16px${extraStyle ? ';' + extraStyle : ''}">${text}</p>`;
 }
-/** Séparateur horizontal en dégradé */
+/** Séparateur horizontal */
 function divider() {
-    return `<div style="height:1px;background:linear-gradient(90deg,rgba(4,33,255,0) 0%,rgba(4,33,255,.15) 50%,rgba(4,33,255,0) 100%);margin:28px 0"></div>`;
+    return `<div style="height:1px;background:#e8eaed;margin:28px 0"></div>`;
 }
-/** Bouton CTA principal */
-function ctaButton(label, url, color = '#0421ff') {
+/** Bouton CTA principal (pilule, style Material) */
+function ctaButton(label, url, color = '#1a73e8') {
     return `
-    <div style="margin-top:28px">
-      <a href="${url}"
-        style="display:inline-block;background:${color};color:#ffffff;font-family:system-ui,-apple-system,sans-serif;font-size:14px;font-weight:700;letter-spacing:.3px;padding:15px 34px;border-radius:14px;text-decoration:none;line-height:1;box-shadow:0 6px 16px -4px ${color}66">
-        ${label} &rarr;
+    <div style="margin-top:24px">
+      <a href="${url}" class="cta"
+        style="display:inline-block;background:${color};color:#ffffff;font-family:${FONT_BRAND};font-size:14px;font-weight:500;letter-spacing:.2px;padding:12px 28px;border-radius:20px;text-decoration:none;line-height:1;box-shadow:0 1px 2px 0 rgba(60,64,67,.30),0 1px 3px 1px rgba(60,64,67,.15)">
+        ${label}
       </a>
     </div>`;
 }
+/** Badge de confirmation avec coche (ex: "Compte activé") */
+function checkBadge(label, color = '#1a73e8') {
+    return `
+    <table cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse;margin:0 0 20px">
+      <tr>
+        <td style="vertical-align:middle;padding-right:8px">
+          <span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:${color};text-align:center;line-height:20px">
+            <span style="color:#ffffff;font-size:12px;font-weight:700;font-family:Arial,sans-serif">&#10003;</span>
+          </span>
+        </td>
+        <td style="font-family:${FONT_BRAND};font-size:12px;font-weight:600;letter-spacing:.2px;color:#1967d2;vertical-align:middle">${label}</td>
+      </tr>
+    </table>`;
+}
+/** Bloc de fonctionnalités (icône + titre + description), fond gris clair */
+function featureBlock(items) {
+    const rows = items.map((it, i) => `
+    <tr>
+      <td style="vertical-align:top;padding-right:14px;${i < items.length - 1 ? 'padding-bottom:16px;' : ''}width:36px">
+        <span style="display:inline-block;width:32px;height:32px;border-radius:8px;background:${it.iconBg};text-align:center;line-height:32px;font-size:16px">${it.icon}</span>
+      </td>
+      <td style="font-family:${FONT_BODY};font-size:13px;color:#5f6368;line-height:1.6;${i < items.length - 1 ? 'padding-bottom:16px;' : ''}vertical-align:middle">
+        <span style="color:#202124;font-weight:500;font-family:${FONT_BRAND}">${it.title}</span><br/>${it.desc}
+      </td>
+    </tr>`).join('');
+    return `
+    <table class="feature-block" width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#f8f9fa;border-radius:12px;border-collapse:separate">
+      <tr>
+        <td style="padding:18px 20px">
+          <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse">
+            <tbody>${rows}</tbody>
+          </table>
+        </td>
+      </tr>
+    </table>`;
+}
 /** Pill de statut (badge arrondi) avec puce */
 function statusTag(label, accent, accentBg) {
-    return `<span style="display:inline-block;background:${accentBg};color:${accent};font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;padding:6px 14px 6px 10px;border-radius:100px;margin:0 0 20px">
+    return `<span style="display:inline-block;background:${accentBg};color:${accent};font-family:${FONT_BRAND};font-size:11px;font-weight:600;letter-spacing:.3px;text-transform:uppercase;padding:6px 14px 6px 10px;border-radius:100px;margin:0 0 20px">
     <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${accent};margin-right:6px;vertical-align:middle"></span>${label}
   </span>`;
 }
 /** Bloc encadré avec fond coloré et bordure discrète */
-function highlightBox(content, bg = '#eef2ff') {
+function highlightBox(content, bg = '#e8f0fe') {
     return `
-    <div style="background:${bg};border:1px solid rgba(4,33,255,.08);border-radius:14px;padding:18px 20px;margin:20px 0">
+    <div style="background:${bg};border:1px solid rgba(26,115,232,.12);border-radius:12px;padding:18px 20px;margin:20px 0">
       ${content}
     </div>`;
 }
@@ -61,8 +103,8 @@ function highlightBox(content, bg = '#eef2ff') {
 function metaTable(rows) {
     const html = rows.map(([label, value]) => `
     <tr>
-      <td style="font-family:system-ui,-apple-system,sans-serif;font-size:12px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:#9ca3af;padding:11px 0;border-bottom:1px solid #eef1fa;white-space:nowrap;vertical-align:middle;padding-right:20px">${label}</td>
-      <td style="font-family:system-ui,-apple-system,sans-serif;font-size:14px;color:#111827;padding:11px 0;border-bottom:1px solid #eef1fa;text-align:right;font-weight:600">${value}</td>
+      <td style="font-family:${FONT_BODY};font-size:12px;font-weight:500;letter-spacing:.2px;text-transform:uppercase;color:#9aa0a6;padding:11px 0;border-bottom:1px solid #e8eaed;white-space:nowrap;vertical-align:middle;padding-right:20px">${label}</td>
+      <td style="font-family:${FONT_BODY};font-size:14px;color:#202124;padding:11px 0;border-bottom:1px solid #e8eaed;text-align:right;font-weight:500">${value}</td>
     </tr>`).join('');
     return `
     <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse">
@@ -74,17 +116,17 @@ function orderItemsTable(items) {
     const fmt = (n) => n.toLocaleString('fr-FR') + '&nbsp;FCFA';
     const rows = items.map(i => `
     <tr>
-      <td style="font-family:system-ui,-apple-system,sans-serif;font-size:14px;color:#111827;padding:12px 0;border-bottom:1px solid #eef1fa;line-height:1.4">${i.name}</td>
-      <td style="font-family:system-ui,-apple-system,sans-serif;font-size:13px;color:#6b7280;padding:12px 0;border-bottom:1px solid #eef1fa;text-align:center;white-space:nowrap">&times;${i.qty}</td>
-      <td style="font-family:system-ui,-apple-system,sans-serif;font-size:14px;font-weight:700;color:#111827;padding:12px 0;border-bottom:1px solid #eef1fa;text-align:right;white-space:nowrap">${fmt(i.price * i.qty)}</td>
+      <td style="font-family:${FONT_BODY};font-size:14px;color:#202124;padding:12px 0;border-bottom:1px solid #e8eaed;line-height:1.4">${i.name}</td>
+      <td style="font-family:${FONT_BODY};font-size:13px;color:#5f6368;padding:12px 0;border-bottom:1px solid #e8eaed;text-align:center;white-space:nowrap">&times;${i.qty}</td>
+      <td style="font-family:${FONT_BODY};font-size:14px;font-weight:500;color:#202124;padding:12px 0;border-bottom:1px solid #e8eaed;text-align:right;white-space:nowrap">${fmt(i.price * i.qty)}</td>
     </tr>`).join('');
     return `
     <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse">
       <thead>
         <tr>
-          <th style="font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#9ca3af;padding:0 0 12px;border-bottom:2px solid #0f172a;text-align:left">Article</th>
-          <th style="font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#9ca3af;padding:0 0 12px;border-bottom:2px solid #0f172a;text-align:center">Qté</th>
-          <th style="font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#9ca3af;padding:0 0 12px;border-bottom:2px solid #0f172a;text-align:right">Prix</th>
+          <th style="font-family:${FONT_BODY};font-size:11px;font-weight:600;letter-spacing:.3px;text-transform:uppercase;color:#9aa0a6;padding:0 0 12px;border-bottom:2px solid #202124;text-align:left">Article</th>
+          <th style="font-family:${FONT_BODY};font-size:11px;font-weight:600;letter-spacing:.3px;text-transform:uppercase;color:#9aa0a6;padding:0 0 12px;border-bottom:2px solid #202124;text-align:center">Qté</th>
+          <th style="font-family:${FONT_BODY};font-size:11px;font-weight:600;letter-spacing:.3px;text-transform:uppercase;color:#9aa0a6;padding:0 0 12px;border-bottom:2px solid #202124;text-align:right">Prix</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
@@ -97,16 +139,16 @@ function dealProductCard(p) {
     return `
     <a href="${p.url}" style="text-decoration:none">
       <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
-        style="border-collapse:collapse;border:1px solid #eef1fa;border-radius:16px;overflow:hidden;margin-bottom:14px">
+        style="border-collapse:collapse;border:1px solid #e8eaed;border-radius:12px;overflow:hidden;margin-bottom:14px">
         <tr>
           <td width="88" style="width:88px;vertical-align:top">
             <img src="${p.image}" alt="${p.name}" width="88" height="88" style="width:88px;height:88px;object-fit:cover;display:block" />
           </td>
           <td style="padding:14px 16px;vertical-align:middle">
-            <p style="font-family:system-ui,-apple-system,sans-serif;font-size:13px;font-weight:700;color:#111827;margin:0 0 6px;line-height:1.3">${p.name}</p>
-            <span style="display:inline-block;background:#fef2f2;color:#dc2626;font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:800;padding:3px 8px;border-radius:100px;margin-right:8px">-${disc}%</span>
-            <span style="font-family:system-ui,-apple-system,sans-serif;font-size:15px;font-weight:800;color:#dc2626">${fmt(p.salePrice)}</span>
-            <span style="font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#9ca3af;text-decoration:line-through;margin-left:6px">${fmt(p.price)}</span>
+            <p style="font-family:${FONT_BODY};font-size:13px;font-weight:500;color:#202124;margin:0 0 6px;line-height:1.3">${p.name}</p>
+            <span style="display:inline-block;background:#fce8e6;color:#d93025;font-family:${FONT_BRAND};font-size:11px;font-weight:600;padding:3px 8px;border-radius:100px;margin-right:8px">-${disc}%</span>
+            <span style="font-family:${FONT_BRAND};font-size:15px;font-weight:600;color:#d93025">${fmt(p.salePrice)}</span>
+            <span style="font-family:${FONT_BODY};font-size:12px;color:#9aa0a6;text-decoration:line-through;margin-left:6px">${fmt(p.price)}</span>
           </td>
         </tr>
       </table>
@@ -117,7 +159,7 @@ function iconRow(icon, text) {
     return `
     <tr>
       <td style="vertical-align:top;padding-right:12px;font-size:18px;padding-top:2px;padding-bottom:12px;width:28px">${icon}</td>
-      <td style="font-family:system-ui,-apple-system,sans-serif;font-size:13px;color:#374151;line-height:1.6;padding-bottom:12px">${text}</td>
+      <td style="font-family:${FONT_BODY};font-size:13px;color:#5f6368;line-height:1.6;padding-bottom:12px">${text}</td>
     </tr>`;
 }
 //# sourceMappingURL=components.js.map

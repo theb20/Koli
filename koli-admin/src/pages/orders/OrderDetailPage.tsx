@@ -78,13 +78,13 @@ export default function OrderDetailPage() {
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/orders')} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-all">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex items-center gap-4 min-w-0">
+          <button onClick={() => navigate('/orders')} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-all shrink-0">
             <ArrowLeft size={18} />
           </button>
-          <div>
-            <div className="flex items-center gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-xl font-bold text-slate-900">{order.orderNumber}</h1>
               <Badge label={order.status} />
               <Badge label={order.paymentStatus} />
@@ -129,7 +129,7 @@ export default function OrderDetailPage() {
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${done ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'} ${active ? 'ring-2 ring-indigo-400 ring-offset-2' : ''}`}>
                       {done ? '✓' : i + 1}
                     </div>
-                    <p className={`text-[10px] font-medium ${done ? 'text-indigo-600' : 'text-slate-400'}`}>
+                    <p className={`hidden sm:block text-[10px] font-medium text-center ${done ? 'text-indigo-600' : 'text-slate-400'}`}>
                       {ALL_STATUSES.find(x => x.value === s)?.label}
                     </p>
                   </div>

@@ -14,6 +14,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { createOrder, fetchPromo, fetchProducts, fetchProduct, mapApiProduct, fetchDefaultTax, fetchAddresses, type ApiAddress } from '../lib/api'
 import { useSiteSettings, waLink, telLink } from '../hooks/useSiteSettings'
 import { VILLES_CI } from '../constants/villesCI'
+import { PaymentNoticeModal } from '../components/ui/PaymentNoticeModal'
 
 /* ═══════════════════════════════════════════════════════════════
    TYPES & CONSTANTES
@@ -921,6 +922,9 @@ function StepPaiement({ selected, onSelect, onNext, onBack }: {
 
   return (
     <div className="space-y-4">
+      {/* Info paiement manuel — uniquement sur cette étape, 1x/24h */}
+      <PaymentNoticeModal />
+
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
         <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
           <CreditCard size={15} className="text-blue-500" /> Choisissez votre mode de paiement
