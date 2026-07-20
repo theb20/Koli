@@ -127,6 +127,11 @@ app.get('/health', (_req, res) => {
         status: 'OK',
         version: '1.0.0',
         ts: new Date().toISOString(),
+        // cwd/uploadDir : diagnostic pour vérifier que le point de montage du
+        // volume persistant Railway correspond bien au dossier réellement utilisé
+        // par le serveur (uploads/products a été effacé à plusieurs reprises).
+        cwd: process.cwd(),
+        uploadDir: path_1.default.resolve(UPLOAD_DIR),
     });
 });
 /* ── Routes API ─────────────────────────────────────────────── */

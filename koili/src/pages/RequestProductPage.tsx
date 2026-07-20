@@ -47,9 +47,18 @@ const EMPTY_FORM: FormState = {
   desiredDate: "",
 };
 
+type ImageUpload = {
+  id: string;
+  file: File;
+  previewUrl: string;
+  status: "uploading" | "done" | "error";
+  remoteUrl?: string;
+  error?: string;
+};
+
 export default function RequestProductPage() {
   const { user } = useAuth();
-  const [images, setImages] = useState<File[]>([]);
+  const [images, setImages] = useState<ImageUpload[]>([]);
   const [form, setForm] = useState<FormState>(() => ({
     ...EMPTY_FORM,
     clientPrenom: user?.prenom ?? "",
@@ -66,14 +75,46 @@ export default function RequestProductPage() {
     setErrors(e => ({ ...e, [k]: "" }));
   };
 
-  const handleImages = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files) return;
-    setImages(prev => [...prev, ...Array.from(e.target.files!)].slice(0, 4));
-    e.target.value = "";
+  const uploadImage = async (entry: ImageUpload) => {
+    try {
+      const fd = new FormData();
+      fd.append("images", entry.file);
+      const res = await fetch(`${API_BASE}/api/product-requests/upload-images`, {
+        method: "POST",
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message ?? "Échec de l'envoi");
+      const url = data.data.urls[0] as string;
+      setImages(prev => prev.map(img => img.id === entry.id ? { ...img, status: "done", remoteUrl: url } : img));
+    } catch (err) {
+      setImages(prev => prev.map(img => img.id === entry.id
+        ? { ...img, status: "error", error: err instanceof Error ? err.message : "Échec de l'envoi" }
+        : img));
+    }
   };
 
-  const removeImage = (name: string) => {
-    setImages(prev => prev.filter(img => img.name !== name));
+  const handleImages = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
+    const files = Array.from(e.target.files).slice(0, 4 - images.length);
+    e.target.value = "";
+
+    const newEntries: ImageUpload[] = files.map(file => ({
+      id: crypto.randomUUID(),
+      file,
+      previewUrl: URL.createObjectURL(file),
+      status: "uploading",
+    }));
+    setImages(prev => [...prev, ...newEntries]);
+    newEntries.forEach(entry => { void uploadImage(entry); });
+  };
+
+  const removeImage = (id: string) => {
+    setImages(prev => {
+      const target = prev.find(img => img.id === id);
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter(img => img.id !== id);
+    });
   };
 
   const validate = () => {
@@ -91,21 +132,18 @@ export default function RequestProductPage() {
 
   const handleSubmit = async () => {
     if (!validate()) return;
+    if (images.some(img => img.status === "uploading")) {
+      setSubmitError("Patientez — vos images sont encore en cours d'envoi.");
+      return;
+    }
+    if (images.some(img => img.status === "error")) {
+      setSubmitError("Retirez ou réessayez les images en échec avant d'envoyer votre demande.");
+      return;
+    }
     setSubmitting(true);
     setSubmitError("");
     try {
-      let imageUrls: string[] = [];
-      if (images.length > 0) {
-        const fd = new FormData();
-        images.forEach(img => fd.append("images", img));
-        const uploadRes = await fetch(`${API_BASE}/api/product-requests/upload-images`, {
-          method: "POST",
-          body: fd,
-        });
-        const uploadData = await uploadRes.json();
-        if (!uploadRes.ok) throw new Error(uploadData.message ?? "Échec de l'envoi des images");
-        imageUrls = uploadData.data.urls;
-      }
+      const imageUrls = images.map(img => img.remoteUrl!);
 
       const res = await fetch(`${API_BASE}/api/product-requests`, {
         method: "POST",
@@ -333,19 +371,43 @@ export default function RequestProductPage() {
 
                     {images.length > 0 && (
 
-                      <div className="mt-4 flex flex-wrap gap-2">
+                      <div className="mt-4 flex flex-wrap gap-3">
 
                         {images.map((img) => (
 
-                          <div
-                            key={img.name}
-                            className="flex items-center gap-2 rounded-full bg-slate-100 pl-4 pr-2 py-2 text-sm"
-                          >
-                            {img.name}
-                            <button type="button" onClick={() => removeImage(img.name)}
-                              className="p-0.5 rounded-full hover:bg-slate-200 text-slate-500">
-                              <X size={13} />
+                          <div key={img.id} className="relative">
+                            <div className={`h-20 w-20 overflow-hidden rounded-xl border-2 ${
+                              img.status === "error" ? "border-red-300" : img.status === "done" ? "border-emerald-300" : "border-slate-200"
+                            }`}>
+                              <img src={img.previewUrl} alt="" className="h-full w-full object-cover" />
+
+                              {img.status === "uploading" && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                                  <Loader2 className="h-6 w-6 animate-spin text-white" />
+                                </div>
+                              )}
+
+                              {img.status === "done" && (
+                                <div className="absolute bottom-1 right-1 rounded-full bg-emerald-500 p-0.5">
+                                  <CheckCircle2 className="h-3.5 w-3.5 text-white" />
+                                </div>
+                              )}
+
+                              {img.status === "error" && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-red-500/60">
+                                  <AlertCircle className="h-6 w-6 text-white" />
+                                </div>
+                              )}
+                            </div>
+
+                            <button type="button" onClick={() => removeImage(img.id)}
+                              className="absolute -right-1.5 -top-1.5 rounded-full bg-slate-700 p-0.5 text-white hover:bg-slate-900">
+                              <X size={12} />
                             </button>
+
+                            {img.status === "error" && (
+                              <p className="mt-1 w-20 text-center text-[10px] leading-tight text-red-500">{img.error}</p>
+                            )}
                           </div>
 
                         ))}
@@ -453,7 +515,7 @@ export default function RequestProductPage() {
                   <div className="pt-4">
                     <button
                       onClick={handleSubmit}
-                      disabled={submitting}
+                      disabled={submitting || images.some(img => img.status === "uploading")}
                       className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-4 text-lg font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
                     >
                       {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}

@@ -5,7 +5,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const zod_1 = require("zod");
+const fs_1 = __importDefault(require("fs"));
+const path_1 = __importDefault(require("path"));
 const multer_1 = __importDefault(require("multer"));
+const sharp_1 = __importDefault(require("sharp"));
 const sync_1 = require("csv-parse/sync");
 const exceljs_1 = __importDefault(require("exceljs"));
 const prisma_1 = require("../lib/prisma");
@@ -199,6 +202,85 @@ router.get('/export', (0, auth_1.requireApiKey)('PRODUCTS_EXPORT_API_KEY'), asyn
     }
     catch {
         res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+/* ─────────────────────────────────────────────────────────────
+   POST /api/products/restore-images  [ADMIN] — réparation ponctuelle :
+   réécrit des fichiers d'image sous leur nom EXACT d'origine dans
+   uploads/products/, pour un serveur dont le disque a perdu des
+   fichiers déjà référencés par ProductImage.url (rien n'est modifié
+   en base, seul le fichier manquant est restauré). Le nom de fichier
+   est strictement validé pour empêcher toute traversée de chemin —
+   accepte uniquement le format généré par rehostImage/uploads produits.
+───────────────────────────────────────────────────────────── */
+const SAFE_PRODUCT_FILENAME = /^prod-\d+-[a-z0-9]+\.webp$/;
+const restoreUpload = (0, multer_1.default)({
+    storage: multer_1.default.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024, files: 50 },
+});
+router.post('/restore-images', auth_1.requireAdmin, restoreUpload.array('images', 50), async (req, res) => {
+    try {
+        const files = req.files ?? [];
+        if (files.length === 0) {
+            res.status(400).json({ success: false, message: 'Aucun fichier reçu' });
+            return;
+        }
+        const dir = path_1.default.resolve(process.env.UPLOAD_DIR ?? './uploads', 'products');
+        if (!fs_1.default.existsSync(dir))
+            fs_1.default.mkdirSync(dir, { recursive: true });
+        const written = [];
+        const rejected = [];
+        for (const f of files) {
+            if (!SAFE_PRODUCT_FILENAME.test(f.originalname)) {
+                rejected.push(f.originalname);
+                continue;
+            }
+            fs_1.default.writeFileSync(path_1.default.join(dir, f.originalname), f.buffer);
+            written.push(f.originalname);
+        }
+        res.json({ success: true, data: { written, rejected } });
+    }
+    catch (err) {
+        console.error('[products] échec restore-images', err);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+/* ─────────────────────────────────────────────────────────────
+   GET /api/products/image-jpg/:filename  — public. Sert une image
+   produit en JPEG à partir du fichier WebP stocké — Google Merchant
+   Center refuse le WebP pour `image_link` (JPEG/PNG/GIF uniquement),
+   alors que le reste du site sert du WebP partout ailleurs (plus léger).
+   Converti une seule fois puis mis en cache sur disque, pas de coût
+   de conversion répété à chaque crawl de Google.
+───────────────────────────────────────────────────────────── */
+router.get('/image-jpg/:filename', async (req, res) => {
+    try {
+        const filename = req.params['filename'] ?? '';
+        if (!SAFE_PRODUCT_FILENAME.test(filename)) {
+            res.status(400).end();
+            return;
+        }
+        const uploadRoot = path_1.default.resolve(process.env.UPLOAD_DIR ?? './uploads');
+        const srcPath = path_1.default.join(uploadRoot, 'products', filename);
+        const cacheDir = path_1.default.join(uploadRoot, 'products-jpg');
+        const cachePath = path_1.default.join(cacheDir, filename.replace(/\.webp$/, '.jpg'));
+        if (!fs_1.default.existsSync(cachePath)) {
+            if (!fs_1.default.existsSync(srcPath)) {
+                res.status(404).end();
+                return;
+            }
+            if (!fs_1.default.existsSync(cacheDir))
+                fs_1.default.mkdirSync(cacheDir, { recursive: true });
+            const jpeg = await (0, sharp_1.default)(srcPath).flatten({ background: '#ffffff' }).jpeg({ quality: 88 }).toBuffer();
+            fs_1.default.writeFileSync(cachePath, jpeg);
+        }
+        res.setHeader('Content-Type', 'image/jpeg');
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        fs_1.default.createReadStream(cachePath).pipe(res);
+    }
+    catch (err) {
+        console.error('[products] échec conversion image-jpg', err);
+        res.status(500).end();
     }
 });
 /* ─────────────────────────────────────────────────────────────

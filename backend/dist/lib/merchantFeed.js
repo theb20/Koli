@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.isMerchantConfigured = isMerchantConfigured;
+exports.registerGcpDeveloper = registerGcpDeveloper;
 exports.syncAllProductsToMerchant = syncAllProductsToMerchant;
 /* ─────────────────────────────────────────────────────────────
    Synchronisation du catalogue vers Google Merchant Center, via
@@ -26,30 +27,71 @@ exports.syncAllProductsToMerchant = syncAllProductsToMerchant;
    optionnelle.
 ───────────────────────────────────────────────────────────── */
 const products_1 = require("@google-shopping/products");
+const accounts_1 = require("@google-shopping/accounts");
 const prisma_1 = require("./prisma");
 const FEED_LABEL = process.env.GOOGLE_MERCHANT_FEED_LABEL ?? 'CI';
 const CURRENCY = 'XOF'; // Franc CFA (BCEAO) — devise utilisée par Skignas
+// Volontairement PAS FRONTEND_URL : cette variable est souvent réglée sur
+// localhost en dev, et Google refuse (et déréférence) tout produit dont le
+// lien ne correspond pas au domaine validé dans Merchant Center. Le lien
+// produit envoyé à Google doit toujours pointer vers le vrai site public,
+// quel que soit l'environnement où tourne le backend qui lance la synchro.
+const PUBLIC_SITE_URL = process.env.GOOGLE_MERCHANT_SITE_URL ?? 'https://skignas.com';
 function isMerchantConfigured() {
     return Boolean(process.env.GOOGLE_MERCHANT_ACCOUNT_ID &&
         process.env.GOOGLE_MERCHANT_DATA_SOURCE_ID &&
         process.env.GOOGLE_MERCHANT_CLIENT_EMAIL &&
         process.env.GOOGLE_MERCHANT_PRIVATE_KEY);
 }
+function getCredentials() {
+    return {
+        client_email: process.env.GOOGLE_MERCHANT_CLIENT_EMAIL,
+        // Les clés privées stockées en variable d'env contiennent des "\n"
+        // littéraux (échappés) plutôt que de vrais retours à la ligne.
+        private_key: process.env.GOOGLE_MERCHANT_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    };
+}
 function getClient() {
-    return new products_1.ProductInputsServiceClient({
-        credentials: {
-            client_email: process.env.GOOGLE_MERCHANT_CLIENT_EMAIL,
-            // Les clés privées stockées en variable d'env contiennent des "\n"
-            // littéraux (échappés) plutôt que de vrais retours à la ligne.
-            private_key: process.env.GOOGLE_MERCHANT_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-        },
+    return new products_1.ProductInputsServiceClient({ credentials: getCredentials() });
+}
+/**
+ * Enregistrement à faire une seule fois : associe le projet Google Cloud
+ * (celui du compte de service) au compte Merchant Center comme "développeur
+ * API" — sans ça, tout appel à l'API Merchant échoue avec UNAUTHENTICATED
+ * même si le compte de service a bien accès au compte Merchant Center.
+ * `developerEmail` doit être un vrai compte Google humain, jamais un compte
+ * de service (qui ne peut pas recevoir d'email) — exigence de l'API Google.
+ */
+async function registerGcpDeveloper(developerEmail) {
+    if (!isMerchantConfigured()) {
+        throw new Error('Google Merchant Center non configuré (variables GOOGLE_MERCHANT_* manquantes)');
+    }
+    const accountId = process.env.GOOGLE_MERCHANT_ACCOUNT_ID;
+    const client = new accounts_1.DeveloperRegistrationServiceClient({ credentials: getCredentials() });
+    await client.registerGcp({
+        name: `accounts/${accountId}/developerRegistration`,
+        developerEmail,
     });
 }
 function toAmountMicros(fcfa) {
     return String(Math.round(fcfa * 1_000_000));
 }
+const WEBP_UPLOAD_RE = /^(https?:\/\/[^/]+)\/uploads\/products\/(prod-\d+-[a-z0-9]+)\.webp$/;
+/**
+ * Google Merchant refuse le WebP pour image_link (JPEG/PNG/GIF uniquement),
+ * alors que tout le reste du site sert du WebP. Redirige uniquement les
+ * images hébergées chez nous vers la route de conversion JPEG à la volée
+ * (voir GET /api/products/image-jpg/:filename) — une URL externe (déjà
+ * scrappée en JPEG ailleurs) repart inchangée.
+ */
+function toJpegLink(url) {
+    const match = url.match(WEBP_UPLOAD_RE);
+    if (!match)
+        return url;
+    const [, host, base] = match;
+    return `${host}/api/products/image-jpg/${base}.webp`;
+}
 function buildProductInput(p, accountId, dataSourceId) {
-    const frontUrl = process.env.FRONTEND_URL ?? 'https://skignas.com';
     const [primaryImage, ...otherImages] = p.images;
     return {
         parent: `accounts/${accountId}`,
@@ -61,9 +103,9 @@ function buildProductInput(p, accountId, dataSourceId) {
             productAttributes: {
                 title: p.name,
                 description: p.description || p.name,
-                link: `${frontUrl}/catalogue/${p.id}`,
-                imageLink: primaryImage?.url,
-                additionalImageLinks: otherImages.slice(0, 9).map(i => i.url),
+                link: `${PUBLIC_SITE_URL}/catalogue/${p.id}`,
+                imageLink: primaryImage ? toJpegLink(primaryImage.url) : undefined,
+                additionalImageLinks: otherImages.slice(0, 9).map(i => toJpegLink(i.url)),
                 availability: p.stock > 0 ? 'IN_STOCK' : 'OUT_OF_STOCK',
                 condition: 'NEW',
                 brand: p.brand,
@@ -101,19 +143,40 @@ async function syncAllProductsToMerchant() {
             result.skippedNoImage.push({ productId: p.id, name: p.name });
             continue;
         }
-        try {
-            const request = buildProductInput(p, accountId, dataSourceId);
-            await client.insertProductInput(request);
-            result.succeeded++;
+        const request = buildProductInput(p, accountId, dataSourceId);
+        const err = await insertWithRetry(client, request);
+        if (err) {
+            result.failed.push({ productId: p.id, name: p.name, error: err });
         }
-        catch (err) {
-            result.failed.push({
-                productId: p.id,
-                name: p.name,
-                error: err instanceof Error ? err.message : String(err),
-            });
+        else {
+            result.succeeded++;
         }
     }
     return result;
+}
+/**
+ * Réessaie un envoi qui échoue avec une erreur transitoire connue côté
+ * Google — observé en pratique : juste après un registerGcp/changement
+ * de droits, la vérification "utilisateur API_DEVELOPER vérifié" touche
+ * un cache Google pas encore propagé partout, un produit sur trois environ
+ * échoue au hasard puis passe à la tentative suivante. DEADLINE_EXCEEDED
+ * (timeout réseau ponctuel) est réessayé pour la même raison.
+ * Retourne le message d'erreur final si les 3 tentatives échouent, sinon null.
+ */
+async function insertWithRetry(client, request, attempts = 3) {
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+        try {
+            await client.insertProductInput(request);
+            return null;
+        }
+        catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            const transient = /UNAUTHENTICATED.*verified.*not pending|DEADLINE_EXCEEDED/i.test(message);
+            if (!transient || attempt === attempts)
+                return message;
+            await new Promise(resolve => setTimeout(resolve, attempt * 2000));
+        }
+    }
+    return 'Échec après plusieurs tentatives';
 }
 //# sourceMappingURL=merchantFeed.js.map

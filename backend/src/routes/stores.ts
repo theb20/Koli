@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { requireAdmin } from '../middleware/auth'
-import { rehostImages } from '../lib/rehostImage'
+import { rehostImages, assertPublicHost } from '../lib/rehostImage'
 import { getBackendUrl } from '../lib/backendUrl'
 
 const router = Router()
@@ -603,6 +603,14 @@ router.post('/:id/scrape', async (req, res) => {
   try {
     const { url } = z.object({ url: z.string().url() }).parse(req.body)
     const retailer = detectRetailer(url)
+
+    // SSRF : refuse toute cible résolvant vers une IP interne/privée avant
+    // de faire la requête sortante (même garde-fou que rehostImage.ts).
+    try {
+      await assertPublicHost(new URL(url).hostname)
+    } catch {
+      return res.status(400).json({ success: false, message: 'URL refusée (hôte interne ou introuvable)' })
+    }
 
     const response = await fetch(url, {
       headers: {

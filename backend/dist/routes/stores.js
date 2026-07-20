@@ -556,6 +556,14 @@ router.post('/:id/scrape', async (req, res) => {
     try {
         const { url } = zod_1.z.object({ url: zod_1.z.string().url() }).parse(req.body);
         const retailer = detectRetailer(url);
+        // SSRF : refuse toute cible résolvant vers une IP interne/privée avant
+        // de faire la requête sortante (même garde-fou que rehostImage.ts).
+        try {
+            await (0, rehostImage_1.assertPublicHost)(new URL(url).hostname);
+        }
+        catch {
+            return res.status(400).json({ success: false, message: 'URL refusée (hôte interne ou introuvable)' });
+        }
         const response = await fetch(url, {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',

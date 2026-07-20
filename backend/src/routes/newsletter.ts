@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'
+import { requireAdmin } from '../middleware/auth'
 
 const router = Router()
 
@@ -56,8 +57,8 @@ router.post('/subscribe', async (req, res) => {
   }
 })
 
-/* ── GET /api/newsletter/subscribers  [ADMIN optionnel] ─────── */
-router.get('/subscribers', async (_req, res) => {
+/* ── GET /api/newsletter/subscribers  [ADMIN] ────────────────── */
+router.get('/subscribers', requireAdmin, async (_req, res) => {
   try {
     const [users, guests] = await Promise.all([
       prisma.user.count({ where: { subscribedToNewsletter: true } }),

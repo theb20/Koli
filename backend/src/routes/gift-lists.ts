@@ -105,8 +105,15 @@ router.post('/:id/items', requireAuth, async (req, res) => {
 router.delete('/:id/items/:productId', requireAuth, async (req, res) => {
   try {
     const productId = parseInt(req.params['productId']!)
+    const list = await prisma.giftList.findFirst({
+      where: { id: req.params['id'], userId: req.user!.userId },
+    })
+    if (!list) {
+      res.status(404).json({ success: false, message: 'Liste introuvable.' })
+      return
+    }
     await prisma.giftListItem.deleteMany({
-      where: { listId: req.params['id'], productId },
+      where: { listId: list.id, productId },
     })
     res.json({ success: true, message: 'Produit retiré.' })
   } catch {
@@ -126,13 +133,22 @@ router.delete('/:id', requireAuth, async (req, res) => {
   }
 })
 
-/* PATCH /api/gift-lists/:id/items/:productId/purchased */
+/* PATCH /api/gift-lists/:id/items/:productId/purchased — accessible sans
+   compte (un proche marque un cadeau comme acheté depuis le lien partagé),
+   mais uniquement sur une liste explicitement publique. */
 router.patch('/:id/items/:productId/purchased', async (req, res) => {
   try {
     const productId = parseInt(req.params['productId']!)
     const { isPurchased } = z.object({ isPurchased: z.boolean() }).parse(req.body)
+    const list = await prisma.giftList.findFirst({
+      where: { id: req.params['id'], isPublic: true },
+    })
+    if (!list) {
+      res.status(404).json({ success: false, message: 'Liste introuvable.' })
+      return
+    }
     await prisma.giftListItem.updateMany({
-      where: { listId: req.params['id'], productId },
+      where: { listId: list.id, productId },
       data:  { isPurchased },
     })
     res.json({ success: true })

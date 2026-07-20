@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const zod_1 = require("zod");
 const prisma_1 = require("../lib/prisma");
+const auth_1 = require("../middleware/auth");
 const router = (0, express_1.Router)();
 const schema = zod_1.z.object({
     email: zod_1.z.string().email('Adresse e-mail invalide'),
@@ -51,8 +52,8 @@ router.post('/subscribe', async (req, res) => {
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });
-/* ── GET /api/newsletter/subscribers  [ADMIN optionnel] ─────── */
-router.get('/subscribers', async (_req, res) => {
+/* ── GET /api/newsletter/subscribers  [ADMIN] ────────────────── */
+router.get('/subscribers', auth_1.requireAdmin, async (_req, res) => {
     try {
         const [users, guests] = await Promise.all([
             prisma_1.prisma.user.count({ where: { subscribedToNewsletter: true } }),

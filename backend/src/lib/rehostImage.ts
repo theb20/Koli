@@ -33,7 +33,7 @@ function isPrivateIp(ip: string): boolean {
   return true // format inconnu — on refuse par prudence
 }
 
-async function assertPublicHost(hostname: string): Promise<void> {
+export async function assertPublicHost(hostname: string): Promise<void> {
   const records = await dns.lookup(hostname, { all: true })
   if (records.length === 0) throw new Error('Hôte introuvable')
   for (const r of records) {

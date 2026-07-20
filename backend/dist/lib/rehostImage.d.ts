@@ -1,3 +1,4 @@
+export declare function assertPublicHost(hostname: string): Promise<void>;
 /**
  * Télécharge une image externe côté serveur (contourne le hotlink-blocking
  * basé sur le Referer navigateur) et la sauvegarde localement.
