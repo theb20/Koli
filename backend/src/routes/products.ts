@@ -1,5 +1,7 @@
 import { Router } from 'express'
 import { z } from 'zod'
+import fs from 'fs'
+import path from 'path'
 import multer from 'multer'
 import { parse } from 'csv-parse/sync'
 import ExcelJS from 'exceljs'
@@ -194,6 +196,43 @@ router.get('/export', requireApiKey('PRODUCTS_EXPORT_API_KEY'), async (_req, res
     })
     res.json({ success: true, data: { products, total: products.length } })
   } catch {
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/* ─────────────────────────────────────────────────────────────
+   POST /api/products/restore-images  [ADMIN] — réparation ponctuelle :
+   réécrit des fichiers d'image sous leur nom EXACT d'origine dans
+   uploads/products/, pour un serveur dont le disque a perdu des
+   fichiers déjà référencés par ProductImage.url (rien n'est modifié
+   en base, seul le fichier manquant est restauré). Le nom de fichier
+   est strictement validé pour empêcher toute traversée de chemin —
+   accepte uniquement le format généré par rehostImage/uploads produits.
+───────────────────────────────────────────────────────────── */
+const SAFE_PRODUCT_FILENAME = /^prod-\d+-[a-z0-9]+\.webp$/
+const restoreUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024, files: 50 },
+})
+
+router.post('/restore-images', requireAdmin, restoreUpload.array('images', 50), async (req, res) => {
+  try {
+    const files = (req.files as Express.Multer.File[] | undefined) ?? []
+    if (files.length === 0) { res.status(400).json({ success: false, message: 'Aucun fichier reçu' }); return }
+
+    const dir = path.resolve(process.env.UPLOAD_DIR ?? './uploads', 'products')
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+
+    const written: string[] = []
+    const rejected: string[] = []
+    for (const f of files) {
+      if (!SAFE_PRODUCT_FILENAME.test(f.originalname)) { rejected.push(f.originalname); continue }
+      fs.writeFileSync(path.join(dir, f.originalname), f.buffer)
+      written.push(f.originalname)
+    }
+    res.json({ success: true, data: { written, rejected } })
+  } catch (err) {
+    console.error('[products] échec restore-images', err)
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
 })
