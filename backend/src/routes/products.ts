@@ -3,6 +3,7 @@ import { z } from 'zod'
 import fs from 'fs'
 import path from 'path'
 import multer from 'multer'
+import sharp from 'sharp'
 import { parse } from 'csv-parse/sync'
 import ExcelJS from 'exceljs'
 import { prisma } from '../lib/prisma'
@@ -234,6 +235,40 @@ router.post('/restore-images', requireAdmin, restoreUpload.array('images', 50), 
   } catch (err) {
     console.error('[products] échec restore-images', err)
     res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/* ─────────────────────────────────────────────────────────────
+   GET /api/products/image-jpg/:filename  — public. Sert une image
+   produit en JPEG à partir du fichier WebP stocké — Google Merchant
+   Center refuse le WebP pour `image_link` (JPEG/PNG/GIF uniquement),
+   alors que le reste du site sert du WebP partout ailleurs (plus léger).
+   Converti une seule fois puis mis en cache sur disque, pas de coût
+   de conversion répété à chaque crawl de Google.
+───────────────────────────────────────────────────────────── */
+router.get('/image-jpg/:filename', async (req, res) => {
+  try {
+    const filename = req.params['filename'] ?? ''
+    if (!SAFE_PRODUCT_FILENAME.test(filename)) { res.status(400).end(); return }
+
+    const uploadRoot = path.resolve(process.env.UPLOAD_DIR ?? './uploads')
+    const srcPath   = path.join(uploadRoot, 'products', filename)
+    const cacheDir  = path.join(uploadRoot, 'products-jpg')
+    const cachePath = path.join(cacheDir, filename.replace(/\.webp$/, '.jpg'))
+
+    if (!fs.existsSync(cachePath)) {
+      if (!fs.existsSync(srcPath)) { res.status(404).end(); return }
+      if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true })
+      const jpeg = await sharp(srcPath).flatten({ background: '#ffffff' }).jpeg({ quality: 88 }).toBuffer()
+      fs.writeFileSync(cachePath, jpeg)
+    }
+
+    res.setHeader('Content-Type', 'image/jpeg')
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+    fs.createReadStream(cachePath).pipe(res)
+  } catch (err) {
+    console.error('[products] échec conversion image-jpg', err)
+    res.status(500).end()
   }
 })
 

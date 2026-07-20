@@ -93,6 +93,22 @@ function toAmountMicros(fcfa: number): string {
   return String(Math.round(fcfa * 1_000_000))
 }
 
+const WEBP_UPLOAD_RE = /^(https?:\/\/[^/]+)\/uploads\/products\/(prod-\d+-[a-z0-9]+)\.webp$/
+
+/**
+ * Google Merchant refuse le WebP pour image_link (JPEG/PNG/GIF uniquement),
+ * alors que tout le reste du site sert du WebP. Redirige uniquement les
+ * images hébergées chez nous vers la route de conversion JPEG à la volée
+ * (voir GET /api/products/image-jpg/:filename) — une URL externe (déjà
+ * scrappée en JPEG ailleurs) repart inchangée.
+ */
+function toJpegLink(url: string): string {
+  const match = url.match(WEBP_UPLOAD_RE)
+  if (!match) return url
+  const [, host, base] = match
+  return `${host}/api/products/image-jpg/${base}.webp`
+}
+
 function buildProductInput(p: ProductForMerchant, accountId: string, dataSourceId: string) {
   const [primaryImage, ...otherImages] = p.images
 
@@ -107,8 +123,8 @@ function buildProductInput(p: ProductForMerchant, accountId: string, dataSourceI
         title:       p.name,
         description: p.description || p.name,
         link:        `${PUBLIC_SITE_URL}/catalogue/${p.id}`,
-        imageLink:   primaryImage?.url,
-        additionalImageLinks: otherImages.slice(0, 9).map(i => i.url),
+        imageLink:   primaryImage ? toJpegLink(primaryImage.url) : undefined,
+        additionalImageLinks: otherImages.slice(0, 9).map(i => toJpegLink(i.url)),
         availability: p.stock > 0 ? 'IN_STOCK' as const : 'OUT_OF_STOCK' as const,
         condition:    'NEW' as const,
         brand:        p.brand,
