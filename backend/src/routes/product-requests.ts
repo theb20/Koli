@@ -6,10 +6,11 @@ import fs from 'fs'
 import multer from 'multer'
 import { prisma } from '../lib/prisma'
 import { requireAdmin, optionalAuth } from '../middleware/auth'
-import { validate } from '../middleware/validate'
+import { validate, validateParams, zCuidIdParam } from '../middleware/validate'
 import { sendNewProductRequestAdminEmail, sendProductRequestReplyEmail } from '../lib/mailer'
 import { getBackendUrl } from '../lib/backendUrl'
 import { toWebp } from '../lib/imageProcessing'
+import { logger } from '../lib/logger'
 
 const router = Router()
 
@@ -92,7 +93,7 @@ router.post('/upload-images', handleImageUpload, async (req, res) => {
     }))
     res.json({ success: true, data: { urls } })
   } catch (err) {
-    console.error(err)
+    logger.error(err)
     res.status(500).json({ success: false, message: "Erreur lors de l'upload" })
   }
 })
@@ -152,7 +153,7 @@ router.post('/', optionalAuth, validate(createSchema), async (req, res) => {
           deliveryAddress: body.deliveryAddress,
         })))
       } catch (err) {
-        console.error('[product-requests] échec notification admin', err) // non bloquant
+        logger.error('[product-requests] échec notification admin', err) // non bloquant
       }
     })()
 
@@ -162,7 +163,7 @@ router.post('/', optionalAuth, validate(createSchema), async (req, res) => {
       data: { id: request.id },
     })
   } catch (err) {
-    console.error(err)
+    logger.error(err)
     res.status(500).json({ success: false, message: "Erreur lors de l'envoi de la demande" })
   }
 })
@@ -216,7 +217,7 @@ router.get('/admin/all', requireAdmin, async (req, res) => {
 /* ─────────────────────────────────────────────────────────────
    GET /api/product-requests/:id  [ADMIN]
 ───────────────────────────────────────────────────────────── */
-router.get('/:id', requireAdmin, async (req, res) => {
+router.get('/:id', requireAdmin, validateParams(zCuidIdParam), async (req, res) => {
   try {
     const request = await prisma.productRequest.findUnique({ where: { id: req.params['id']! } })
     if (!request) {
@@ -232,7 +233,7 @@ router.get('/:id', requireAdmin, async (req, res) => {
 /* ─────────────────────────────────────────────────────────────
    PATCH /api/product-requests/:id/status  [ADMIN]
 ───────────────────────────────────────────────────────────── */
-router.patch('/:id/status', requireAdmin, async (req, res) => {
+router.patch('/:id/status', requireAdmin, validateParams(zCuidIdParam), async (req, res) => {
   try {
     const { status } = z.object({
       status: z.enum(['new', 'processing', 'quoted', 'fulfilled', 'rejected', 'cancelled']),
@@ -249,7 +250,7 @@ router.patch('/:id/status', requireAdmin, async (req, res) => {
       res.status(404).json({ success: false, message: 'Demande introuvable' })
       return
     }
-    console.error('[PATCH product-request status]', err)
+    logger.error('[PATCH product-request status]', err)
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
 })
@@ -258,7 +259,7 @@ router.patch('/:id/status', requireAdmin, async (req, res) => {
    POST /api/product-requests/:id/reply  [ADMIN]
    Envoie une réponse personnalisée directement dans la boîte mail du client.
 ───────────────────────────────────────────────────────────── */
-router.post('/:id/reply', requireAdmin, validate(replySchema), async (req, res) => {
+router.post('/:id/reply', requireAdmin, validateParams(zCuidIdParam), validate(replySchema), async (req, res) => {
   try {
     const { message, quotedPrice } = req.body as z.infer<typeof replySchema>
 
@@ -294,7 +295,7 @@ router.post('/:id/reply', requireAdmin, validate(replySchema), async (req, res) 
 
     res.json({ success: true, message: 'Réponse envoyée au client', data: { request: updated } })
   } catch (err) {
-    console.error(err)
+    logger.error(err)
     res.status(500).json({ success: false, message: "Erreur lors de l'envoi de la réponse" })
   }
 })
@@ -302,7 +303,7 @@ router.post('/:id/reply', requireAdmin, validate(replySchema), async (req, res) 
 /* ─────────────────────────────────────────────────────────────
    DELETE /api/product-requests/:id  [ADMIN]
 ───────────────────────────────────────────────────────────── */
-router.delete('/:id', requireAdmin, async (req, res) => {
+router.delete('/:id', requireAdmin, validateParams(zCuidIdParam), async (req, res) => {
   try {
     await prisma.productRequest.delete({ where: { id: req.params['id']! } })
     res.json({ success: true, message: 'Demande supprimée' })
@@ -312,7 +313,7 @@ router.delete('/:id', requireAdmin, async (req, res) => {
       res.status(404).json({ success: false, message: 'Demande déjà supprimée' })
       return
     }
-    console.error('[DELETE product-request]', err)
+    logger.error('[DELETE product-request]', err)
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
 })

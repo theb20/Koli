@@ -29,10 +29,12 @@ import fs from 'fs'
 import multer from 'multer'
 import { prisma } from '../lib/prisma'
 import { requireAuth, requireAdmin } from '../middleware/auth'
-import { validate } from '../middleware/validate'
+import { validate, validateParams, zCuidIdParam } from '../middleware/validate'
 import { getBackendUrl } from '../lib/backendUrl'
 import { sendReturnStatusEmail, sendNewReturnAdminEmail } from '../lib/mailer'
 import { toWebp } from '../lib/imageProcessing'
+import { logger } from '../lib/logger'
+import { logAdminAction } from '../lib/auditLog'
 
 const router = Router()
 
@@ -83,7 +85,7 @@ router.post('/upload-images', requireAuth, handleImageUpload, async (req, res) =
     }))
     res.json({ success: true, data: { urls } })
   } catch (err) {
-    console.error(err)
+    logger.error(err)
     res.status(500).json({ success: false, message: "Erreur lors de l'upload" })
   }
 })
@@ -240,7 +242,7 @@ router.post('/', requireAuth, validate(createReturnSchema), async (req, res) => 
 
     res.status(201).json({ success: true, data: created })
   } catch (err) {
-    console.error('[RETURNS] create', err)
+    logger.error('[RETURNS] create', err)
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
 })
@@ -275,7 +277,7 @@ router.get('/admin/all', requireAdmin, async (req, res) => {
 /* ─────────────────────────────────────────────────────────────
    GET /api/returns/:id — détail (propriétaire ou admin)
 ───────────────────────────────────────────────────────────── */
-router.get('/:id', requireAuth, async (req, res) => {
+router.get('/:id', requireAuth, validateParams(zCuidIdParam), async (req, res) => {
   const id = req.params['id'] ?? ''
   const isAdmin = req.user!.role === 'admin'
   const ret = await prisma.orderReturn.findFirst({
@@ -292,7 +294,7 @@ router.get('/:id', requireAuth, async (req, res) => {
 /* ─────────────────────────────────────────────────────────────
    PUT /api/returns/:id/cancel — annulation par le client
 ───────────────────────────────────────────────────────────── */
-router.put('/:id/cancel', requireAuth, async (req, res) => {
+router.put('/:id/cancel', requireAuth, validateParams(zCuidIdParam), async (req, res) => {
   const id = req.params['id'] ?? ''
   const ret = await prisma.orderReturn.findFirst({ where: { id, userId: req.user!.userId }, include: RETURN_INCLUDE })
   if (!ret) {
@@ -314,7 +316,7 @@ router.put('/:id/cancel', requireAuth, async (req, res) => {
 /* ─────────────────────────────────────────────────────────────
    PUT /api/returns/:id/status — transition admin
 ───────────────────────────────────────────────────────────── */
-router.put('/:id/status', requireAdmin, validate(adminStatusSchema), async (req, res) => {
+router.put('/:id/status', requireAdmin, validateParams(zCuidIdParam), validate(adminStatusSchema), async (req, res) => {
   const id = req.params['id'] ?? ''
   const body = req.body as z.infer<typeof adminStatusSchema>
 
@@ -359,6 +361,8 @@ router.put('/:id/status', requireAdmin, validate(adminStatusSchema), async (req,
   }
 
   const updated = await prisma.orderReturn.update({ where: { id }, data })
+
+  logAdminAction(req, { action: 'return.status.update', targetType: 'OrderReturn', targetId: id, metadata: { newStatus: body.status } })
 
   sendReturnStatusEmail(
     ret.order.clientEmail, ret.order.clientPrenom, ret.order.orderNumber,

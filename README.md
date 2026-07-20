@@ -1,2 +1,2 @@
 
-App drop-shipping.
+App shopping.

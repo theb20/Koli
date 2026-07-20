@@ -15,6 +15,8 @@ const cache_1 = require("../middleware/cache");
 const backendUrl_1 = require("../lib/backendUrl");
 const deleteLocalUpload_1 = require("../lib/deleteLocalUpload");
 const imageProcessing_1 = require("../lib/imageProcessing");
+const logger_1 = require("../lib/logger");
+const auditLog_1 = require("../lib/auditLog");
 /* ── Multer — buffer en mémoire, converti en WebP avant écriture ── */
 const catUploadDir = path_1.default.resolve(process.env.UPLOAD_DIR ?? './uploads', 'cat');
 if (!fs_1.default.existsSync(catUploadDir))
@@ -111,13 +113,9 @@ router.post('/', auth_1.requireAdmin, (0, validate_1.validate)(categorySchema), 
 /* ─────────────────────────────────────────────────────────────
    PUT /api/categories/:id [ADMIN] — mettre à jour
 ───────────────────────────────────────────────────────────── */
-router.put('/:id', auth_1.requireAdmin, (0, validate_1.validate)(categorySchema.partial()), async (req, res) => {
+router.put('/:id', auth_1.requireAdmin, (0, validate_1.validateParams)(validate_1.zIntIdParam), (0, validate_1.validate)(categorySchema.partial()), async (req, res) => {
     try {
-        const id = parseInt(req.params['id'] ?? '0');
-        if (!id) {
-            res.status(400).json({ success: false, message: 'ID invalide' });
-            return;
-        }
+        const id = Number(req.params['id']);
         const body = req.body;
         // Vérifier unicité du slug si changé
         if (body.slug) {
@@ -140,13 +138,9 @@ router.put('/:id', auth_1.requireAdmin, (0, validate_1.validate)(categorySchema.
 /* ─────────────────────────────────────────────────────────────
    PATCH /api/categories/:id/toggle [ADMIN] — activer / désactiver
 ───────────────────────────────────────────────────────────── */
-router.patch('/:id/toggle', auth_1.requireAdmin, async (req, res) => {
+router.patch('/:id/toggle', auth_1.requireAdmin, (0, validate_1.validateParams)(validate_1.zIntIdParam), async (req, res) => {
     try {
-        const id = parseInt(req.params['id'] ?? '0');
-        if (!id) {
-            res.status(400).json({ success: false, message: 'ID invalide' });
-            return;
-        }
+        const id = Number(req.params['id']);
         const cat = await prisma_1.prisma.category.findUnique({ where: { id } });
         if (!cat) {
             res.status(404).json({ success: false, message: 'Catégorie introuvable' });
@@ -177,17 +171,14 @@ router.patch('/reorder', auth_1.requireAdmin, async (req, res) => {
 /* ─────────────────────────────────────────────────────────────
    DELETE /api/categories/:id [ADMIN] — supprimer
 ───────────────────────────────────────────────────────────── */
-router.delete('/:id', auth_1.requireAdmin, async (req, res) => {
+router.delete('/:id', auth_1.requireAdmin, (0, validate_1.validateParams)(validate_1.zIntIdParam), async (req, res) => {
     try {
-        const id = parseInt(req.params['id'] ?? '0');
-        if (!id) {
-            res.status(400).json({ success: false, message: 'ID invalide' });
-            return;
-        }
+        const id = Number(req.params['id']);
         const cat = await prisma_1.prisma.category.findUnique({ where: { id }, select: { image: true } });
         await prisma_1.prisma.category.delete({ where: { id } });
         if (cat?.image)
             (0, deleteLocalUpload_1.deleteLocalUpload)(cat.image);
+        (0, auditLog_1.logAdminAction)(req, { action: 'category.delete', targetType: 'Category', targetId: String(id) });
         res.json({ success: true, message: 'Catégorie supprimée' });
     }
     catch {
@@ -198,13 +189,9 @@ router.delete('/:id', auth_1.requireAdmin, async (req, res) => {
    POST /api/categories/:id/image [ADMIN] — uploader une image
    Stocke dans uploads/cat/ et met à jour le champ image
 ───────────────────────────────────────────────────────────── */
-router.post('/:id/image', auth_1.requireAdmin, handleCatImageUpload, async (req, res) => {
+router.post('/:id/image', auth_1.requireAdmin, (0, validate_1.validateParams)(validate_1.zIntIdParam), handleCatImageUpload, async (req, res) => {
     try {
-        const id = parseInt(req.params['id'] ?? '0');
-        if (!id) {
-            res.status(400).json({ success: false, message: 'ID invalide' });
-            return;
-        }
+        const id = Number(req.params['id']);
         if (!req.file) {
             res.status(400).json({ success: false, message: 'Aucun fichier reçu' });
             return;
@@ -225,7 +212,7 @@ router.post('/:id/image', auth_1.requireAdmin, handleCatImageUpload, async (req,
         res.json({ success: true, data: updated });
     }
     catch (err) {
-        console.error(err);
+        logger_1.logger.error(err);
         res.status(500).json({ success: false, message: "Erreur lors de l'upload" });
     }
 });

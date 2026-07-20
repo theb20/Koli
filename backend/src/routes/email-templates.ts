@@ -28,6 +28,7 @@ import {
   sendReturnStatusEmail, sendNewReturnAdminEmail,
 } from '../lib/email'
 import { sendFlashDealEmail } from '../lib/email/templates/flash-deal'
+import { logger } from '../lib/logger'
 
 const router = Router()
 router.use(requireAdmin)
@@ -117,8 +118,8 @@ router.get('/:name', async (req, res) => {
     res.setHeader('Content-Type', 'text/html; charset=utf-8')
     res.send(capture.html || '<p>Aucun HTML capturé.</p>')
   } catch (err) {
-    console.error('[EMAIL-TEMPLATES]', err)
-    res.status(500).send('<pre>' + String(err) + '</pre>')
+    logger.error('[EMAIL-TEMPLATES]', err)
+    res.status(500).send('<p>Erreur lors du rendu de ce template — voir les logs serveur.</p>')
   }
 })
 

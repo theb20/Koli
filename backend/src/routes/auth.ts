@@ -4,11 +4,13 @@ import crypto from 'crypto'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { signAccessToken, signRefreshToken, verifyRefreshToken, signMagicToken, verifyMagicToken } from '../lib/jwt'
-import { validate, zPassword } from '../middleware/validate'
+import { validate, validateParams, zPassword, zCuidIdParam } from '../middleware/validate'
 import { requireAuth, requireAdmin } from '../middleware/auth'
 import { sendWelcomeEmail, sendMagicLinkEmail, sendPasswordResetEmail, sendPasswordChangedEmail } from '../lib/mailer'
 import { ALLOWED_ORIGINS } from '../lib/allowedOrigins'
 import { getAge, MIN_AGE } from '../lib/age'
+import { logger } from '../lib/logger'
+import { logAdminAction } from '../lib/auditLog'
 
 const router = Router()
 
@@ -61,14 +63,31 @@ const resetPasswordSchema = z.object({
 
 function setAuthCookies(res: import('express').Response, accessToken: string, refreshToken: string) {
   const isProd = process.env.NODE_ENV === 'production'
+  // SameSite=None : le frontend (skignas.com) et l'API (skignas.up.railway.app)
+  // sont deux domaines distincts — un cookie "Lax" n'est jamais envoyé sur les
+  // appels fetch/XHR cross-site, seulement sur une navigation directe. "None"
+  // exige Secure (HTTPS), déjà le cas en prod. En dev (http://localhost),
+  // Secure serait rejeté par le navigateur — on garde "Lax" localement, où
+  // le cookie ne sert de toute façon qu'en filet (le token est aussi renvoyé
+  // dans le corps de la réponse pour l'en-tête Authorization).
+  const crossSite = isProd
   res.cookie('access_token', accessToken, {
-    httpOnly: true, secure: isProd, sameSite: 'lax',
+    httpOnly: true, secure: isProd, sameSite: crossSite ? 'none' : 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7j
   })
   res.cookie('refresh_token', refreshToken, {
-    httpOnly: true, secure: isProd, sameSite: 'lax',
+    httpOnly: true, secure: isProd, sameSite: crossSite ? 'none' : 'lax',
     maxAge: 30 * 24 * 60 * 60 * 1000, // 30j
   })
+}
+
+/** clearCookie doit recevoir les mêmes attributs que cookie() pour que le
+ * navigateur identifie et supprime effectivement le bon cookie. */
+function clearAuthCookies(res: import('express').Response) {
+  const isProd = process.env.NODE_ENV === 'production'
+  const opts = { httpOnly: true, secure: isProd, sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax' }
+  res.clearCookie('access_token', opts)
+  res.clearCookie('refresh_token', opts)
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -99,7 +118,7 @@ router.post('/register', validate(registerSchema), async (req, res) => {
     if (!rawPassword) {
       const token = signMagicToken(user.id, user.email)
       const link  = `${process.env.FRONTEND_URL}/auth/magic?token=${token}&new=1`
-      sendMagicLinkEmail(user.email, user.prenom, link).catch(err => console.error('[register magic-link]', err))
+      sendMagicLinkEmail(user.email, user.prenom, link).catch(err => logger.error('[register magic-link]', err))
 
       res.status(201).json({
         success:     true,
@@ -135,7 +154,7 @@ router.post('/register', validate(registerSchema), async (req, res) => {
       },
     })
   } catch (err) {
-    console.error(err)
+    logger.error(err)
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
 })
@@ -189,7 +208,7 @@ router.post('/login', validate(loginSchema), async (req, res) => {
       },
     })
   } catch (err) {
-    console.error(err)
+    logger.error(err)
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
 })
@@ -242,8 +261,7 @@ router.post('/logout', requireAuth, async (req, res) => {
     if (token) {
       await prisma.session.deleteMany({ where: { refreshToken: token } })
     }
-    res.clearCookie('access_token')
-    res.clearCookie('refresh_token')
+    clearAuthCookies(res)
     res.json({ success: true, message: 'Déconnexion réussie' })
   } catch {
     res.status(500).json({ success: false, message: 'Erreur serveur' })
@@ -363,12 +381,12 @@ router.post('/forgot-password', validate(forgotPasswordSchema), async (req, res)
         : (process.env.FRONTEND_URL ?? 'http://localhost:3000')
       const link = `${origin}/reinitialiser-mot-de-passe?token=${rawToken}`
 
-      sendPasswordResetEmail(user.email, user.prenom, link).catch(err => console.error('[password-reset email]', err))
+      sendPasswordResetEmail(user.email, user.prenom, link).catch(err => logger.error('[password-reset email]', err))
     }
 
     res.json({ success: true, message: 'Si un compte existe avec cet email, un lien de réinitialisation a été envoyé.' })
   } catch (err) {
-    console.error(err)
+    logger.error(err)
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
 })
@@ -400,11 +418,11 @@ router.post('/reset-password', validate(resetPasswordSchema), async (req, res) =
       prisma.session.deleteMany({ where: { userId: user.id } }),
     ])
 
-    sendPasswordChangedEmail(user.email, user.prenom, req.ip).catch(err => console.error('[password-changed email]', err))
+    sendPasswordChangedEmail(user.email, user.prenom, req.ip).catch(err => logger.error('[password-changed email]', err))
 
     res.json({ success: true, message: 'Mot de passe réinitialisé avec succès. Reconnectez-vous.' })
   } catch (err) {
-    console.error(err)
+    logger.error(err)
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
 })
@@ -418,8 +436,7 @@ router.delete('/account', requireAuth, async (req, res) => {
     // Cascade: sessions, addresses, orders FK handled by Prisma relations
     await prisma.session.deleteMany({ where: { userId } })
     await prisma.user.delete({ where: { id: userId } })
-    res.clearCookie('access_token')
-    res.clearCookie('refresh_token')
+    clearAuthCookies(res)
     res.json({ success: true, message: 'Compte supprimé définitivement' })
   } catch {
     res.status(500).json({ success: false, message: 'Erreur serveur' })
@@ -445,7 +462,7 @@ router.get('/sessions', requireAuth, async (req, res) => {
 /* ─────────────────────────────────────────────────────────────
    DELETE /api/auth/sessions/:id
 ───────────────────────────────────────────────────────────── */
-router.delete('/sessions/:id', requireAuth, async (req, res) => {
+router.delete('/sessions/:id', requireAuth, validateParams(zCuidIdParam), async (req, res) => {
   try {
     await prisma.session.deleteMany({
       where: { id: req.params['id'], userId: req.user!.userId },
@@ -538,7 +555,7 @@ router.post('/google', async (req, res) => {
       res.status(400).json({ success: false, message: 'Données invalides', errors: err.flatten().fieldErrors })
       return
     }
-    console.error(err)
+    logger.error(err)
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
 })
@@ -597,7 +614,7 @@ router.get('/users', requireAdmin, async (req, res) => {
 })
 
 /* ── PATCH /api/auth/users/:id/role  [ADMIN] ─────────────────── */
-router.patch('/users/:id/role', requireAdmin, async (req, res) => {
+router.patch('/users/:id/role', requireAdmin, validateParams(zCuidIdParam), async (req, res) => {
   try {
     const { id }   = req.params
     const { role } = req.body
@@ -605,7 +622,12 @@ router.patch('/users/:id/role', requireAdmin, async (req, res) => {
       res.status(400).json({ success: false, message: 'Rôle invalide' })
       return
     }
-    const user = await prisma.user.update({ where: { id }, data: { role } })
+    const user = await prisma.user.update({
+      where: { id },
+      data: { role },
+      select: { id: true, prenom: true, nom: true, email: true, role: true },
+    })
+    logAdminAction(req, { action: 'user.role.update', targetType: 'User', targetId: id!, metadata: { newRole: role } })
     res.json({ success: true, data: { user } })
   } catch {
     res.status(500).json({ success: false, message: 'Erreur serveur' })
@@ -613,7 +635,7 @@ router.patch('/users/:id/role', requireAdmin, async (req, res) => {
 })
 
 /* ── PATCH /api/auth/users/:id/ban  [ADMIN] ──────────────────── */
-router.patch('/users/:id/ban', requireAdmin, async (req, res) => {
+router.patch('/users/:id/ban', requireAdmin, validateParams(zCuidIdParam), async (req, res) => {
   try {
     const { id } = req.params
     const existing = await prisma.user.findUnique({ where: { id } })
@@ -626,6 +648,7 @@ router.patch('/users/:id/ban', requireAdmin, async (req, res) => {
       // Invalider toutes les sessions de cet utilisateur
       await prisma.session.deleteMany({ where: { userId: id } })
     }
+    logAdminAction(req, { action: user.isBanned ? 'user.ban' : 'user.unban', targetType: 'User', targetId: id! })
     res.json({ success: true, data: { isBanned: user.isBanned } })
   } catch {
     res.status(500).json({ success: false, message: 'Erreur serveur' })
@@ -633,7 +656,7 @@ router.patch('/users/:id/ban', requireAdmin, async (req, res) => {
 })
 
 /* ── PUT /api/auth/users/:id  [ADMIN] ────────────────────────── */
-router.put('/users/:id', requireAdmin, async (req, res) => {
+router.put('/users/:id', requireAdmin, validateParams(zCuidIdParam), async (req, res) => {
   try {
     const { id } = req.params
     const schema = z.object({
@@ -667,7 +690,7 @@ router.put('/users/:id', requireAdmin, async (req, res) => {
 })
 
 /* ── DELETE /api/auth/users/:id  [ADMIN] ─────────────────────── */
-router.delete('/users/:id', requireAdmin, async (req, res) => {
+router.delete('/users/:id', requireAdmin, validateParams(zCuidIdParam), async (req, res) => {
   try {
     const { id } = req.params
     // Empêche de supprimer son propre compte
@@ -677,6 +700,7 @@ router.delete('/users/:id', requireAdmin, async (req, res) => {
     }
     await prisma.session.deleteMany({ where: { userId: id } })
     await prisma.user.delete({ where: { id } })
+    logAdminAction(req, { action: 'user.delete', targetType: 'User', targetId: id! })
     res.json({ success: true, message: 'Utilisateur supprimé' })
   } catch {
     res.status(500).json({ success: false, message: 'Erreur serveur' })
@@ -686,13 +710,11 @@ router.delete('/users/:id', requireAdmin, async (req, res) => {
 /* ─────────────────────────────────────────────────────────────
    POST /api/auth/magic-link  — envoie un lien de connexion par email
 ───────────────────────────────────────────────────────────── */
-router.post('/magic-link', async (req, res) => {
+const magicLinkSchema = z.object({ email: z.string().email('Email invalide') })
+
+router.post('/magic-link', validate(magicLinkSchema), async (req, res) => {
   try {
-    const { email } = req.body
-    if (!email || typeof email !== 'string') {
-      res.status(400).json({ success: false, message: 'Email requis' })
-      return
-    }
+    const { email } = req.body as z.infer<typeof magicLinkSchema>
     const normalizedEmail = email.toLowerCase().trim()
 
     const user = await prisma.user.findUnique({ where: { email: normalizedEmail } })
@@ -700,13 +722,13 @@ router.post('/magic-link', async (req, res) => {
     if (user) {
       const token = signMagicToken(user.id, user.email)
       const link  = `${process.env.FRONTEND_URL}/auth/magic?token=${token}`
-      sendMagicLinkEmail(user.email, user.prenom, link).catch(err => console.error('[magic-link email]', err))
+      sendMagicLinkEmail(user.email, user.prenom, link).catch(err => logger.error('[magic-link email]', err))
     }
 
     // Toujours renvoyer success (ne pas révéler si l'email existe)
     res.json({ success: true })
   } catch (err) {
-    console.error(err)
+    logger.error(err)
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
 })
@@ -714,13 +736,11 @@ router.post('/magic-link', async (req, res) => {
 /* ─────────────────────────────────────────────────────────────
    POST /api/auth/magic-link/verify  — valide le token et connecte
 ───────────────────────────────────────────────────────────── */
-router.post('/magic-link/verify', async (req, res) => {
+const magicLinkVerifySchema = z.object({ token: z.string().min(1, 'Token requis') })
+
+router.post('/magic-link/verify', validate(magicLinkVerifySchema), async (req, res) => {
   try {
-    const { token } = req.body
-    if (!token) {
-      res.status(400).json({ success: false, message: 'Token requis' })
-      return
-    }
+    const { token } = req.body as z.infer<typeof magicLinkVerifySchema>
 
     let payload: { userId: string; email: string; type: string }
     try {
@@ -769,13 +789,13 @@ router.post('/magic-link/verify', async (req, res) => {
       },
     })
   } catch (err) {
-    console.error(err)
+    logger.error(err)
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
 })
 
 /* ── GET /api/auth/users/:id  [ADMIN] ────────────────────────── */
-router.get('/users/:id', requireAdmin, async (req, res) => {
+router.get('/users/:id', requireAdmin, validateParams(zCuidIdParam), async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.params['id'] },
@@ -805,10 +825,16 @@ router.get('/users/:id', requireAdmin, async (req, res) => {
   }
 })
 
+const updateMeSchema = z.object({
+  prenom: z.string().min(1).max(50),
+  nom:    z.string().min(1).max(50),
+  email:  z.string().email('Email invalide'),
+})
+
 /* ── PUT /api/auth/me  [AUTH] ───────────────────────────────── */
-router.put('/me', requireAuth, async (req, res) => {
+router.put('/me', requireAuth, validate(updateMeSchema), async (req, res) => {
   try {
-    const { prenom, nom, email } = req.body
+    const { prenom, nom, email } = req.body as z.infer<typeof updateMeSchema>
     const user = await prisma.user.update({
       where: { id: req.user!.userId },
       data: { prenom, nom, email },

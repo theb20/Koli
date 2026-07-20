@@ -615,3 +615,23 @@ model SiteSettings {
 
   @@map("site_settings")
 }
+
+/// Journal des actions admin sensibles (rôle, bannissement, suppression...).
+/// actorEmail est un instantané (pas une relation) pour rester lisible même
+/// si le compte auteur est supprimé par la suite.
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actorEmail String?
+  action     String
+  targetType String
+  targetId   String
+  metadata   String?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const prisma_1 = require("../lib/prisma");
 const auth_1 = require("../middleware/auth");
+const validate_1 = require("../middleware/validate");
 const router = (0, express_1.Router)();
 /* ── GET /api/wishlist ──────────────────────────────────────── */
 router.get('/', auth_1.requireAuth, async (req, res) => {
@@ -23,13 +24,9 @@ router.get('/', auth_1.requireAuth, async (req, res) => {
     }
 });
 /* ── POST /api/wishlist/:productId — Ajouter ─────────────────── */
-router.post('/:productId', auth_1.requireAuth, async (req, res) => {
+router.post('/:productId', auth_1.requireAuth, (0, validate_1.validateParams)(validate_1.zProductIdParam), async (req, res) => {
     try {
-        const productId = parseInt(req.params['productId'] ?? '');
-        if (isNaN(productId)) {
-            res.status(400).json({ success: false, message: 'ID invalide' });
-            return;
-        }
+        const productId = Number(req.params['productId']);
         const product = await prisma_1.prisma.product.findFirst({ where: { id: productId, isActive: true } });
         if (!product) {
             res.status(404).json({ success: false, message: 'Produit introuvable' });
@@ -48,13 +45,9 @@ router.post('/:productId', auth_1.requireAuth, async (req, res) => {
     }
 });
 /* ── DELETE /api/wishlist/:productId — Supprimer ─────────────── */
-router.delete('/:productId', auth_1.requireAuth, async (req, res) => {
+router.delete('/:productId', auth_1.requireAuth, (0, validate_1.validateParams)(validate_1.zProductIdParam), async (req, res) => {
     try {
-        const productId = parseInt(req.params['productId'] ?? '');
-        if (isNaN(productId)) {
-            res.status(400).json({ success: false, message: 'ID invalide' });
-            return;
-        }
+        const productId = Number(req.params['productId']);
         await prisma_1.prisma.wishlistItem.deleteMany({
             where: { userId: req.user.userId, productId },
         });

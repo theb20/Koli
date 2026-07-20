@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { requireAuth } from '../middleware/auth'
-import { validate } from '../middleware/validate'
+import { validate, validateParams, zCuidIdParam } from '../middleware/validate'
 
 const router = Router()
 
@@ -49,7 +49,7 @@ router.post('/', requireAuth, validate(addressSchema), async (req, res) => {
 })
 
 /* ── PUT /api/addresses/:id ─────────────────────────────────── */
-router.put('/:id', requireAuth, validate(addressSchema), async (req, res) => {
+router.put('/:id', requireAuth, validateParams(zCuidIdParam), validate(addressSchema), async (req, res) => {
   try {
     const data    = req.body as z.infer<typeof addressSchema>
     const userId  = req.user!.userId
@@ -75,7 +75,7 @@ router.put('/:id', requireAuth, validate(addressSchema), async (req, res) => {
 })
 
 /* ── PUT /api/addresses/:id/default ────────────────────────── */
-router.put('/:id/default', requireAuth, async (req, res) => {
+router.put('/:id/default', requireAuth, validateParams(zCuidIdParam), async (req, res) => {
   try {
     const userId = req.user!.userId
     const addr   = await prisma.address.findFirst({ where: { id: req.params['id'], userId } })
@@ -92,7 +92,7 @@ router.put('/:id/default', requireAuth, async (req, res) => {
 })
 
 /* ── DELETE /api/addresses/:id ──────────────────────────────── */
-router.delete('/:id', requireAuth, async (req, res) => {
+router.delete('/:id', requireAuth, validateParams(zCuidIdParam), async (req, res) => {
   try {
     const addr = await prisma.address.findFirst({
       where: { id: req.params['id'], userId: req.user!.userId },

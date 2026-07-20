@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma'
 import { requireAuth } from '../middleware/auth'
+import { validateParams, zProductIdParam } from '../middleware/validate'
 
 const router = Router()
 
@@ -23,13 +24,9 @@ router.get('/', requireAuth, async (req, res) => {
 })
 
 /* ── POST /api/wishlist/:productId — Ajouter ─────────────────── */
-router.post('/:productId', requireAuth, async (req, res) => {
+router.post('/:productId', requireAuth, validateParams(zProductIdParam), async (req, res) => {
   try {
-    const productId = parseInt(req.params['productId'] ?? '')
-    if (isNaN(productId)) {
-      res.status(400).json({ success: false, message: 'ID invalide' })
-      return
-    }
+    const productId = Number(req.params['productId'])
 
     const product = await prisma.product.findFirst({ where: { id: productId, isActive: true } })
     if (!product) {
@@ -51,13 +48,9 @@ router.post('/:productId', requireAuth, async (req, res) => {
 })
 
 /* ── DELETE /api/wishlist/:productId — Supprimer ─────────────── */
-router.delete('/:productId', requireAuth, async (req, res) => {
+router.delete('/:productId', requireAuth, validateParams(zProductIdParam), async (req, res) => {
   try {
-    const productId = parseInt(req.params['productId'] ?? '')
-    if (isNaN(productId)) {
-      res.status(400).json({ success: false, message: 'ID invalide' })
-      return
-    }
+    const productId = Number(req.params['productId'])
 
     await prisma.wishlistItem.deleteMany({
       where: { userId: req.user!.userId, productId },

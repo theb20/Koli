@@ -19,6 +19,8 @@ const rehostImage_1 = require("../lib/rehostImage");
 const backendUrl_1 = require("../lib/backendUrl");
 const deleteLocalUpload_1 = require("../lib/deleteLocalUpload");
 const merchantFeed_1 = require("../lib/merchantFeed");
+const logger_1 = require("../lib/logger");
+const auditLog_1 = require("../lib/auditLog");
 const router = (0, express_1.Router)();
 /* ── Multer — import CSV/Excel en mémoire (petit fichier, pas besoin de disque) ── */
 const csvUpload = (0, multer_1.default)({
@@ -241,7 +243,7 @@ router.post('/restore-images', auth_1.requireAdmin, restoreUpload.array('images'
         res.json({ success: true, data: { written, rejected } });
     }
     catch (err) {
-        console.error('[products] échec restore-images', err);
+        logger_1.logger.error('[products] échec restore-images', err);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });
@@ -279,7 +281,7 @@ router.get('/image-jpg/:filename', async (req, res) => {
         fs_1.default.createReadStream(cachePath).pipe(res);
     }
     catch (err) {
-        console.error('[products] échec conversion image-jpg', err);
+        logger_1.logger.error('[products] échec conversion image-jpg', err);
         res.status(500).end();
     }
 });
@@ -298,20 +300,16 @@ router.post('/sync-merchant', auth_1.requireAdmin, async (_req, res) => {
         res.json({ success: true, data: result });
     }
     catch (err) {
-        console.error('[products] échec sync Merchant', err);
-        res.status(500).json({ success: false, message: err instanceof Error ? err.message : 'Erreur lors de la synchronisation' });
+        logger_1.logger.error('[products] échec sync Merchant', err);
+        res.status(500).json({ success: false, message: 'Erreur lors de la synchronisation avec Google Merchant Center' });
     }
 });
 /* ─────────────────────────────────────────────────────────────
    GET /api/products/:id
 ───────────────────────────────────────────────────────────── */
-router.get('/:id', auth_1.optionalAuth, (0, cache_1.cacheControl)(20), async (req, res) => {
+router.get('/:id', auth_1.optionalAuth, (0, cache_1.cacheControl)(20), (0, validate_1.validateParams)(validate_1.zIntIdParam), async (req, res) => {
     try {
-        const id = parseInt(req.params['id'] ?? '');
-        if (isNaN(id)) {
-            res.status(400).json({ success: false, message: 'ID invalide' });
-            return;
-        }
+        const id = Number(req.params['id']);
         const product = await prisma_1.prisma.product.findFirst({
             where: { id, isActive: true },
             include: {
@@ -526,7 +524,7 @@ router.post('/bulk-import/preview', auth_1.requireAdmin, csvUpload.single('file'
         res.json({ success: true, data: result });
     }
     catch (err) {
-        console.error('[BULK-IMPORT-PREVIEW]', err);
+        logger_1.logger.error('[BULK-IMPORT-PREVIEW]', err);
         res.status(500).json({ success: false, message: "Erreur lors de l'analyse du fichier" });
     }
 });
@@ -619,7 +617,7 @@ router.get('/bulk-import/template', auth_1.requireAdmin, async (_req, res) => {
         res.send(Buffer.from(buffer));
     }
     catch (err) {
-        console.error('[BULK-IMPORT-TEMPLATE]', err);
+        logger_1.logger.error('[BULK-IMPORT-TEMPLATE]', err);
         res.status(500).json({ success: false, message: 'Erreur lors de la génération du modèle' });
     }
 });
@@ -676,7 +674,7 @@ router.post('/bulk-import/commit', auth_1.requireAdmin, (0, validate_1.validate)
         res.json({ success: true, data: { created, skipped, total: rows.length } });
     }
     catch (err) {
-        console.error('[BULK-IMPORT-COMMIT]', err);
+        logger_1.logger.error('[BULK-IMPORT-COMMIT]', err);
         res.status(500).json({ success: false, message: "Erreur lors de l'import" });
     }
 });
@@ -720,9 +718,9 @@ router.post('/', auth_1.requireAdmin, (0, validate_1.validate)(createProductSche
 /* ─────────────────────────────────────────────────────────────
    PUT /api/products/:id  [ADMIN]
 ───────────────────────────────────────────────────────────── */
-router.put('/:id', auth_1.requireAdmin, (0, validate_1.validate)(createProductSchema.partial()), async (req, res) => {
+router.put('/:id', auth_1.requireAdmin, (0, validate_1.validateParams)(validate_1.zIntIdParam), (0, validate_1.validate)(createProductSchema.partial()), async (req, res) => {
     try {
-        const id = parseInt(req.params['id'] ?? '');
+        const id = Number(req.params['id']);
         const { images, specs, colors, ...data } = req.body;
         // Résoudre categoryId si le slug est fourni
         const catRow = data.category ? await prisma_1.prisma.category.findUnique({ where: { slug: data.category } }) : undefined;
@@ -790,10 +788,11 @@ router.put('/:id', auth_1.requireAdmin, (0, validate_1.validate)(createProductSc
 /* ─────────────────────────────────────────────────────────────
    DELETE /api/products/:id  [ADMIN]  (soft delete)
 ───────────────────────────────────────────────────────────── */
-router.delete('/:id', auth_1.requireAdmin, async (req, res) => {
+router.delete('/:id', auth_1.requireAdmin, (0, validate_1.validateParams)(validate_1.zIntIdParam), async (req, res) => {
     try {
-        const id = parseInt(req.params['id'] ?? '');
+        const id = Number(req.params['id']);
         await prisma_1.prisma.product.update({ where: { id }, data: { isActive: false } });
+        (0, auditLog_1.logAdminAction)(req, { action: 'product.delete', targetType: 'Product', targetId: String(id) });
         res.json({ success: true, message: 'Produit désactivé' });
     }
     catch {

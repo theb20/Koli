@@ -22,6 +22,7 @@ const client_1 = require("../lib/email/client");
 const tokens_1 = require("../lib/email/tokens");
 const email_1 = require("../lib/email");
 const flash_deal_1 = require("../lib/email/templates/flash-deal");
+const logger_1 = require("../lib/logger");
 const router = (0, express_1.Router)();
 router.use(auth_1.requireAdmin);
 const DUMMY_ORDER_ITEMS = [
@@ -111,8 +112,8 @@ router.get('/:name', async (req, res) => {
         res.send(capture.html || '<p>Aucun HTML capturé.</p>');
     }
     catch (err) {
-        console.error('[EMAIL-TEMPLATES]', err);
-        res.status(500).send('<pre>' + String(err) + '</pre>');
+        logger_1.logger.error('[EMAIL-TEMPLATES]', err);
+        res.status(500).send('<p>Erreur lors du rendu de ce template — voir les logs serveur.</p>');
     }
 });
 /* ─────────────────────────────────────────────────────────────

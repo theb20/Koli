@@ -2,15 +2,17 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { requireAdmin } from '../middleware/auth'
-import { validate } from '../middleware/validate'
+import { validate, validateParams, validateQuery, zIntIdParam, zCodeParam } from '../middleware/validate'
 
 const router = Router()
 
 /* ── GET /api/promo/:code — Valider un code ────────────────── */
-router.get('/:code', async (req, res) => {
+const promoQuerySchema = z.object({ total: z.coerce.number().int().nonnegative().optional().default(0) })
+
+router.get('/:code', validateParams(zCodeParam), validateQuery(promoQuerySchema), async (req, res) => {
   try {
-    const code  = req.params['code']!.toUpperCase()
-    const total = parseInt(req.query['total'] as string) || 0  // montant du panier
+    const code  = (req.params['code'] as string).toUpperCase()
+    const total = (req.query['total'] as unknown as number)  // montant du panier
 
     const promo = await prisma.promoCode.findFirst({
       where: {
@@ -96,10 +98,10 @@ router.get('/', requireAdmin, async (_req, res) => {
 })
 
 /* ── DELETE /api/promo/:id  [ADMIN] ───────────────────────── */
-router.delete('/:id', requireAdmin, async (req, res) => {
+router.delete('/:id', requireAdmin, validateParams(zIntIdParam), async (req, res) => {
   try {
     await prisma.promoCode.update({
-      where: { id: parseInt(req.params['id'] ?? '') },
+      where: { id: Number(req.params['id']) },
       data:  { isActive: false },
     })
     res.json({ success: true, message: 'Code promo désactivé' })
@@ -117,10 +119,10 @@ router.get('/admin/all', requireAdmin, async (_req, res) => {
 })
 
 /* ── PATCH /api/promo/:id/toggle  [ADMIN] ──────────────────── */
-router.patch('/:id/toggle', requireAdmin, async (req, res) => {
+router.patch('/:id/toggle', requireAdmin, validateParams(zIntIdParam), async (req, res) => {
   try {
     const { isActive } = req.body
-    const promo = await prisma.promoCode.update({ where: { id: parseInt(req.params['id']!) }, data: { isActive } })
+    const promo = await prisma.promoCode.update({ where: { id: Number(req.params['id']) }, data: { isActive } })
     res.json({ success: true, data: { promo } })
   } catch { res.status(500).json({ success: false, message: 'Erreur serveur' }) }
 })

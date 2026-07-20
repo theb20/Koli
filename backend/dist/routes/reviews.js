@@ -31,9 +31,9 @@ router.get('/latest', async (req, res) => {
     }
 });
 /* ── GET /api/reviews/product/:id ─────────────────────────── */
-router.get('/product/:id', async (req, res) => {
+router.get('/product/:id', (0, validate_1.validateParams)(validate_1.zIntIdParam), async (req, res) => {
     try {
-        const productId = parseInt(req.params['id'] ?? '');
+        const productId = Number(req.params['id']);
         const page = parseInt(req.query['page']) || 1;
         const limit = parseInt(req.query['limit']) || 10;
         const [total, reviews, stats] = await Promise.all([
@@ -108,7 +108,7 @@ router.post('/', auth_1.requireAuth, (0, validate_1.validate)(reviewSchema), asy
     }
 });
 /* ── PUT /api/reviews/:id — Modifier son avis ──────────────── */
-router.put('/:id', auth_1.requireAuth, async (req, res) => {
+router.put('/:id', auth_1.requireAuth, (0, validate_1.validateParams)(validate_1.zCuidIdParam), async (req, res) => {
     try {
         const schema = zod_1.z.object({
             rating: zod_1.z.number().int().min(1).max(5).optional(),
@@ -131,7 +131,7 @@ router.put('/:id', auth_1.requireAuth, async (req, res) => {
     }
 });
 /* ── DELETE /api/reviews/:id ───────────────────────────────── */
-router.delete('/:id', auth_1.requireAuth, async (req, res) => {
+router.delete('/:id', auth_1.requireAuth, (0, validate_1.validateParams)(validate_1.zCuidIdParam), async (req, res) => {
     try {
         const review = await prisma_1.prisma.review.findFirst({
             where: { id: req.params['id'], userId: req.user.userId },
@@ -157,7 +157,7 @@ router.delete('/:id', auth_1.requireAuth, async (req, res) => {
     }
 });
 /* ── POST /api/reviews/:id/helpful ────────────────────────── */
-router.post('/:id/helpful', async (req, res) => {
+router.post('/:id/helpful', (0, validate_1.validateParams)(validate_1.zCuidIdParam), async (req, res) => {
     try {
         await prisma_1.prisma.review.update({
             where: { id: req.params['id'] },

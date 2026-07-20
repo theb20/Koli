@@ -5,8 +5,11 @@ import morgan from 'morgan'
 import compression from 'compression'
 import cookieParser from 'cookie-parser'
 import { rateLimit } from 'express-rate-limit'
+import { slowDown } from 'express-slow-down'
+import hpp from 'hpp'
 import path from 'path'
 import { ALLOWED_ORIGINS } from './lib/allowedOrigins'
+import { logger } from './lib/logger'
 
 // Routes
 import authRouter          from './routes/auth'
@@ -36,6 +39,7 @@ import dealAnnouncementsRouter from './routes/deal-announcements'
 import productRequestsRouter   from './routes/product-requests'
 import emailTemplatesRouter    from './routes/email-templates'
 import returnsRouter           from './routes/returns'
+import auditLogRouter          from './routes/audit-log'
 
 const app = express()
 
@@ -57,6 +61,12 @@ app.use(compression())
 
 /* ── Sécurité ───────────────────────────────────────────────── */
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }))
+// Helmet ne définit pas Permissions-Policy par défaut — API pure, aucune
+// des fonctionnalités concernées n'est utilisée.
+app.use((_req, res, next) => {
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()')
+  next()
+})
 
 /* ── Rate Limiting ──────────────────────────────────────────── */
 
@@ -77,6 +87,20 @@ const authActionLimiter = rateLimit({
   max: 20,                    // 20 tentatives par IP / 15 min — suffisant sans bloquer l'usage normal
   message: { success: false, message: 'Trop de tentatives, réessayez dans 15 minutes' },
   keyGenerator: (req) => req.ip ?? 'unknown',
+})
+
+// Ralentissement progressif en complément du rate-limit dur ci-dessus — un
+// bruteforce/credential-stuffing devient de plus en plus lent avant même
+// d'atteindre la limite stricte, sans pénaliser un utilisateur normal qui
+// se trompe une ou deux fois de mot de passe.
+const authActionSlowDown = slowDown({
+  windowMs: 15 * 60 * 1000,
+  delayAfter: 5,
+  delayMs: (hits) => (hits - 5) * 500, // +500ms par tentative au-delà de la 5e
+  maxDelayMs: 5000,
+  // Pas de keyGenerator custom : le défaut de express-slow-down (v3, basé sur
+  // express-rate-limit v8) normalise déjà correctement les IPv6 — un
+  // req.ip brut casserait cette protection (voir ERR_ERL_KEY_GEN_IPV6).
 })
 
 // Formulaires publics qui déclenchent un envoi d'email ou une écriture disque
@@ -115,6 +139,9 @@ app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true }))
 app.use(cookieParser())
 
+/* ── HPP — neutralise la pollution de paramètres HTTP (ex: ?role=customer&role=admin) ── */
+app.use(hpp())
+
 /* ── Logging ────────────────────────────────────────────────── */
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'))
@@ -143,12 +170,12 @@ app.get('/health', (_req, res) => {
 
 /* ── Routes API ─────────────────────────────────────────────── */
 // Limiteur strict sur les actions sensibles seulement (pas sur /me, /sessions, /profile)
-app.use('/api/auth/login',          authActionLimiter)
-app.use('/api/auth/register',       authActionLimiter)
-app.use('/api/auth/forgot-password',authActionLimiter)
-app.use('/api/auth/reset-password', authActionLimiter)
-app.use('/api/auth/magic',          authActionLimiter)
-app.use('/api/auth/password',       authActionLimiter)
+app.use('/api/auth/login',          authActionSlowDown, authActionLimiter)
+app.use('/api/auth/register',       authActionSlowDown, authActionLimiter)
+app.use('/api/auth/forgot-password',authActionSlowDown, authActionLimiter)
+app.use('/api/auth/reset-password', authActionSlowDown, authActionLimiter)
+app.use('/api/auth/magic',          authActionSlowDown, authActionLimiter)
+app.use('/api/auth/password',       authActionSlowDown, authActionLimiter)
 app.use('/api/auth',                authRouter)
 app.use('/api/products',      publicDataLimiter, productsRouter)
 app.use('/api/orders',        ordersRouter)
@@ -176,6 +203,7 @@ app.use('/api/deal-announcements', dealAnnouncementsRouter)
 app.use('/api/product-requests', publicFormLimiter, productRequestsRouter)
 app.use('/api/email-templates', emailTemplatesRouter)
 app.use('/api/returns',       returnsRouter)
+app.use('/api/audit-log',     auditLogRouter)
 
 /* ── 404 ────────────────────────────────────────────────────── */
 app.use((_req, res) => {
@@ -184,7 +212,7 @@ app.use((_req, res) => {
 
 /* ── Error handler global ───────────────────────────────────── */
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error('[ERROR]', err.message)
+  logger.error('[ERROR]', err)
   res.status(500).json({ success: false, message: 'Erreur interne du serveur' })
 })
 

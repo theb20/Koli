@@ -2,8 +2,9 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { requireAdmin } from '../middleware/auth'
-import { validate } from '../middleware/validate'
+import { validate, validateParams, zIntIdParam } from '../middleware/validate'
 import { processDealAnnouncement } from '../lib/dealAnnouncements'
+import { logger } from '../lib/logger'
 
 const router = Router()
 
@@ -56,7 +57,7 @@ router.post('/', requireAdmin, validate(createSchema), async (req, res) => {
     })
 
     if (effectiveSendAt <= new Date()) {
-      processDealAnnouncement(announcement.id).catch(err => console.error('[deal-announcement] envoi immédiat échoué', err))
+      processDealAnnouncement(announcement.id).catch(err => logger.error('[deal-announcement] envoi immédiat échoué', err))
     }
 
     res.status(201).json({ success: true, data: { ...announcement, productIds } })
@@ -66,9 +67,9 @@ router.post('/', requireAdmin, validate(createSchema), async (req, res) => {
 })
 
 /* ── DELETE /api/deal-announcements/:id  [ADMIN] — annule une annonce programmée ── */
-router.delete('/:id', requireAdmin, async (req, res) => {
+router.delete('/:id', requireAdmin, validateParams(zIntIdParam), async (req, res) => {
   try {
-    const id = parseInt(req.params['id'] ?? '')
+    const id = Number(req.params['id'])
     const updated = await prisma.dealAnnouncement.updateMany({
       where: { id, status: 'pending' },
       data: { status: 'cancelled' },

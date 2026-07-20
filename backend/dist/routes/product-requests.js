@@ -14,6 +14,7 @@ const validate_1 = require("../middleware/validate");
 const mailer_1 = require("../lib/mailer");
 const backendUrl_1 = require("../lib/backendUrl");
 const imageProcessing_1 = require("../lib/imageProcessing");
+const logger_1 = require("../lib/logger");
 const router = (0, express_1.Router)();
 /* ── Multer — buffer en mémoire, converti en WebP avant écriture ── */
 const reqUploadDir = path_1.default.resolve(process.env.UPLOAD_DIR ?? './uploads', 'requests');
@@ -96,7 +97,7 @@ router.post('/upload-images', handleImageUpload, async (req, res) => {
         res.json({ success: true, data: { urls } });
     }
     catch (err) {
-        console.error(err);
+        logger_1.logger.error(err);
         res.status(500).json({ success: false, message: "Erreur lors de l'upload" });
     }
 });
@@ -151,7 +152,7 @@ router.post('/', auth_1.optionalAuth, (0, validate_1.validate)(createSchema), as
                 })));
             }
             catch (err) {
-                console.error('[product-requests] échec notification admin', err); // non bloquant
+                logger_1.logger.error('[product-requests] échec notification admin', err); // non bloquant
             }
         })();
         res.status(201).json({
@@ -161,7 +162,7 @@ router.post('/', auth_1.optionalAuth, (0, validate_1.validate)(createSchema), as
         });
     }
     catch (err) {
-        console.error(err);
+        logger_1.logger.error(err);
         res.status(500).json({ success: false, message: "Erreur lors de l'envoi de la demande" });
     }
 });
@@ -215,7 +216,7 @@ router.get('/admin/all', auth_1.requireAdmin, async (req, res) => {
 /* ─────────────────────────────────────────────────────────────
    GET /api/product-requests/:id  [ADMIN]
 ───────────────────────────────────────────────────────────── */
-router.get('/:id', auth_1.requireAdmin, async (req, res) => {
+router.get('/:id', auth_1.requireAdmin, (0, validate_1.validateParams)(validate_1.zCuidIdParam), async (req, res) => {
     try {
         const request = await prisma_1.prisma.productRequest.findUnique({ where: { id: req.params['id'] } });
         if (!request) {
@@ -231,7 +232,7 @@ router.get('/:id', auth_1.requireAdmin, async (req, res) => {
 /* ─────────────────────────────────────────────────────────────
    PATCH /api/product-requests/:id/status  [ADMIN]
 ───────────────────────────────────────────────────────────── */
-router.patch('/:id/status', auth_1.requireAdmin, async (req, res) => {
+router.patch('/:id/status', auth_1.requireAdmin, (0, validate_1.validateParams)(validate_1.zCuidIdParam), async (req, res) => {
     try {
         const { status } = zod_1.z.object({
             status: zod_1.z.enum(['new', 'processing', 'quoted', 'fulfilled', 'rejected', 'cancelled']),
@@ -248,7 +249,7 @@ router.patch('/:id/status', auth_1.requireAdmin, async (req, res) => {
             res.status(404).json({ success: false, message: 'Demande introuvable' });
             return;
         }
-        console.error('[PATCH product-request status]', err);
+        logger_1.logger.error('[PATCH product-request status]', err);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });
@@ -256,7 +257,7 @@ router.patch('/:id/status', auth_1.requireAdmin, async (req, res) => {
    POST /api/product-requests/:id/reply  [ADMIN]
    Envoie une réponse personnalisée directement dans la boîte mail du client.
 ───────────────────────────────────────────────────────────── */
-router.post('/:id/reply', auth_1.requireAdmin, (0, validate_1.validate)(replySchema), async (req, res) => {
+router.post('/:id/reply', auth_1.requireAdmin, (0, validate_1.validateParams)(validate_1.zCuidIdParam), (0, validate_1.validate)(replySchema), async (req, res) => {
     try {
         const { message, quotedPrice } = req.body;
         const request = await prisma_1.prisma.productRequest.findUnique({ where: { id: req.params['id'] } });
@@ -288,14 +289,14 @@ router.post('/:id/reply', auth_1.requireAdmin, (0, validate_1.validate)(replySch
         res.json({ success: true, message: 'Réponse envoyée au client', data: { request: updated } });
     }
     catch (err) {
-        console.error(err);
+        logger_1.logger.error(err);
         res.status(500).json({ success: false, message: "Erreur lors de l'envoi de la réponse" });
     }
 });
 /* ─────────────────────────────────────────────────────────────
    DELETE /api/product-requests/:id  [ADMIN]
 ───────────────────────────────────────────────────────────── */
-router.delete('/:id', auth_1.requireAdmin, async (req, res) => {
+router.delete('/:id', auth_1.requireAdmin, (0, validate_1.validateParams)(validate_1.zCuidIdParam), async (req, res) => {
     try {
         await prisma_1.prisma.productRequest.delete({ where: { id: req.params['id'] } });
         res.json({ success: true, message: 'Demande supprimée' });
@@ -306,7 +307,7 @@ router.delete('/:id', auth_1.requireAdmin, async (req, res) => {
             res.status(404).json({ success: false, message: 'Demande déjà supprimée' });
             return;
         }
-        console.error('[DELETE product-request]', err);
+        logger_1.logger.error('[DELETE product-request]', err);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });

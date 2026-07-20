@@ -2,10 +2,12 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { requireAuth, requireAdmin, optionalAuth } from '../middleware/auth'
-import { validate } from '../middleware/validate'
+import { validate, validateParams, zCuidIdParam } from '../middleware/validate'
 import { sendOrderConfirmationEmail, sendOrderStatusEmail, sendNewOrderAdminEmail } from '../lib/mailer'
 import { buildInvoicePdf } from '../lib/invoicePdf'
 import { sendNewOrderWhatsAppNotification } from '../lib/whatsapp/newOrderNotification'
+import { logger } from '../lib/logger'
+import { logAdminAction } from '../lib/auditLog'
 
 const router = Router()
 
@@ -366,7 +368,7 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
           })
         }
       } catch (err) {
-        console.error('[orders] échec sauvegarde adresse auto', err) // non bloquant
+        logger.error('[orders] échec sauvegarde adresse auto', err) // non bloquant
       }
     }
 
@@ -411,10 +413,10 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
             clientTelephone: body.clientTelephone,
             total:           order.total,
             paymentMethod:   body.paymentMethod,
-          }).catch(err => console.error('[orders] échec notification WhatsApp', err))
+          }).catch(err => logger.error('[orders] échec notification WhatsApp', err))
         }
       } catch (err) {
-        console.error('[orders] échec notification admin', err) // non bloquant
+        logger.error('[orders] échec notification admin', err) // non bloquant
       }
     })()
 
@@ -471,7 +473,7 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
         return
       }
     }
-    console.error(err)
+    logger.error(err)
     res.status(500).json({ success: false, message: 'Erreur lors de la création de la commande' })
   }
 })
@@ -555,7 +557,7 @@ router.get('/admin/all', requireAdmin, async (req, res) => {
 /* ─────────────────────────────────────────────────────────────
    GET /api/orders/:id  — Détail commande
 ───────────────────────────────────────────────────────────── */
-router.get('/:id', optionalAuth, async (req, res) => {
+router.get('/:id', optionalAuth, validateParams(zCuidIdParam), async (req, res) => {
   try {
     const paramId = req.params['id'] ?? ''
     const isAdmin = req.user?.role === 'admin'
@@ -593,7 +595,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
    GET /api/orders/:id/invoice  — Facture PDF
    Même règle d'accès que GET /:id (propriétaire, commande invité, ou admin).
 ───────────────────────────────────────────────────────────── */
-router.get('/:id/invoice', optionalAuth, async (req, res) => {
+router.get('/:id/invoice', optionalAuth, validateParams(zCuidIdParam), async (req, res) => {
   try {
     const paramId = req.params['id'] ?? ''
     const isAdmin = req.user?.role === 'admin'
@@ -626,7 +628,7 @@ router.get('/:id/invoice', optionalAuth, async (req, res) => {
     doc.pipe(res)
     doc.end()
   } catch (err) {
-    console.error('[INVOICE]', err)
+    logger.error('[INVOICE]', err)
     res.status(500).json({ success: false, message: 'Erreur lors de la génération de la facture' })
   }
 })
@@ -634,7 +636,7 @@ router.get('/:id/invoice', optionalAuth, async (req, res) => {
 /* ─────────────────────────────────────────────────────────────
    PUT /api/orders/:id/cancel  — Annuler une commande
 ───────────────────────────────────────────────────────────── */
-router.put('/:id/cancel', requireAuth, async (req, res) => {
+router.put('/:id/cancel', requireAuth, validateParams(zCuidIdParam), async (req, res) => {
   try {
     const order = await prisma.order.findFirst({
       where: { OR: [{ id: req.params['id'] }, { orderNumber: req.params['id'] }], userId: req.user!.userId },
@@ -661,7 +663,7 @@ router.put('/:id/cancel', requireAuth, async (req, res) => {
 /* ─────────────────────────────────────────────────────────────
    PUT /api/orders/:id/status  [ADMIN]
 ───────────────────────────────────────────────────────────── */
-router.put('/:id/status', requireAdmin, async (req, res) => {
+router.put('/:id/status', requireAdmin, validateParams(zCuidIdParam), async (req, res) => {
   try {
     const schema = z.object({ status: z.enum(ORDER_STATUSES) })
     const { status } = schema.parse(req.body)
@@ -672,6 +674,7 @@ router.put('/:id/status', requireAdmin, async (req, res) => {
       return
     }
 
+    logAdminAction(req, { action: 'order.status.update', targetType: 'Order', targetId: req.params['id']!, metadata: { newStatus: status } })
     res.json({ success: true, message: 'Statut mis à jour' })
   } catch {
     res.status(500).json({ success: false, message: 'Erreur serveur' })
@@ -679,7 +682,7 @@ router.put('/:id/status', requireAdmin, async (req, res) => {
 })
 
 /* ── PATCH /api/orders/:id/status  [ADMIN] — alias PATCH ─── */
-router.patch('/:id/status', requireAdmin, async (req, res) => {
+router.patch('/:id/status', requireAdmin, validateParams(zCuidIdParam), async (req, res) => {
   try {
     const schema = z.object({ status: z.enum(ORDER_STATUSES) })
     const { status } = schema.parse(req.body)
@@ -689,6 +692,7 @@ router.patch('/:id/status', requireAdmin, async (req, res) => {
       res.status(404).json({ success: false, message: 'Commande introuvable' })
       return
     }
+    logAdminAction(req, { action: 'order.status.update', targetType: 'Order', targetId: req.params['id']!, metadata: { newStatus: status } })
     res.json({ success: true, data: { order } })
   } catch {
     res.status(500).json({ success: false, message: 'Erreur serveur' })

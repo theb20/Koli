@@ -6,11 +6,13 @@ import fs from 'fs'
 import multer from 'multer'
 import { prisma } from '../lib/prisma'
 import { requireAdmin } from '../middleware/auth'
-import { validate } from '../middleware/validate'
+import { validate, validateParams, zIntIdParam } from '../middleware/validate'
 import { cacheControl } from '../middleware/cache'
 import { getBackendUrl } from '../lib/backendUrl'
 import { deleteLocalUpload } from '../lib/deleteLocalUpload'
 import { toWebp } from '../lib/imageProcessing'
+import { logger } from '../lib/logger'
+import { logAdminAction } from '../lib/auditLog'
 
 /* ── Multer — buffer en mémoire, converti en WebP avant écriture ── */
 const catUploadDir = path.resolve(process.env.UPLOAD_DIR ?? './uploads', 'cat')
@@ -111,10 +113,9 @@ router.post('/', requireAdmin, validate(categorySchema), async (req, res) => {
 /* ─────────────────────────────────────────────────────────────
    PUT /api/categories/:id [ADMIN] — mettre à jour
 ───────────────────────────────────────────────────────────── */
-router.put('/:id', requireAdmin, validate(categorySchema.partial()), async (req, res) => {
+router.put('/:id', requireAdmin, validateParams(zIntIdParam), validate(categorySchema.partial()), async (req, res) => {
   try {
-    const id = parseInt(req.params['id'] ?? '0')
-    if (!id) { res.status(400).json({ success: false, message: 'ID invalide' }); return }
+    const id = Number(req.params['id'])
 
     const body = req.body as Partial<z.infer<typeof categorySchema>>
 
@@ -140,10 +141,9 @@ router.put('/:id', requireAdmin, validate(categorySchema.partial()), async (req,
 /* ─────────────────────────────────────────────────────────────
    PATCH /api/categories/:id/toggle [ADMIN] — activer / désactiver
 ───────────────────────────────────────────────────────────── */
-router.patch('/:id/toggle', requireAdmin, async (req, res) => {
+router.patch('/:id/toggle', requireAdmin, validateParams(zIntIdParam), async (req, res) => {
   try {
-    const id = parseInt(req.params['id'] ?? '0')
-    if (!id) { res.status(400).json({ success: false, message: 'ID invalide' }); return }
+    const id = Number(req.params['id'])
 
     const cat = await prisma.category.findUnique({ where: { id } })
     if (!cat) { res.status(404).json({ success: false, message: 'Catégorie introuvable' }); return }
@@ -177,15 +177,15 @@ router.patch('/reorder', requireAdmin, async (req, res) => {
 /* ─────────────────────────────────────────────────────────────
    DELETE /api/categories/:id [ADMIN] — supprimer
 ───────────────────────────────────────────────────────────── */
-router.delete('/:id', requireAdmin, async (req, res) => {
+router.delete('/:id', requireAdmin, validateParams(zIntIdParam), async (req, res) => {
   try {
-    const id = parseInt(req.params['id'] ?? '0')
-    if (!id) { res.status(400).json({ success: false, message: 'ID invalide' }); return }
+    const id = Number(req.params['id'])
 
     const cat = await prisma.category.findUnique({ where: { id }, select: { image: true } })
     await prisma.category.delete({ where: { id } })
     if (cat?.image) deleteLocalUpload(cat.image)
 
+    logAdminAction(req, { action: 'category.delete', targetType: 'Category', targetId: String(id) })
     res.json({ success: true, message: 'Catégorie supprimée' })
   } catch {
     res.status(500).json({ success: false, message: 'Erreur lors de la suppression' })
@@ -196,10 +196,9 @@ router.delete('/:id', requireAdmin, async (req, res) => {
    POST /api/categories/:id/image [ADMIN] — uploader une image
    Stocke dans uploads/cat/ et met à jour le champ image
 ───────────────────────────────────────────────────────────── */
-router.post('/:id/image', requireAdmin, handleCatImageUpload, async (req, res) => {
+router.post('/:id/image', requireAdmin, validateParams(zIntIdParam), handleCatImageUpload, async (req, res) => {
   try {
-    const id = parseInt(req.params['id'] ?? '0')
-    if (!id) { res.status(400).json({ success: false, message: 'ID invalide' }); return }
+    const id = Number(req.params['id'])
     if (!req.file) { res.status(400).json({ success: false, message: 'Aucun fichier reçu' }); return }
 
     const webp = await toWebp(req.file.buffer)
@@ -220,7 +219,7 @@ router.post('/:id/image', requireAdmin, handleCatImageUpload, async (req, res) =
 
     res.json({ success: true, data: updated })
   } catch (err) {
-    console.error(err)
+    logger.error(err)
     res.status(500).json({ success: false, message: "Erreur lors de l'upload" })
   }
 })

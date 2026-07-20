@@ -4,6 +4,7 @@ import {
 } from 'react'
 import { signInWithPopup } from 'firebase/auth'
 import { auth, googleProvider } from '../lib/firebase'
+import { setAuthRefreshHandlers } from '../lib/api'
 
 /* ─── Types ──────────────────────────────────────────────────── */
 export type AuthUser = {
@@ -78,6 +79,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (token) localStorage.setItem(TOKEN_KEY, token)
     else       localStorage.removeItem(TOKEN_KEY)
   }, [token])
+
+  // Branche le refresh silencieux d'apiFetch sur cet état — un 401 avec
+  // token expiré déclenche /api/auth/refresh (cookie httpOnly), et si ça
+  // échoue vraiment (session révoquée), on déconnecte proprement.
+  useEffect(() => {
+    setAuthRefreshHandlers({
+      onTokenRefreshed: (newToken) => setToken(newToken),
+      onSessionExpired: () => { setUser(null); setToken(null) },
+    })
+  }, [])
 
   /* ── Connexion email / mot de passe ─────────────────────── */
   const login = useCallback(async (email: string, password: string) => {

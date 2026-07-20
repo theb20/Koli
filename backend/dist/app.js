@@ -10,8 +10,11 @@ const morgan_1 = __importDefault(require("morgan"));
 const compression_1 = __importDefault(require("compression"));
 const cookie_parser_1 = __importDefault(require("cookie-parser"));
 const express_rate_limit_1 = require("express-rate-limit");
+const express_slow_down_1 = require("express-slow-down");
+const hpp_1 = __importDefault(require("hpp"));
 const path_1 = __importDefault(require("path"));
 const allowedOrigins_1 = require("./lib/allowedOrigins");
+const logger_1 = require("./lib/logger");
 // Routes
 const auth_1 = __importDefault(require("./routes/auth"));
 const products_1 = __importDefault(require("./routes/products"));
@@ -40,6 +43,7 @@ const deal_announcements_1 = __importDefault(require("./routes/deal-announcement
 const product_requests_1 = __importDefault(require("./routes/product-requests"));
 const email_templates_1 = __importDefault(require("./routes/email-templates"));
 const returns_1 = __importDefault(require("./routes/returns"));
+const audit_log_1 = __importDefault(require("./routes/audit-log"));
 const app = (0, express_1.default)();
 /* ── CORS (must be before helmet) ──────────────────────────── */
 app.use((0, cors_1.default)({
@@ -59,6 +63,12 @@ app.use((0, cors_1.default)({
 app.use((0, compression_1.default)());
 /* ── Sécurité ───────────────────────────────────────────────── */
 app.use((0, helmet_1.default)({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+// Helmet ne définit pas Permissions-Policy par défaut — API pure, aucune
+// des fonctionnalités concernées n'est utilisée.
+app.use((_req, res, next) => {
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()');
+    next();
+});
 /* ── Rate Limiting ──────────────────────────────────────────── */
 // Global — toutes les routes (confortable en dev, suffisant en prod light)
 app.use((0, express_rate_limit_1.rateLimit)({
@@ -76,6 +86,19 @@ const authActionLimiter = (0, express_rate_limit_1.rateLimit)({
     max: 20, // 20 tentatives par IP / 15 min — suffisant sans bloquer l'usage normal
     message: { success: false, message: 'Trop de tentatives, réessayez dans 15 minutes' },
     keyGenerator: (req) => req.ip ?? 'unknown',
+});
+// Ralentissement progressif en complément du rate-limit dur ci-dessus — un
+// bruteforce/credential-stuffing devient de plus en plus lent avant même
+// d'atteindre la limite stricte, sans pénaliser un utilisateur normal qui
+// se trompe une ou deux fois de mot de passe.
+const authActionSlowDown = (0, express_slow_down_1.slowDown)({
+    windowMs: 15 * 60 * 1000,
+    delayAfter: 5,
+    delayMs: (hits) => (hits - 5) * 500, // +500ms par tentative au-delà de la 5e
+    maxDelayMs: 5000,
+    // Pas de keyGenerator custom : le défaut de express-slow-down (v3, basé sur
+    // express-rate-limit v8) normalise déjà correctement les IPv6 — un
+    // req.ip brut casserait cette protection (voir ERR_ERL_KEY_GEN_IPV6).
 });
 // Formulaires publics qui déclenchent un envoi d'email ou une écriture disque
 // (contact, demande de sourcing, upload d'images) — cible anti-spam/anti-DoS,
@@ -110,6 +133,8 @@ const publicDataLimiter = (0, express_rate_limit_1.rateLimit)({
 app.use(express_1.default.json({ limit: '10mb' }));
 app.use(express_1.default.urlencoded({ extended: true }));
 app.use((0, cookie_parser_1.default)());
+/* ── HPP — neutralise la pollution de paramètres HTTP (ex: ?role=customer&role=admin) ── */
+app.use((0, hpp_1.default)());
 /* ── Logging ────────────────────────────────────────────────── */
 if (process.env.NODE_ENV === 'development') {
     app.use((0, morgan_1.default)('dev'));
@@ -136,12 +161,12 @@ app.get('/health', (_req, res) => {
 });
 /* ── Routes API ─────────────────────────────────────────────── */
 // Limiteur strict sur les actions sensibles seulement (pas sur /me, /sessions, /profile)
-app.use('/api/auth/login', authActionLimiter);
-app.use('/api/auth/register', authActionLimiter);
-app.use('/api/auth/forgot-password', authActionLimiter);
-app.use('/api/auth/reset-password', authActionLimiter);
-app.use('/api/auth/magic', authActionLimiter);
-app.use('/api/auth/password', authActionLimiter);
+app.use('/api/auth/login', authActionSlowDown, authActionLimiter);
+app.use('/api/auth/register', authActionSlowDown, authActionLimiter);
+app.use('/api/auth/forgot-password', authActionSlowDown, authActionLimiter);
+app.use('/api/auth/reset-password', authActionSlowDown, authActionLimiter);
+app.use('/api/auth/magic', authActionSlowDown, authActionLimiter);
+app.use('/api/auth/password', authActionSlowDown, authActionLimiter);
 app.use('/api/auth', auth_1.default);
 app.use('/api/products', publicDataLimiter, products_1.default);
 app.use('/api/orders', orders_1.default);
@@ -169,13 +194,14 @@ app.use('/api/deal-announcements', deal_announcements_1.default);
 app.use('/api/product-requests', publicFormLimiter, product_requests_1.default);
 app.use('/api/email-templates', email_templates_1.default);
 app.use('/api/returns', returns_1.default);
+app.use('/api/audit-log', audit_log_1.default);
 /* ── 404 ────────────────────────────────────────────────────── */
 app.use((_req, res) => {
     res.status(404).json({ success: false, message: 'Route introuvable' });
 });
 /* ── Error handler global ───────────────────────────────────── */
 app.use((err, _req, res, _next) => {
-    console.error('[ERROR]', err.message);
+    logger_1.logger.error('[ERROR]', err);
     res.status(500).json({ success: false, message: 'Erreur interne du serveur' });
 });
 exports.default = app;

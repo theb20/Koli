@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { optionalAuth } from '../middleware/auth'
+import { validateParams, zProductIdParam } from '../middleware/validate'
 
 const router = Router()
 
@@ -43,10 +44,10 @@ router.post('/', optionalAuth, async (req, res) => {
 })
 
 /* DELETE /api/stock-alerts/:productId — se désabonner */
-router.delete('/:productId', optionalAuth, async (req, res) => {
+router.delete('/:productId', optionalAuth, validateParams(zProductIdParam), async (req, res) => {
   try {
     const { email } = z.object({ email: z.string().email() }).parse(req.body)
-    const productId = parseInt(req.params['productId']!)
+    const productId = Number(req.params['productId'])
     await prisma.stockAlert.deleteMany({
       where: { email: email.toLowerCase(), productId },
     })
@@ -57,9 +58,9 @@ router.delete('/:productId', optionalAuth, async (req, res) => {
 })
 
 /* GET /api/stock-alerts/check/:productId — vérifier si alerte active */
-router.get('/check/:productId', optionalAuth, async (req, res) => {
+router.get('/check/:productId', optionalAuth, validateParams(zProductIdParam), async (req, res) => {
   try {
-    const productId = parseInt(req.params['productId']!)
+    const productId = Number(req.params['productId'])
     const { email } = z.object({ email: z.string().email() }).parse(req.query)
     const alert = await prisma.stockAlert.findUnique({
       where: { email_productId: { email: email.toLowerCase(), productId } },

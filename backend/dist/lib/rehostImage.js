@@ -11,6 +11,7 @@ const path_1 = __importDefault(require("path"));
 const net_1 = __importDefault(require("net"));
 const promises_1 = __importDefault(require("dns/promises"));
 const imageProcessing_1 = require("./imageProcessing");
+const logger_1 = require("./logger");
 const UPLOAD_DIR = process.env.UPLOAD_DIR ?? './uploads';
 const PRODUCTS_DIR = path_1.default.resolve(UPLOAD_DIR, 'products');
 if (!fs_1.default.existsSync(PRODUCTS_DIR))
@@ -142,7 +143,7 @@ async function rehostImage(sourceUrl, backendBaseUrl) {
         return `${backendBaseUrl}/uploads/products/${filename}`;
     }
     catch (err) {
-        console.error('[rehostImage]', sourceUrl, err instanceof Error ? err.message : err);
+        logger_1.logger.error('[rehostImage]', sourceUrl, err instanceof Error ? err.message : err);
         return sourceUrl;
     }
 }

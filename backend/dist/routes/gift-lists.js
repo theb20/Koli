@@ -4,6 +4,11 @@ const express_1 = require("express");
 const zod_1 = require("zod");
 const prisma_1 = require("../lib/prisma");
 const auth_1 = require("../middleware/auth");
+const validate_1 = require("../middleware/validate");
+const zListItemParams = zod_1.z.object({
+    id: zod_1.z.string().min(1).max(40),
+    productId: zod_1.z.coerce.number().int().positive('ID produit invalide'),
+});
 const router = (0, express_1.Router)();
 function generateSlug(userId) {
     return `liste-${userId.slice(-8)}-${Date.now().toString(36)}`;
@@ -27,7 +32,7 @@ router.get('/', auth_1.requireAuth, async (req, res) => {
     }
 });
 /* GET /api/gift-lists/:slug — liste publique */
-router.get('/:slug', async (req, res) => {
+router.get('/:slug', (0, validate_1.validateParams)(validate_1.zSlugParam), async (req, res) => {
     try {
         const list = await prisma_1.prisma.giftList.findUnique({
             where: { slug: req.params['slug'] },
@@ -78,7 +83,7 @@ router.post('/', auth_1.requireAuth, async (req, res) => {
     }
 });
 /* POST /api/gift-lists/:id/items — ajouter un produit */
-router.post('/:id/items', auth_1.requireAuth, async (req, res) => {
+router.post('/:id/items', auth_1.requireAuth, (0, validate_1.validateParams)(validate_1.zCuidIdParam), async (req, res) => {
     try {
         const { productId } = zod_1.z.object({ productId: zod_1.z.number().int().positive() }).parse(req.body);
         const list = await prisma_1.prisma.giftList.findFirst({
@@ -100,9 +105,9 @@ router.post('/:id/items', auth_1.requireAuth, async (req, res) => {
     }
 });
 /* DELETE /api/gift-lists/:id/items/:productId */
-router.delete('/:id/items/:productId', auth_1.requireAuth, async (req, res) => {
+router.delete('/:id/items/:productId', auth_1.requireAuth, (0, validate_1.validateParams)(zListItemParams), async (req, res) => {
     try {
-        const productId = parseInt(req.params['productId']);
+        const productId = Number(req.params['productId']);
         const list = await prisma_1.prisma.giftList.findFirst({
             where: { id: req.params['id'], userId: req.user.userId },
         });
@@ -120,7 +125,7 @@ router.delete('/:id/items/:productId', auth_1.requireAuth, async (req, res) => {
     }
 });
 /* DELETE /api/gift-lists/:id */
-router.delete('/:id', auth_1.requireAuth, async (req, res) => {
+router.delete('/:id', auth_1.requireAuth, (0, validate_1.validateParams)(validate_1.zCuidIdParam), async (req, res) => {
     try {
         await prisma_1.prisma.giftList.deleteMany({
             where: { id: req.params['id'], userId: req.user.userId },
@@ -134,9 +139,9 @@ router.delete('/:id', auth_1.requireAuth, async (req, res) => {
 /* PATCH /api/gift-lists/:id/items/:productId/purchased — accessible sans
    compte (un proche marque un cadeau comme acheté depuis le lien partagé),
    mais uniquement sur une liste explicitement publique. */
-router.patch('/:id/items/:productId/purchased', async (req, res) => {
+router.patch('/:id/items/:productId/purchased', (0, validate_1.validateParams)(zListItemParams), async (req, res) => {
     try {
-        const productId = parseInt(req.params['productId']);
+        const productId = Number(req.params['productId']);
         const { isPurchased } = zod_1.z.object({ isPurchased: zod_1.z.boolean() }).parse(req.body);
         const list = await prisma_1.prisma.giftList.findFirst({
             where: { id: req.params['id'], isPublic: true },

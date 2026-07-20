@@ -12,6 +12,7 @@ const prisma_1 = require("../lib/prisma");
 const auth_1 = require("../middleware/auth");
 const validate_1 = require("../middleware/validate");
 const cache_1 = require("../middleware/cache");
+const logger_1 = require("../lib/logger");
 const router = (0, express_1.Router)();
 /** Accepte "+225 07 00 00 00 00", "225-07-00-00-00-00", etc. → ne garde que les chiffres */
 const zDigitsOnly = zod_1.z.string().transform(v => v.replace(/\D/g, '')).pipe(zod_1.z.string().min(8, 'Numéro invalide'));
@@ -100,7 +101,7 @@ router.get('/images-export', auth_1.requireAdmin, (_req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     const archive = (0, archiver_1.default)('zip', { zlib: { level: 9 } });
     archive.on('error', (err) => {
-        console.error('[settings] échec export ZIP', err);
+        logger_1.logger.error('[settings] échec export ZIP', err);
         if (!res.headersSent)
             res.status(500).json({ success: false, message: 'Erreur lors de la génération du ZIP' });
         else

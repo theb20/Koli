@@ -1,7 +1,10 @@
 import { Router } from 'express'
+import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { requireAuth, requireAdmin } from '../middleware/auth'
 import { sendBroadcastEmail } from '../lib/mailer'
+import { logger } from '../lib/logger'
+import { validate, validateParams, zCuidIdParam } from '../middleware/validate'
 
 const router = Router()
 
@@ -30,7 +33,7 @@ router.get('/', requireAuth, async (req, res) => {
 })
 
 /* ── PUT /api/notifications/:id/read ───────────────────────── */
-router.put('/:id/read', requireAuth, async (req, res) => {
+router.put('/:id/read', requireAuth, validateParams(zCuidIdParam), async (req, res) => {
   try {
     await prisma.notification.updateMany({
       where: { id: req.params['id'], userId: req.user!.userId },
@@ -56,7 +59,7 @@ router.put('/read-all', requireAuth, async (req, res) => {
 })
 
 /* ── DELETE /api/notifications/:id ─────────────────────────── */
-router.delete('/:id', requireAuth, async (req, res) => {
+router.delete('/:id', requireAuth, validateParams(zCuidIdParam), async (req, res) => {
   try {
     await prisma.notification.deleteMany({
       where: { id: req.params['id'], userId: req.user!.userId },
@@ -95,16 +98,18 @@ router.delete('/admin/clear', requireAdmin, async (_req, res) => {
   } catch { res.status(500).json({ success: false, message: 'Erreur serveur' }) }
 })
 
+const broadcastSchema = z.object({
+  title:   z.string().min(1).max(120),
+  message: z.string().min(1).max(2000),
+  type:    z.enum(['info', 'order', 'return', 'promo']).default('info'),
+})
+
 /* ── POST /api/notifications/broadcast  [ADMIN] ─────────────── */
 /* Notification in-app → tous les clients actifs (non bannis).
    Email → uniquement les clients ayant accepté la newsletter (consentement marketing). */
-router.post('/broadcast', requireAdmin, async (req, res) => {
+router.post('/broadcast', requireAdmin, validate(broadcastSchema), async (req, res) => {
   try {
-    const { title, message, type = 'info' } = req.body
-    if (!title || !message) {
-      res.status(400).json({ success: false, message: 'Titre et message requis' })
-      return
-    }
+    const { title, message, type } = req.body as z.infer<typeof broadcastSchema>
     const users = await prisma.user.findMany({
       where:  { isBanned: false },
       select: { id: true, prenom: true, email: true, subscribedToNewsletter: true },
@@ -122,7 +127,7 @@ router.post('/broadcast', requireAdmin, async (req, res) => {
       emailRecipients.map(u => sendBroadcastEmail(u.email, u.prenom, title, message)),
     ).then(results => {
       const failed = results.filter(r => r.status === 'rejected').length
-      if (failed > 0) console.error(`[broadcast email] ${failed}/${emailRecipients.length} envois échoués`)
+      if (failed > 0) logger.error(`[broadcast email] ${failed}/${emailRecipients.length} envois échoués`)
     })
 
     res.json({

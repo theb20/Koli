@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { requireAdmin } from '../middleware/auth'
-import { validate } from '../middleware/validate'
+import { validate, validateParams, zCuidIdParam } from '../middleware/validate'
 import { sendContactReply } from '../lib/mailer'
 
 const router = Router()
@@ -58,7 +58,7 @@ router.get('/', requireAdmin, async (req, res) => {
 })
 
 /* ── PUT /api/contact/:id/status  [ADMIN] ─────────────────── */
-router.put('/:id/status', requireAdmin, async (req, res) => {
+router.put('/:id/status', requireAdmin, validateParams(zCuidIdParam), async (req, res) => {
   try {
     const { status } = z.object({ status: z.enum(['new','read','replied']) }).parse(req.body)
     await prisma.contactMessage.update({ where: { id: req.params['id'] }, data: { status } })
@@ -82,7 +82,7 @@ router.get('/admin/all', requireAdmin, async (req, res) => {
 })
 
 /* ── PATCH /api/contact/:id/read  [ADMIN] ──────────────────── */
-router.patch('/:id/read', requireAdmin, async (req, res) => {
+router.patch('/:id/read', requireAdmin, validateParams(zCuidIdParam), async (req, res) => {
   try {
     const msg = await prisma.contactMessage.update({ where: { id: req.params['id']! }, data: { status: 'read' } })
     res.json({ success: true, data: { message: msg } })
@@ -90,7 +90,7 @@ router.patch('/:id/read', requireAdmin, async (req, res) => {
 })
 
 /* ── DELETE /api/contact/:id  [ADMIN] ──────────────────────── */
-router.delete('/:id', requireAdmin, async (req, res) => {
+router.delete('/:id', requireAdmin, validateParams(zCuidIdParam), async (req, res) => {
   try {
     await prisma.contactMessage.delete({ where: { id: req.params['id']! } })
     res.json({ success: true, message: 'Message supprimé' })

@@ -6,6 +6,7 @@ import Button from '../components/ui/btnStyle'
 import CardUniverse from '../components/ui/Card-universe'
 import { PageMeta } from '../components/seo/PageMeta'
 import { API_BASE } from '../lib/api'
+import { useAuth } from '../contexts/AuthContext'
 
 const MIN_AGE = 18
 
@@ -34,6 +35,7 @@ function computeAge(dateStr: string): number {
 
 export default function SignupPage() {
   const navigate = useNavigate()
+  const { loginWithGoogle } = useAuth()
 
   const [nomComplet, setNomComplet] = useState('')
   const [email,      setEmail]      = useState('')
@@ -95,28 +97,11 @@ export default function SignupPage() {
     setError('')
     setGoogleLoad(true)
     try {
-      // Import dynamique pour éviter de charger Firebase inutilement
-      const { signInWithPopup } = await import('firebase/auth')
-      const { auth, googleProvider } = await import('../lib/firebase')
-      const result = await signInWithPopup(auth, googleProvider)
-      const fbUser = result.user
-      const parts  = (fbUser.displayName ?? '').split(' ')
-      const prenom = parts[0] ?? 'Utilisateur'
-      const nom    = parts.slice(1).join(' ') || prenom
-
-      const res  = await fetch(`${API_BASE}/api/auth/google`, {
-        method:      'POST',
-        credentials: 'include',
-        headers:     { 'Content-Type': 'application/json' },
-        body:        JSON.stringify({ email: fbUser.email, prenom, nom, avatar: fbUser.photoURL, firebaseUid: fbUser.uid }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.message)
-
-      // Stocker dans AuthContext via localStorage (pattern existant)
-      localStorage.setItem('koli_token', data.data.accessToken)
-      localStorage.setItem('koli_user',  JSON.stringify(data.data.user))
-      navigate(data.data.needsBirthdate ? '/completer-naissance' : '/profil')
+      // Passe par AuthContext (pas de localStorage direct ici) — met à jour
+      // le state React ET la persistance en un seul endroit, cohérent avec
+      // Login.tsx.
+      const { needsBirthdate } = await loginWithGoogle()
+      navigate(needsBirthdate ? '/completer-naissance' : '/profil')
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : ''
       if (!msg.includes('popup-closed') && !msg.includes('cancelled')) {

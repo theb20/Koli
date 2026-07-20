@@ -4,6 +4,7 @@ exports.processDealAnnouncement = processDealAnnouncement;
 exports.processDueDealAnnouncements = processDueDealAnnouncements;
 const prisma_1 = require("./prisma");
 const email_1 = require("./email");
+const logger_1 = require("./logger");
 async function resolveRecipients(segment, productIds, inactiveDays) {
     const base = { isBanned: false, subscribedToNewsletter: true };
     if (segment === 'buyers') {
@@ -46,7 +47,7 @@ async function processDealAnnouncement(id) {
         const results = await Promise.allSettled(recipients.map(u => (0, email_1.sendFlashDealEmail)(u.email, u.prenom, dealProducts, latestEndsAt)));
         const failed = results.filter(r => r.status === 'rejected').length;
         if (failed > 0)
-            console.error(`[deal-announcement ${id}] ${failed}/${recipients.length} envois échoués`);
+            logger_1.logger.error(`[deal-announcement ${id}] ${failed}/${recipients.length} envois échoués`);
         await prisma_1.prisma.dealAnnouncement.update({
             where: { id },
             data: { status: 'sent', sentAt: new Date(), recipientCount: recipients.length },

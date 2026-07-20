@@ -8,12 +8,14 @@ import { parse } from 'csv-parse/sync'
 import ExcelJS from 'exceljs'
 import { prisma } from '../lib/prisma'
 import { requireAdmin, optionalAuth, requireApiKey } from '../middleware/auth'
-import { validate } from '../middleware/validate'
+import { validate, validateParams, zIntIdParam } from '../middleware/validate'
 import { cacheControl } from '../middleware/cache'
 import { rehostImages } from '../lib/rehostImage'
 import { getBackendUrl } from '../lib/backendUrl'
 import { deleteLocalUpload } from '../lib/deleteLocalUpload'
 import { syncAllProductsToMerchant, isMerchantConfigured } from '../lib/merchantFeed'
+import { logger } from '../lib/logger'
+import { logAdminAction } from '../lib/auditLog'
 
 const router = Router()
 
@@ -233,7 +235,7 @@ router.post('/restore-images', requireAdmin, restoreUpload.array('images', 50), 
     }
     res.json({ success: true, data: { written, rejected } })
   } catch (err) {
-    console.error('[products] échec restore-images', err)
+    logger.error('[products] échec restore-images', err)
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
 })
@@ -267,7 +269,7 @@ router.get('/image-jpg/:filename', async (req, res) => {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
     fs.createReadStream(cachePath).pipe(res)
   } catch (err) {
-    console.error('[products] échec conversion image-jpg', err)
+    logger.error('[products] échec conversion image-jpg', err)
     res.status(500).end()
   }
 })
@@ -286,21 +288,17 @@ router.post('/sync-merchant', requireAdmin, async (_req, res) => {
     const result = await syncAllProductsToMerchant()
     res.json({ success: true, data: result })
   } catch (err) {
-    console.error('[products] échec sync Merchant', err)
-    res.status(500).json({ success: false, message: err instanceof Error ? err.message : 'Erreur lors de la synchronisation' })
+    logger.error('[products] échec sync Merchant', err)
+    res.status(500).json({ success: false, message: 'Erreur lors de la synchronisation avec Google Merchant Center' })
   }
 })
 
 /* ─────────────────────────────────────────────────────────────
    GET /api/products/:id
 ───────────────────────────────────────────────────────────── */
-router.get('/:id', optionalAuth, cacheControl(20), async (req, res) => {
+router.get('/:id', optionalAuth, cacheControl(20), validateParams(zIntIdParam), async (req, res) => {
   try {
-    const id = parseInt(req.params['id'] ?? '')
-    if (isNaN(id)) {
-      res.status(400).json({ success: false, message: 'ID invalide' })
-      return
-    }
+    const id = Number(req.params['id'])
 
     const product = await prisma.product.findFirst({
       where: { id, isActive: true },
@@ -531,7 +529,7 @@ router.post('/bulk-import/preview', requireAdmin, csvUpload.single('file'), asyn
     // Aucune écriture en base ni téléchargement d'image ici — pur aperçu.
     res.json({ success: true, data: result })
   } catch (err) {
-    console.error('[BULK-IMPORT-PREVIEW]', err)
+    logger.error('[BULK-IMPORT-PREVIEW]', err)
     res.status(500).json({ success: false, message: "Erreur lors de l'analyse du fichier" })
   }
 })
@@ -631,7 +629,7 @@ router.get('/bulk-import/template', requireAdmin, async (_req, res) => {
     res.setHeader('Content-Disposition', 'attachment; filename="modele-import-produits.xlsx"')
     res.send(Buffer.from(buffer))
   } catch (err) {
-    console.error('[BULK-IMPORT-TEMPLATE]', err)
+    logger.error('[BULK-IMPORT-TEMPLATE]', err)
     res.status(500).json({ success: false, message: 'Erreur lors de la génération du modèle' })
   }
 })
@@ -695,7 +693,7 @@ router.post('/bulk-import/commit', requireAdmin, validate(bulkImportCommitSchema
 
     res.json({ success: true, data: { created, skipped, total: rows.length } })
   } catch (err) {
-    console.error('[BULK-IMPORT-COMMIT]', err)
+    logger.error('[BULK-IMPORT-COMMIT]', err)
     res.status(500).json({ success: false, message: "Erreur lors de l'import" })
   }
 })
@@ -744,9 +742,9 @@ router.post('/', requireAdmin, validate(createProductSchemaChecked), async (req,
 /* ─────────────────────────────────────────────────────────────
    PUT /api/products/:id  [ADMIN]
 ───────────────────────────────────────────────────────────── */
-router.put('/:id', requireAdmin, validate(createProductSchema.partial()), async (req, res) => {
+router.put('/:id', requireAdmin, validateParams(zIntIdParam), validate(createProductSchema.partial()), async (req, res) => {
   try {
-    const id = parseInt(req.params['id'] ?? '')
+    const id = Number(req.params['id'])
     const { images, specs, colors, ...data } = req.body as Partial<z.infer<typeof createProductSchema>>
 
     // Résoudre categoryId si le slug est fourni
@@ -820,10 +818,11 @@ router.put('/:id', requireAdmin, validate(createProductSchema.partial()), async 
 /* ─────────────────────────────────────────────────────────────
    DELETE /api/products/:id  [ADMIN]  (soft delete)
 ───────────────────────────────────────────────────────────── */
-router.delete('/:id', requireAdmin, async (req, res) => {
+router.delete('/:id', requireAdmin, validateParams(zIntIdParam), async (req, res) => {
   try {
-    const id = parseInt(req.params['id'] ?? '')
+    const id = Number(req.params['id'])
     await prisma.product.update({ where: { id }, data: { isActive: false } })
+    logAdminAction(req, { action: 'product.delete', targetType: 'Product', targetId: String(id) })
     res.json({ success: true, message: 'Produit désactivé' })
   } catch {
     res.status(500).json({ success: false, message: 'Erreur serveur' })

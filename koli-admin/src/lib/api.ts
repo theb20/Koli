@@ -14,10 +14,36 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-/* ── Redirige vers /login si 401 ─────────────────────────── */
+/* ── Refresh silencieux — un seul en vol à la fois ───────── */
+let refreshPromise: Promise<string | null> | null = null
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (!refreshPromise) {
+    refreshPromise = axios.post(`${BASE}/api/auth/refresh`, {}, { withCredentials: true })
+      .then(res => res.data?.data?.accessToken ?? null)
+      .catch(() => null)
+      .finally(() => { refreshPromise = null })
+  }
+  return refreshPromise
+}
+
+/* ── 401 → tente un refresh une fois, sinon déconnexion ──── */
 api.interceptors.response.use(
   (res) => res,
-  (err) => {
+  async (err) => {
+    const original = err.config
+    const isRefreshCall = typeof original?.url === 'string' && original.url.includes('/api/auth/refresh')
+
+    if (err.response?.status === 401 && original && !original._retried && !isRefreshCall) {
+      original._retried = true
+      const newToken = await refreshAccessToken()
+      if (newToken) {
+        localStorage.setItem('koli_admin_token', newToken)
+        original.headers.Authorization = `Bearer ${newToken}`
+        return api(original)
+      }
+    }
+
     if (err.response?.status === 401) {
       localStorage.removeItem('koli_admin_token')
       localStorage.removeItem('koli_admin_user')

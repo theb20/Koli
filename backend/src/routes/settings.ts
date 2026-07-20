@@ -7,6 +7,7 @@ import { prisma } from '../lib/prisma'
 import { requireAdmin } from '../middleware/auth'
 import { validate } from '../middleware/validate'
 import { cacheControl } from '../middleware/cache'
+import { logger } from '../lib/logger'
 
 const router = Router()
 
@@ -106,7 +107,7 @@ router.get('/images-export', requireAdmin, (_req, res) => {
 
   const archive = archiver('zip', { zlib: { level: 9 } })
   archive.on('error', (err: Error) => {
-    console.error('[settings] échec export ZIP', err)
+    logger.error('[settings] échec export ZIP', err)
     if (!res.headersSent) res.status(500).json({ success: false, message: 'Erreur lors de la génération du ZIP' })
     else res.end()
   })

@@ -52,7 +52,7 @@ router.get('/', (0, cache_1.cacheControl)(60), async (req, res) => {
     }
 });
 /* ── GET /api/blog/:slug ────────────────────────────────────── */
-router.get('/:slug', async (req, res) => {
+router.get('/:slug', (0, validate_1.validateParams)(validate_1.zSlugParam), async (req, res) => {
     try {
         const post = await prisma_1.prisma.blogPost.findFirst({
             where: { slug: req.params['slug'], isPublished: true },
@@ -77,7 +77,7 @@ router.get('/:slug', async (req, res) => {
     }
 });
 /* ── POST /api/blog/:slug/like ──────────────────────────────── */
-router.post('/:slug/like', async (req, res) => {
+router.post('/:slug/like', (0, validate_1.validateParams)(validate_1.zSlugParam), async (req, res) => {
     try {
         await prisma_1.prisma.blogPost.updateMany({
             where: { slug: req.params['slug'] },
@@ -107,13 +107,13 @@ router.post('/', auth_1.requireAdmin, (0, validate_1.validate)(blogSchema), asyn
     }
 });
 /* ── PUT /api/blog/:id  [ADMIN] ─────────────────────────────── */
-router.put('/:id', auth_1.requireAdmin, async (req, res) => {
+router.put('/:id', auth_1.requireAdmin, (0, validate_1.validateParams)(validate_1.zIntIdParam), async (req, res) => {
     try {
         const schema = blogSchema.partial();
         const data = schema.parse(req.body);
         const { tags: rawTags, ...restData } = data;
         const post = await prisma_1.prisma.blogPost.update({
-            where: { id: parseInt(req.params['id'] ?? '') },
+            where: { id: Number(req.params['id']) },
             data: {
                 ...restData,
                 ...(rawTags !== undefined ? { tags: JSON.stringify(rawTags) } : {}),
@@ -127,9 +127,9 @@ router.put('/:id', auth_1.requireAdmin, async (req, res) => {
     }
 });
 /* ── DELETE /api/blog/:id  [ADMIN] ─────────────────────────── */
-router.delete('/:id', auth_1.requireAdmin, async (req, res) => {
+router.delete('/:id', auth_1.requireAdmin, (0, validate_1.validateParams)(validate_1.zIntIdParam), async (req, res) => {
     try {
-        await prisma_1.prisma.blogPost.delete({ where: { id: parseInt(req.params['id'] ?? '') } });
+        await prisma_1.prisma.blogPost.delete({ where: { id: Number(req.params['id']) } });
         res.json({ success: true, message: 'Article supprimé' });
     }
     catch {
@@ -152,9 +152,9 @@ router.get('/admin/all', auth_1.requireAdmin, async (req, res) => {
     }
 });
 /* ── GET /api/blog/admin/:id  [ADMIN] ───────────────────────── */
-router.get('/admin/:id', auth_1.requireAdmin, async (req, res) => {
+router.get('/admin/:id', auth_1.requireAdmin, (0, validate_1.validateParams)(validate_1.zIntIdParam), async (req, res) => {
     try {
-        const post = await prisma_1.prisma.blogPost.findUnique({ where: { id: parseInt(req.params['id']) } });
+        const post = await prisma_1.prisma.blogPost.findUnique({ where: { id: Number(req.params['id']) } });
         if (!post) {
             res.status(404).json({ success: false, message: 'Article introuvable' });
             return;
@@ -166,11 +166,11 @@ router.get('/admin/:id', auth_1.requireAdmin, async (req, res) => {
     }
 });
 /* ── PATCH /api/blog/:id/publish  [ADMIN] ──────────────────── */
-router.patch('/:id/publish', auth_1.requireAdmin, async (req, res) => {
+router.patch('/:id/publish', auth_1.requireAdmin, (0, validate_1.validateParams)(validate_1.zIntIdParam), async (req, res) => {
     try {
         const { isPublished } = req.body;
         const post = await prisma_1.prisma.blogPost.update({
-            where: { id: parseInt(req.params['id']) },
+            where: { id: Number(req.params['id']) },
             data: { isPublished, ...(isPublished ? { publishedAt: new Date() } : {}) },
         });
         res.json({ success: true, data: { post } });

@@ -64,7 +64,7 @@ router.post('/', auth_1.requireAdmin, (0, validate_1.validate)(taxSchema), async
     }
 });
 /* ── PUT /api/tax/:id  [ADMIN] ─────────────────────────────── */
-router.put('/:id', auth_1.requireAdmin, async (req, res) => {
+router.put('/:id', auth_1.requireAdmin, (0, validate_1.validateParams)(validate_1.zCuidIdParam), async (req, res) => {
     try {
         const data = taxSchema.partial().parse(req.body);
         if (data.isDefault) {
@@ -78,7 +78,7 @@ router.put('/:id', auth_1.requireAdmin, async (req, res) => {
     }
 });
 /* ── PATCH /api/tax/:id/default  [ADMIN] ───────────────────── */
-router.patch('/:id/default', auth_1.requireAdmin, async (req, res) => {
+router.patch('/:id/default', auth_1.requireAdmin, (0, validate_1.validateParams)(validate_1.zCuidIdParam), async (req, res) => {
     try {
         await prisma_1.prisma.taxRate.updateMany({ data: { isDefault: false } });
         const tax = await prisma_1.prisma.taxRate.update({
@@ -92,7 +92,7 @@ router.patch('/:id/default', auth_1.requireAdmin, async (req, res) => {
     }
 });
 /* ── PATCH /api/tax/:id/toggle  [ADMIN] ────────────────────── */
-router.patch('/:id/toggle', auth_1.requireAdmin, async (req, res) => {
+router.patch('/:id/toggle', auth_1.requireAdmin, (0, validate_1.validateParams)(validate_1.zCuidIdParam), async (req, res) => {
     try {
         const existing = await prisma_1.prisma.taxRate.findUnique({ where: { id: req.params['id'] } });
         if (!existing) {
@@ -110,7 +110,7 @@ router.patch('/:id/toggle', auth_1.requireAdmin, async (req, res) => {
     }
 });
 /* ── DELETE /api/tax/:id  [ADMIN] ──────────────────────────── */
-router.delete('/:id', auth_1.requireAdmin, async (req, res) => {
+router.delete('/:id', auth_1.requireAdmin, (0, validate_1.validateParams)(validate_1.zCuidIdParam), async (req, res) => {
     try {
         await prisma_1.prisma.taxRate.delete({ where: { id: req.params['id'] } });
         res.json({ success: true, message: 'Taux supprimé' });

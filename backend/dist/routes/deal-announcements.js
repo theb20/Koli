@@ -6,6 +6,7 @@ const prisma_1 = require("../lib/prisma");
 const auth_1 = require("../middleware/auth");
 const validate_1 = require("../middleware/validate");
 const dealAnnouncements_1 = require("../lib/dealAnnouncements");
+const logger_1 = require("../lib/logger");
 const router = (0, express_1.Router)();
 const createSchema = zod_1.z.object({
     productIds: zod_1.z.array(zod_1.z.number().int().positive()).min(1),
@@ -51,7 +52,7 @@ router.post('/', auth_1.requireAdmin, (0, validate_1.validate)(createSchema), as
             },
         });
         if (effectiveSendAt <= new Date()) {
-            (0, dealAnnouncements_1.processDealAnnouncement)(announcement.id).catch(err => console.error('[deal-announcement] envoi immédiat échoué', err));
+            (0, dealAnnouncements_1.processDealAnnouncement)(announcement.id).catch(err => logger_1.logger.error('[deal-announcement] envoi immédiat échoué', err));
         }
         res.status(201).json({ success: true, data: { ...announcement, productIds } });
     }
@@ -60,9 +61,9 @@ router.post('/', auth_1.requireAdmin, (0, validate_1.validate)(createSchema), as
     }
 });
 /* ── DELETE /api/deal-announcements/:id  [ADMIN] — annule une annonce programmée ── */
-router.delete('/:id', auth_1.requireAdmin, async (req, res) => {
+router.delete('/:id', auth_1.requireAdmin, (0, validate_1.validateParams)(validate_1.zIntIdParam), async (req, res) => {
     try {
-        const id = parseInt(req.params['id'] ?? '');
+        const id = Number(req.params['id']);
         const updated = await prisma_1.prisma.dealAnnouncement.updateMany({
             where: { id, status: 'pending' },
             data: { status: 'cancelled' },

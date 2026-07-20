@@ -1,5 +1,6 @@
 import { prisma } from './prisma'
 import { sendFlashDealEmail, type FlashDealProduct } from './email'
+import { logger } from './logger'
 
 export type DealSegment = 'all' | 'buyers' | 'inactive'
 
@@ -54,7 +55,7 @@ export async function processDealAnnouncement(id: number): Promise<void> {
       recipients.map(u => sendFlashDealEmail(u.email, u.prenom, dealProducts, latestEndsAt)),
     )
     const failed = results.filter(r => r.status === 'rejected').length
-    if (failed > 0) console.error(`[deal-announcement ${id}] ${failed}/${recipients.length} envois échoués`)
+    if (failed > 0) logger.error(`[deal-announcement ${id}] ${failed}/${recipients.length} envois échoués`)
 
     await prisma.dealAnnouncement.update({
       where: { id },

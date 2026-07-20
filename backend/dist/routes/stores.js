@@ -6,6 +6,9 @@ const prisma_1 = require("../lib/prisma");
 const auth_1 = require("../middleware/auth");
 const rehostImage_1 = require("../lib/rehostImage");
 const backendUrl_1 = require("../lib/backendUrl");
+const logger_1 = require("../lib/logger");
+const auditLog_1 = require("../lib/auditLog");
+const validate_1 = require("../middleware/validate");
 const router = (0, express_1.Router)();
 router.use(auth_1.requireAdmin);
 /* ── Schemas ─────────────────────────────────────────────────── */
@@ -43,16 +46,16 @@ router.get('/admin/all', async (_req, res) => {
         return res.json({ success: true, data: { stores } });
     }
     catch (err) {
-        console.error(err);
+        logger_1.logger.error(err);
         return res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });
 /* ─────────────────────────────────────────────────────────────
    GET /api/stores/:id
 ───────────────────────────────────────────────────────────── */
-router.get('/:id', async (req, res) => {
+router.get('/:id', (0, validate_1.validateParams)(validate_1.zIntIdParam), async (req, res) => {
     try {
-        const id = parseInt(req.params.id);
+        const id = Number(req.params.id);
         const store = await prisma_1.prisma.store.findUnique({
             where: { id },
             include: { _count: { select: { products: true } } },
@@ -82,16 +85,16 @@ router.post('/', async (req, res) => {
         return res.status(201).json({ success: true, data: { store } });
     }
     catch (err) {
-        console.error(err);
+        logger_1.logger.error(err);
         return res.status(400).json({ success: false, message: 'Données invalides' });
     }
 });
 /* ─────────────────────────────────────────────────────────────
    PUT /api/stores/:id — Modifier un magasin
 ───────────────────────────────────────────────────────────── */
-router.put('/:id', async (req, res) => {
+router.put('/:id', (0, validate_1.validateParams)(validate_1.zIntIdParam), async (req, res) => {
     try {
-        const id = parseInt(req.params.id);
+        const id = Number(req.params.id);
         const data = storeSchema.partial().parse(req.body);
         const store = await prisma_1.prisma.store.update({
             where: { id },
@@ -111,12 +114,13 @@ router.put('/:id', async (req, res) => {
 /* ─────────────────────────────────────────────────────────────
    DELETE /api/stores/:id
 ───────────────────────────────────────────────────────────── */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', (0, validate_1.validateParams)(validate_1.zIntIdParam), async (req, res) => {
     try {
-        const id = parseInt(req.params.id);
+        const id = Number(req.params.id);
         // Detach products before deleting (set storeId to null)
         await prisma_1.prisma.product.updateMany({ where: { storeId: id }, data: { storeId: null } });
         await prisma_1.prisma.store.delete({ where: { id } });
+        (0, auditLog_1.logAdminAction)(req, { action: 'store.delete', targetType: 'Store', targetId: String(id) });
         return res.json({ success: true });
     }
     catch {
@@ -126,9 +130,9 @@ router.delete('/:id', async (req, res) => {
 /* ─────────────────────────────────────────────────────────────
    GET /api/stores/:id/products
 ───────────────────────────────────────────────────────────── */
-router.get('/:id/products', async (req, res) => {
+router.get('/:id/products', (0, validate_1.validateParams)(validate_1.zIntIdParam), async (req, res) => {
     try {
-        const id = parseInt(req.params.id);
+        const id = Number(req.params.id);
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
         const skip = (page - 1) * limit;
@@ -153,9 +157,9 @@ router.get('/:id/products', async (req, res) => {
 /* ─────────────────────────────────────────────────────────────
    POST /api/stores/:id/import — Import JSON de produits
 ───────────────────────────────────────────────────────────── */
-router.post('/:id/import', async (req, res) => {
+router.post('/:id/import', (0, validate_1.validateParams)(validate_1.zIntIdParam), async (req, res) => {
     try {
-        const storeId = parseInt(req.params.id);
+        const storeId = Number(req.params.id);
         const store = await prisma_1.prisma.store.findUnique({ where: { id: storeId } });
         if (!store)
             return res.status(404).json({ success: false, message: 'Magasin introuvable' });
@@ -205,7 +209,7 @@ router.post('/:id/import', async (req, res) => {
         });
     }
     catch (err) {
-        console.error(err);
+        logger_1.logger.error(err);
         return res.status(400).json({ success: false, message: 'Données invalides' });
     }
 });
@@ -694,7 +698,7 @@ router.post('/:id/scrape', async (req, res) => {
         return res.json({ success: true, data: { products, url, count: products.length, retailer } });
     }
     catch (err) {
-        console.error('[SCRAPE]', err);
+        logger_1.logger.error('[SCRAPE]', err);
         return res.status(400).json({ success: false, message: 'Erreur lors du scraping de cette URL' });
     }
 });

@@ -3,6 +3,7 @@ import path from 'path'
 import net from 'net'
 import dns from 'dns/promises'
 import { toWebp } from './imageProcessing'
+import { logger } from './logger'
 
 const UPLOAD_DIR    = process.env.UPLOAD_DIR ?? './uploads'
 const PRODUCTS_DIR  = path.resolve(UPLOAD_DIR, 'products')
@@ -128,7 +129,7 @@ export async function rehostImage(sourceUrl: string, backendBaseUrl: string): Pr
 
     return `${backendBaseUrl}/uploads/products/${filename}`
   } catch (err) {
-    console.error('[rehostImage]', sourceUrl, err instanceof Error ? err.message : err)
+    logger.error('[rehostImage]', sourceUrl, err instanceof Error ? err.message : err)
     return sourceUrl
   }
 }

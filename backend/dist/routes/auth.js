@@ -14,6 +14,8 @@ const auth_1 = require("../middleware/auth");
 const mailer_1 = require("../lib/mailer");
 const allowedOrigins_1 = require("../lib/allowedOrigins");
 const age_1 = require("../lib/age");
+const logger_1 = require("../lib/logger");
+const auditLog_1 = require("../lib/auditLog");
 const router = (0, express_1.Router)();
 /* ── Schemas ─────────────────────────────────────────────────── */
 const registerSchema = zod_1.z.object({
@@ -56,14 +58,30 @@ const resetPasswordSchema = zod_1.z.object({
 /* ── Helpers ─────────────────────────────────────────────────── */
 function setAuthCookies(res, accessToken, refreshToken) {
     const isProd = process.env.NODE_ENV === 'production';
+    // SameSite=None : le frontend (skignas.com) et l'API (skignas.up.railway.app)
+    // sont deux domaines distincts — un cookie "Lax" n'est jamais envoyé sur les
+    // appels fetch/XHR cross-site, seulement sur une navigation directe. "None"
+    // exige Secure (HTTPS), déjà le cas en prod. En dev (http://localhost),
+    // Secure serait rejeté par le navigateur — on garde "Lax" localement, où
+    // le cookie ne sert de toute façon qu'en filet (le token est aussi renvoyé
+    // dans le corps de la réponse pour l'en-tête Authorization).
+    const crossSite = isProd;
     res.cookie('access_token', accessToken, {
-        httpOnly: true, secure: isProd, sameSite: 'lax',
+        httpOnly: true, secure: isProd, sameSite: crossSite ? 'none' : 'lax',
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7j
     });
     res.cookie('refresh_token', refreshToken, {
-        httpOnly: true, secure: isProd, sameSite: 'lax',
+        httpOnly: true, secure: isProd, sameSite: crossSite ? 'none' : 'lax',
         maxAge: 30 * 24 * 60 * 60 * 1000, // 30j
     });
+}
+/** clearCookie doit recevoir les mêmes attributs que cookie() pour que le
+ * navigateur identifie et supprime effectivement le bon cookie. */
+function clearAuthCookies(res) {
+    const isProd = process.env.NODE_ENV === 'production';
+    const opts = { httpOnly: true, secure: isProd, sameSite: (isProd ? 'none' : 'lax') };
+    res.clearCookie('access_token', opts);
+    res.clearCookie('refresh_token', opts);
 }
 /* ─────────────────────────────────────────────────────────────
    POST /api/auth/register
@@ -89,7 +107,7 @@ router.post('/register', (0, validate_1.validate)(registerSchema), async (req, r
         if (!rawPassword) {
             const token = (0, jwt_1.signMagicToken)(user.id, user.email);
             const link = `${process.env.FRONTEND_URL}/auth/magic?token=${token}&new=1`;
-            (0, mailer_1.sendMagicLinkEmail)(user.email, user.prenom, link).catch(err => console.error('[register magic-link]', err));
+            (0, mailer_1.sendMagicLinkEmail)(user.email, user.prenom, link).catch(err => logger_1.logger.error('[register magic-link]', err));
             res.status(201).json({
                 success: true,
                 passwordless: true,
@@ -121,7 +139,7 @@ router.post('/register', (0, validate_1.validate)(registerSchema), async (req, r
         });
     }
     catch (err) {
-        console.error(err);
+        logger_1.logger.error(err);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });
@@ -169,7 +187,7 @@ router.post('/login', (0, validate_1.validate)(loginSchema), async (req, res) =>
         });
     }
     catch (err) {
-        console.error(err);
+        logger_1.logger.error(err);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });
@@ -216,8 +234,7 @@ router.post('/logout', auth_1.requireAuth, async (req, res) => {
         if (token) {
             await prisma_1.prisma.session.deleteMany({ where: { refreshToken: token } });
         }
-        res.clearCookie('access_token');
-        res.clearCookie('refresh_token');
+        clearAuthCookies(res);
         res.json({ success: true, message: 'Déconnexion réussie' });
     }
     catch {
@@ -327,12 +344,12 @@ router.post('/forgot-password', (0, validate_1.validate)(forgotPasswordSchema), 
                 ? req.headers.origin
                 : (process.env.FRONTEND_URL ?? 'http://localhost:3000');
             const link = `${origin}/reinitialiser-mot-de-passe?token=${rawToken}`;
-            (0, mailer_1.sendPasswordResetEmail)(user.email, user.prenom, link).catch(err => console.error('[password-reset email]', err));
+            (0, mailer_1.sendPasswordResetEmail)(user.email, user.prenom, link).catch(err => logger_1.logger.error('[password-reset email]', err));
         }
         res.json({ success: true, message: 'Si un compte existe avec cet email, un lien de réinitialisation a été envoyé.' });
     }
     catch (err) {
-        console.error(err);
+        logger_1.logger.error(err);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });
@@ -359,11 +376,11 @@ router.post('/reset-password', (0, validate_1.validate)(resetPasswordSchema), as
             // Un mot de passe réinitialisé invalide toute session existante — potentiellement compromise.
             prisma_1.prisma.session.deleteMany({ where: { userId: user.id } }),
         ]);
-        (0, mailer_1.sendPasswordChangedEmail)(user.email, user.prenom, req.ip).catch(err => console.error('[password-changed email]', err));
+        (0, mailer_1.sendPasswordChangedEmail)(user.email, user.prenom, req.ip).catch(err => logger_1.logger.error('[password-changed email]', err));
         res.json({ success: true, message: 'Mot de passe réinitialisé avec succès. Reconnectez-vous.' });
     }
     catch (err) {
-        console.error(err);
+        logger_1.logger.error(err);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });
@@ -376,8 +393,7 @@ router.delete('/account', auth_1.requireAuth, async (req, res) => {
         // Cascade: sessions, addresses, orders FK handled by Prisma relations
         await prisma_1.prisma.session.deleteMany({ where: { userId } });
         await prisma_1.prisma.user.delete({ where: { id: userId } });
-        res.clearCookie('access_token');
-        res.clearCookie('refresh_token');
+        clearAuthCookies(res);
         res.json({ success: true, message: 'Compte supprimé définitivement' });
     }
     catch {
@@ -403,7 +419,7 @@ router.get('/sessions', auth_1.requireAuth, async (req, res) => {
 /* ─────────────────────────────────────────────────────────────
    DELETE /api/auth/sessions/:id
 ───────────────────────────────────────────────────────────── */
-router.delete('/sessions/:id', auth_1.requireAuth, async (req, res) => {
+router.delete('/sessions/:id', auth_1.requireAuth, (0, validate_1.validateParams)(validate_1.zCuidIdParam), async (req, res) => {
     try {
         await prisma_1.prisma.session.deleteMany({
             where: { id: req.params['id'], userId: req.user.userId },
@@ -493,7 +509,7 @@ router.post('/google', async (req, res) => {
             res.status(400).json({ success: false, message: 'Données invalides', errors: err.flatten().fieldErrors });
             return;
         }
-        console.error(err);
+        logger_1.logger.error(err);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });
@@ -552,7 +568,7 @@ router.get('/users', auth_1.requireAdmin, async (req, res) => {
     }
 });
 /* ── PATCH /api/auth/users/:id/role  [ADMIN] ─────────────────── */
-router.patch('/users/:id/role', auth_1.requireAdmin, async (req, res) => {
+router.patch('/users/:id/role', auth_1.requireAdmin, (0, validate_1.validateParams)(validate_1.zCuidIdParam), async (req, res) => {
     try {
         const { id } = req.params;
         const { role } = req.body;
@@ -560,7 +576,12 @@ router.patch('/users/:id/role', auth_1.requireAdmin, async (req, res) => {
             res.status(400).json({ success: false, message: 'Rôle invalide' });
             return;
         }
-        const user = await prisma_1.prisma.user.update({ where: { id }, data: { role } });
+        const user = await prisma_1.prisma.user.update({
+            where: { id },
+            data: { role },
+            select: { id: true, prenom: true, nom: true, email: true, role: true },
+        });
+        (0, auditLog_1.logAdminAction)(req, { action: 'user.role.update', targetType: 'User', targetId: id, metadata: { newRole: role } });
         res.json({ success: true, data: { user } });
     }
     catch {
@@ -568,7 +589,7 @@ router.patch('/users/:id/role', auth_1.requireAdmin, async (req, res) => {
     }
 });
 /* ── PATCH /api/auth/users/:id/ban  [ADMIN] ──────────────────── */
-router.patch('/users/:id/ban', auth_1.requireAdmin, async (req, res) => {
+router.patch('/users/:id/ban', auth_1.requireAdmin, (0, validate_1.validateParams)(validate_1.zCuidIdParam), async (req, res) => {
     try {
         const { id } = req.params;
         const existing = await prisma_1.prisma.user.findUnique({ where: { id } });
@@ -581,6 +602,7 @@ router.patch('/users/:id/ban', auth_1.requireAdmin, async (req, res) => {
             // Invalider toutes les sessions de cet utilisateur
             await prisma_1.prisma.session.deleteMany({ where: { userId: id } });
         }
+        (0, auditLog_1.logAdminAction)(req, { action: user.isBanned ? 'user.ban' : 'user.unban', targetType: 'User', targetId: id });
         res.json({ success: true, data: { isBanned: user.isBanned } });
     }
     catch {
@@ -588,7 +610,7 @@ router.patch('/users/:id/ban', auth_1.requireAdmin, async (req, res) => {
     }
 });
 /* ── PUT /api/auth/users/:id  [ADMIN] ────────────────────────── */
-router.put('/users/:id', auth_1.requireAdmin, async (req, res) => {
+router.put('/users/:id', auth_1.requireAdmin, (0, validate_1.validateParams)(validate_1.zCuidIdParam), async (req, res) => {
     try {
         const { id } = req.params;
         const schema = zod_1.z.object({
@@ -622,7 +644,7 @@ router.put('/users/:id', auth_1.requireAdmin, async (req, res) => {
     }
 });
 /* ── DELETE /api/auth/users/:id  [ADMIN] ─────────────────────── */
-router.delete('/users/:id', auth_1.requireAdmin, async (req, res) => {
+router.delete('/users/:id', auth_1.requireAdmin, (0, validate_1.validateParams)(validate_1.zCuidIdParam), async (req, res) => {
     try {
         const { id } = req.params;
         // Empêche de supprimer son propre compte
@@ -632,6 +654,7 @@ router.delete('/users/:id', auth_1.requireAdmin, async (req, res) => {
         }
         await prisma_1.prisma.session.deleteMany({ where: { userId: id } });
         await prisma_1.prisma.user.delete({ where: { id } });
+        (0, auditLog_1.logAdminAction)(req, { action: 'user.delete', targetType: 'User', targetId: id });
         res.json({ success: true, message: 'Utilisateur supprimé' });
     }
     catch {
@@ -641,38 +664,32 @@ router.delete('/users/:id', auth_1.requireAdmin, async (req, res) => {
 /* ─────────────────────────────────────────────────────────────
    POST /api/auth/magic-link  — envoie un lien de connexion par email
 ───────────────────────────────────────────────────────────── */
-router.post('/magic-link', async (req, res) => {
+const magicLinkSchema = zod_1.z.object({ email: zod_1.z.string().email('Email invalide') });
+router.post('/magic-link', (0, validate_1.validate)(magicLinkSchema), async (req, res) => {
     try {
         const { email } = req.body;
-        if (!email || typeof email !== 'string') {
-            res.status(400).json({ success: false, message: 'Email requis' });
-            return;
-        }
         const normalizedEmail = email.toLowerCase().trim();
         const user = await prisma_1.prisma.user.findUnique({ where: { email: normalizedEmail } });
         if (user) {
             const token = (0, jwt_1.signMagicToken)(user.id, user.email);
             const link = `${process.env.FRONTEND_URL}/auth/magic?token=${token}`;
-            (0, mailer_1.sendMagicLinkEmail)(user.email, user.prenom, link).catch(err => console.error('[magic-link email]', err));
+            (0, mailer_1.sendMagicLinkEmail)(user.email, user.prenom, link).catch(err => logger_1.logger.error('[magic-link email]', err));
         }
         // Toujours renvoyer success (ne pas révéler si l'email existe)
         res.json({ success: true });
     }
     catch (err) {
-        console.error(err);
+        logger_1.logger.error(err);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });
 /* ─────────────────────────────────────────────────────────────
    POST /api/auth/magic-link/verify  — valide le token et connecte
 ───────────────────────────────────────────────────────────── */
-router.post('/magic-link/verify', async (req, res) => {
+const magicLinkVerifySchema = zod_1.z.object({ token: zod_1.z.string().min(1, 'Token requis') });
+router.post('/magic-link/verify', (0, validate_1.validate)(magicLinkVerifySchema), async (req, res) => {
     try {
         const { token } = req.body;
-        if (!token) {
-            res.status(400).json({ success: false, message: 'Token requis' });
-            return;
-        }
         let payload;
         try {
             payload = (0, jwt_1.verifyMagicToken)(token);
@@ -716,12 +733,12 @@ router.post('/magic-link/verify', async (req, res) => {
         });
     }
     catch (err) {
-        console.error(err);
+        logger_1.logger.error(err);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });
 /* ── GET /api/auth/users/:id  [ADMIN] ────────────────────────── */
-router.get('/users/:id', auth_1.requireAdmin, async (req, res) => {
+router.get('/users/:id', auth_1.requireAdmin, (0, validate_1.validateParams)(validate_1.zCuidIdParam), async (req, res) => {
     try {
         const user = await prisma_1.prisma.user.findUnique({
             where: { id: req.params['id'] },
@@ -751,8 +768,13 @@ router.get('/users/:id', auth_1.requireAdmin, async (req, res) => {
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });
+const updateMeSchema = zod_1.z.object({
+    prenom: zod_1.z.string().min(1).max(50),
+    nom: zod_1.z.string().min(1).max(50),
+    email: zod_1.z.string().email('Email invalide'),
+});
 /* ── PUT /api/auth/me  [AUTH] ───────────────────────────────── */
-router.put('/me', auth_1.requireAuth, async (req, res) => {
+router.put('/me', auth_1.requireAuth, (0, validate_1.validate)(updateMeSchema), async (req, res) => {
     try {
         const { prenom, nom, email } = req.body;
         const user = await prisma_1.prisma.user.update({

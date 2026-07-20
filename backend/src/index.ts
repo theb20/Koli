@@ -2,17 +2,18 @@ import 'dotenv/config'
 import app from './app'
 import { prisma } from './lib/prisma'
 import { processDueDealAnnouncements } from './lib/dealAnnouncements'
+import { logger } from './lib/logger'
 const PORT = parseInt(process.env.PORT ?? '4000')
 
 async function main() {
   // Test connexion DB
   await prisma.$connect()
-  console.log('✅ Base de données connectée')
+  logger.info('✅ Base de données connectée')
 
   const HOST = process.env.HOST ?? '0.0.0.0'
 
   app.listen(PORT, HOST, () => {
-    console.log(`
+    logger.info(`
 ╔══════════════════════════════════════╗
 ║      🛍  SKIGNAS API — v1.0.0        ║
 ╠══════════════════════════════════════╣
@@ -25,17 +26,17 @@ async function main() {
   })
 
   // Envoie les annonces de vente flash programmées dont l'heure est arrivée
-  setInterval(() => { processDueDealAnnouncements().catch(err => console.error('[deal-announcements poller]', err)) }, 60_000)
+  setInterval(() => { processDueDealAnnouncements().catch(err => logger.error('[deal-announcements poller]', err)) }, 60_000)
 }
 
 main().catch(err => {
-  console.error('❌ Erreur démarrage:', err)
+  logger.error('❌ Erreur démarrage:', err)
   process.exit(1)
 })
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {
-  console.log('SIGTERM reçu — arrêt gracieux...')
+  logger.info('SIGTERM reçu — arrêt gracieux...')
   await prisma.$disconnect()
   process.exit(0)
 })

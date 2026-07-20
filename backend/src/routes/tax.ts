@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { requireAdmin } from '../middleware/auth'
-import { validate } from '../middleware/validate'
+import { validate, validateParams, zCuidIdParam } from '../middleware/validate'
 import { cacheControl } from '../middleware/cache'
 
 const router = Router()
@@ -65,7 +65,7 @@ router.post('/', requireAdmin, validate(taxSchema), async (req, res) => {
 })
 
 /* ── PUT /api/tax/:id  [ADMIN] ─────────────────────────────── */
-router.put('/:id', requireAdmin, async (req, res) => {
+router.put('/:id', requireAdmin, validateParams(zCuidIdParam), async (req, res) => {
   try {
     const data = taxSchema.partial().parse(req.body)
     if (data.isDefault) {
@@ -79,7 +79,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
 })
 
 /* ── PATCH /api/tax/:id/default  [ADMIN] ───────────────────── */
-router.patch('/:id/default', requireAdmin, async (req, res) => {
+router.patch('/:id/default', requireAdmin, validateParams(zCuidIdParam), async (req, res) => {
   try {
     await prisma.taxRate.updateMany({ data: { isDefault: false } })
     const tax = await prisma.taxRate.update({
@@ -93,7 +93,7 @@ router.patch('/:id/default', requireAdmin, async (req, res) => {
 })
 
 /* ── PATCH /api/tax/:id/toggle  [ADMIN] ────────────────────── */
-router.patch('/:id/toggle', requireAdmin, async (req, res) => {
+router.patch('/:id/toggle', requireAdmin, validateParams(zCuidIdParam), async (req, res) => {
   try {
     const existing = await prisma.taxRate.findUnique({ where: { id: req.params['id']! } })
     if (!existing) { res.status(404).json({ success: false, message: 'Taux introuvable' }); return }
@@ -108,7 +108,7 @@ router.patch('/:id/toggle', requireAdmin, async (req, res) => {
 })
 
 /* ── DELETE /api/tax/:id  [ADMIN] ──────────────────────────── */
-router.delete('/:id', requireAdmin, async (req, res) => {
+router.delete('/:id', requireAdmin, validateParams(zCuidIdParam), async (req, res) => {
   try {
     await prisma.taxRate.delete({ where: { id: req.params['id']! } })
     res.json({ success: true, message: 'Taux supprimé' })

@@ -4,6 +4,7 @@ const express_1 = require("express");
 const zod_1 = require("zod");
 const prisma_1 = require("../lib/prisma");
 const auth_1 = require("../middleware/auth");
+const validate_1 = require("../middleware/validate");
 const router = (0, express_1.Router)();
 const DEFAULT_STEPS = [
     { label: 'Commande reçue', done: true, timestamp: null },
@@ -12,7 +13,7 @@ const DEFAULT_STEPS = [
     { label: 'Livré', done: false, timestamp: null },
 ];
 /* GET /api/delivery/:orderNumber — suivi public */
-router.get('/:orderNumber', auth_1.requireAuth, async (req, res) => {
+router.get('/:orderNumber', auth_1.requireAuth, (0, validate_1.validateParams)(validate_1.zOrderNumberParam), async (req, res) => {
     try {
         const order = await prisma_1.prisma.order.findFirst({
             where: {
@@ -55,7 +56,7 @@ router.get('/:orderNumber', auth_1.requireAuth, async (req, res) => {
     }
 });
 /* PATCH /api/delivery/:orderNumber  [ADMIN] — mettre à jour le suivi */
-router.patch('/:orderNumber', auth_1.requireAdmin, async (req, res) => {
+router.patch('/:orderNumber', auth_1.requireAdmin, (0, validate_1.validateParams)(validate_1.zOrderNumberParam), async (req, res) => {
     try {
         const body = zod_1.z.object({
             driverName: zod_1.z.string().optional(),

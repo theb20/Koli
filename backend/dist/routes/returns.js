@@ -37,6 +37,8 @@ const validate_1 = require("../middleware/validate");
 const backendUrl_1 = require("../lib/backendUrl");
 const mailer_1 = require("../lib/mailer");
 const imageProcessing_1 = require("../lib/imageProcessing");
+const logger_1 = require("../lib/logger");
+const auditLog_1 = require("../lib/auditLog");
 const router = (0, express_1.Router)();
 /* ── Multer — buffer en mémoire, converti en WebP avant écriture ── */
 const returnsUploadDir = path_1.default.resolve(process.env.UPLOAD_DIR ?? './uploads', 'returns');
@@ -89,7 +91,7 @@ router.post('/upload-images', auth_1.requireAuth, handleImageUpload, async (req,
         res.json({ success: true, data: { urls } });
     }
     catch (err) {
-        console.error(err);
+        logger_1.logger.error(err);
         res.status(500).json({ success: false, message: "Erreur lors de l'upload" });
     }
 });
@@ -231,7 +233,7 @@ router.post('/', auth_1.requireAuth, (0, validate_1.validate)(createReturnSchema
         res.status(201).json({ success: true, data: created });
     }
     catch (err) {
-        console.error('[RETURNS] create', err);
+        logger_1.logger.error('[RETURNS] create', err);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });
@@ -263,7 +265,7 @@ router.get('/admin/all', auth_1.requireAdmin, async (req, res) => {
 /* ─────────────────────────────────────────────────────────────
    GET /api/returns/:id — détail (propriétaire ou admin)
 ───────────────────────────────────────────────────────────── */
-router.get('/:id', auth_1.requireAuth, async (req, res) => {
+router.get('/:id', auth_1.requireAuth, (0, validate_1.validateParams)(validate_1.zCuidIdParam), async (req, res) => {
     const id = req.params['id'] ?? '';
     const isAdmin = req.user.role === 'admin';
     const ret = await prisma_1.prisma.orderReturn.findFirst({
@@ -279,7 +281,7 @@ router.get('/:id', auth_1.requireAuth, async (req, res) => {
 /* ─────────────────────────────────────────────────────────────
    PUT /api/returns/:id/cancel — annulation par le client
 ───────────────────────────────────────────────────────────── */
-router.put('/:id/cancel', auth_1.requireAuth, async (req, res) => {
+router.put('/:id/cancel', auth_1.requireAuth, (0, validate_1.validateParams)(validate_1.zCuidIdParam), async (req, res) => {
     const id = req.params['id'] ?? '';
     const ret = await prisma_1.prisma.orderReturn.findFirst({ where: { id, userId: req.user.userId }, include: RETURN_INCLUDE });
     if (!ret) {
@@ -300,7 +302,7 @@ router.put('/:id/cancel', auth_1.requireAuth, async (req, res) => {
 /* ─────────────────────────────────────────────────────────────
    PUT /api/returns/:id/status — transition admin
 ───────────────────────────────────────────────────────────── */
-router.put('/:id/status', auth_1.requireAdmin, (0, validate_1.validate)(adminStatusSchema), async (req, res) => {
+router.put('/:id/status', auth_1.requireAdmin, (0, validate_1.validateParams)(validate_1.zCuidIdParam), (0, validate_1.validate)(adminStatusSchema), async (req, res) => {
     const id = req.params['id'] ?? '';
     const body = req.body;
     const ret = await prisma_1.prisma.orderReturn.findUnique({ where: { id }, include: RETURN_INCLUDE });
@@ -344,6 +346,7 @@ router.put('/:id/status', auth_1.requireAdmin, (0, validate_1.validate)(adminSta
         data['refundMethod'] = body.refundMethod ?? null;
     }
     const updated = await prisma_1.prisma.orderReturn.update({ where: { id }, data });
+    (0, auditLog_1.logAdminAction)(req, { action: 'return.status.update', targetType: 'OrderReturn', targetId: id, metadata: { newStatus: body.status } });
     (0, mailer_1.sendReturnStatusEmail)(ret.order.clientEmail, ret.order.clientPrenom, ret.order.orderNumber, body.status, body.status === 'rejected' ? body.rejectionReason : undefined).catch(() => { });
     prisma_1.prisma.notification.create({
         data: {

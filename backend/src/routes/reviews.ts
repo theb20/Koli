@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { requireAuth, requireAdmin } from '../middleware/auth'
-import { validate } from '../middleware/validate'
+import { validate, validateParams, zIntIdParam, zCuidIdParam } from '../middleware/validate'
 
 const router = Router()
 
@@ -32,9 +32,9 @@ router.get('/latest', async (req, res) => {
 })
 
 /* ── GET /api/reviews/product/:id ─────────────────────────── */
-router.get('/product/:id', async (req, res) => {
+router.get('/product/:id', validateParams(zIntIdParam), async (req, res) => {
   try {
-    const productId = parseInt(req.params['id'] ?? '')
+    const productId = Number(req.params['id'])
     const page  = parseInt(req.query['page'] as string) || 1
     const limit = parseInt(req.query['limit'] as string) || 10
 
@@ -117,7 +117,7 @@ router.post('/', requireAuth, validate(reviewSchema), async (req, res) => {
 })
 
 /* ── PUT /api/reviews/:id — Modifier son avis ──────────────── */
-router.put('/:id', requireAuth, async (req, res) => {
+router.put('/:id', requireAuth, validateParams(zCuidIdParam), async (req, res) => {
   try {
     const schema = z.object({
       rating: z.number().int().min(1).max(5).optional(),
@@ -142,7 +142,7 @@ router.put('/:id', requireAuth, async (req, res) => {
 })
 
 /* ── DELETE /api/reviews/:id ───────────────────────────────── */
-router.delete('/:id', requireAuth, async (req, res) => {
+router.delete('/:id', requireAuth, validateParams(zCuidIdParam), async (req, res) => {
   try {
     const review = await prisma.review.findFirst({
       where: { id: req.params['id'], userId: req.user!.userId },
@@ -171,7 +171,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
 })
 
 /* ── POST /api/reviews/:id/helpful ────────────────────────── */
-router.post('/:id/helpful', async (req, res) => {
+router.post('/:id/helpful', validateParams(zCuidIdParam), async (req, res) => {
   try {
     await prisma.review.update({
       where: { id: req.params['id'] },

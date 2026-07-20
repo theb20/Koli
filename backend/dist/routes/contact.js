@@ -52,7 +52,7 @@ router.get('/', auth_1.requireAdmin, async (req, res) => {
     }
 });
 /* ── PUT /api/contact/:id/status  [ADMIN] ─────────────────── */
-router.put('/:id/status', auth_1.requireAdmin, async (req, res) => {
+router.put('/:id/status', auth_1.requireAdmin, (0, validate_1.validateParams)(validate_1.zCuidIdParam), async (req, res) => {
     try {
         const { status } = zod_1.z.object({ status: zod_1.z.enum(['new', 'read', 'replied']) }).parse(req.body);
         await prisma_1.prisma.contactMessage.update({ where: { id: req.params['id'] }, data: { status } });
@@ -78,7 +78,7 @@ router.get('/admin/all', auth_1.requireAdmin, async (req, res) => {
     }
 });
 /* ── PATCH /api/contact/:id/read  [ADMIN] ──────────────────── */
-router.patch('/:id/read', auth_1.requireAdmin, async (req, res) => {
+router.patch('/:id/read', auth_1.requireAdmin, (0, validate_1.validateParams)(validate_1.zCuidIdParam), async (req, res) => {
     try {
         const msg = await prisma_1.prisma.contactMessage.update({ where: { id: req.params['id'] }, data: { status: 'read' } });
         res.json({ success: true, data: { message: msg } });
@@ -88,7 +88,7 @@ router.patch('/:id/read', auth_1.requireAdmin, async (req, res) => {
     }
 });
 /* ── DELETE /api/contact/:id  [ADMIN] ──────────────────────── */
-router.delete('/:id', auth_1.requireAdmin, async (req, res) => {
+router.delete('/:id', auth_1.requireAdmin, (0, validate_1.validateParams)(validate_1.zCuidIdParam), async (req, res) => {
     try {
         await prisma_1.prisma.contactMessage.delete({ where: { id: req.params['id'] } });
         res.json({ success: true, message: 'Message supprimé' });

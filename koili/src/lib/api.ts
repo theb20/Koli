@@ -135,22 +135,66 @@ export class ApiError extends Error {
   }
 }
 
+/* ── Refresh silencieux du token ────────────────────────────────
+   L'access token expire (7j aujourd'hui, réduit prochainement).
+   Le refresh_token vit dans un cookie httpOnly envoyé automatiquement
+   (credentials:'include') — un seul refresh en vol à la fois même si
+   plusieurs requêtes 401 arrivent en même temps (évite la rafale de
+   /refresh). AuthContext s'enregistre via setAuthRefreshHandlers pour
+   persister le nouveau token / réagir à une session vraiment expirée. ─ */
+let onTokenRefreshed: ((token: string) => void) | null = null
+let onSessionExpired: (() => void) | null = null
+let refreshPromise: Promise<string | null> | null = null
+
+export function setAuthRefreshHandlers(handlers: {
+  onTokenRefreshed: (token: string) => void
+  onSessionExpired: () => void
+}): void {
+  onTokenRefreshed = handlers.onTokenRefreshed
+  onSessionExpired = handlers.onSessionExpired
+}
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (!refreshPromise) {
+    refreshPromise = fetch(`${API_BASE}/api/auth/refresh`, { method: 'POST', credentials: 'include' })
+      .then(async res => {
+        if (!res.ok) return null
+        const data = await res.json().catch(() => null)
+        return data?.data?.accessToken ?? null
+      })
+      .catch(() => null)
+      .finally(() => { refreshPromise = null })
+  }
+  return refreshPromise
+}
+
 export async function apiFetch<T = unknown>(
   path: string,
   token?: string | null,
   options: RequestInit = {},
 ): Promise<T> {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...((options.headers as Record<string, string>) ?? {}),
-  }
-
-  const res = await fetch(`${API_BASE}${path}`, {
+  const doFetch = (tok?: string | null) => fetch(`${API_BASE}${path}`, {
     ...options,
     credentials: 'include',
-    headers,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(tok ? { Authorization: `Bearer ${tok}` } : {}),
+      ...((options.headers as Record<string, string>) ?? {}),
+    },
   })
+
+  let res = await doFetch(token)
+
+  // 401 avec un token présent → probablement expiré, une seule tentative de refresh
+  if (res.status === 401 && token && !path.startsWith('/api/auth/refresh')) {
+    const newToken = await refreshAccessToken()
+    if (newToken) {
+      onTokenRefreshed?.(newToken)
+      res = await doFetch(newToken)
+    } else {
+      onSessionExpired?.()
+    }
+  }
 
   const data = await res.json().catch(() => ({}))
 

@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { requireAuth, requireAdmin } from '../middleware/auth'
+import { validateParams, zOrderNumberParam } from '../middleware/validate'
 
 const router = Router()
 
@@ -13,7 +14,7 @@ const DEFAULT_STEPS = [
 ]
 
 /* GET /api/delivery/:orderNumber — suivi public */
-router.get('/:orderNumber', requireAuth, async (req, res) => {
+router.get('/:orderNumber', requireAuth, validateParams(zOrderNumberParam), async (req, res) => {
   try {
     const order = await prisma.order.findFirst({
       where: {
@@ -54,7 +55,7 @@ router.get('/:orderNumber', requireAuth, async (req, res) => {
 })
 
 /* PATCH /api/delivery/:orderNumber  [ADMIN] — mettre à jour le suivi */
-router.patch('/:orderNumber', requireAdmin, async (req, res) => {
+router.patch('/:orderNumber', requireAdmin, validateParams(zOrderNumberParam), async (req, res) => {
   try {
     const body = z.object({
       driverName:  z.string().optional(),

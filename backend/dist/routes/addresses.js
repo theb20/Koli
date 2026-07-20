@@ -44,7 +44,7 @@ router.post('/', auth_1.requireAuth, (0, validate_1.validate)(addressSchema), as
     }
 });
 /* ── PUT /api/addresses/:id ─────────────────────────────────── */
-router.put('/:id', auth_1.requireAuth, (0, validate_1.validate)(addressSchema), async (req, res) => {
+router.put('/:id', auth_1.requireAuth, (0, validate_1.validateParams)(validate_1.zCuidIdParam), (0, validate_1.validate)(addressSchema), async (req, res) => {
     try {
         const data = req.body;
         const userId = req.user.userId;
@@ -67,7 +67,7 @@ router.put('/:id', auth_1.requireAuth, (0, validate_1.validate)(addressSchema), 
     }
 });
 /* ── PUT /api/addresses/:id/default ────────────────────────── */
-router.put('/:id/default', auth_1.requireAuth, async (req, res) => {
+router.put('/:id/default', auth_1.requireAuth, (0, validate_1.validateParams)(validate_1.zCuidIdParam), async (req, res) => {
     try {
         const userId = req.user.userId;
         const addr = await prisma_1.prisma.address.findFirst({ where: { id: req.params['id'], userId } });
@@ -84,7 +84,7 @@ router.put('/:id/default', auth_1.requireAuth, async (req, res) => {
     }
 });
 /* ── DELETE /api/addresses/:id ──────────────────────────────── */
-router.delete('/:id', auth_1.requireAuth, async (req, res) => {
+router.delete('/:id', auth_1.requireAuth, (0, validate_1.validateParams)(validate_1.zCuidIdParam), async (req, res) => {
     try {
         const addr = await prisma_1.prisma.address.findFirst({
             where: { id: req.params['id'], userId: req.user.userId },

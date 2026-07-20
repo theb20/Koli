@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { requireAdmin } from '../middleware/auth'
-import { validate } from '../middleware/validate'
+import { validate, validateParams, zIntIdParam, zSlugParam } from '../middleware/validate'
 import { cacheControl } from '../middleware/cache'
 
 const router = Router()
@@ -56,7 +56,7 @@ router.get('/', cacheControl(60), async (req, res) => {
 })
 
 /* ── GET /api/blog/:slug ────────────────────────────────────── */
-router.get('/:slug', async (req, res) => {
+router.get('/:slug', validateParams(zSlugParam), async (req, res) => {
   try {
     const post = await prisma.blogPost.findFirst({
       where: { slug: req.params['slug'], isPublished: true },
@@ -83,7 +83,7 @@ router.get('/:slug', async (req, res) => {
 })
 
 /* ── POST /api/blog/:slug/like ──────────────────────────────── */
-router.post('/:slug/like', async (req, res) => {
+router.post('/:slug/like', validateParams(zSlugParam), async (req, res) => {
   try {
     await prisma.blogPost.updateMany({
       where: { slug: req.params['slug'] },
@@ -113,13 +113,13 @@ router.post('/', requireAdmin, validate(blogSchema), async (req, res) => {
 })
 
 /* ── PUT /api/blog/:id  [ADMIN] ─────────────────────────────── */
-router.put('/:id', requireAdmin, async (req, res) => {
+router.put('/:id', requireAdmin, validateParams(zIntIdParam), async (req, res) => {
   try {
     const schema = blogSchema.partial()
     const data   = schema.parse(req.body)
     const { tags: rawTags, ...restData } = data
     const post   = await prisma.blogPost.update({
-      where: { id: parseInt(req.params['id'] ?? '') },
+      where: { id: Number(req.params['id']) },
       data: {
         ...restData,
         ...(rawTags !== undefined ? { tags: JSON.stringify(rawTags) } : {}),
@@ -133,9 +133,9 @@ router.put('/:id', requireAdmin, async (req, res) => {
 })
 
 /* ── DELETE /api/blog/:id  [ADMIN] ─────────────────────────── */
-router.delete('/:id', requireAdmin, async (req, res) => {
+router.delete('/:id', requireAdmin, validateParams(zIntIdParam), async (req, res) => {
   try {
-    await prisma.blogPost.delete({ where: { id: parseInt(req.params['id'] ?? '') } })
+    await prisma.blogPost.delete({ where: { id: Number(req.params['id']) } })
     res.json({ success: true, message: 'Article supprimé' })
   } catch {
     res.status(500).json({ success: false, message: 'Erreur serveur' })
@@ -156,20 +156,20 @@ router.get('/admin/all', requireAdmin, async (req, res) => {
 })
 
 /* ── GET /api/blog/admin/:id  [ADMIN] ───────────────────────── */
-router.get('/admin/:id', requireAdmin, async (req, res) => {
+router.get('/admin/:id', requireAdmin, validateParams(zIntIdParam), async (req, res) => {
   try {
-    const post = await prisma.blogPost.findUnique({ where: { id: parseInt(req.params['id']!) } })
+    const post = await prisma.blogPost.findUnique({ where: { id: Number(req.params['id']) } })
     if (!post) { res.status(404).json({ success: false, message: 'Article introuvable' }); return }
     res.json({ success: true, data: { post } })
   } catch { res.status(500).json({ success: false, message: 'Erreur serveur' }) }
 })
 
 /* ── PATCH /api/blog/:id/publish  [ADMIN] ──────────────────── */
-router.patch('/:id/publish', requireAdmin, async (req, res) => {
+router.patch('/:id/publish', requireAdmin, validateParams(zIntIdParam), async (req, res) => {
   try {
     const { isPublished } = req.body
     const post = await prisma.blogPost.update({
-      where: { id: parseInt(req.params['id']!) },
+      where: { id: Number(req.params['id']) },
       data: { isPublished, ...(isPublished ? { publishedAt: new Date() } : {}) },
     })
     res.json({ success: true, data: { post } })

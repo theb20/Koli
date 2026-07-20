@@ -8,6 +8,8 @@ const validate_1 = require("../middleware/validate");
 const mailer_1 = require("../lib/mailer");
 const invoicePdf_1 = require("../lib/invoicePdf");
 const newOrderNotification_1 = require("../lib/whatsapp/newOrderNotification");
+const logger_1 = require("../lib/logger");
+const auditLog_1 = require("../lib/auditLog");
 const router = (0, express_1.Router)();
 /* ── Helpers ─────────────────────────────────────────────────── */
 function generateOrderNumber() {
@@ -331,7 +333,7 @@ router.post('/', auth_1.optionalAuth, (0, validate_1.validate)(createOrderSchema
                 }
             }
             catch (err) {
-                console.error('[orders] échec sauvegarde adresse auto', err); // non bloquant
+                logger_1.logger.error('[orders] échec sauvegarde adresse auto', err); // non bloquant
             }
         }
         // 6d. Notifier les administrateurs — bulle in-app + email(s) configurés dans les paramètres.
@@ -374,11 +376,11 @@ router.post('/', auth_1.optionalAuth, (0, validate_1.validate)(createOrderSchema
                         clientTelephone: body.clientTelephone,
                         total: order.total,
                         paymentMethod: body.paymentMethod,
-                    }).catch(err => console.error('[orders] échec notification WhatsApp', err));
+                    }).catch(err => logger_1.logger.error('[orders] échec notification WhatsApp', err));
                 }
             }
             catch (err) {
-                console.error('[orders] échec notification admin', err); // non bloquant
+                logger_1.logger.error('[orders] échec notification admin', err); // non bloquant
             }
         })();
         // 7. Email de confirmation (sans bloquer)
@@ -434,7 +436,7 @@ router.post('/', auth_1.optionalAuth, (0, validate_1.validate)(createOrderSchema
                 return;
             }
         }
-        console.error(err);
+        logger_1.logger.error(err);
         res.status(500).json({ success: false, message: 'Erreur lors de la création de la commande' });
     }
 });
@@ -511,7 +513,7 @@ router.get('/admin/all', auth_1.requireAdmin, async (req, res) => {
 /* ─────────────────────────────────────────────────────────────
    GET /api/orders/:id  — Détail commande
 ───────────────────────────────────────────────────────────── */
-router.get('/:id', auth_1.optionalAuth, async (req, res) => {
+router.get('/:id', auth_1.optionalAuth, (0, validate_1.validateParams)(validate_1.zCuidIdParam), async (req, res) => {
     try {
         const paramId = req.params['id'] ?? '';
         const isAdmin = req.user?.role === 'admin';
@@ -546,7 +548,7 @@ router.get('/:id', auth_1.optionalAuth, async (req, res) => {
    GET /api/orders/:id/invoice  — Facture PDF
    Même règle d'accès que GET /:id (propriétaire, commande invité, ou admin).
 ───────────────────────────────────────────────────────────── */
-router.get('/:id/invoice', auth_1.optionalAuth, async (req, res) => {
+router.get('/:id/invoice', auth_1.optionalAuth, (0, validate_1.validateParams)(validate_1.zCuidIdParam), async (req, res) => {
     try {
         const paramId = req.params['id'] ?? '';
         const isAdmin = req.user?.role === 'admin';
@@ -575,14 +577,14 @@ router.get('/:id/invoice', auth_1.optionalAuth, async (req, res) => {
         doc.end();
     }
     catch (err) {
-        console.error('[INVOICE]', err);
+        logger_1.logger.error('[INVOICE]', err);
         res.status(500).json({ success: false, message: 'Erreur lors de la génération de la facture' });
     }
 });
 /* ─────────────────────────────────────────────────────────────
    PUT /api/orders/:id/cancel  — Annuler une commande
 ───────────────────────────────────────────────────────────── */
-router.put('/:id/cancel', auth_1.requireAuth, async (req, res) => {
+router.put('/:id/cancel', auth_1.requireAuth, (0, validate_1.validateParams)(validate_1.zCuidIdParam), async (req, res) => {
     try {
         const order = await prisma_1.prisma.order.findFirst({
             where: { OR: [{ id: req.params['id'] }, { orderNumber: req.params['id'] }], userId: req.user.userId },
@@ -605,7 +607,7 @@ router.put('/:id/cancel', auth_1.requireAuth, async (req, res) => {
 /* ─────────────────────────────────────────────────────────────
    PUT /api/orders/:id/status  [ADMIN]
 ───────────────────────────────────────────────────────────── */
-router.put('/:id/status', auth_1.requireAdmin, async (req, res) => {
+router.put('/:id/status', auth_1.requireAdmin, (0, validate_1.validateParams)(validate_1.zCuidIdParam), async (req, res) => {
     try {
         const schema = zod_1.z.object({ status: zod_1.z.enum(ORDER_STATUSES) });
         const { status } = schema.parse(req.body);
@@ -614,6 +616,7 @@ router.put('/:id/status', auth_1.requireAdmin, async (req, res) => {
             res.status(404).json({ success: false, message: 'Commande introuvable' });
             return;
         }
+        (0, auditLog_1.logAdminAction)(req, { action: 'order.status.update', targetType: 'Order', targetId: req.params['id'], metadata: { newStatus: status } });
         res.json({ success: true, message: 'Statut mis à jour' });
     }
     catch {
@@ -621,7 +624,7 @@ router.put('/:id/status', auth_1.requireAdmin, async (req, res) => {
     }
 });
 /* ── PATCH /api/orders/:id/status  [ADMIN] — alias PATCH ─── */
-router.patch('/:id/status', auth_1.requireAdmin, async (req, res) => {
+router.patch('/:id/status', auth_1.requireAdmin, (0, validate_1.validateParams)(validate_1.zCuidIdParam), async (req, res) => {
     try {
         const schema = zod_1.z.object({ status: zod_1.z.enum(ORDER_STATUSES) });
         const { status } = schema.parse(req.body);
@@ -630,6 +633,7 @@ router.patch('/:id/status', auth_1.requireAdmin, async (req, res) => {
             res.status(404).json({ success: false, message: 'Commande introuvable' });
             return;
         }
+        (0, auditLog_1.logAdminAction)(req, { action: 'order.status.update', targetType: 'Order', targetId: req.params['id'], metadata: { newStatus: status } });
         res.json({ success: true, data: { order } });
     }
     catch {
