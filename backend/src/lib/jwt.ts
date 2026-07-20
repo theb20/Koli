@@ -9,7 +9,7 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
 }
 
 const SECRET  = process.env.JWT_SECRET
-const EXPIRES = process.env.JWT_EXPIRES_IN ?? '7d'
+const EXPIRES = process.env.JWT_EXPIRES_IN ?? '15m'
 const REFRESH_EXPIRES = process.env.JWT_REFRESH_EXPIRES_IN ?? '30d'
 
 export type JwtPayload = {
