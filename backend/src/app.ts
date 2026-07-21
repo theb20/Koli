@@ -40,6 +40,7 @@ import productRequestsRouter   from './routes/product-requests'
 import emailTemplatesRouter    from './routes/email-templates'
 import returnsRouter           from './routes/returns'
 import auditLogRouter          from './routes/audit-log'
+import paymentsRouter          from './routes/payments'
 
 const app = express()
 
@@ -204,6 +205,7 @@ app.use('/api/product-requests', publicFormLimiter, productRequestsRouter)
 app.use('/api/email-templates', emailTemplatesRouter)
 app.use('/api/returns',       returnsRouter)
 app.use('/api/audit-log',     auditLogRouter)
+app.use('/api/payments',      paymentsRouter)
 
 /* ── 404 ────────────────────────────────────────────────────── */
 app.use((_req, res) => {

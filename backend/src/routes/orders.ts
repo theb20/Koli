@@ -9,6 +9,8 @@ import { sendNewOrderWhatsAppNotification } from '../lib/whatsapp/newOrderNotifi
 import { logger } from '../lib/logger'
 import { logAdminAction } from '../lib/auditLog'
 import { getLoyaltySettings } from './loyalty'
+import { createInvoice, isPaydunyaConfigured } from '../lib/paydunya'
+import { getBackendUrl } from '../lib/backendUrl'
 
 const router = Router()
 
@@ -92,9 +94,16 @@ async function applyOrderStatusChange(orderId: string, status: OrderStatusValue)
       }
     }
 
+    // Une commande liée à une facture PayDunya (paydunyaToken posé) a son paiement
+    // suivi par la passerelle — seul l'IPN (voir payments.ts) fait foi. Faire
+    // progresser son statut manuellement ne doit jamais la faire passer "payée"
+    // par raccourci : un admin qui avance une commande par erreur avant que le
+    // client ait réellement payé ne doit pas la faire apparaître payée à tort.
+    const gatewayTracked = !!order.paydunyaToken
     const paymentStatus =
-      status === 'refunded'                                             ? 'refunded'
-      : ['confirmed', 'processing', 'shipped', 'delivered'].includes(status) ? 'paid'
+      status === 'refunded'                                                   ? 'refunded'
+      : gatewayTracked                                                         ? order.paymentStatus
+      : ['confirmed', 'processing', 'shipped', 'delivered'].includes(status)   ? 'paid'
       : order.paymentStatus // 'pending'/'cancelled' : ne pas inventer un statut de paiement
 
     // Verrouillé à la première livraison — base du calcul d'éligibilité au retour.
@@ -436,6 +445,35 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
       deliveryMethod: body.deliveryMethod,
     }).catch(() => {})
 
+    // 8. Paiement en ligne PayDunya (orange/mtn/wave) — crée la facture et
+    //    renvoie l'URL de paiement au client, qui y est redirigé. "cash"
+    //    reste inchangé (paiement à la livraison). Si PayDunya n'est pas
+    //    configuré ou échoue, la commande reste créée quand même (stock déjà
+    //    réservé plus haut) — dégradation, pas d'échec de toute la commande
+    //    pour un incident côté prestataire de paiement.
+    let paymentUrl: string | undefined
+    if (body.paymentMethod !== 'cash' && isPaydunyaConfigured()) {
+      try {
+        const backendUrl  = getBackendUrl()
+        const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:5173'
+        const invoice = await createInvoice({
+          amount:        order.total,
+          description:   `Commande ${orderNumber} — Skignas`,
+          orderId:       order.id,
+          orderNumber,
+          returnUrl:     `${frontendUrl}/commandes/${orderNumber}`,
+          cancelUrl:     `${frontendUrl}/commandes/${orderNumber}`,
+          callbackUrl:   `${backendUrl}/api/payments/paydunya/ipn`,
+          customerName:  `${body.clientPrenom} ${body.clientNom}`,
+          customerEmail: body.clientEmail,
+        })
+        await prisma.order.update({ where: { id: order.id }, data: { paydunyaToken: invoice.token } })
+        paymentUrl = invoice.checkoutUrl
+      } catch (err) {
+        logger.error('[orders] échec création facture PayDunya', orderNumber, err)
+      }
+    }
+
     res.status(201).json({
       success: true,
       message: 'Commande créée avec succès',
@@ -446,6 +484,7 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
         shippingCost:    order.shippingCost,
         promoDiscount:   order.promoDiscount,
         pointsEarned:    order.pointsEarned,
+        paymentUrl,
       },
     })
   } catch (err) {

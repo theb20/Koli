@@ -187,6 +187,10 @@ model Order {
   shippingCost    Int
   paymentMethod   String
   paymentStatus   String        @default("pending")
+  /// Token de facture PayDunya — sert à retrouver la commande depuis l'IPN
+  /// et à revérifier le statut réel auprès de PayDunya (jamais de confiance
+  /// aveugle dans le contenu brut de l'IPN).
+  paydunyaToken   String?       @unique
   subtotal        Int
   discount        Int           @default(0)
   taxRate         Float         @default(0)
