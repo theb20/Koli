@@ -1,4 +1,4 @@
-import { Link, NavLink } from 'react-router-dom'
+import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import {
@@ -422,8 +422,16 @@ function CategoriesBtn() {
 function MobileOverlay({ open, onClose, onOpenCart, categories }: { open: boolean; onClose: () => void; onOpenCart: () => void; categories: ApiCategory[] }) {
   const [searchVal, setSearchVal] = useState('')
   const { user, isAuthenticated, logout } = useAuth()
+  const navigate = useNavigate()
 
   useEffect(() => { if (!open) setSearchVal('') }, [open])
+
+  const submitSearch = () => {
+    if (!searchVal.trim()) return
+    navigate(`/catalogue?q=${encodeURIComponent(searchVal.trim())}`)
+    setSearchVal('')
+    onClose()
+  }
 
   return (
     <AnimatePresence>
@@ -457,10 +465,13 @@ function MobileOverlay({ open, onClose, onOpenCart, categories }: { open: boolea
             {/* ── Recherche ── */}
             <div className="px-5 pt-4 pb-3 border-b border-gray-100">
               <div className="flex items-center gap-2.5 bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
-                <Search size={15} className="text-gray-400 shrink-0" />
+                <button onClick={submitSearch} aria-label="Rechercher" className="shrink-0">
+                  <Search size={15} className="text-gray-400" />
+                </button>
                 <input
                   value={searchVal}
                   onChange={e => setSearchVal(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') submitSearch() }}
                   placeholder="Rechercher un produit..."
                   className="bg-transparent text-sm text-gray-800 outline-none flex-1 placeholder:text-gray-400 min-w-0"
                 />

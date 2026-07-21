@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   Search,
   ArrowRight,
@@ -20,6 +20,12 @@ const TRENDING = [
 export function HeroSlider() {
   const [current, setCurrent] = useState(0)
   const [search, setSearch] = useState('')
+  const navigate = useNavigate()
+
+  const submitSearch = (term = search) => {
+    if (!term.trim()) return
+    navigate(`/catalogue?q=${encodeURIComponent(term.trim())}`)
+  }
 
   const next = useCallback(() => {
     setCurrent((c) => (c + 1) % HERO_SLIDES.length)
@@ -68,11 +74,12 @@ export function HeroSlider() {
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') submitSearch() }}
                   placeholder="Rechercher un produit..."
                   className="flex-1 px-3 outline-none text-sm"
                 />
 
-                <button className="bg-black text-white h-full px-5 text-sm font-semibold hover:bg-gray-800">
+                <button onClick={() => submitSearch()} className="bg-black text-white h-full px-5 text-sm font-semibold hover:bg-gray-800">
                   Rechercher
                 </button>
               </div>
@@ -88,7 +95,7 @@ export function HeroSlider() {
                 {TRENDING.map((t) => (
                   <button
                     key={t}
-                    onClick={() => setSearch(t)}
+                    onClick={() => submitSearch(t)}
                     className="text-xs px-3 py-1 rounded-full border border-gray-200 hover:border-black hover:text-black transition"
                   >
                     {t}
