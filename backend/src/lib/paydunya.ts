@@ -80,12 +80,17 @@ export async function createInvoice(params: CreateInvoiceParams): Promise<Create
   })
 
   const data = await res.json() as { response_code?: string; response_text?: string; token?: string }
-  if (data.response_code !== '00' || !data.token) {
+  // response_text est l'URL de paiement elle-même en cas de succès (pas un message
+  // d'erreur) — vérifié empiriquement sur la réponse réelle de l'API sandbox, pas
+  // une hypothèse : "https://paydunya.com/sandbox-checkout/invoice/{token}" (domaine
+  // et chemin différents de ce qu'on aurait pu deviner). En cas d'échec, response_code
+  // n'est pas "00" et response_text redevient un vrai message d'erreur lisible.
+  if (data.response_code !== '00' || !data.token || !data.response_text) {
     logger.error('[paydunya] échec création facture', data)
     throw new Error(data.response_text ?? 'Échec de la création de la facture PayDunya')
   }
 
-  return { token: data.token, checkoutUrl: `https://app.paydunya.com/checkout/invoice/${data.token}` }
+  return { token: data.token, checkoutUrl: data.response_text }
 }
 
 export type ConfirmedInvoice = {

@@ -41,8 +41,11 @@ const createOrderSchema = z.object({
     instructions: z.string().optional(),
   }),
 
-  // Paiement
-  paymentMethod: z.enum(['orange', 'mtn', 'wave', 'cash']),
+  // Paiement — "online" couvre Orange/MTN/Wave/carte : PayDunya présente le
+  // choix de l'opérateur sur sa propre page de paiement, donc distinguer les
+  // opérateurs ici n'apportait rien (les 3 anciennes valeurs déclenchaient déjà
+  // exactement la même création de facture).
+  paymentMethod: z.enum(['online', 'cash']),
 
   // Articles
   items: z.array(z.object({
@@ -154,7 +157,19 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
       }
     }
 
-    // 0bis. Idempotence — requête déjà traitée (double-clic, retry réseau) → renvoyer la commande existante
+    // 0bis. Le paiement à la livraison peut être désactivé par l'admin (Réglages)
+    //       — vérifié côté serveur, pas seulement masqué côté frontend.
+    if (body.paymentMethod === 'cash') {
+      const settings = await prisma.siteSettings.upsert({
+        where: { id: 1 }, update: {}, create: { id: 1 }, select: { codEnabled: true },
+      })
+      if (!settings.codEnabled) {
+        res.status(400).json({ success: false, message: 'Le paiement à la livraison n\'est plus disponible. Merci de payer en ligne.' })
+        return
+      }
+    }
+
+    // 0ter. Idempotence — requête déjà traitée (double-clic, retry réseau) → renvoyer la commande existante
     if (body.clientRequestId) {
       const existing = await prisma.order.findUnique({ where: { clientRequestId: body.clientRequestId } })
       if (existing) {

@@ -623,6 +623,9 @@ model SiteSettings {
   loyaltyEnabled   Boolean  @default(true)
   /// Solde minimum de points requis pour pouvoir les utiliser (POST /loyalty/redeem).
   loyaltyMinRedeem Int      @default(500)
+  /// Autorise "cash" (paiement à la livraison) comme mode de paiement à la
+  /// commande — quand false, seul le paiement en ligne (PayDunya) est proposé.
+  codEnabled       Boolean  @default(true)
   updatedAt      DateTime @updatedAt
 
   @@map("site_settings")
