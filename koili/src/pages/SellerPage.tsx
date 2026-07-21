@@ -95,7 +95,7 @@ export default function SellerPage() {
 
   return (
     <>
-      <PageMeta title="Espace Vendeur — Koli" description="Gérez votre boutique sur Koli" path="/vendeur" noIndex />
+      <PageMeta title="Espace Vendeur" description="Gérez votre boutique sur Skignas" path="/vendeur" noIndex />
       <div className="min-h-screen bg-gray-50 pb-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-8">
           <div className="flex items-center gap-3 mb-8">

@@ -147,8 +147,8 @@ export default function OrdersPage() {
   return (
     <>
       <PageMeta
-        title="Mes commandes — Koli"
-        description="Suivez l'état de toutes vos commandes Koli"
+        title="Mes commandes"
+        description="Suivez l'état de toutes vos commandes Skignas"
         path="/commandes"
         noIndex
       />

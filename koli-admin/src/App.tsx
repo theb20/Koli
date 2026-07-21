@@ -28,6 +28,8 @@ import TaxPage            from './pages/TaxPage'
 import EmailTemplatesPage from './pages/EmailTemplatesPage'
 import ReturnsPage        from './pages/ReturnsPage'
 import ReturnDetailPage   from './pages/ReturnDetailPage'
+import LoyaltyPage        from './pages/LoyaltyPage'
+import LoyaltyDetailPage  from './pages/LoyaltyDetailPage'
 
 const qc = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
@@ -68,6 +70,8 @@ export default function App() {
             <Route path="/emails"        element={<EmailTemplatesPage />} />
             <Route path="/returns"       element={<ReturnsPage />} />
             <Route path="/returns/:id"   element={<ReturnDetailPage />} />
+            <Route path="/loyalty"       element={<LoyaltyPage />} />
+            <Route path="/loyalty/:id"   element={<LoyaltyDetailPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

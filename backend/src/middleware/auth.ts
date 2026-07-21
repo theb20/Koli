@@ -1,9 +1,16 @@
 import type { Request, Response, NextFunction } from 'express'
 import crypto from 'crypto'
 import { verifyAccessToken } from '../lib/jwt'
+import { prisma } from '../lib/prisma'
 
-/** Middleware — vérifie le JWT (Bearer header ou cookie) */
-export function requireAuth(req: Request, res: Response, next: NextFunction): void {
+/**
+ * Middleware — vérifie le JWT (Bearer header ou cookie).
+ * Vérifie aussi le statut banni en base à chaque requête : le JWT étant
+ * stateless, ne pas le faire laisserait un compte banni actif jusqu'à
+ * l'expiration de son access token (jusqu'à 15 min) au lieu d'une
+ * déconnexion immédiate.
+ */
+export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const header = req.headers.authorization
     const tokenFromHeader = header?.startsWith('Bearer ') ? header.slice(7) : null
@@ -16,6 +23,13 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
     }
 
     const payload = verifyAccessToken(token)
+
+    const user = await prisma.user.findUnique({ where: { id: payload.userId }, select: { isBanned: true } })
+    if (!user || user.isBanned) {
+      res.status(401).json({ success: false, message: 'Compte suspendu' })
+      return
+    }
+
     req.user = payload
     next()
   } catch {

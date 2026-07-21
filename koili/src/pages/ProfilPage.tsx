@@ -195,6 +195,18 @@ function TabProfil({ avatar, setAvatar, orders, profile }: {
   const [saving,  setSaving]  = useState(false)
   const [saved,   setSaved]   = useState(false)
   const [saveErr, setSaveErr] = useState<string | null>(null)
+
+  // Même queryKey que TabFidelite — React Query dédupe/partage le cache,
+  // pas d'appel réseau en double. Seule source de vérité pour les points :
+  // avant, ce widget affichait un calcul factice (totalDépensé / 1000)
+  // pendant que l'onglet Fidélité affichait le vrai solde de l'API — les
+  // deux se contredisaient sur la même page.
+  const { data: loyaltyData } = useQuery({
+    queryKey: ['loyalty'],
+    queryFn:  () => fetchLoyalty(token!),
+    enabled:  !!token,
+  })
+  const loyaltyPts = loyaltyData?.data?.points ?? 0
   const [form, setForm] = useState({
     prenom:    profile.prenom,
     nom:       profile.nom,
@@ -240,7 +252,6 @@ function TabProfil({ avatar, setAvatar, orders, profile }: {
   }
 
   const totalSpent = orders.filter(o => o.status === 'delivered').reduce((s, o) => s + o.total, 0)
-  const loyaltyPts = Math.floor(totalSpent / 1000)
   const memberSince = new Date(profile.createdAt).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
 
   return (
@@ -1264,6 +1275,9 @@ function TabFidelite() {
   const [copied, setCopied] = useState(false)
 
   const points = loyaltyData?.data?.points ?? 0
+  const history = (loyaltyData?.data?.transactions ?? []) as {
+    id: string; type: string; points: number; note: string | null; createdAt: string
+  }[]
   const code   = referralData?.data?.code ?? '…'
   const lists  = (listsData?.data?.lists ?? []) as { id: string; title: string; slug: string; items: unknown[] }[]
 
@@ -1289,7 +1303,7 @@ function TabFidelite() {
     <div className="space-y-6">
       {/* Points */}
       <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl p-6 text-white">
-        <p className="text-sm font-semibold text-blue-200">Vos points Koli</p>
+        <p className="text-sm font-semibold text-blue-200">Vos points Skignas</p>
         <p className="text-4xl font-black mt-1">{points.toLocaleString('fr-FR')} pts</p>
         <p className="text-sm text-blue-200 mt-1">≈ {Math.floor(points * 0.5).toLocaleString('fr-FR')} FCFA de réduction disponibles</p>
         <div className="mt-4 h-2 bg-white/20 rounded-full overflow-hidden">
@@ -1297,6 +1311,26 @@ function TabFidelite() {
         </div>
         <p className="text-xs text-blue-200 mt-1">Min. 500 pts pour utiliser vos points</p>
       </div>
+
+      {/* Historique des points */}
+      {history.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-5">
+          <h3 className="text-sm font-bold text-gray-900 mb-3">Historique de vos points</h3>
+          <div className="divide-y divide-gray-100">
+            {history.map(t => (
+              <div key={t.id} className="flex items-center justify-between py-2.5 text-sm">
+                <div>
+                  <p className="text-gray-900">{t.note ?? (t.type === 'earn' ? 'Points gagnés' : t.type === 'redeem' ? 'Points utilisés' : 'Ajustement')}</p>
+                  <p className="text-xs text-gray-400">{new Date(t.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                </div>
+                <span className={`font-bold ${t.points >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                  {t.points >= 0 ? '+' : ''}{t.points}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Parrainage */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5">
@@ -1379,6 +1413,13 @@ export default function ProfilPage() {
     enabled:  !!isAuthenticated,
   })
 
+  /* ── Points fidélité — même queryKey que TabProfil/TabFidelite (cache partagé) ── */
+  const { data: loyaltyData } = useQuery({
+    queryKey: ['loyalty'],
+    queryFn:  () => fetchLoyalty(token!),
+    enabled:  !!isAuthenticated,
+  })
+
   const orders: MappedOrder[] = (ordersData?.orders ?? []).map(o => ({
     id:        o.orderNumber,
     date:      new Date(o.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }),
@@ -1400,7 +1441,7 @@ export default function ProfilPage() {
   }
 
   const fullName   = `${user.prenom} ${user.nom}`
-  const loyaltyPts = Math.floor(orders.filter(o => o.status === 'delivered').reduce((s, o) => s + o.total, 0) / 1000)
+  const loyaltyPts = loyaltyData?.data?.points ?? 0
   const unreadOrders = orders.filter(o => ['pending','confirmed'].includes(o.status)).length
 
   const TAB_CONTENT: Record<Tab, React.ReactNode> = {

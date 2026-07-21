@@ -151,7 +151,165 @@
     <priority>0.8</priority>
   </url>
 
+  <url>
+    <loc>https://skignas.com/catalogue/113</loc>
+    <lastmod>2026-07-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://meevo.net/wp-content/uploads/2023/04/ba56171d-d9f6-4307-9d9b-fee34fcc8c01.jpg</image:loc>
+    </image:image>
+  </url>
 
+  <url>
+    <loc>https://skignas.com/catalogue/2</loc>
+    <lastmod>2026-07-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://m.media-amazon.com/images/I/61dB1oxSpUL._AC_SL1500_.jpg</image:loc>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://skignas.com/catalogue/5</loc>
+    <lastmod>2026-07-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://asset.action.com/image/upload/t_digital_product_image/w_1920/3202088_8712879165972-111_01_fvju7m.webp</image:loc>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://skignas.com/catalogue/124</loc>
+    <lastmod>2026-07-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://skignas.up.railway.app/uploads/products/prod-1784527958867-hq9kxub4zdf.webp</image:loc>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://skignas.com/catalogue/125</loc>
+    <lastmod>2026-07-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://skignas.up.railway.app/uploads/products/prod-1784527891469-0gphivgdpytm.webp</image:loc>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://skignas.com/catalogue/126</loc>
+    <lastmod>2026-07-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://skignas.up.railway.app/uploads/products/prod-1784527834502-8nlemdkq7gw.webp</image:loc>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://skignas.com/catalogue/129</loc>
+    <lastmod>2026-07-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://skignas.up.railway.app/uploads/products/prod-1784527743318-a10fscrp6ae.webp</image:loc>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://skignas.com/catalogue/130</loc>
+    <lastmod>2026-07-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://skignas.up.railway.app/uploads/products/prod-1784527688239-dy2ie5y795b.webp</image:loc>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://skignas.com/catalogue/131</loc>
+    <lastmod>2026-07-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://skignas.up.railway.app/uploads/products/prod-1784527632737-06tgewy92rky.webp</image:loc>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://skignas.com/catalogue/132</loc>
+    <lastmod>2026-07-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://skignas.up.railway.app/uploads/products/prod-1784527571994-0xvjptlxr58.webp</image:loc>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://skignas.com/catalogue/135</loc>
+    <lastmod>2026-07-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://skignas.up.railway.app/uploads/products/prod-1784527502999-7rf0agg74op.webp</image:loc>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://skignas.com/catalogue/136</loc>
+    <lastmod>2026-07-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://skignas.up.railway.app/uploads/products/prod-1784527420290-mbcqnfbf4c.webp</image:loc>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://skignas.com/catalogue/138</loc>
+    <lastmod>2026-07-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://skignas.up.railway.app/uploads/products/prod-1784527321531-798lvcfge47.webp</image:loc>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://skignas.com/catalogue/139</loc>
+    <lastmod>2026-07-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://skignas.up.railway.app/uploads/products/prod-1784527256035-f753cy52f4v.webp</image:loc>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://skignas.com/catalogue/121</loc>
+    <lastmod>2026-07-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://skignas.up.railway.app/uploads/products/prod-1784528169041-rub1bicnsj.webp</image:loc>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://skignas.com/catalogue/123</loc>
+    <lastmod>2026-07-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://skignas.up.railway.app/uploads/products/prod-1784528021567-jmrjcnctq1e.webp</image:loc>
+    </image:image>
+  </url>
 
   <url>
     <loc>https://skignas.com/blog/la-ruee-vers-les-talents-comment-se-forme-la-generation-qui</loc>

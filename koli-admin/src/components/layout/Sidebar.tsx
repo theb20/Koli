@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   LayoutDashboard, Package, ShoppingCart, Users, BookOpen,
   Tag, Star, MessageSquare, Settings, LogOut,
-  Bell, BarChart2, Store, Layers, Percent, Zap, PackageSearch, Send, RotateCcw, X
+  Bell, BarChart2, Store, Layers, Percent, Zap, PackageSearch, Send, RotateCcw, X, Gift
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { api } from '../../lib/api'
@@ -17,6 +17,7 @@ const nav = [
   { to: '/orders',   label: 'Commandes',      icon: ShoppingCart },
   { to: '/product-requests', label: 'Demandes de sourcing', icon: PackageSearch },
   { to: '/returns',   label: 'Retours',        icon: RotateCcw },
+  { to: '/loyalty',  label: 'Fidélité',       icon: Gift },
   { to: '/users',    label: 'Utilisateurs',   icon: Users },
   { to: '/blog',     label: 'Blog',           icon: BookOpen },
   { to: '/promo',    label: 'Codes promo',    icon: Tag },

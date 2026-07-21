@@ -184,7 +184,7 @@ export function ContactPage() {
   return (
     <>
       <PageMeta
-        title="Contact — Skignas"
+        title="Contact"
         description="Une question, un retour, un partenariat ? L'équipe Skignas vous répond sous 24h. WhatsApp, email ou formulaire de contact."
         path="/contact"
       />
