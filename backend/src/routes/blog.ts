@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { requireAdmin } from '../middleware/auth'
-import { validate, validateParams, zIntIdParam, zSlugParam } from '../middleware/validate'
+import { validate, validateParams, validateQuery, zIntIdParam, zSlugParam, zPaginationQuery } from '../middleware/validate'
 import { cacheControl } from '../middleware/cache'
 
 const router = Router()
@@ -143,10 +143,9 @@ router.delete('/:id', requireAdmin, validateParams(zIntIdParam), async (req, res
 })
 
 /* ── GET /api/blog/admin/all  [ADMIN] — tous les articles ─── */
-router.get('/admin/all', requireAdmin, async (req, res) => {
+router.get('/admin/all', requireAdmin, validateQuery(zPaginationQuery), async (req, res) => {
   try {
-    const page  = parseInt(req.query['page'] as string) || 1
-    const limit = parseInt(req.query['limit'] as string) || 15
+    const { page, limit } = req.query as unknown as { page: number; limit: number }
     const [total, posts] = await Promise.all([
       prisma.blogPost.count(),
       prisma.blogPost.findMany({ orderBy: { createdAt: 'desc' }, skip: (page - 1) * limit, take: limit }),
@@ -165,9 +164,9 @@ router.get('/admin/:id', requireAdmin, validateParams(zIntIdParam), async (req, 
 })
 
 /* ── PATCH /api/blog/:id/publish  [ADMIN] ──────────────────── */
-router.patch('/:id/publish', requireAdmin, validateParams(zIntIdParam), async (req, res) => {
+router.patch('/:id/publish', requireAdmin, validateParams(zIntIdParam), validate(z.object({ isPublished: z.boolean() })), async (req, res) => {
   try {
-    const { isPublished } = req.body
+    const { isPublished } = req.body as { isPublished: boolean }
     const post = await prisma.blogPost.update({
       where: { id: Number(req.params['id']) },
       data: { isPublished, ...(isPublished ? { publishedAt: new Date() } : {}) },

@@ -6,7 +6,7 @@ import fs from 'fs'
 import multer from 'multer'
 import { prisma } from '../lib/prisma'
 import { requireAdmin, optionalAuth } from '../middleware/auth'
-import { validate, validateParams, zCuidIdParam } from '../middleware/validate'
+import { validate, validateParams, validateQuery, zCuidIdParam, zPaginationQuery } from '../middleware/validate'
 import { sendNewProductRequestAdminEmail, sendProductRequestReplyEmail } from '../lib/mailer'
 import { getBackendUrl } from '../lib/backendUrl'
 import { toWebp } from '../lib/imageProcessing'
@@ -195,11 +195,11 @@ router.get('/mine', optionalAuth, async (req, res) => {
 /* ─────────────────────────────────────────────────────────────
    GET /api/product-requests/admin/all  [ADMIN]
 ───────────────────────────────────────────────────────────── */
-router.get('/admin/all', requireAdmin, async (req, res) => {
+const reqListQuerySchema = zPaginationQuery.extend({ status: z.string().max(20).optional() })
+
+router.get('/admin/all', requireAdmin, validateQuery(reqListQuerySchema), async (req, res) => {
   try {
-    const page   = parseInt(req.query['page'] as string) || 1
-    const limit  = parseInt(req.query['limit'] as string) || 20
-    const status = req.query['status'] as string | undefined
+    const { page, limit, status } = req.query as unknown as z.infer<typeof reqListQuerySchema>
 
     const where = status ? { status } : {}
     const [total, requests] = await Promise.all([

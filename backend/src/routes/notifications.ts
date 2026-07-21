@@ -4,16 +4,17 @@ import { prisma } from '../lib/prisma'
 import { requireAuth, requireAdmin } from '../middleware/auth'
 import { sendBroadcastEmail } from '../lib/mailer'
 import { logger } from '../lib/logger'
-import { validate, validateParams, zCuidIdParam } from '../middleware/validate'
+import { validate, validateParams, validateQuery, zCuidIdParam, zPaginationQuery } from '../middleware/validate'
 
 const router = Router()
 
+const notifQuerySchema = zPaginationQuery.extend({ unread: z.string().max(10).optional() })
+
 /* ── GET /api/notifications ─────────────────────────────────── */
-router.get('/', requireAuth, async (req, res) => {
+router.get('/', requireAuth, validateQuery(notifQuerySchema), async (req, res) => {
   try {
-    const page  = parseInt(req.query['page'] as string) || 1
-    const limit = parseInt(req.query['limit'] as string) || 20
-    const unreadOnly = req.query['unread'] === 'true'
+    const { page, limit, unread } = req.query as unknown as z.infer<typeof notifQuerySchema>
+    const unreadOnly = unread === 'true'
 
     const where = { userId: req.user!.userId, ...(unreadOnly ? { isRead: false } : {}) }
 
@@ -71,10 +72,9 @@ router.delete('/:id', requireAuth, validateParams(zCuidIdParam), async (req, res
 })
 
 /* ── GET /api/notifications/admin/all  [ADMIN] ──────────────── */
-router.get('/admin/all', requireAdmin, async (req, res) => {
+router.get('/admin/all', requireAdmin, validateQuery(zPaginationQuery), async (req, res) => {
   try {
-    const page  = parseInt(req.query['page'] as string) || 1
-    const limit = parseInt(req.query['limit'] as string) || 30
+    const { page, limit } = req.query as unknown as { page: number; limit: number }
 
     const [total, notifications] = await Promise.all([
       prisma.notification.count(),

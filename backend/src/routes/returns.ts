@@ -278,6 +278,10 @@ router.get('/admin/all', requireAdmin, async (req, res) => {
     where,
     include: { ...RETURN_INCLUDE, user: { select: { id: true, prenom: true, nom: true, email: true } } },
     orderBy: { createdAt: 'desc' },
+    // Pas de pagination consommée côté frontend (retourne un tableau brut) —
+    // un plafond dur évite qu'une table qui grossit ne finisse par renvoyer
+    // un nombre de lignes non borné en une seule réponse.
+    take: 500,
   })
   res.json({ success: true, data: returns })
 })

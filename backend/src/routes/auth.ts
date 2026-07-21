@@ -4,7 +4,7 @@ import crypto from 'crypto'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { signAccessToken, signRefreshToken, verifyRefreshToken, isTokenExpiredError, unsafeDecodeExpiredRefreshToken } from '../lib/jwt'
-import { validate, validateParams, zPassword, zCuidIdParam } from '../middleware/validate'
+import { validate, validateParams, validateQuery, zPassword, zCuidIdParam, zPaginationQuery } from '../middleware/validate'
 import { requireAuth, requireAdmin } from '../middleware/auth'
 import { sendWelcomeEmail, sendMagicLinkEmail, sendPasswordResetEmail, sendPasswordChangedEmail } from '../lib/mailer'
 import { ALLOWED_ORIGINS } from '../lib/allowedOrigins'
@@ -620,13 +620,15 @@ router.post('/google', async (req, res) => {
 /* ─────────────────────────────────────────────────────────────
    GET /api/auth/users  [ADMIN] — Liste des utilisateurs
 ───────────────────────────────────────────────────────────── */
-router.get('/users', requireAdmin, async (req, res) => {
+const usersQuerySchema = zPaginationQuery.extend({
+  q:      z.string().max(200).optional(),
+  role:   z.string().max(50).optional(),
+  banned: z.string().max(10).optional(),
+})
+
+router.get('/users', requireAdmin, validateQuery(usersQuerySchema), async (req, res) => {
   try {
-    const page    = parseInt(req.query['page'] as string) || 1
-    const limit   = parseInt(req.query['limit'] as string) || 20
-    const q       = req.query['q'] as string | undefined
-    const role    = req.query['role'] as string | undefined
-    const banned  = req.query['banned'] as string | undefined
+    const { page, limit, q, role, banned } = req.query as unknown as z.infer<typeof usersQuerySchema>
 
     const where: Record<string, unknown> = {}
     if (role)   where['role']     = role
@@ -671,14 +673,10 @@ router.get('/users', requireAdmin, async (req, res) => {
 })
 
 /* ── PATCH /api/auth/users/:id/role  [ADMIN] ─────────────────── */
-router.patch('/users/:id/role', requireAdmin, validateParams(zCuidIdParam), async (req, res) => {
+router.patch('/users/:id/role', requireAdmin, validateParams(zCuidIdParam), validate(z.object({ role: z.enum(['admin', 'customer']) })), async (req, res) => {
   try {
     const { id }   = req.params
-    const { role } = req.body
-    if (!['admin', 'customer'].includes(role)) {
-      res.status(400).json({ success: false, message: 'Rôle invalide' })
-      return
-    }
+    const { role } = req.body as { role: 'admin' | 'customer' }
     const user = await prisma.user.update({
       where: { id },
       data: { role },

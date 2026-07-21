@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { requireAdmin } from '../middleware/auth'
-import { validate, validateParams, zCuidIdParam } from '../middleware/validate'
+import { validate, validateParams, validateQuery, zCuidIdParam, zPaginationQuery } from '../middleware/validate'
 import { sendContactReply } from '../lib/mailer'
 
 const router = Router()
@@ -36,11 +36,11 @@ router.post('/', validate(contactSchema), async (req, res) => {
 })
 
 /* ── GET /api/contact  [ADMIN] ─────────────────────────────── */
-router.get('/', requireAdmin, async (req, res) => {
+const contactListQuerySchema = zPaginationQuery.extend({ status: z.string().max(20).optional() })
+
+router.get('/', requireAdmin, validateQuery(contactListQuerySchema), async (req, res) => {
   try {
-    const status = req.query['status'] as string | undefined
-    const page   = parseInt(req.query['page'] as string) || 1
-    const limit  = parseInt(req.query['limit'] as string) || 20
+    const { status, page, limit } = req.query as unknown as z.infer<typeof contactListQuerySchema>
 
     const where = status ? { status } : {}
     const [total, messages] = await Promise.all([
@@ -69,10 +69,9 @@ router.put('/:id/status', requireAdmin, validateParams(zCuidIdParam), async (req
 })
 
 /* ── GET /api/contact/admin/all  [ADMIN] ────────────────────── */
-router.get('/admin/all', requireAdmin, async (req, res) => {
+router.get('/admin/all', requireAdmin, validateQuery(zPaginationQuery), async (req, res) => {
   try {
-    const page  = parseInt(req.query['page'] as string) || 1
-    const limit = parseInt(req.query['limit'] as string) || 20
+    const { page, limit } = req.query as unknown as { page: number; limit: number }
     const [total, messages] = await Promise.all([
       prisma.contactMessage.count(),
       prisma.contactMessage.findMany({ orderBy: { createdAt: 'desc' }, skip: (page - 1) * limit, take: limit }),

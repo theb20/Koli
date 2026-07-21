@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { requireAuth, requireAdmin, optionalAuth } from '../middleware/auth'
-import { validate, validateParams, zCuidIdParam } from '../middleware/validate'
+import { validate, validateParams, validateQuery, zCuidIdParam, zPaginationQuery } from '../middleware/validate'
 import { sendOrderConfirmationEmail, sendOrderStatusEmail, sendNewOrderAdminEmail } from '../lib/mailer'
 import { buildInvoicePdf } from '../lib/invoicePdf'
 import { sendNewOrderWhatsAppNotification } from '../lib/whatsapp/newOrderNotification'
@@ -538,11 +538,14 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
 /* ─────────────────────────────────────────────────────────────
    GET /api/orders  — Mes commandes
 ───────────────────────────────────────────────────────────── */
-router.get('/', requireAuth, async (req, res) => {
+const myOrdersQuerySchema = zPaginationQuery.extend({
+  limit:  z.coerce.number().int().positive().max(100).optional().default(10),
+  status: z.string().max(20).optional(),
+})
+
+router.get('/', requireAuth, validateQuery(myOrdersQuerySchema), async (req, res) => {
   try {
-    const page   = parseInt(req.query['page'] as string) || 1
-    const limit  = parseInt(req.query['limit'] as string) || 10
-    const status = req.query['status'] as string | undefined
+    const { page, limit, status } = req.query as unknown as z.infer<typeof myOrdersQuerySchema>
 
     const where = {
       userId: req.user!.userId,
@@ -580,12 +583,17 @@ router.get('/', requireAuth, async (req, res) => {
    GET /api/orders/admin/all  [ADMIN]
    ⚠️  DOIT être déclaré AVANT /:id pour ne pas être masqué
 ───────────────────────────────────────────────────────────── */
-router.get('/admin/all', requireAdmin, async (req, res) => {
+const ordersAdminQuerySchema = zPaginationQuery.extend({
+  // 200, pas 100 : le dashboard admin (DashboardPage.tsx) charge jusqu'à
+  // 200 commandes pour calculer ses statistiques agrégées.
+  limit:  z.coerce.number().int().positive().max(200).optional().default(20),
+  status: z.string().max(20).optional(),
+  q:      z.string().max(200).optional(),
+})
+
+router.get('/admin/all', requireAdmin, validateQuery(ordersAdminQuerySchema), async (req, res) => {
   try {
-    const page   = parseInt(req.query['page'] as string) || 1
-    const limit  = parseInt(req.query['limit'] as string) || 20
-    const status = req.query['status'] as string | undefined
-    const q      = req.query['q'] as string | undefined
+    const { page, limit, status, q } = req.query as unknown as z.infer<typeof ordersAdminQuerySchema>
 
     const where = {
       ...(status ? { status } : {}),

@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { requireAuth, requireAdmin } from '../middleware/auth'
-import { validate, validateParams, zIntIdParam, zCuidIdParam } from '../middleware/validate'
+import { validate, validateParams, validateQuery, zIntIdParam, zCuidIdParam, zPaginationQuery } from '../middleware/validate'
 
 const router = Router()
 
@@ -14,9 +14,11 @@ const reviewSchema = z.object({
 })
 
 /* ── GET /api/reviews/latest  — derniers avis publics ─────── */
-router.get('/latest', async (req, res) => {
+const latestReviewsQuerySchema = z.object({ limit: z.coerce.number().int().positive().max(20).optional().default(6) })
+
+router.get('/latest', validateQuery(latestReviewsQuerySchema), async (req, res) => {
   try {
-    const limit = Math.min(parseInt(req.query['limit'] as string) || 6, 20)
+    const { limit } = req.query as unknown as z.infer<typeof latestReviewsQuerySchema>
     const reviews = await prisma.review.findMany({
       orderBy: { createdAt: 'desc' },
       take: limit,
@@ -32,11 +34,10 @@ router.get('/latest', async (req, res) => {
 })
 
 /* ── GET /api/reviews/product/:id ─────────────────────────── */
-router.get('/product/:id', validateParams(zIntIdParam), async (req, res) => {
+router.get('/product/:id', validateParams(zIntIdParam), validateQuery(zPaginationQuery), async (req, res) => {
   try {
     const productId = Number(req.params['id'])
-    const page  = parseInt(req.query['page'] as string) || 1
-    const limit = parseInt(req.query['limit'] as string) || 10
+    const { page, limit } = req.query as unknown as { page: number; limit: number }
 
     const [total, reviews, stats] = await Promise.all([
       prisma.review.count({ where: { productId } }),
@@ -184,10 +185,9 @@ router.post('/:id/helpful', validateParams(zCuidIdParam), async (req, res) => {
 })
 
 /* ── GET /api/reviews/admin/all  [ADMIN] ───────────────────── */
-router.get('/admin/all', requireAdmin, async (req, res) => {
+router.get('/admin/all', requireAdmin, validateQuery(zPaginationQuery), async (req, res) => {
   try {
-    const page  = parseInt(req.query['page'] as string) || 1
-    const limit = parseInt(req.query['limit'] as string) || 20
+    const { page, limit } = req.query as unknown as { page: number; limit: number }
     const [total, reviews] = await Promise.all([
       prisma.review.count(),
       prisma.review.findMany({
