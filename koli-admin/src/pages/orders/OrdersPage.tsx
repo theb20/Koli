@@ -9,6 +9,11 @@ import { PageTitle } from '../../components/layout/Sidebar'
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import type { Order, OrderStatus } from '../../types'
 
+// orange/mtn/wave : anciennes valeurs (avant simplification en une seule option "online")
+const PAYMENT_LABELS: Record<string, string> = {
+  online: 'En ligne', orange: 'Orange Money', mtn: 'MTN Money', wave: 'Wave', cash: 'À la livraison',
+}
+
 const STATUSES: { value: string; label: string }[] = [
   { value: '', label: 'Toutes' },
   { value: 'pending', label: 'En attente' },
@@ -106,7 +111,7 @@ export default function OrdersPage() {
                 <tr key={o.id} className="hover:bg-slate-50 transition-colors group">
                   <td className="px-4 py-3">
                     <p className="text-sm font-mono font-semibold text-indigo-600">{o.orderNumber}</p>
-                    <p className="text-xs text-slate-400">{o.paymentMethod}</p>
+                    <p className="text-xs text-slate-400">{PAYMENT_LABELS[o.paymentMethod] ?? o.paymentMethod}</p>
                   </td>
                   <td className="px-4 py-3">
                     <p className="text-sm text-slate-900">{o.clientPrenom} {o.clientNom}</p>

@@ -14,6 +14,12 @@ const ALL_STATUSES: { value: OrderStatus; label: string }[] = [
   { value: 'refunded', label: 'Remboursée' },
 ]
 
+// orange/mtn/wave : anciennes valeurs (avant simplification en une seule option
+// "online" — PayDunya gère le choix de l'opérateur sur sa propre page).
+const PAYMENT_LABELS: Record<string, string> = {
+  online: 'Paiement en ligne (PayDunya)', orange: 'Orange Money', mtn: 'MTN Mobile Money', wave: 'Wave', cash: 'Paiement à la livraison',
+}
+
 const STATUS_ORDER: OrderStatus[] = ['pending', 'confirmed', 'processing', 'shipped', 'delivered']
 
 export default function OrderDetailPage() {
@@ -231,7 +237,7 @@ export default function OrderDetailPage() {
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-slate-500">Méthode</span>
-                <span className="text-slate-900 capitalize">{order.paymentMethod}</span>
+                <span className="text-slate-900">{PAYMENT_LABELS[order.paymentMethod] ?? order.paymentMethod}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Statut</span>

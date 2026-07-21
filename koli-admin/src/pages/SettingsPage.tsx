@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
-import { Save, Bell, Send, AlertTriangle, Phone, Mail, X, Plus, Download, Archive } from 'lucide-react'
+import { Save, Bell, Send, AlertTriangle, Phone, Mail, X, Plus, Download, Archive, Truck } from 'lucide-react'
 import { api } from '../lib/api'
 import { AxiosError } from 'axios'
 import { useAuth } from '../hooks/useAuth'
@@ -34,6 +34,7 @@ type SiteSettings = {
   youtubeUrl?:    string
   tiktokUrl?:     string
   orderNotifyEmails?: string
+  codEnabled:     boolean
 }
 
 export default function SettingsPage() {
@@ -72,6 +73,17 @@ export default function SettingsPage() {
       setSiteSuccess(true)
       setTimeout(() => setSiteSuccess(false), 3000)
     },
+  })
+
+  /* Paiement à la livraison — coupe-circuit indépendant, sauvegardé à part */
+  const [codEnabled, setCodEnabled] = useState(true)
+  useEffect(() => {
+    if (siteSettings) setCodEnabled(siteSettings.codEnabled)
+  }, [siteSettings])
+  const codDirty = !!siteSettings && siteSettings.codEnabled !== codEnabled
+  const codMutation = useMutation({
+    mutationFn: (body: { codEnabled: boolean }) => api.put('/api/settings', body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['site-settings-admin'] }),
   })
 
   /* Destinataires des emails "nouvelle commande" */
@@ -207,6 +219,44 @@ export default function SettingsPage() {
               </Button>
             </div>
           </form>
+        )}
+      </div>
+
+      {/* Paiement à la livraison */}
+      <div className={cardCls}>
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="flex items-start gap-3">
+            <div className={`p-2.5 rounded-xl shrink-0 ${codEnabled ? 'text-green-600 bg-green-50' : 'text-slate-400 bg-slate-100'}`}>
+              <Truck size={16} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-900">Paiement à la livraison</p>
+              <p className="text-xs text-slate-500 mt-0.5 max-w-md">
+                Quand désactivé, seul le paiement en ligne (Orange Money, Wave, MTN Money, carte) est proposé au
+                checkout — l'option "Cash à la livraison" disparaît pour les clients.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setCodEnabled(v => !v)}
+            role="switch"
+            aria-checked={codEnabled}
+            className={`shrink-0 relative w-12 h-7 rounded-full transition-colors ${codEnabled ? 'bg-green-500' : 'bg-slate-300'}`}
+          >
+            <span className={`absolute top-1 left-1 w-5 h-5 rounded-full bg-white shadow transition-transform ${codEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+          </button>
+        </div>
+        {codDirty && (
+          <div className="mt-4 pt-4 border-t border-slate-100 flex justify-end items-center gap-3">
+            {codMutation.isError && <p className="text-red-600 text-sm">{apiErrorMessage(codMutation.error)}</p>}
+            <Button size="sm" loading={codMutation.isPending} icon={<Save size={13} />}
+              onClick={() => codMutation.mutate({ codEnabled })}>
+              Enregistrer
+            </Button>
+          </div>
+        )}
+        {codMutation.isSuccess && !codDirty && (
+          <p className="text-green-600 text-xs mt-3">✓ Enregistré</p>
         )}
       </div>
 
