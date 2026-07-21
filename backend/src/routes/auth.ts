@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'
-import { signAccessToken, signRefreshToken, verifyRefreshToken, signMagicToken, verifyMagicToken, isTokenExpiredError, unsafeDecodeExpiredRefreshToken } from '../lib/jwt'
+import { signAccessToken, signRefreshToken, verifyRefreshToken, isTokenExpiredError, unsafeDecodeExpiredRefreshToken } from '../lib/jwt'
 import { validate, validateParams, zPassword, zCuidIdParam } from '../middleware/validate'
 import { requireAuth, requireAdmin } from '../middleware/auth'
 import { sendWelcomeEmail, sendMagicLinkEmail, sendPasswordResetEmail, sendPasswordChangedEmail } from '../lib/mailer'
@@ -133,8 +133,16 @@ router.post('/register', validate(registerSchema), async (req, res) => {
       // créditer maintenant permettrait de générer des points à volonté avec des emails
       // jetables jamais consultés. Il est crédité dans /magic-link/verify, au premier
       // login réel — seul moment où la possession de l'email est vérifiée.
-      const token = signMagicToken(user.id, user.email)
-      const link  = `${process.env.FRONTEND_URL}/auth/magic?token=${token}&new=1`
+      // Token opaque à usage unique — même motif que resetTokenHash : seul son
+      // hash SHA-256 est stocké, pour qu'une fuite de la base ne permette pas
+      // de rejouer le lien.
+      const rawMagicToken  = crypto.randomBytes(32).toString('hex')
+      const magicTokenHash = crypto.createHash('sha256').update(rawMagicToken).digest('hex')
+      await prisma.user.update({
+        where: { id: user.id },
+        data:  { magicTokenHash, magicTokenExpiresAt: new Date(Date.now() + 15 * 60 * 1000) },
+      })
+      const link = `${process.env.FRONTEND_URL}/auth/magic?token=${rawMagicToken}&new=1`
       sendMagicLinkEmail(user.email, user.prenom, link).catch(err => logger.error('[register magic-link]', err))
 
       res.status(201).json({
@@ -769,8 +777,13 @@ router.post('/magic-link', validate(magicLinkSchema), async (req, res) => {
     const user = await prisma.user.findUnique({ where: { email: normalizedEmail } })
 
     if (user) {
-      const token = signMagicToken(user.id, user.email)
-      const link  = `${process.env.FRONTEND_URL}/auth/magic?token=${token}`
+      const rawMagicToken  = crypto.randomBytes(32).toString('hex')
+      const magicTokenHash = crypto.createHash('sha256').update(rawMagicToken).digest('hex')
+      await prisma.user.update({
+        where: { id: user.id },
+        data:  { magicTokenHash, magicTokenExpiresAt: new Date(Date.now() + 15 * 60 * 1000) },
+      })
+      const link = `${process.env.FRONTEND_URL}/auth/magic?token=${rawMagicToken}`
       sendMagicLinkEmail(user.email, user.prenom, link).catch(err => logger.error('[magic-link email]', err))
     }
 
@@ -790,25 +803,29 @@ const magicLinkVerifySchema = z.object({ token: z.string().min(1, 'Token requis'
 router.post('/magic-link/verify', validate(magicLinkVerifySchema), async (req, res) => {
   try {
     const { token } = req.body as z.infer<typeof magicLinkVerifySchema>
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex')
 
-    let payload: { userId: string; email: string; type: string }
-    try {
-      payload = verifyMagicToken(token)
-    } catch {
-      res.status(401).json({ success: false, message: 'Lien invalide ou expiré' })
+    const candidate = await prisma.user.findUnique({ where: { magicTokenHash: tokenHash } })
+    if (!candidate || !candidate.magicTokenExpiresAt || candidate.magicTokenExpiresAt < new Date()) {
+      res.status(401).json({ success: false, message: 'Lien invalide, expiré ou déjà utilisé.' })
       return
     }
 
-    if (payload.type !== 'magic') {
-      res.status(401).json({ success: false, message: 'Token invalide' })
+    // Consommation atomique à usage unique — la même requête vérifie ET invalide
+    // le lien, pour qu'un rejeu (double-clic, onglet dupliqué, scanner de sécurité
+    // qui pré-visite le lien, email transféré) échoue au deuxième essai. Le garde-fou
+    // "magicTokenHash: tokenHash" au moment de l'update gère aussi la course entre
+    // deux requêtes concurrentes avec le même token : une seule verra count > 0.
+    const consumed = await prisma.user.updateMany({
+      where: { id: candidate.id, magicTokenHash: tokenHash },
+      data:  { magicTokenHash: null, magicTokenExpiresAt: null },
+    })
+    if (consumed.count === 0) {
+      res.status(401).json({ success: false, message: 'Lien invalide, expiré ou déjà utilisé.' })
       return
     }
 
-    const user = await prisma.user.findUnique({ where: { id: payload.userId } })
-    if (!user) {
-      res.status(401).json({ success: false, message: 'Compte introuvable' })
-      return
-    }
+    const user = candidate
 
     if (user.naissance && getAge(user.naissance) < MIN_AGE) {
       res.status(403).json({ success: false, message: `L'accès est réservé aux personnes de ${MIN_AGE} ans et plus` })

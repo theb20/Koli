@@ -53,17 +53,3 @@ export function unsafeDecodeExpiredRefreshToken(token: string): string | null {
   const decoded = jwt.decode(token) as { userId?: string } | null
   return decoded?.userId ?? null
 }
-
-/** Génère un magic-link token (15 min) */
-export function signMagicToken(userId: string, email: string): string {
-  return jwt.sign(
-    { userId, email, type: 'magic' },
-    SECRET + '_magic',
-    { expiresIn: '15m' } as jwt.SignOptions,
-  )
-}
-
-/** Vérifie un magic-link token */
-export function verifyMagicToken(token: string): { userId: string; email: string; type: string } {
-  return jwt.verify(token, SECRET + '_magic') as { userId: string; email: string; type: string }
-}

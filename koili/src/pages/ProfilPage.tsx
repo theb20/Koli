@@ -407,9 +407,11 @@ function TabProfil({ avatar, setAvatar, orders, profile }: {
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Award size={18} className="text-yellow-500" />
-            <span className="font-bold text-gray-900">Programme Fidélité Koli</span>
+            <span className="font-bold text-gray-900">Programme Fidélité Skignas</span>
           </div>
-          <span className="text-sm font-bold text-yellow-600 bg-yellow-100 px-2.5 py-1 rounded-full">{loyaltyPts} / 200 pts</span>
+          <span className="text-sm font-bold text-yellow-600 bg-yellow-100 px-2.5 py-1 rounded-full">
+            {loyaltyPts >= 200 ? `${loyaltyPts.toLocaleString('fr-FR')} pts` : `${loyaltyPts} / 200 pts`}
+          </span>
         </div>
         <div className="h-2.5 rounded-full bg-yellow-100 overflow-hidden mb-2">
           <motion.div className="h-full rounded-full bg-gradient-to-r from-yellow-400 to-orange-400"

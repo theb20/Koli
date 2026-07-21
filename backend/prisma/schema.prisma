@@ -26,6 +26,8 @@ model User {
   referredById           String?
   resetTokenHash         String?            @unique
   resetTokenExpiresAt    DateTime?
+  magicTokenHash         String?            @unique
+  magicTokenExpiresAt    DateTime?
   createdAt              DateTime           @default(now())
   updatedAt              DateTime           @updatedAt
   addresses              Address[]
