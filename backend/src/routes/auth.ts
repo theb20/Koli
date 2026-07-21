@@ -11,6 +11,7 @@ import { ALLOWED_ORIGINS } from '../lib/allowedOrigins'
 import { getAge, MIN_AGE } from '../lib/age'
 import { logger } from '../lib/logger'
 import { logAdminAction } from '../lib/auditLog'
+import { findReferrer, awardReferralBonus } from './referral'
 
 const router = Router()
 
@@ -23,6 +24,7 @@ const registerSchema = z.object({
   password:  zPassword.optional(),   // optionnel — inscription sans mot de passe
   telephone: z.string().optional(),
   naissance: z.coerce.date({ required_error: 'Date de naissance requise', invalid_type_error: 'Date de naissance invalide' }),
+  referralCode: z.string().trim().max(50).optional(),
 }).refine(d => getAge(d.naissance) >= MIN_AGE, {
   message: `Vous devez avoir au moins ${MIN_AGE} ans pour créer un compte`,
   path: ['naissance'],
@@ -105,7 +107,7 @@ function clearAuthCookies(res: import('express').Response) {
 ───────────────────────────────────────────────────────────── */
 router.post('/register', validate(registerSchema), async (req, res) => {
   try {
-    const { prenom, nom, email, telephone, naissance } = req.body as z.infer<typeof registerSchema>
+    const { prenom, nom, email, telephone, naissance, referralCode } = req.body as z.infer<typeof registerSchema>
     const rawPassword: string | undefined = req.body.password
 
     const exists = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } })
@@ -114,13 +116,17 @@ router.post('/register', validate(registerSchema), async (req, res) => {
       return
     }
 
+    const referrer = await findReferrer(referralCode)
+
     // Mot de passe : fourni ou aléatoire (inscription sans mot de passe)
     const passwordToHash = rawPassword ?? crypto.randomBytes(32).toString('hex')
     const hashed = await bcrypt.hash(passwordToHash, 12)
 
     const user = await prisma.user.create({
-      data: { prenom, nom, email: email.toLowerCase().trim(), password: hashed, telephone, naissance },
+      data: { prenom, nom, email: email.toLowerCase().trim(), password: hashed, telephone, naissance, referredById: referrer?.id },
     })
+
+    if (referrer) await awardReferralBonus(referrer.id, `${prenom} ${nom}`)
 
     /* ── Mode sans mot de passe : envoyer un magic link ── */
     if (!rawPassword) {
@@ -514,6 +520,7 @@ router.post('/google', async (req, res) => {
       nom:         z.string().min(1),
       avatar:      z.string().url().nullable().optional(),
       firebaseUid: z.string().min(1),
+      referralCode: z.string().trim().max(50).optional(),
     })
     const body = schema.parse(req.body)
     const normalizedEmail = body.email.toLowerCase().trim()
@@ -523,6 +530,7 @@ router.post('/google', async (req, res) => {
 
     if (!user) {
       // Créer un nouveau compte (pas de mot de passe pour les comptes Google)
+      const referrer = await findReferrer(body.referralCode)
       user = await prisma.user.create({
         data: {
           email:      normalizedEmail,
@@ -531,8 +539,10 @@ router.post('/google', async (req, res) => {
           avatar:     body.avatar ?? null,
           password:   '',          // compte Google — pas de mot de passe local
           isVerified: true,        // email vérifié par Google
+          referredById: referrer?.id,
         },
       })
+      if (referrer) await awardReferralBonus(referrer.id, `${body.prenom} ${body.nom}`)
       // Email de bienvenue
       sendWelcomeEmail(user.email, user.prenom).catch(() => {})
     } else {

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Mail, User, Calendar, ArrowRight, Check, Loader2, AlertCircle, CheckCircle } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { Mail, User, Calendar, ArrowRight, Check, Loader2, AlertCircle, CheckCircle, Gift } from 'lucide-react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import Button from '../components/ui/btnStyle'
 import CardUniverse from '../components/ui/Card-universe'
 import { PageMeta } from '../components/seo/PageMeta'
@@ -36,10 +36,12 @@ function computeAge(dateStr: string): number {
 export default function SignupPage() {
   const navigate = useNavigate()
   const { loginWithGoogle } = useAuth()
+  const [searchParams] = useSearchParams()
 
-  const [nomComplet, setNomComplet] = useState('')
-  const [email,      setEmail]      = useState('')
-  const [naissance,  setNaissance]  = useState('')
+  const [nomComplet,   setNomComplet]   = useState('')
+  const [email,        setEmail]        = useState('')
+  const [naissance,    setNaissance]    = useState('')
+  const [referralCode, setReferralCode] = useState(searchParams.get('ref') ?? '')
   const [agreed,     setAgreed]     = useState(false)
   const [error,      setError]      = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -73,7 +75,10 @@ export default function SignupPage() {
         method:      'POST',
         credentials: 'include',
         headers:     { 'Content-Type': 'application/json' },
-        body:        JSON.stringify({ prenom, nom, email: email.trim().toLowerCase(), naissance }),
+        body:        JSON.stringify({
+          prenom, nom, email: email.trim().toLowerCase(), naissance,
+          referralCode: referralCode.trim() || undefined,
+        }),
       })
       const data = await res.json()
 
@@ -100,7 +105,7 @@ export default function SignupPage() {
       // Passe par AuthContext (pas de localStorage direct ici) — met à jour
       // le state React ET la persistance en un seul endroit, cohérent avec
       // Login.tsx.
-      const { needsBirthdate } = await loginWithGoogle()
+      const { needsBirthdate } = await loginWithGoogle(referralCode.trim() || undefined)
       navigate(needsBirthdate ? '/completer-naissance' : '/profil')
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : ''
@@ -322,6 +327,24 @@ export default function SignupPage() {
                     />
                   </div>
                   <p className="mt-1.5 text-[11px] text-white/30">Vous devez avoir 18 ans ou plus pour créer un compte.</p>
+                </motion.div>
+
+                {/* Code de parrainage (optionnel) */}
+                <motion.div {...fadeUp(0.43)}>
+                  <label className="mb-2 block text-[11px] font-medium uppercase tracking-widest text-white/40">
+                    Code de parrainage <span className="normal-case text-white/25">(optionnel)</span>
+                  </label>
+                  <div className="group flex items-center rounded-2xl border border-white/[0.08] bg-white/[0.04] px-4 transition-all focus-within:border-violet-500/50 focus-within:bg-white/[0.07] hover:border-white/[0.14]">
+                    <Gift className="h-4 w-4 shrink-0 text-white/30 transition-colors group-focus-within:text-violet-400" />
+                    <input
+                      type="text"
+                      value={referralCode}
+                      onChange={e => setReferralCode(e.target.value)}
+                      placeholder="SKIGNAS-XXXXXX"
+                      disabled={busy}
+                      className="w-full bg-transparent px-3 py-[14px] text-sm outline-none placeholder:text-white/30 disabled:opacity-50 uppercase"
+                    />
+                  </div>
                 </motion.div>
 
                 {/* CGU */}

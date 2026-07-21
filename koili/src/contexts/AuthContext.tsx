@@ -25,7 +25,7 @@ type AuthContextValue = {
   authError: string | null
   login: (email: string, password: string) => Promise<void>
   register: (data: RegisterData) => Promise<void>
-  loginWithGoogle: () => Promise<{ needsBirthdate: boolean }>
+  loginWithGoogle: (referralCode?: string) => Promise<{ needsBirthdate: boolean }>
   loginWithMagicToken: (token: string) => Promise<{ needsBirthdate: boolean }>
   completeBirthdate: (naissance: string) => Promise<void>
   logout: () => void
@@ -121,7 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   /* ── Google popup ────────────────────────────────────────── */
-  const loginWithGoogle = useCallback(async () => {
+  const loginWithGoogle = useCallback(async (referralCode?: string) => {
     setIsLoading(true)
     setAuthError(null)
     try {
@@ -140,6 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           nom,
           avatar:      fbUser.photoURL,
           firebaseUid: fbUser.uid,
+          referralCode: referralCode?.trim() || undefined,
         }),
       })
 

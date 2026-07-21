@@ -1279,10 +1279,11 @@ function TabFidelite() {
     id: string; type: string; points: number; note: string | null; createdAt: string
   }[]
   const code   = referralData?.data?.code ?? '…'
+  const referralLink = `${window.location.origin}/register?ref=${code}`
   const lists  = (listsData?.data?.lists ?? []) as { id: string; title: string; slug: string; items: unknown[] }[]
 
   const handleCopy = () => {
-    navigator.clipboard?.writeText(code)
+    navigator.clipboard?.writeText(referralLink)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -1335,14 +1336,14 @@ function TabFidelite() {
       {/* Parrainage */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5">
         <h3 className="text-sm font-bold text-gray-900 mb-1">🎁 Parrainez et gagnez</h3>
-        <p className="text-xs text-gray-500 mb-4">Partagez votre code. Pour chaque ami inscrit, vous gagnez 200 pts bonus.</p>
+        <p className="text-xs text-gray-500 mb-4">Partagez votre lien. Pour chaque ami inscrit, vous gagnez 200 pts bonus.</p>
         <div className="flex items-center gap-3">
-          <div className="flex-1 bg-gray-50 rounded-xl px-4 py-3 font-mono text-sm font-bold text-gray-900 border border-gray-200">
+          <div className="flex-1 bg-gray-50 rounded-xl px-4 py-3 font-mono text-sm font-bold text-gray-900 border border-gray-200 truncate">
             {code}
           </div>
           <button onClick={handleCopy}
-            className={`px-4 py-3 rounded-xl text-sm font-bold transition-all ${copied ? 'bg-emerald-500 text-white' : 'bg-gray-900 text-white hover:bg-gray-700'}`}>
-            {copied ? '✓ Copié !' : 'Copier'}
+            className={`shrink-0 px-4 py-3 rounded-xl text-sm font-bold transition-all ${copied ? 'bg-emerald-500 text-white' : 'bg-gray-900 text-white hover:bg-gray-700'}`}>
+            {copied ? '✓ Lien copié !' : 'Copier le lien'}
           </button>
         </div>
         <p className="text-xs text-gray-400 mt-2">{referralData?.data?.referrals ?? 0} ami(s) parrainé(s)</p>
