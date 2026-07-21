@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/node'
+import { expressErrorHandler } from '@appsignal/nodejs'
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
@@ -208,11 +209,12 @@ app.use((_req, res) => {
   res.status(404).json({ success: false, message: 'Route introuvable' })
 })
 
-/* ── Sentry — filet pour les erreurs qui remontent jusqu'à Express (la
-   plupart des routes les attrapent déjà localement via logger.error, voir
-   lib/logger.ts) — doit être enregistré après toutes les routes, avant le
-   handler d'erreur générique ci-dessous. */
+/* ── Sentry + AppSignal — filets pour les erreurs qui remontent jusqu'à
+   Express (la plupart des routes les attrapent déjà localement via
+   logger.error, voir lib/logger.ts) — doivent être enregistrés après
+   toutes les routes, avant le handler d'erreur générique ci-dessous. */
 Sentry.setupExpressErrorHandler(app)
+app.use(expressErrorHandler())
 
 /* ── Error handler global ───────────────────────────────────── */
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

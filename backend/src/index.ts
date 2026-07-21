@@ -1,4 +1,5 @@
 import 'dotenv/config'
+import './appsignal'
 import './instrument'
 import app from './app'
 import { prisma } from './lib/prisma'
