@@ -1,3 +1,5 @@
+import * as Sentry from '@sentry/node'
+
 /**
  * Logger centralisé — remplace console.* pour les logs serveur.
  *
@@ -9,8 +11,11 @@
  * (utile côté serveur), jamais renvoyée au client par ailleurs (voir le
  * handler d'erreur global dans app.ts, qui ne répond qu'un message générique).
  *
- * Point d'accroche unique si un service de logs externe (Sentry, etc.)
- * remplace un jour console.* — un seul fichier à modifier.
+ * logger.error() remonte aussi vers Sentry (si SENTRY_DSN est configuré) —
+ * la quasi-totalité des routes attrapent leurs erreurs localement (try/catch
+ * + réponse générique) plutôt que de les laisser remonter à Express, donc le
+ * handler d'erreur automatique de Sentry ne verrait presque rien tout seul.
+ * C'est ici, au même endroit que le reste du logging, que ça se branche.
  */
 
 const SENSITIVE_KEY_RE =
@@ -44,5 +49,12 @@ export const logger = {
   },
   error(...args: unknown[]): void {
     console.error(...args.map(a => redact(a)))
+
+    const err = args.find((a): a is Error => a instanceof Error)
+    if (err) {
+      Sentry.captureException(err)
+    } else {
+      Sentry.captureMessage(args.map(a => (typeof a === 'string' ? a : JSON.stringify(a))).join(' '), 'error')
+    }
   },
 }

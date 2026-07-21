@@ -1,4 +1,5 @@
 import 'dotenv/config'
+import './instrument'
 import app from './app'
 import { prisma } from './lib/prisma'
 import { processDueDealAnnouncements } from './lib/dealAnnouncements'
