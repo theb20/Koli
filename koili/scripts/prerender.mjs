@@ -12,7 +12,7 @@
  */
 import { chromium } from 'playwright'
 import { preview } from 'vite'
-import { writeFileSync, mkdirSync } from 'node:fs'
+import { writeFileSync, mkdirSync, copyFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -60,6 +60,16 @@ function dedupeHead(html) {
 }
 
 async function main() {
+  // Le fallback SPA générique (firebase.json → rewrite catch-all) doit pointer
+  // vers CE fichier, pas vers index.html : une fois le pré-rendu de "/" ci-dessous
+  // écrit dans index.html, ce fichier devient spécifique à la page d'accueil
+  // (son <title>, son og:image...). Sans cette copie préalable, TOUTE route
+  // dynamique non pré-rendue (fiche produit /catalogue/:id, /profil, /panier...)
+  // hériterait du <title>/og:image de la page d'accueil au lieu d'un fallback
+  // neutre — exactement le bug observé (partage d'un produit → aperçu de la
+  // page d'accueil au lieu du produit).
+  copyFileSync(join(DIST, 'index.html'), join(DIST, '200.html'))
+
   const server = await preview({ preview: { port: 4173, host: '127.0.0.1' } })
   const base = `http://127.0.0.1:${server.config.preview.port}`
 
