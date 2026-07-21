@@ -1,11 +1,12 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma'
 import { cacheControl } from '../middleware/cache'
+import { memoryCache } from '../middleware/memoryCache'
 
 const router = Router()
 
 /* GET /api/flash — produits en vente flash actives */
-router.get('/', cacheControl(20), async (_req, res) => {
+router.get('/', cacheControl(20), memoryCache(20), async (_req, res) => {
   try {
     const now = new Date()
     const products = await prisma.product.findMany({

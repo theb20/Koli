@@ -8,6 +8,7 @@ import { prisma } from '../lib/prisma'
 import { requireAdmin } from '../middleware/auth'
 import { validate, validateParams, zIntIdParam } from '../middleware/validate'
 import { cacheControl } from '../middleware/cache'
+import { memoryCache } from '../middleware/memoryCache'
 import { getBackendUrl } from '../lib/backendUrl'
 import { deleteLocalUpload } from '../lib/deleteLocalUpload'
 import { toWebp } from '../lib/imageProcessing'
@@ -59,7 +60,7 @@ const categorySchema = z.object({
 /* ─────────────────────────────────────────────────────────────
    GET /api/categories — public, catégories actives triées
 ───────────────────────────────────────────────────────────── */
-router.get('/', cacheControl(300), async (_req, res) => {
+router.get('/', cacheControl(300), memoryCache(300), async (_req, res) => {
   try {
     const categories = await prisma.category.findMany({
       where: { isActive: true },

@@ -7,6 +7,7 @@ import { prisma } from '../lib/prisma'
 import { requireAdmin } from '../middleware/auth'
 import { validate } from '../middleware/validate'
 import { cacheControl } from '../middleware/cache'
+import { memoryCache } from '../middleware/memoryCache'
 import { logger } from '../lib/logger'
 
 const router = Router()
@@ -49,7 +50,7 @@ const PUBLIC_FIELDS = [
 ] as const
 
 /* ── GET /api/settings  — public (consommé par le site client) ── */
-router.get('/', cacheControl(300), async (_req, res) => {
+router.get('/', cacheControl(300), memoryCache(300), async (_req, res) => {
   try {
     const settings = await prisma.siteSettings.upsert({
       where:  { id: 1 },

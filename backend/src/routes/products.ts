@@ -10,6 +10,7 @@ import { prisma } from '../lib/prisma'
 import { requireAdmin, optionalAuth, requireApiKey } from '../middleware/auth'
 import { validate, validateParams, zIntIdParam } from '../middleware/validate'
 import { cacheControl } from '../middleware/cache'
+import { memoryCache } from '../middleware/memoryCache'
 import { rehostImages } from '../lib/rehostImage'
 import { getBackendUrl } from '../lib/backendUrl'
 import { deleteLocalUpload } from '../lib/deleteLocalUpload'
@@ -81,7 +82,7 @@ const createProductSchemaChecked = createProductSchema.superRefine((d, ctx) => {
 /* ─────────────────────────────────────────────────────────────
    GET /api/products
 ───────────────────────────────────────────────────────────── */
-router.get('/', optionalAuth, cacheControl(30), async (req, res) => {
+router.get('/', optionalAuth, cacheControl(30), memoryCache(30), async (req, res) => {
   try {
     const query = listQuerySchema.parse(req.query)
     const { page, limit, category, q, sort, minPrice, maxPrice, badge, inStock, storeId, hasSale } = query
@@ -156,7 +157,7 @@ router.get('/', optionalAuth, cacheControl(30), async (req, res) => {
 /* ─────────────────────────────────────────────────────────────
    GET /api/products/featured   — produits mis en avant (homepage)
 ───────────────────────────────────────────────────────────── */
-router.get('/featured', cacheControl(60), async (_req, res) => {
+router.get('/featured', cacheControl(60), memoryCache(60), async (_req, res) => {
   try {
     const [hot, newItems, topRated] = await Promise.all([
       prisma.product.findMany({
@@ -299,7 +300,7 @@ router.post('/sync-merchant', requireAdmin, async (_req, res) => {
 /* ─────────────────────────────────────────────────────────────
    GET /api/products/:id
 ───────────────────────────────────────────────────────────── */
-router.get('/:id', optionalAuth, cacheControl(20), validateParams(zIntIdParam), async (req, res) => {
+router.get('/:id', optionalAuth, cacheControl(20), memoryCache(20, { varyByAuth: true }), validateParams(zIntIdParam), async (req, res) => {
   try {
     const id = Number(req.params['id'])
 

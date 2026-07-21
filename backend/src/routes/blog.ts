@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma'
 import { requireAdmin } from '../middleware/auth'
 import { validate, validateParams, validateQuery, zIntIdParam, zSlugParam, zPaginationQuery } from '../middleware/validate'
 import { cacheControl } from '../middleware/cache'
+import { memoryCache } from '../middleware/memoryCache'
 
 const router = Router()
 
@@ -22,7 +23,7 @@ const blogSchema = z.object({
 })
 
 /* ── GET /api/blog ──────────────────────────────────────────── */
-router.get('/', cacheControl(60), async (req, res) => {
+router.get('/', cacheControl(60), memoryCache(60), async (req, res) => {
   try {
     const page     = Math.max(1, parseInt(req.query['page'] as string) || 1)
     const limit    = Math.min(50, Math.max(1, parseInt(req.query['limit'] as string) || 9))

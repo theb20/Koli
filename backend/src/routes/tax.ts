@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma'
 import { requireAdmin } from '../middleware/auth'
 import { validate, validateParams, zCuidIdParam } from '../middleware/validate'
 import { cacheControl } from '../middleware/cache'
+import { memoryCache } from '../middleware/memoryCache'
 
 const router = Router()
 
@@ -15,7 +16,7 @@ const taxSchema = z.object({
 })
 
 /* ── GET /api/tax  — liste publique (pour le checkout) ───── */
-router.get('/', cacheControl(300), async (_req, res) => {
+router.get('/', cacheControl(300), memoryCache(300), async (_req, res) => {
   try {
     const taxes = await prisma.taxRate.findMany({
       where: { isActive: true },
@@ -28,7 +29,7 @@ router.get('/', cacheControl(300), async (_req, res) => {
 })
 
 /* ── GET /api/tax/default  — taux actif par défaut ────────── */
-router.get('/default', cacheControl(300), async (_req, res) => {
+router.get('/default', cacheControl(300), memoryCache(300), async (_req, res) => {
   try {
     const tax = await prisma.taxRate.findFirst({
       where: { isDefault: true, isActive: true },
