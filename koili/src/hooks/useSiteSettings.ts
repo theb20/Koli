@@ -11,6 +11,7 @@ export type SiteSettings = {
   instagramUrl?:  string | null
   youtubeUrl?:    string | null
   tiktokUrl?:     string | null
+  codEnabled:     boolean
 }
 
 /** Valeurs de repli si l'API est indisponible — évite un site cassé. */
@@ -20,6 +21,7 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   supportEmail:   'support@skignas.com',
   contactEmail:   'hello@skignas.com',
   address:        "Cocody, Abidjan - Côte d'Ivoire",
+  codEnabled:     true,
 }
 
 /** Numéro WhatsApp → lien wa.me, avec message pré-rempli optionnel. */

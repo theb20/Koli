@@ -308,7 +308,7 @@ export async function createOrder(
     clientEmail: string; clientTelephone: string
     deliveryMethod: 'standard' | 'express'
     shippingAddress: { ville: string; quartier?: string; adresse: string; instructions?: string }
-    paymentMethod: 'orange' | 'mtn' | 'wave' | 'cash'
+    paymentMethod: 'online' | 'cash'
     items: { productId: number; qty: number; color?: string }[]
     promoCode?: string
     notes?: string

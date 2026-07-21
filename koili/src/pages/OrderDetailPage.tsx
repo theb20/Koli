@@ -50,8 +50,11 @@ type Order = {
   trackingNumber?: string; estimatedDelivery?: string
 }
 
+// orange/mtn/wave : anciennes valeurs, conservées pour l'affichage des commandes
+// passées avant la simplification en une seule option "online" (PayDunya gère
+// le choix de l'opérateur sur sa propre page).
 const PAYMENT_LABELS: Record<string, string> = {
-  orange: 'Orange Money', mtn: 'MTN Mobile Money', wave: 'Wave', cash: 'Paiement à la livraison',
+  online: 'Paiement en ligne', orange: 'Orange Money', mtn: 'MTN Mobile Money', wave: 'Wave', cash: 'Paiement à la livraison',
 }
 
 function mapOrder(o: ApiOrder): Order {

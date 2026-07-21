@@ -15,7 +15,6 @@ import { createOrder, fetchPromo, fetchProducts, fetchProduct, mapApiProduct, fe
 import { useSiteSettings, waLink, telLink } from '../hooks/useSiteSettings'
 import { PageMeta } from '../components/seo/PageMeta'
 import { VILLES_CI } from '../constants/villesCI'
-import { PaymentNoticeModal } from '../components/ui/PaymentNoticeModal'
 
 /* ═══════════════════════════════════════════════════════════════
    TYPES & CONSTANTES
@@ -28,7 +27,7 @@ type DeliveryInfo = {
   methode: 'standard' | 'express'
 }
 
-type PaymentMethod = 'orange' | 'wave' | 'mtn' | 'cash'
+type PaymentMethod = 'online' | 'cash'
 
 const SHIPPING_FREE   = 25_000  // 25 000 FCFA
 const SHIPPING_STD    = 1_500   // 1 500 FCFA
@@ -44,17 +43,17 @@ const STEPS_LIST: { id: Step; label: string; icon: string }[] = [
 const STEP_ORDER: Step[] = ['cart', 'livraison', 'paiement', 'confirmation', 'succes']
 
 const PAYMENT_OPTIONS = [
-  { id: 'orange' as PaymentMethod, label: 'Orange Money',        desc: 'Paiement mobile sécurisé', logo: 'https://www.wakatsera.com/wp-content/uploads/2018/09/logo-Orange.png',   bg: 'bg-orange-50', border: 'border-orange-300', ring: 'ring-orange-200', badge: 'text-orange-700 bg-orange-100' },
-  { id: 'wave'   as PaymentMethod, label: 'Wave',                desc: 'Transfert instantané',     logo: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQm9rYPURKIok7K0ZF22oqFgMbzIHgNCauVQA&s',     bg: 'bg-blue-50',   border: 'border-blue-300',   ring: 'ring-blue-200',   badge: 'text-blue-700 bg-blue-100'   },
-  { id: 'mtn'    as PaymentMethod, label: 'MTN Mobile Money',    desc: 'Paiement MoMo fiable',     logo: 'https://portal.powertec.com.au/sites/default/files/styles/scale_square/public/2023-11/MTN-logo.jpg.webp?itok=IMHSWZxT',      bg: 'bg-yellow-50', border: 'border-yellow-300', ring: 'ring-yellow-200', badge: 'text-yellow-700 bg-yellow-100' },
-  { id: 'cash'   as PaymentMethod, 
-    label: 'Cash à la livraison', 
-    desc: 'Payer à réception',        
-    logo: 'https://png.pngtree.com/png-clipart/20210606/original/pngtree-cash-on-delivery-illustration-png-image_6376752.jpg', 
-    bg: 'bg-green-50',  
-    border: 'border-green-300',  
-    ring: 'ring-green-200',  
-    badge: 'text-green-700 bg-green-100'  
+  { id: 'online' as PaymentMethod,
+    label: 'Payer en ligne',
+    desc:  'Orange Money, Wave, MTN Money ou carte bancaire',
+    logo:  null as string | null,
+    bg: 'bg-blue-50', border: 'border-blue-300', ring: 'ring-blue-200', badge: 'text-blue-700 bg-blue-100',
+  },
+  { id: 'cash' as PaymentMethod,
+    label: 'Cash à la livraison',
+    desc:  'Payer à réception',
+    logo:  'https://png.pngtree.com/png-clipart/20210606/original/pngtree-cash-on-delivery-illustration-png-image_6376752.jpg' as string | null,
+    bg: 'bg-green-50', border: 'border-green-300', ring: 'ring-green-200', badge: 'text-green-700 bg-green-100',
   },
 ]
 
@@ -915,6 +914,8 @@ function StepPaiement({ selected, onSelect, onNext, onBack }: {
   onNext: () => void; onBack: () => void
 }) {
   const [noSelect, setNoSelect] = useState(false)
+  const settings = useSiteSettings()
+  const options = settings.codEnabled ? PAYMENT_OPTIONS : PAYMENT_OPTIONS.filter(o => o.id !== 'cash')
 
   const handleNext = () => {
     if (!selected) { setNoSelect(true); return }
@@ -923,16 +924,13 @@ function StepPaiement({ selected, onSelect, onNext, onBack }: {
 
   return (
     <div className="space-y-4">
-      {/* Info paiement manuel — uniquement sur cette étape, 1x/24h */}
-      <PaymentNoticeModal />
-
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
         <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
           <CreditCard size={15} className="text-blue-500" /> Choisissez votre mode de paiement
         </h3>
 
         <div className="space-y-3">
-          {PAYMENT_OPTIONS.map(opt => (
+          {options.map(opt => (
             <button key={opt.id} onClick={() => { onSelect(opt.id); setNoSelect(false) }}
               className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${
                 selected === opt.id
@@ -943,7 +941,9 @@ function StepPaiement({ selected, onSelect, onNext, onBack }: {
               <div className="w-11 h-11 rounded-xl bg-white border border-gray-100 shadow-sm flex items-center justify-center shrink-0 overflow-hidden p-1.5">
                 {opt.logo
                   ? <img src={opt.logo} alt={opt.label} className="w-full h-full object-contain" />
-                  : <Banknote size={22} className="text-green-600" />
+                  : opt.id === 'cash'
+                    ? <Banknote size={22} className="text-green-600" />
+                    : <CreditCard size={22} className="text-blue-600" />
                 }
               </div>
               {/* Label */}
@@ -991,7 +991,7 @@ function StepPaiement({ selected, onSelect, onNext, onBack }: {
                 <p className="text-sm font-bold mb-2 flex items-center gap-2">
                   <Smartphone size={14} />
                   {PAYMENT_OPTIONS.find(p=>p.id===selected)?.logo && (
-                    <img src={PAYMENT_OPTIONS.find(p=>p.id===selected)!.logo} alt="" className="w-4 h-4 object-contain" />
+                    <img src={PAYMENT_OPTIONS.find(p=>p.id===selected)!.logo ?? undefined} alt="" className="w-4 h-4 object-contain" />
                   )}
                   Paiement {PAYMENT_OPTIONS.find(p=>p.id===selected)?.label}
                 </p>
@@ -1087,7 +1087,9 @@ function StepConfirmation({ items, delivery, paymentMethod, totalPrice, promoDis
           <div className="w-10 h-10 rounded-xl bg-white border border-gray-100 shadow-sm flex items-center justify-center shrink-0 overflow-hidden p-1.5">
             {pm.logo
               ? <img src={pm.logo} alt={pm.label} className="w-full h-full object-contain" />
-              : <Banknote size={20} className="text-green-600" />
+              : pm.id === 'cash'
+                ? <Banknote size={20} className="text-green-600" />
+                : <CreditCard size={20} className="text-blue-600" />
             }
           </div>
           <div>
