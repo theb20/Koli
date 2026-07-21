@@ -11,6 +11,7 @@ import { sendNewProductRequestAdminEmail, sendProductRequestReplyEmail } from '.
 import { getBackendUrl } from '../lib/backendUrl'
 import { toWebp } from '../lib/imageProcessing'
 import { logger } from '../lib/logger'
+import { scanFiles } from '../lib/virusScan'
 
 const router = Router()
 
@@ -84,6 +85,13 @@ router.post('/upload-images', handleImageUpload, async (req, res) => {
       res.status(400).json({ success: false, message: 'Aucun fichier reçu' })
       return
     }
+
+    const scan = await scanFiles(files)
+    if (!scan.clean) {
+      res.status(400).json({ success: false, message: `Fichier refusé — contenu malveillant détecté (${scan.reason})` })
+      return
+    }
+
     const BASE_URL = getBackendUrl()
     const urls = await Promise.all(files.map(async f => {
       const webp = await toWebp(f.buffer)

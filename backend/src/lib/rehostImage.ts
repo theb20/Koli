@@ -4,6 +4,7 @@ import net from 'net'
 import dns from 'dns/promises'
 import { toWebp } from './imageProcessing'
 import { logger } from './logger'
+import { scanBuffer } from './virusScan'
 
 const UPLOAD_DIR    = process.env.UPLOAD_DIR ?? './uploads'
 const PRODUCTS_DIR  = path.resolve(UPLOAD_DIR, 'products')
@@ -122,6 +123,12 @@ export async function rehostImage(sourceUrl: string, backendBaseUrl: string): Pr
     }
     const buf = Buffer.concat(chunks.map(c => Buffer.from(c)))
     if (buf.length === 0) return sourceUrl
+
+    const scan = await scanBuffer(buf, currentUrl.pathname.split('/').pop() || 'image')
+    if (!scan.clean) {
+      logger.error('[rehostImage] fichier malveillant détecté, non rehébergé', sourceUrl, scan.reason)
+      return sourceUrl // dégradé : garde le lien externe plutôt que d'héberger le fichier détecté
+    }
 
     const webp = await toWebp(buf)
     const filename = `prod-${Date.now()}-${Math.random().toString(36).slice(2)}.webp`

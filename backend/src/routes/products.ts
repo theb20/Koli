@@ -16,6 +16,7 @@ import { deleteLocalUpload } from '../lib/deleteLocalUpload'
 import { syncAllProductsToMerchant, isMerchantConfigured } from '../lib/merchantFeed'
 import { logger } from '../lib/logger'
 import { logAdminAction } from '../lib/auditLog'
+import { scanBuffer } from '../lib/virusScan'
 
 const router = Router()
 
@@ -230,6 +231,8 @@ router.post('/restore-images', requireAdmin, restoreUpload.array('images', 50), 
     const rejected: string[] = []
     for (const f of files) {
       if (!SAFE_PRODUCT_FILENAME.test(f.originalname)) { rejected.push(f.originalname); continue }
+      const scan = await scanBuffer(f.buffer, f.originalname)
+      if (!scan.clean) { rejected.push(f.originalname); continue }
       fs.writeFileSync(path.join(dir, f.originalname), f.buffer)
       written.push(f.originalname)
     }
@@ -510,6 +513,13 @@ function validateBulkImportRows(records: Record<string, string>[], categoryIdByS
 router.post('/bulk-import/preview', requireAdmin, csvUpload.single('file'), async (req, res) => {
   try {
     if (!req.file) { res.status(400).json({ success: false, message: 'Aucun fichier reçu' }); return }
+
+    const scan = await scanBuffer(req.file.buffer, req.file.originalname)
+    if (!scan.clean) {
+      res.status(400).json({ success: false, message: `Fichier refusé — contenu malveillant détecté (${scan.reason})` })
+      return
+    }
+
     const isXlsx = /\.xlsx$/i.test(req.file.originalname)
 
     let records: Record<string, string>[]

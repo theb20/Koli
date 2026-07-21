@@ -13,6 +13,7 @@ import { deleteLocalUpload } from '../lib/deleteLocalUpload'
 import { toWebp } from '../lib/imageProcessing'
 import { logger } from '../lib/logger'
 import { logAdminAction } from '../lib/auditLog'
+import { scanBuffer } from '../lib/virusScan'
 
 /* ── Multer — buffer en mémoire, converti en WebP avant écriture ── */
 const catUploadDir = path.resolve(process.env.UPLOAD_DIR ?? './uploads', 'cat')
@@ -200,6 +201,12 @@ router.post('/:id/image', requireAdmin, validateParams(zIntIdParam), handleCatIm
   try {
     const id = Number(req.params['id'])
     if (!req.file) { res.status(400).json({ success: false, message: 'Aucun fichier reçu' }); return }
+
+    const scan = await scanBuffer(req.file.buffer, req.file.originalname)
+    if (!scan.clean) {
+      res.status(400).json({ success: false, message: `Fichier refusé — contenu malveillant détecté (${scan.reason})` })
+      return
+    }
 
     const webp = await toWebp(req.file.buffer)
     const filename = `cat-${Date.now()}-${Math.random().toString(36).slice(2)}.webp`
