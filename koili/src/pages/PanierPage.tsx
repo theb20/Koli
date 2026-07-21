@@ -996,9 +996,9 @@ function StepPaiement({ selected, onSelect, onNext, onBack }: {
                   Paiement {PAYMENT_OPTIONS.find(p=>p.id===selected)?.label}
                 </p>
                 <ol className="space-y-1.5 text-xs text-blue-700">
-                  <li className="flex items-start gap-2"><span className="w-4 h-4 rounded-full bg-blue-200 text-blue-800 font-bold flex items-center justify-center shrink-0 text-[9px]">1</span>Après confirmation, une demande de paiement sera envoyée sur votre téléphone</li>
-                  <li className="flex items-start gap-2"><span className="w-4 h-4 rounded-full bg-blue-200 text-blue-800 font-bold flex items-center justify-center shrink-0 text-[9px]">2</span>Entrez votre code secret pour valider le paiement</li>
-                  <li className="flex items-start gap-2"><span className="w-4 h-4 rounded-full bg-blue-200 text-blue-800 font-bold flex items-center justify-center shrink-0 text-[9px]">3</span>Votre commande est préparée dès confirmation du paiement</li>
+                  <li className="flex items-start gap-2"><span className="w-4 h-4 rounded-full bg-blue-200 text-blue-800 font-bold flex items-center justify-center shrink-0 text-[9px]">1</span>Après confirmation, vous serez redirigé vers une page de paiement sécurisée</li>
+                  <li className="flex items-start gap-2"><span className="w-4 h-4 rounded-full bg-blue-200 text-blue-800 font-bold flex items-center justify-center shrink-0 text-[9px]">2</span>Suivez les instructions pour valider le paiement depuis votre téléphone</li>
+                  <li className="flex items-start gap-2"><span className="w-4 h-4 rounded-full bg-blue-200 text-blue-800 font-bold flex items-center justify-center shrink-0 text-[9px]">3</span>Vous revenez automatiquement sur Skignas et votre commande est préparée dès confirmation du paiement</li>
                 </ol>
               </>
             )}
@@ -1170,8 +1170,10 @@ function StepConfirmation({ items, delivery, paymentMethod, totalPrice, promoDis
           {loading ? (
             <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
               className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full" />
-          ) : (
+          ) : paymentMethod === 'cash' ? (
             <><CheckCircle2 size={17} /> Confirmer ma commande</>
+          ) : (
+            <><CreditCard size={17} /> Confirmer et payer {fmtCart(total)}</>
           )}
         </button>
       </div>
@@ -1471,10 +1473,20 @@ export default function PanierPage() {
         },
         token,
       )
-      setOrderId(res.data.orderNumber)
       clearCart()
-      setStep('succes')
       requestIdRef.current = crypto.randomUUID() // prêt pour une éventuelle prochaine commande
+
+      if (res.data.paymentUrl) {
+        // Paiement en ligne (Orange/MTN/Wave via PayDunya) — redirection vers la
+        // page de paiement sécurisée. Le panier est déjà vidé et la commande déjà
+        // créée (stock réservé) ; PayDunya nous ramènera sur /commandes/:orderNumber
+        // une fois le paiement tenté, quel qu'en soit le résultat.
+        window.location.href = res.data.paymentUrl
+        return
+      }
+
+      setOrderId(res.data.orderNumber)
+      setStep('succes')
     } catch (err) {
       setOrderError(err instanceof Error ? err.message : 'Erreur lors de la commande. Réessayez.')
     } finally {

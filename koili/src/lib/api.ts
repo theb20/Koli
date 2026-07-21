@@ -319,6 +319,7 @@ export async function createOrder(
   return apiFetch<ApiResponse<{
     orderNumber: string; orderId: string
     total: number; shippingCost: number; promoDiscount: number
+    paymentUrl?: string
   }>>(
     '/api/orders',
     token,

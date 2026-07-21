@@ -43,7 +43,7 @@ type Order = {
   id: string; date: string; status: OrderStatus
   items: OrderItem[]
   shipping: { name: string; address: string; city: string; phone: string }
-  payment: { method: string; ref: string }
+  payment: { method: string; ref: string; status: string; isOnline: boolean }
   shippingCost: number; subtotal: number; promoDiscount: number
   taxRate: number; taxAmount: number
   total: number
@@ -75,7 +75,12 @@ function mapOrder(o: ApiOrder): Order {
       city:    addr.ville ?? '',
       phone:   o.clientTelephone,
     },
-    payment:      { method: PAYMENT_LABELS[o.paymentMethod] ?? o.paymentMethod, ref: o.orderNumber },
+    payment: {
+      method:   PAYMENT_LABELS[o.paymentMethod] ?? o.paymentMethod,
+      ref:      o.orderNumber,
+      status:   o.paymentStatus,
+      isOnline: o.paymentMethod !== 'cash',
+    },
     shippingCost: o.shippingCost,
     subtotal:     o.subtotal,
     promoDiscount: o.promoDiscount,
@@ -324,6 +329,17 @@ export default function OrderDetailPage() {
     queryFn:  () => fetchOrder(id!, token),
     enabled:  !!id,
     retry:    false,
+    // Après un paiement en ligne (Orange/MTN/Wave via PayDunya), le client revient
+    // ici avant même que l'IPN (asynchrone) n'ait forcément mis à jour le statut —
+    // on réinterroge automatiquement toutes les 4s tant que le paiement est en
+    // attente, pour que la confirmation apparaisse sans que le client ait à
+    // rafraîchir la page lui-même.
+    refetchInterval: (query) => {
+      const order = query.state.data?.data
+      if (!order) return false
+      const awaitingOnlinePayment = order.paymentMethod !== 'cash' && order.paymentStatus === 'pending'
+      return awaitingOnlinePayment ? 4000 : false
+    },
   })
 
   const handleCancel = async () => {
@@ -649,10 +665,27 @@ export default function OrderDetailPage() {
                   <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-gray-500 shrink-0">
                     <CreditCard size={16} />
                   </div>
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-gray-900">{order.payment.method}</p>
                   </div>
+                  {order.payment.isOnline && (
+                    order.payment.status === 'paid' ? (
+                      <span className="shrink-0 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
+                        <Check size={11} /> Payé
+                      </span>
+                    ) : (
+                      <span className="shrink-0 inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
+                        <Loader2 size={11} className="animate-spin" /> En attente
+                      </span>
+                    )
+                  )}
                 </div>
+                {order.payment.isOnline && order.payment.status !== 'paid' && (
+                  <p className="mt-3 text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg p-2.5">
+                    Paiement pas encore confirmé. Si vous venez de payer, cette page se met à jour automatiquement — sinon,{' '}
+                    <Link to="/panier" className="underline font-semibold">réessayez le paiement</Link>.
+                  </p>
+                )}
                 <div className="mt-4 pt-4 border-t border-gray-100">
                   <div className="flex items-center justify-between">
                     <p className="text-xs text-gray-500">Référence paiement</p>
