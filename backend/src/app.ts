@@ -153,8 +153,15 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 /* ── Static (uploads) ───────────────────────────────────────── */
+// Cache long + immutable : chaque upload (produit, catégorie, retour...) génère
+// un nom de fichier aléatoire à chaque fois (prod-{ts}-{rand}.webp, cat-...) —
+// une même URL ne sert donc jamais un contenu différent. Sans ça, chaque image
+// était re-téléchargée à chaque visite, même chargée juste avant.
 const UPLOAD_DIR = process.env.UPLOAD_DIR ?? './uploads'
-app.use('/uploads', express.static(path.resolve(UPLOAD_DIR)))
+app.use('/uploads', express.static(path.resolve(UPLOAD_DIR), {
+  maxAge: '1y',
+  immutable: true,
+}))
 
 /* ── Health check ───────────────────────────────────────────── */
 app.get('/health', (_req, res) => {

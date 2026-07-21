@@ -149,6 +149,10 @@ model Product {
   @@index([storeId])
   @@index([category])
   @@index([isActive, createdAt])
+  /// Tri par défaut du catalogue (GET /api/products sans ?sort=) — le plus
+  /// consulté, jusqu'ici sans index dédié malgré isActive+createdAt existant
+  /// pour le tri "newest".
+  @@index([isActive, sold])
   @@map("products")
 }
 
