@@ -126,10 +126,13 @@ router.post('/register', validate(registerSchema), async (req, res) => {
       data: { prenom, nom, email: email.toLowerCase().trim(), password: hashed, telephone, naissance, referredById: referrer?.id },
     })
 
-    if (referrer) await awardReferralBonus(referrer.id, `${prenom} ${nom}`)
-
     /* ── Mode sans mot de passe : envoyer un magic link ── */
     if (!rawPassword) {
+      // Le bonus de parrainage n'est PAS crédité ici : à ce stade, personne n'a encore
+      // prouvé posséder cette adresse email (le lien n'a même pas été cliqué). Le
+      // créditer maintenant permettrait de générer des points à volonté avec des emails
+      // jetables jamais consultés. Il est crédité dans /magic-link/verify, au premier
+      // login réel — seul moment où la possession de l'email est vérifiée.
       const token = signMagicToken(user.id, user.email)
       const link  = `${process.env.FRONTEND_URL}/auth/magic?token=${token}&new=1`
       sendMagicLinkEmail(user.email, user.prenom, link).catch(err => logger.error('[register magic-link]', err))
@@ -141,6 +144,13 @@ router.post('/register', validate(registerSchema), async (req, res) => {
       })
       return
     }
+
+    // Mode classique : contrairement au flux magic-link, aucune étape ne prouve ici
+    // la possession de l'email (pas de vérification par email pour les comptes avec
+    // mot de passe dans ce backend) — le bonus de parrainage n'est donc pas crédité
+    // dans cette branche, pour ne pas rouvrir la même faille de farming par email
+    // jetable. referredById reste posé sur le compte si un jour une vérification y
+    // est ajoutée.
 
     /* ── Mode classique (avec mot de passe) : connexion immédiate ── */
     const accessToken  = signAccessToken({ userId: user.id, email: user.email, role: user.role })
@@ -805,6 +815,11 @@ router.post('/magic-link/verify', validate(magicLinkVerifySchema), async (req, r
       return
     }
 
+    // Premier login réel de ce compte ? (avant de créer la session ci-dessous) —
+    // seul moment où la possession de l'email est prouvée : c'est ici, et
+    // seulement ici, que le bonus de parrainage éventuel est crédité.
+    const isFirstLogin = (await prisma.session.count({ where: { userId: user.id } })) === 0
+
     const accessToken  = signAccessToken({ userId: user.id, email: user.email, role: user.role })
     const refreshToken = signRefreshToken({ userId: user.id })
 
@@ -817,6 +832,10 @@ router.post('/magic-link/verify', validate(magicLinkVerifySchema), async (req, r
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       },
     })
+
+    if (isFirstLogin && user.referredById) {
+      await awardReferralBonus(user.referredById, `${user.prenom} ${user.nom}`)
+    }
 
     setAuthCookies(res, accessToken, refreshToken)
     res.json({

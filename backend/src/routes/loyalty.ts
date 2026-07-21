@@ -12,22 +12,43 @@ const _POINTS_PER_FCFA = 1
 export { _POINTS_PER_FCFA as POINTS_PER_FCFA }
 // Valeur d'un point en FCFA lors du remboursement
 const POINT_VALUE_FCFA = 0.5
-// Minimum points pour rembourser
-const MIN_REDEEM_POINTS = 500
+
+/** Coupe-circuit + seuil — lus depuis SiteSettings, configurables par l'admin (voir settings.ts). */
+export async function getLoyaltySettings() {
+  const settings = await prisma.siteSettings.upsert({
+    where:  { id: 1 },
+    update: {},
+    create: { id: 1 },
+    select: { loyaltyEnabled: true, loyaltyMinRedeem: true },
+  })
+  return settings
+}
 
 /* GET /api/loyalty/me — solde + historique */
 router.get('/me', requireAuth, async (req, res) => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.user!.userId },
-      select: { loyaltyPoints: true },
-    })
+    const [user, { loyaltyEnabled, loyaltyMinRedeem }] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: req.user!.userId },
+        select: { loyaltyPoints: true },
+      }),
+      getLoyaltySettings(),
+    ])
     const transactions = await prisma.pointTransaction.findMany({
       where:   { userId: req.user!.userId },
       orderBy: { createdAt: 'desc' },
       take:    20,
     })
-    res.json({ success: true, data: { points: user?.loyaltyPoints ?? 0, transactions, pointValue: POINT_VALUE_FCFA } })
+    res.json({
+      success: true,
+      data: {
+        points: user?.loyaltyPoints ?? 0,
+        transactions,
+        pointValue: POINT_VALUE_FCFA,
+        enabled:   loyaltyEnabled,
+        minRedeem: loyaltyMinRedeem,
+      },
+    })
   } catch {
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
@@ -39,8 +60,13 @@ router.post('/redeem', requireAuth, validate(z.object({ points: z.number().int()
     const { points } = req.body as { points: number }
     const userId = req.user!.userId
 
-    if (points < MIN_REDEEM_POINTS) {
-      res.status(400).json({ success: false, message: `Il faut utiliser au moins ${MIN_REDEEM_POINTS} points à la fois.` })
+    const { loyaltyEnabled, loyaltyMinRedeem } = await getLoyaltySettings()
+    if (!loyaltyEnabled) {
+      res.status(400).json({ success: false, message: 'Le programme de fidélité est temporairement désactivé.' })
+      return
+    }
+    if (points < loyaltyMinRedeem) {
+      res.status(400).json({ success: false, message: `Il faut utiliser au moins ${loyaltyMinRedeem} points à la fois.` })
       return
     }
 
@@ -139,7 +165,7 @@ router.get('/admin/:id', requireAdmin, validateParams(zCuidIdParam), validateQue
 })
 
 const adjustSchema = z.object({
-  points: z.number().int().refine(n => n !== 0, 'Le nombre de points ne peut pas être 0'),
+  points: z.number().int().min(-1_000_000).max(1_000_000).refine(n => n !== 0, 'Le nombre de points ne peut pas être 0'),
   note:   z.string().min(3, 'Un motif est requis').max(300),
 })
 

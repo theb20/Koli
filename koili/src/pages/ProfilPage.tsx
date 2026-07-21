@@ -1275,6 +1275,8 @@ function TabFidelite() {
   const [copied, setCopied] = useState(false)
 
   const points = loyaltyData?.data?.points ?? 0
+  const loyaltyEnabled = loyaltyData?.data?.enabled ?? true
+  const minRedeem = loyaltyData?.data?.minRedeem ?? 500
   const history = (loyaltyData?.data?.transactions ?? []) as {
     id: string; type: string; points: number; note: string | null; createdAt: string
   }[]
@@ -1310,7 +1312,13 @@ function TabFidelite() {
         <div className="mt-4 h-2 bg-white/20 rounded-full overflow-hidden">
           <div className="h-full bg-white rounded-full" style={{ width: `${Math.min((points / 1000) * 100, 100)}%` }} />
         </div>
-        <p className="text-xs text-blue-200 mt-1">Min. 500 pts pour utiliser vos points</p>
+        {loyaltyEnabled ? (
+          <p className="text-xs text-blue-200 mt-1">Min. {minRedeem.toLocaleString('fr-FR')} pts pour utiliser vos points</p>
+        ) : (
+          <p className="text-xs text-amber-200 mt-2 bg-white/10 rounded-lg px-3 py-2">
+            ⏸ Programme temporairement suspendu — vos points sont conservés, mais vous ne pouvez pas en gagner ni en utiliser pour le moment.
+          </p>
+        )}
       </div>
 
       {/* Historique des points */}
@@ -1336,7 +1344,10 @@ function TabFidelite() {
       {/* Parrainage */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5">
         <h3 className="text-sm font-bold text-gray-900 mb-1">🎁 Parrainez et gagnez</h3>
-        <p className="text-xs text-gray-500 mb-4">Partagez votre lien. Pour chaque ami inscrit, vous gagnez 200 pts bonus.</p>
+        <p className="text-xs text-gray-500 mb-4">
+          Partagez votre lien. Pour chaque ami inscrit, vous gagnez 200 pts bonus.
+          {!loyaltyEnabled && <span className="text-amber-600 font-semibold"> (bonus temporairement suspendu)</span>}
+        </p>
         <div className="flex items-center gap-3">
           <div className="flex-1 bg-gray-50 rounded-xl px-4 py-3 font-mono text-sm font-bold text-gray-900 border border-gray-200 truncate">
             {code}

@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { prisma } from '../lib/prisma'
 import { requireAuth } from '../middleware/auth'
 import { logger } from '../lib/logger'
+import { getLoyaltySettings } from './loyalty'
 
 const router = Router()
 
@@ -21,6 +22,9 @@ export async function findReferrer(code?: string) {
  */
 export async function awardReferralBonus(referrerId: string, refereeName: string): Promise<void> {
   try {
+    const { loyaltyEnabled } = await getLoyaltySettings()
+    if (!loyaltyEnabled) return
+
     await prisma.$transaction([
       prisma.user.update({ where: { id: referrerId }, data: { loyaltyPoints: { increment: REFERRAL_BONUS_POINTS } } }),
       prisma.pointTransaction.create({
@@ -49,12 +53,13 @@ router.get('/me', requireAuth, async (req, res) => {
       })
     }
     // compter les filleuls
-    const referrals = await prisma.user.count({
-      where: { referredById: req.user!.userId },
-    })
+    const [referrals, { loyaltyEnabled }] = await Promise.all([
+      prisma.user.count({ where: { referredById: req.user!.userId } }),
+      getLoyaltySettings(),
+    ])
     res.json({
       success: true,
-      data: { code, referrals, bonusPerReferral: REFERRAL_BONUS_POINTS },
+      data: { code, referrals, bonusPerReferral: REFERRAL_BONUS_POINTS, enabled: loyaltyEnabled },
     })
   } catch {
     res.status(500).json({ success: false, message: 'Erreur serveur' })

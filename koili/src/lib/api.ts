@@ -421,14 +421,14 @@ export async function fetchWishlist(token: string) {
 
 /* ─── Fidélité ──────────────────────────────────────────────── */
 export async function fetchLoyalty(token: string) {
-  return apiFetch<ApiResponse<{ points: number; transactions: unknown[]; pointValue: number }>>(
+  return apiFetch<ApiResponse<{ points: number; transactions: unknown[]; pointValue: number; enabled: boolean; minRedeem: number }>>(
     '/api/loyalty/me', token,
   )
 }
 
 /* ─── Parrainage ────────────────────────────────────────────── */
 export async function fetchReferral(token: string) {
-  return apiFetch<ApiResponse<{ code: string; referrals: number; bonusPerReferral: number }>>(
+  return apiFetch<ApiResponse<{ code: string; referrals: number; bonusPerReferral: number; enabled: boolean }>>(
     '/api/referral/me', token,
   )
 }

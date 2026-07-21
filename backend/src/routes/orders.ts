@@ -8,6 +8,7 @@ import { buildInvoicePdf } from '../lib/invoicePdf'
 import { sendNewOrderWhatsAppNotification } from '../lib/whatsapp/newOrderNotification'
 import { logger } from '../lib/logger'
 import { logAdminAction } from '../lib/auditLog'
+import { getLoyaltySettings } from './loyalty'
 
 const router = Router()
 
@@ -208,6 +209,8 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
     const taxRatePercent = defaultTax?.rate ?? 0
     const taxAmount      = Math.round(subtotal * taxRatePercent / 100)
 
+    const { loyaltyEnabled } = await getLoyaltySettings()
+
     // 4. Valider le code promo (lecture) — l'application définitive (et le contrôle du
     //    quota d'utilisation contre les accès concurrents) se fait dans la transaction plus bas.
     let promoDiscount = 0
@@ -274,7 +277,7 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
       }
 
       const finalTotal        = subtotal + taxAmount - finalPromoDiscount + shippingCost
-      const finalPointsEarned = req.user?.userId ? Math.floor(finalTotal / 100) : 0
+      const finalPointsEarned = (req.user?.userId && loyaltyEnabled) ? Math.floor(finalTotal / 100) : 0
 
       return tx.order.create({
         data: {

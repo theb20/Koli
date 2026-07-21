@@ -36,12 +36,15 @@ const settingsSchema = z.object({
   youtubeUrl:     zLooseUrl,
   tiktokUrl:      zLooseUrl,
   orderNotifyEmails: zEmailList,
+  loyaltyEnabled:   z.boolean(),
+  loyaltyMinRedeem: z.number().int().positive().max(1_000_000),
 })
 
 /** Champs sûrs à exposer publiquement — orderNotifyEmails est un détail interne, jamais renvoyé ici */
 const PUBLIC_FIELDS = [
   'id', 'supportPhone', 'whatsappNumber', 'supportEmail', 'contactEmail',
   'address', 'facebookUrl', 'instagramUrl', 'youtubeUrl', 'tiktokUrl', 'updatedAt',
+  'loyaltyEnabled', 'loyaltyMinRedeem',
 ] as const
 
 /* ── GET /api/settings  — public (consommé par le site client) ── */

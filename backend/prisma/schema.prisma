@@ -611,6 +611,12 @@ model SiteSettings {
   /// Nombre de jours après livraison pendant lesquels un client peut demander
   /// un retour (voir eligibility check dans returns.ts).
   returnWindowDays Int      @default(14)
+  /// Coupe-circuit global du programme de fidélité — quand false, plus aucun
+  /// point n'est gagné (commandes, parrainage) ni utilisable (redeem), mais
+  /// les soldes/historiques existants restent intacts et consultables.
+  loyaltyEnabled   Boolean  @default(true)
+  /// Solde minimum de points requis pour pouvoir les utiliser (POST /loyalty/redeem).
+  loyaltyMinRedeem Int      @default(500)
   updatedAt      DateTime @updatedAt
 
   @@map("site_settings")
