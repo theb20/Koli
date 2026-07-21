@@ -21,6 +21,15 @@ import { PageMeta } from "../components/seo/PageMeta";
 import { useAuth } from "../contexts/AuthContext";
 import { API_BASE } from "../lib/api";
 
+/**
+ * Marque un message d'erreur comme sûr à afficher (texte métier renvoyé par
+ * le backend, déjà pensé pour l'utilisateur) — toute autre exception
+ * (réseau, JSON invalide...) reste générique côté UI, jamais son détail
+ * technique brut (herozion: "Never return stack traces or debug info to
+ * clients").
+ */
+class SafeError extends Error {}
+
 type FormState = {
   clientPrenom: string;
   clientNom: string;
@@ -76,6 +85,11 @@ export default function RequestProductPage() {
   };
 
   const uploadImage = async (entry: ImageUpload) => {
+    // Seul un message métier explicitement renvoyé par le backend (déjà validé,
+    // pensé pour être affiché) est montré à l'utilisateur — jamais le détail
+    // technique brut d'une erreur réseau/JS inattendue (herozion: "Never return
+    // stack traces or debug info to clients").
+    let userMessage = "Échec de l'envoi. Réessayez.";
     try {
       const fd = new FormData();
       fd.append("images", entry.file);
@@ -83,15 +97,18 @@ export default function RequestProductPage() {
         method: "POST",
         body: fd,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message ?? "Échec de l'envoi");
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        if (data && typeof data.message === "string") userMessage = data.message;
+        throw new Error(userMessage);
+      }
       const url = data.data.urls[0] as string;
       setImages(prev => prev.map(img => img.id === entry.id ? { ...img, status: "done", remoteUrl: url } : img));
-    } catch (err) {
-      setImages(prev => prev.map(img => img.id === entry.id
-        ? { ...img, status: "error", error: err instanceof Error ? err.message : "Échec de l'envoi" }
-        : img));
+      return;
+    } catch {
+      // intentionnellement vide — userMessage porte déjà le bon message
     }
+    setImages(prev => prev.map(img => img.id === entry.id ? { ...img, status: "error", error: userMessage } : img));
   };
 
   const handleImages = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -163,9 +180,9 @@ export default function RequestProductPage() {
           desiredDate: form.desiredDate || undefined,
         }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
       if (!res.ok) {
-        const fieldErrors = data.errors as Record<string, string[]> | undefined;
+        const fieldErrors = data?.errors as Record<string, string[]> | undefined;
         if (fieldErrors) {
           setErrors(e => ({
             ...e,
@@ -174,12 +191,15 @@ export default function RequestProductPage() {
             ),
           }));
         }
-        throw new Error(data.message ?? "Erreur lors de l'envoi de la demande");
+        // Seul un message métier explicitement renvoyé par le backend est affiché —
+        // jamais le détail technique brut d'une exception inattendue.
+        const message = data && typeof data.message === "string" ? data.message : "Erreur lors de l'envoi de la demande";
+        throw new SafeError(message);
       }
 
       setSent(true);
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : "Erreur lors de l'envoi. Réessayez.");
+      setSubmitError(err instanceof SafeError ? err.message : "Erreur lors de l'envoi. Réessayez.");
     } finally {
       setSubmitting(false);
     }
