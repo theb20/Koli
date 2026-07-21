@@ -152,16 +152,6 @@
   </url>
 
   <url>
-    <loc>https://skignas.com/catalogue/113</loc>
-    <lastmod>2026-07-21</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-    <image:image>
-      <image:loc>https://meevo.net/wp-content/uploads/2023/04/ba56171d-d9f6-4307-9d9b-fee34fcc8c01.jpg</image:loc>
-    </image:image>
-  </url>
-
-  <url>
     <loc>https://skignas.com/catalogue/2</loc>
     <lastmod>2026-07-21</lastmod>
     <changefreq>weekly</changefreq>
@@ -172,12 +162,42 @@
   </url>
 
   <url>
+    <loc>https://skignas.com/catalogue/113</loc>
+    <lastmod>2026-07-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://meevo.net/wp-content/uploads/2023/04/ba56171d-d9f6-4307-9d9b-fee34fcc8c01.jpg</image:loc>
+    </image:image>
+  </url>
+
+  <url>
     <loc>https://skignas.com/catalogue/5</loc>
     <lastmod>2026-07-21</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image>
       <image:loc>https://asset.action.com/image/upload/t_digital_product_image/w_1920/3202088_8712879165972-111_01_fvju7m.webp</image:loc>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://skignas.com/catalogue/121</loc>
+    <lastmod>2026-07-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://skignas.up.railway.app/uploads/products/prod-1784528169041-rub1bicnsj.webp</image:loc>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://skignas.com/catalogue/123</loc>
+    <lastmod>2026-07-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://skignas.up.railway.app/uploads/products/prod-1784528021567-jmrjcnctq1e.webp</image:loc>
     </image:image>
   </url>
 
@@ -288,26 +308,6 @@
     <priority>0.7</priority>
     <image:image>
       <image:loc>https://skignas.up.railway.app/uploads/products/prod-1784527256035-f753cy52f4v.webp</image:loc>
-    </image:image>
-  </url>
-
-  <url>
-    <loc>https://skignas.com/catalogue/121</loc>
-    <lastmod>2026-07-21</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-    <image:image>
-      <image:loc>https://skignas.up.railway.app/uploads/products/prod-1784528169041-rub1bicnsj.webp</image:loc>
-    </image:image>
-  </url>
-
-  <url>
-    <loc>https://skignas.com/catalogue/123</loc>
-    <lastmod>2026-07-21</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-    <image:image>
-      <image:loc>https://skignas.up.railway.app/uploads/products/prod-1784528021567-jmrjcnctq1e.webp</image:loc>
     </image:image>
   </url>
 
