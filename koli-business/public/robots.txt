@@ -1,0 +1,15 @@
+# ================================================================
+# SKIGNAS BUSINESS — robots.txt
+# Domaine prévu : https://business.skignas.com
+# ================================================================
+
+User-agent: *
+
+Allow: /
+
+# ── Assets techniques : exclues ──────────────────────────────────
+Disallow: /assets/
+Disallow: /*.js$
+Disallow: /*.css$
+
+Sitemap: https://business.skignas.com/sitemap.xml

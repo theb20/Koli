@@ -1,16 +1,178 @@
 <!doctype html>
 <html lang="fr">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <title>Skignas Business — Espace marchand</title>
-  </head>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- ============ SEO PRIMAIRE ============ -->
+  <title>Espace marchand — Skignas</title>
+  <meta name="description" content="Vendez vos produits sur Skignas : inscription gratuite, mise en ligne en quelques minutes, versements sous 48h, tableau de bord complet pour gérer votre boutique en Côte d'Ivoire." />
+  <meta name="author" content="Skignas" />
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+  <meta name="googlebot" content="index, follow" />
+  <meta name="language" content="French" />
+  <meta name="geo.region" content="CI" />
+  <meta name="geo.placename" content="Abidjan" />
+  <meta name="theme-color" content="#0c0c0c" />
+  <meta name="color-scheme" content="light" />
+
+  <!-- ============ CANONICAL ============
+       business.skignas.com n'est pas encore relié (DNS/domaine personnalisé
+       Firebase à configurer, comme storage.skignas.com précédemment) — laissé
+       en cible prévue plutôt que l'URL Firebase par défaut, à corriger si le
+       sous-domaine change. -->
+  <link rel="canonical" href="https://business.skignas.com/" />
+
+  <!-- ============ SITEMAP ============ -->
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+
+  <!-- ============ RESOURCE HINTS — Core Web Vitals ============ -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- ============ FAVICONS ============ -->
+  <link rel="icon" type="image/png" href="/logo/favicon-96x96.png" sizes="96x96" />
+  <link rel="icon" type="image/svg+xml" href="/logo/favicon.svg" />
+  <link rel="shortcut icon" href="/logo/favicon.ico" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/logo/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-title" content="SKIGNAS" />
+  <link rel="manifest" href="/logo/site.webmanifest" />
+
+  <!-- ============ OPEN GRAPH (Facebook, LinkedIn, WhatsApp) ============ -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Skignas" />
+  <meta property="og:title" content="Espace marchand — Skignas" />
+  <meta property="og:description" content="Vendez vos produits sur Skignas : inscription gratuite, mise en ligne en quelques minutes, versements sous 48h, tableau de bord complet." />
+  <meta property="og:image" content="https://business.skignas.com/og-1.png" />
+  <meta property="og:image:secure_url" content="https://business.skignas.com/og-1.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1910" />
+  <meta property="og:image:height" content="823" />
+  <meta property="og:image:alt" content="Espace marchand Skignas" />
+  <meta property="og:url" content="https://business.skignas.com/" />
+  <meta property="og:locale" content="fr_FR" />
+
+  <!-- ============ TWITTER / X ============ -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:site" content="@skignas" />
+  <meta name="twitter:creator" content="@skignas" />
+  <meta name="twitter:title" content="Espace marchand — Skignas" />
+  <meta name="twitter:description" content="Vendez vos produits sur Skignas : inscription gratuite, versements sous 48h, tableau de bord complet." />
+  <meta name="twitter:image" content="https://business.skignas.com/og-1.png" />
+  <meta name="twitter:image:alt" content="Espace marchand Skignas" />
+
+  <!-- ============ SCHEMA.ORG (Rich Snippets Google) ============
+       Organization + WebSite + FAQPage (contenu réel de la section FAQ de la
+       page, cf. src/pages/HomePage.tsx). Volontairement absents : LocalBusiness
+       (pas d'adresse/horaires publiés propres à ce portail), Person (pas de
+       fondateur mis en avant), BreadcrumbList (page unique, pas de fil
+       d'Ariane réel) — les ajouter reviendrait à publier des données
+       structurées inventées, ce que Google pénalise. -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://business.skignas.com/#organization",
+        "name": "Skignas",
+        "url": "https://skignas.com",
+        "logo": "https://business.skignas.com/logo-skignas.png",
+        "description": "Marketplace en ligne proposant des produits tech en Côte d'Ivoire.",
+        "areaServed": { "@type": "Country", "name": "Côte d'Ivoire" },
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "contactType": "customer support",
+          "email": "support@skignas.com"
+        }
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://business.skignas.com/#website",
+        "name": "Espace marchand Skignas",
+        "url": "https://business.skignas.com",
+        "publisher": { "@id": "https://business.skignas.com/#organization" },
+        "inLanguage": "fr-FR"
+      },
+      {
+        "@type": "WebPage",
+        "@id": "https://business.skignas.com/#webpage",
+        "url": "https://business.skignas.com/",
+        "name": "Espace marchand — Skignas",
+        "isPartOf": { "@id": "https://business.skignas.com/#website" },
+        "inLanguage": "fr-FR"
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://business.skignas.com/#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Combien coûte l'inscription sur Skignas ?",
+            "acceptedAnswer": { "@type": "Answer", "text": "L'inscription est entièrement gratuite. Vous ne payez qu'une commission sur vos ventes réalisées, aucun frais fixe ni engagement." }
+          },
+          {
+            "@type": "Question",
+            "name": "Quand suis-je payé après une vente ?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Vos gains sont versés sur votre compte sous 48 h maximum après confirmation de la livraison, via Wave, Orange Money, MTN Money ou virement bancaire." }
+          },
+          {
+            "@type": "Question",
+            "name": "Comment fonctionne la livraison ?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Nos partenaires livreurs récupèrent les colis directement dans votre boutique. Vous n'avez rien à organiser de votre côté." }
+          },
+          {
+            "@type": "Question",
+            "name": "Puis-je vendre depuis mon téléphone ?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Oui, le tableau de bord marchand est accessible sur web et mobile — gérez vos produits et commandes où que vous soyez." }
+          },
+          {
+            "@type": "Question",
+            "name": "Y a-t-il un nombre minimum de produits pour démarrer ?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Non, vous pouvez commencer avec un seul produit et enrichir votre catalogue à votre rythme." }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+</head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!--
+        Contenu de repli visible par les robots qui n'exécutent pas de
+        JavaScript (crawlers IA, certains bots de recherche, aperçus de liens
+        Facebook/WhatsApp/Twitter) — React remplace ce bloc au montage.
+        display:none appliqué dès le parsing du HTML : aucun flash visible
+        pour un vrai navigateur, mais le texte brut reste lisible par les
+        robots qui n'exécutent pas le CSS. Contenu fidèle au site réel (pas
+        de cloaking), reflète les sections de src/pages/HomePage.tsx.
+      -->
+      <main style="display:none">
+        <h1>Espace marchand Skignas</h1>
+        <p>
+          Skignas est une marketplace tech en Côte d'Ivoire. Devenez marchand :
+          publiez vos produits, suivez vos commandes et recevez vos paiements
+          depuis un seul tableau de bord, sur web et mobile.
+        </p>
+        <h2>Pourquoi vendre sur Skignas</h2>
+        <ul>
+          <li>Mise en ligne d'un produit en moins de 2 minutes, photos comprises</li>
+          <li>Paiements sécurisés (mobile money, carte bancaire) versés sous 48h</li>
+          <li>Suivi en temps réel des commandes, stocks et statistiques de vente</li>
+          <li>Livraison intégrée — nos partenaires récupèrent vos colis chez vous</li>
+          <li>0 FCFA à l'inscription, commission uniquement sur les ventes</li>
+          <li>Support dédié aux marchands, disponible 24/7</li>
+        </ul>
+        <h2>Comment ça marche</h2>
+        <ol>
+          <li>Créez votre compte en 3 minutes</li>
+          <li>Publiez vos produits</li>
+          <li>Vendez et encaissez sous 48h maximum</li>
+        </ol>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

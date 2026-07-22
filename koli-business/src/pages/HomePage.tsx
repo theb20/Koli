@@ -170,7 +170,7 @@ export default function HomePage() {
       {/* ── Header ───────────────────────────────────────────── */}
       <div className="bg-[#0c0c0c] text-[#f4f4f2]">
         <header className="flex items-center justify-between px-8 lg:px-14 py-5 border-b border-[#262626]">
-          <img src="/logo-skignas.png" alt="Skignas" className="h-8 w-auto invert" />
+          <img src="/logo-skignas.png" alt="Skignas" width={130} height={43} decoding="async" className="h-8 w-auto invert" />
           <nav className="hidden md:flex items-center gap-7 text-sm">
             <a href="#avantages" className="text-[#d8d8d8] hover:text-white transition-colors">Avantages</a>
             <a href="#comment-ca-marche" className="text-[#d8d8d8] hover:text-white transition-colors">Comment ça marche</a>
@@ -185,7 +185,15 @@ export default function HomePage() {
 
       {/* ── Héro — photo plein cadre + carte CTA flottante ────── */}
       <section className="relative h-[520px] lg:h-[620px] overflow-hidden">
-        <img src="/og-1.png" alt="" className="absolute inset-0 w-full h-full object-cover" />
+        <img
+          src="/og-1.png"
+          alt=""
+          width={1910}
+          height={823}
+          decoding="async"
+          fetchPriority="high"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
         <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/35 to-transparent" />
 
         <div className="absolute inset-x-6 lg:inset-x-14 bottom-8 lg:bottom-16 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
@@ -279,7 +287,15 @@ export default function HomePage() {
       <section className="px-8 lg:px-14 pb-16 lg:pb-20">
         <div className="flex flex-col lg:flex-row lg:h-[300px] rounded-[28px] lg:rounded-tl-[64px] lg:rounded-br-[64px] overflow-hidden">
           <div className="lg:flex-[0.9] h-56 lg:h-full">
-            <img src="/og-1.png" alt="" className="w-full h-full object-cover" />
+            <img
+              src="/og-1.png"
+              alt=""
+              width={1910}
+              height={823}
+              loading="lazy"
+              decoding="async"
+              className="w-full h-full object-cover"
+            />
           </div>
           <div className="lg:flex-1 bg-white p-8 lg:pl-14 lg:pr-16 flex flex-col justify-center gap-8">
             <span className="text-2xl lg:text-[30px] font-extrabold leading-[1.2] tracking-tight text-[#111] max-w-md">
