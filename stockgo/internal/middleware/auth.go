@@ -50,3 +50,36 @@ func RequireAuth(cfg *config.Config, logger *zap.Logger) gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+// OptionalAuth tente la même authentification que RequireAuth mais ne
+// bloque jamais la requête si elle est absente ou invalide — utilisé sur
+// GET /files/:id, dont le handler décide lui-même si l'authentification
+// était nécessaire selon la visibilité du fichier (public vs private).
+// Sans ça, un fichier "public" ne serait jamais réellement accessible à
+// un navigateur affichant une simple balise <img>, qui n'envoie ni clé API
+// ni JWT.
+func OptionalAuth(cfg *config.Config) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if apiKey := c.GetHeader("X-API-Key"); apiKey != "" && cfg.APIKey != "" && apiKey == cfg.APIKey {
+			c.Set(ContextOwnerIDKey, "service")
+			c.Next()
+			return
+		}
+
+		authHeader := c.GetHeader("Authorization")
+		if tokenString, ok := strings.CutPrefix(authHeader, "Bearer "); ok && tokenString != "" {
+			if claims, err := auth.ValidateToken(cfg.JWTSecret, tokenString); err == nil {
+				c.Set(ContextOwnerIDKey, claims.Subject)
+			}
+		}
+
+		c.Next()
+	}
+}
+
+// IsAuthenticated indique si OptionalAuth (ou RequireAuth) a réussi à
+// identifier l'appelant sur cette requête.
+func IsAuthenticated(c *gin.Context) bool {
+	_, ok := c.Get(ContextOwnerIDKey)
+	return ok
+}

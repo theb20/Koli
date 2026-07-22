@@ -145,6 +145,20 @@ func (h *FileHandler) Download(c *gin.Context) {
 		return
 	}
 
+	// Un fichier "private" exige une authentification réussie (vérifiée par
+	// OptionalAuth en amont, sans avoir bloqué la requête) ; un fichier
+	// "public" est servi à quiconque, authentifié ou non — c'est tout
+	// l'intérêt de ce champ.
+	meta, err := h.service.GetInfo(c.Request.Context(), id)
+	if err != nil {
+		middleware.RespondError(c, h.logger, err)
+		return
+	}
+	if meta.Visibility != models.VisibilityPublic && !middleware.IsAuthenticated(c) {
+		middleware.RespondError(c, h.logger, utils.ErrUnauthorized("Authentification requise pour ce fichier privé"))
+		return
+	}
+
 	reader, file, err := h.service.Download(c.Request.Context(), id)
 	if err != nil {
 		middleware.RespondError(c, h.logger, err)

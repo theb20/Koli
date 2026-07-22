@@ -40,15 +40,20 @@ func Setup(cfg *config.Config, fileHandler *handlers.FileHandler, logger *zap.Lo
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
 
 	limiter := middleware.NewIPRateLimiter(cfg.RateLimitRPS, cfg.RateLimitBurst)
+	rateLimit := middleware.RateLimit(limiter, logger)
+
+	// GET /:id est à part : un fichier "public" doit être chargeable par un
+	// <img src="..."> de navigateur, qui n'envoie ni clé API ni JWT. Le
+	// handler applique lui-même RequireAuth pour les fichiers "private".
+	r.GET("/api/v1/files/:id", middleware.OptionalAuth(cfg), rateLimit, fileHandler.Download)
 
 	v1 := r.Group("/api/v1")
 	v1.Use(middleware.RequireAuth(cfg, logger))
-	v1.Use(middleware.RateLimit(limiter, logger))
+	v1.Use(rateLimit)
 	{
 		files := v1.Group("/files")
 		files.POST("", fileHandler.Upload)
 		files.GET("", fileHandler.List)
-		files.GET("/:id", fileHandler.Download)
 		files.GET("/:id/info", fileHandler.Info)
 		files.DELETE("/:id", fileHandler.Delete)
 	}
