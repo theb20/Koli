@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Zap, ShieldCheck, LineChart, Truck, Wallet, Headset, ArrowRight, Plus, Minus, Quote } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
+import { Zap, ShieldCheck, LineChart, Truck, Wallet, Headset, ArrowRight, ChevronLeft, ChevronRight, Plus, Minus, Quote } from 'lucide-react'
 
 const BENEFITS = [
   { icon: Zap,         title: 'Mise en ligne simple',    desc: 'Ajoutez un produit en moins de 2 minutes, photos comprises.' },
@@ -14,6 +14,29 @@ const STEPS = [
   { n: '1', title: 'Créez votre compte',  desc: 'Inscription en 3 minutes avec votre e-mail et les infos de votre boutique.' },
   { n: '2', title: 'Publiez vos produits', desc: 'Photos, prix, stock — votre catalogue est en ligne immédiatement.' },
   { n: '3', title: 'Vendez et encaissez',  desc: 'Chaque vente est versée sur votre compte sous 48 h maximum.' },
+]
+
+const ORDER_ROWS = [
+  { client: 'Awa Diop',      date: '22 juil.', from: 'Caméra 360° extérieure 2K',   amount: '79 900 F' },
+  { client: 'Koffi Traoré',  date: '22 juil.', from: 'Routeur Wi-Fi 6 Mesh',         amount: '129 900 F' },
+  { client: 'Mariam Bâ',     date: '21 juil.', from: 'Casque gaming sans fil 7.1',   amount: '64 900 F' },
+  { client: 'Jean Mensah',   date: '21 juil.', from: 'Assistant vocal + hub',        amount: '44 900 F' },
+  { client: 'Fatou Sow',     date: '20 juil.', from: 'Barre de son 5.1',             amount: '89 900 F' },
+]
+
+const WALKTHROUGH = [
+  {
+    title: 'Tableau de bord',
+    desc: "Le tableau de bord vous permet de gérer l'intégralité de votre activité. Ajoutez des produits, configurez vos catégories et suivez vos commandes depuis une seule interface. Toutes les fonctions opérationnelles y sont réunies : gestion du catalogue, suivi des commandes, consultation du solde et de l'historique des versements.",
+  },
+  {
+    title: 'Suivi des commandes',
+    desc: 'Chaque commande est visible en temps réel, de la confirmation à la livraison. Filtrez par statut, retrouvez un client ou une référence en quelques secondes, et recevez une notification à chaque nouvelle vente.',
+  },
+  {
+    title: 'Statistiques de vente',
+    desc: "Analysez vos performances jour par jour : chiffre d'affaires, produits les plus vendus, panier moyen. De quoi ajuster votre catalogue et vos prix en toute confiance.",
+  },
 ]
 
 const STATS = [
@@ -37,8 +60,110 @@ const FAQS = [
   { q: "Y a-t-il un nombre minimum de produits pour démarrer ?", a: "Non, vous pouvez commencer avec un seul produit et enrichir votre catalogue à votre rythme." },
 ]
 
+function Laptop({ children }: { children: ReactNode }) {
+  return (
+    <div className="w-full">
+      <div className="rounded-t-2xl bg-[#1c1c1f] p-3 pb-0">
+        <div className="flex justify-center pb-2.5">
+          <div className="w-2 h-2 rounded-full bg-[#3a3a42]" />
+        </div>
+        <div className="rounded-t-lg bg-white overflow-hidden">{children}</div>
+      </div>
+      <div className="h-3.5 rounded-b-xl bg-gradient-to-b from-[#2c2c30] to-[#1c1c1f]" />
+      <div className="h-1.5 w-1/3 mx-auto rounded-b-md bg-[#141416]" />
+    </div>
+  )
+}
+
+function DashboardScreen() {
+  return (
+    <div className="text-left">
+      <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#ebebeb]">
+        <span className="text-[13px] font-extrabold text-[#111]">Skignas <span className="font-medium text-[#8a8a90]">· Espace marchand</span></span>
+        <span className="text-[11px] text-[#8a8a90]">Commandes récentes</span>
+      </div>
+      <table className="w-full text-left">
+        <thead>
+          <tr className="text-[10px] uppercase tracking-wide text-[#a8a8a2]">
+            <th className="font-semibold px-5 py-2">Client</th>
+            <th className="font-semibold px-2 py-2">Produit</th>
+            <th className="font-semibold px-2 py-2 hidden sm:table-cell">Date</th>
+            <th className="font-semibold px-5 py-2 text-right">Montant</th>
+          </tr>
+        </thead>
+        <tbody>
+          {ORDER_ROWS.map(row => (
+            <tr key={row.client} className="border-t border-[#f0f0ee] text-[11px]">
+              <td className="px-5 py-2.5 font-semibold text-[#111] whitespace-nowrap">{row.client}</td>
+              <td className="px-2 py-2.5 text-[#6f6f6f] whitespace-nowrap">{row.from}</td>
+              <td className="px-2 py-2.5 text-[#8a8a90] hidden sm:table-cell whitespace-nowrap">{row.date}</td>
+              <td className="px-5 py-2.5 text-right font-bold text-[#111] whitespace-nowrap">{row.amount}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function OrdersScreen() {
+  const statuses = [
+    { label: 'Livrée',         bg: '#e6f7ec', fg: '#0a8a3a' },
+    { label: 'Expédiée',       bg: '#eef5ff', fg: '#1e90ff' },
+    { label: 'En préparation', bg: '#fff4e0', fg: '#b8860b' },
+    { label: 'Livrée',         bg: '#e6f7ec', fg: '#0a8a3a' },
+    { label: 'Annulée',        bg: '#fdeaea', fg: '#c0392b' },
+  ]
+  return (
+    <div className="text-left px-5 py-4 flex flex-col gap-2.5">
+      <span className="text-[13px] font-extrabold text-[#111] pb-1">Commandes</span>
+      {ORDER_ROWS.map((row, i) => (
+        <div key={row.client} className="flex items-center justify-between gap-3 rounded-lg bg-[#fafafa] border border-[#f0f0ee] px-3.5 py-2.5">
+          <div className="flex flex-col min-w-0">
+            <span className="text-[11px] font-semibold text-[#111] truncate">{row.client}</span>
+            <span className="text-[10px] text-[#8a8a90] truncate">{row.from}</span>
+          </div>
+          <span
+            className="shrink-0 text-[9.5px] font-bold px-2 py-1 rounded-full"
+            style={{ background: statuses[i].bg, color: statuses[i].fg }}
+          >
+            {statuses[i].label}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function StatsScreen() {
+  const bars = [38, 62, 44, 78, 56, 90, 68]
+  const days = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
+  return (
+    <div className="text-left px-5 py-4 flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <span className="text-[13px] font-extrabold text-[#111]">Chiffre d'affaires</span>
+        <span className="text-[15px] font-extrabold text-[#111]">3 240 000 F</span>
+      </div>
+      <div className="flex items-end gap-2 h-28">
+        {bars.map((h, i) => (
+          <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
+            <div
+              className={`w-full rounded-t-sm ${i === 3 ? 'bg-[#1e90ff]' : 'bg-[#d6e6ff]'}`}
+              style={{ height: `${h}%` }}
+            />
+            <span className="text-[9px] text-[#a8a8a2]">{days[i]}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function HomePage() {
   const [openFaq, setOpenFaq] = useState(0)
+  const [walkIndex, setWalkIndex] = useState(0)
+  const walk = WALKTHROUGH[walkIndex]
+  const walkScreens = [<DashboardScreen key="d" />, <OrdersScreen key="o" />, <StatsScreen key="s" />]
 
   return (
     <div className="bg-white">
@@ -113,6 +238,39 @@ export default function HomePage() {
                 <span className="text-[#6f6f6f] text-sm leading-relaxed">{desc}</span>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Fonctionnement ─────────────────────────────────────── */}
+      <section className="px-8 lg:px-14 pb-16 lg:pb-20 flex flex-col gap-8">
+        <h2 className="text-2xl lg:text-[30px] font-extrabold tracking-tight text-[#111]">Fonctionnement</h2>
+        <div className="bg-[#f5f5f3] rounded-3xl p-8 lg:p-14 flex flex-col lg:flex-row gap-10 lg:gap-16 lg:items-center">
+          <div className="flex-1 max-w-md flex flex-col gap-5">
+            <span className="text-2xl lg:text-[28px] font-extrabold tracking-tight text-[#111]">{walk.title}</span>
+            <p className="text-[#4a4a52] text-[15px] leading-relaxed">{walk.desc}</p>
+            <div className="flex items-center gap-5 pt-1">
+              <span className="text-sm font-bold text-[#6f6f6f]">{walkIndex + 1}/{WALKTHROUGH.length}</span>
+              <div className="flex gap-2.5">
+                <button
+                  onClick={() => setWalkIndex(i => (i - 1 + WALKTHROUGH.length) % WALKTHROUGH.length)}
+                  className="w-11 h-11 rounded-full border border-[#111] bg-white hover:bg-[#111] hover:text-white transition-colors flex items-center justify-center"
+                  aria-label="Précédent"
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                <button
+                  onClick={() => setWalkIndex(i => (i + 1) % WALKTHROUGH.length)}
+                  className="w-11 h-11 rounded-full border border-[#111] bg-white hover:bg-[#111] hover:text-white transition-colors flex items-center justify-center"
+                  aria-label="Suivant"
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="flex-[1.3]">
+            <Laptop>{walkScreens[walkIndex]}</Laptop>
           </div>
         </div>
       </section>
