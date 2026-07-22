@@ -1,4 +1,5 @@
-import { Zap, ShieldCheck, LineChart, Truck, Wallet, Headset, ArrowRight } from 'lucide-react'
+import { useState } from 'react'
+import { Zap, ShieldCheck, LineChart, Truck, Wallet, Headset, ArrowRight, Plus, Minus, Quote } from 'lucide-react'
 
 const BENEFITS = [
   { icon: Zap,         title: 'Mise en ligne simple',    desc: 'Ajoutez un produit en moins de 2 minutes, photos comprises.' },
@@ -15,7 +16,30 @@ const STEPS = [
   { n: '3', title: 'Vendez et encaissez',  desc: 'Chaque vente est versée sur votre compte sous 48 h maximum.' },
 ]
 
+const STATS = [
+  { value: '12 500+', label: 'marchands actifs' },
+  { value: '3,2 Mrd F', label: 'versés aux marchands en 2025' },
+  { value: '48 h', label: 'délai de versement maximum' },
+  { value: '4,8/5', label: 'satisfaction moyenne des marchands' },
+]
+
+const TESTIMONIALS = [
+  { quote: "En 6 mois, Skignas est devenu mon premier canal de vente. La mise en ligne des produits est vraiment rapide.", name: 'Awa Diop', shop: 'AD Électronique · Dakar' },
+  { quote: "Les versements sont toujours dans les délais annoncés. C'est ce qui compte le plus pour gérer ma trésorerie.", name: 'Koffi Traoré', shop: 'K-Tech Store · Abidjan' },
+  { quote: "Le support répond vite, même le week-end. J'ai pu régler un souci de livraison en quelques minutes.", name: 'Mariam Bâ', shop: 'Mariam Gadgets · Bamako' },
+]
+
+const FAQS = [
+  { q: "Combien coûte l'inscription sur Skignas ?", a: "L'inscription est entièrement gratuite. Vous ne payez qu'une commission sur vos ventes réalisées, aucun frais fixe ni engagement." },
+  { q: 'Quand suis-je payé après une vente ?', a: 'Vos gains sont versés sur votre compte sous 48 h maximum après confirmation de la livraison, via Wave, Orange Money, MTN Money ou virement bancaire.' },
+  { q: 'Comment fonctionne la livraison ?', a: "Nos partenaires livreurs récupèrent les colis directement dans votre boutique. Vous n'avez rien à organiser de votre côté." },
+  { q: 'Puis-je vendre depuis mon téléphone ?', a: "Oui, le tableau de bord marchand est accessible sur web et mobile — gérez vos produits et commandes où que vous soyez." },
+  { q: "Y a-t-il un nombre minimum de produits pour démarrer ?", a: "Non, vous pouvez commencer avec un seul produit et enrichir votre catalogue à votre rythme." },
+]
+
 export default function HomePage() {
+  const [openFaq, setOpenFaq] = useState(0)
+
   return (
     <div className="bg-white">
       {/* ── Header ───────────────────────────────────────────── */}
@@ -89,6 +113,63 @@ export default function HomePage() {
                 <span className="text-[#6f6f6f] text-sm leading-relaxed">{desc}</span>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Chiffres clés ──────────────────────────────────────── */}
+      <section className="bg-[#f5f5f3] px-8 lg:px-14 py-14 lg:py-16">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-6">
+          {STATS.map(({ value, label }) => (
+            <div key={label} className="flex flex-col gap-1.5 text-center lg:text-left">
+              <span className="text-3xl lg:text-4xl font-extrabold tracking-tight text-[#111]">{value}</span>
+              <span className="text-[#6f6f6f] text-sm leading-snug">{label}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Témoignages ────────────────────────────────────────── */}
+      <section className="px-8 lg:px-14 py-16 lg:py-20 flex flex-col gap-10">
+        <h2 className="text-2xl lg:text-[30px] font-extrabold tracking-tight text-[#111]">Ils vendent déjà sur Skignas</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {TESTIMONIALS.map(({ quote, name, shop }) => (
+            <div key={name} className="border border-[#ebebeb] rounded-2xl p-7 flex flex-col gap-5">
+              <Quote size={22} className="text-[#111]" strokeWidth={1.5} />
+              <p className="text-[#33333a] text-[15px] leading-relaxed flex-1">{quote}</p>
+              <div className="flex flex-col gap-0.5 pt-2 border-t border-[#f0f0ee]">
+                <span className="text-sm font-bold text-[#111]">{name}</span>
+                <span className="text-[13px] text-[#8a8a90]">{shop}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── FAQ ────────────────────────────────────────────────── */}
+      <section className="bg-[#f5f5f3] px-8 lg:px-14 py-16 lg:py-20">
+        <div className="max-w-3xl mx-auto flex flex-col gap-8">
+          <h2 className="text-2xl lg:text-[30px] font-extrabold tracking-tight text-[#111] text-center">Questions fréquentes</h2>
+          <div className="flex flex-col gap-3">
+            {FAQS.map((f, i) => {
+              const open = openFaq === i
+              return (
+                <div key={f.q} className="bg-white border border-[#ebebeb] rounded-2xl px-6 py-5">
+                  <button
+                    onClick={() => setOpenFaq(open ? -1 : i)}
+                    className="w-full flex items-center justify-between gap-4 text-left"
+                  >
+                    <span className="text-[15px] font-semibold text-[#111]">{f.q}</span>
+                    {open
+                      ? <Minus size={18} className="text-[#111] shrink-0" />
+                      : <Plus size={18} className="text-[#111] shrink-0" />}
+                  </button>
+                  {open && (
+                    <p className="text-sm text-[#6f6f6f] leading-relaxed mt-3">{f.a}</p>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
       </section>
