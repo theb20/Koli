@@ -6,7 +6,7 @@ import { prisma } from '../lib/prisma'
 import { signAccessToken, signRefreshToken, verifyRefreshToken, isTokenExpiredError, unsafeDecodeExpiredRefreshToken } from '../lib/jwt'
 import { validate, validateParams, validateQuery, zPassword, zCuidIdParam, zPaginationQuery } from '../middleware/validate'
 import { requireAuth, requireAdmin } from '../middleware/auth'
-import { sendWelcomeEmail, sendMagicLinkEmail, sendPasswordResetEmail, sendPasswordChangedEmail } from '../lib/mailer'
+import { sendWelcomeEmail, sendMagicLinkEmail, sendPasswordResetEmail, sendPasswordChangedEmail, sendBroadcastEmail } from '../lib/mailer'
 import { ALLOWED_ORIGINS } from '../lib/allowedOrigins'
 import { getAge, MIN_AGE } from '../lib/age'
 import { logger } from '../lib/logger'
@@ -895,6 +895,34 @@ router.get('/users/:id', requireAdmin, validateParams(zCuidIdParam), async (req,
     res.json({ success: true, data: user })
   } catch {
     res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+const userEmailSchema = z.object({
+  subject: z.string().min(1).max(120),
+  message: z.string().min(1).max(2000),
+})
+
+/* ── POST /api/auth/users/:id/email  [ADMIN] — message direct à un client ── */
+router.post('/users/:id/email', requireAdmin, validateParams(zCuidIdParam), validate(userEmailSchema), async (req, res) => {
+  try {
+    const { subject, message } = req.body as z.infer<typeof userEmailSchema>
+    const user = await prisma.user.findUnique({
+      where: { id: req.params['id'] },
+      select: { email: true, prenom: true },
+    })
+    if (!user) {
+      res.status(404).json({ success: false, message: 'Utilisateur introuvable' })
+      return
+    }
+
+    await sendBroadcastEmail(user.email, user.prenom, subject, message)
+    logAdminAction(req, { action: 'user.email', targetType: 'User', targetId: req.params['id']!, metadata: { subject } })
+
+    res.json({ success: true, message: `Email envoyé à ${user.email}` })
+  } catch (err) {
+    logger.error('[auth] échec envoi email direct', err)
+    res.status(500).json({ success: false, message: "Erreur lors de l'envoi de l'email" })
   }
 })
 

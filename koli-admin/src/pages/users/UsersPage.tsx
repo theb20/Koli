@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
-import { Search, Users, Shield, ShieldOff, Ban, UserCheck, Trash2, Edit, Eye, Package, X } from 'lucide-react'
+import { Search, Users, Shield, ShieldOff, Ban, UserCheck, Trash2, Edit, Eye, Package, X, Mail } from 'lucide-react'
 import { api, fmtDate } from '../../lib/api'
 import { Badge } from '../../components/ui/Badge'
 import { Pagination } from '../../components/ui/Pagination'
 import { PageTitle } from '../../components/layout/Sidebar'
 import { Confirm, Modal } from '../../components/ui/Modal'
-import { Input } from '../../components/ui/Input'
+import { Input, Textarea } from '../../components/ui/Input'
 import { Button } from '../../components/ui/Button'
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import type { User, Order } from '../../types'
@@ -28,6 +28,7 @@ async function fetchUserDetail(id: string) {
 }
 
 type EditForm = { prenom: string; nom: string; email: string; telephone?: string }
+type MessageForm = { subject: string; message: string }
 
 /* ── component ────────────────────────────────────────────── */
 export default function UsersPage() {
@@ -45,6 +46,7 @@ export default function UsersPage() {
   const [confirmDelete, setConfirmDelete] = useState<User | null>(null)
   const [editingUser,   setEditingUser]   = useState<User | null>(null)
   const [detailUser,    setDetailUser]    = useState<User | null>(null)
+  const [messageUser,   setMessageUser]   = useState<User | null>(null)
   const debouncedSearch = useDebouncedValue(search, 300)
 
   /* ── queries ──────────────────────────────────────────────── */
@@ -82,6 +84,18 @@ export default function UsersPage() {
     mutationFn: ({ id, body }: { id: string; body: EditForm }) => api.put(`/api/auth/users/${id}`, body),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); setEditingUser(null); reset() },
   })
+
+  const {
+    register: registerMsg, handleSubmit: handleSubmitMsg, reset: resetMsg,
+    formState: { errors: msgErrors },
+  } = useForm<MessageForm>()
+
+  const sendMessage = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: MessageForm }) => api.post(`/api/auth/users/${id}/email`, body),
+    onSuccess: () => { setMessageUser(null); resetMsg() },
+  })
+
+  const openMessage = (u: User) => { setMessageUser(u); resetMsg() }
 
   const openEdit = (u: User) => {
     setEditingUser(u)
@@ -211,6 +225,11 @@ export default function UsersPage() {
                         className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-all" title="Modifier">
                         <Edit size={14} />
                       </button>
+                      {/* Message */}
+                      <button onClick={() => openMessage(u)}
+                        className="p-1.5 rounded-lg hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 transition-all" title="Envoyer un message">
+                        <Mail size={14} />
+                      </button>
                       {/* Promouvoir / Rétrograder */}
                       <button onClick={() => setConfirmAdmin(u)}
                         className={`p-1.5 rounded-lg transition-all ${u.role === 'admin'
@@ -266,6 +285,33 @@ export default function UsersPage() {
           <div className="flex justify-end gap-2 pt-1">
             <Button type="button" variant="secondary" onClick={() => { setEditingUser(null); reset() }}>Annuler</Button>
             <Button type="submit" loading={editUser.isPending}>Enregistrer</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ── Message Modal ───────────────────────────────────────── */}
+      <Modal
+        open={!!messageUser}
+        onClose={() => { setMessageUser(null); resetMsg() }}
+        title={`Message à ${messageUser?.prenom} ${messageUser?.nom}`}
+      >
+        <form onSubmit={handleSubmitMsg(d => messageUser && sendMessage.mutate({ id: messageUser.id, body: d }))} className="space-y-4">
+          <p className="text-xs text-slate-500 -mt-1">Envoyé par email à {messageUser?.email}</p>
+          {sendMessage.isError && (
+            <div className="bg-red-50 border border-red-200 text-red-600 text-sm px-3 py-2 rounded-xl">
+              Erreur lors de l'envoi
+            </div>
+          )}
+          {sendMessage.isSuccess && (
+            <div className="bg-green-50 border border-green-200 text-green-700 text-sm px-3 py-2 rounded-xl">
+              Message envoyé
+            </div>
+          )}
+          <Input label="Sujet" {...registerMsg('subject', { required: 'Requis' })} error={msgErrors.subject?.message} />
+          <Textarea label="Message" rows={6} {...registerMsg('message', { required: 'Requis' })} error={msgErrors.message?.message} />
+          <div className="flex justify-end gap-2 pt-1">
+            <Button type="button" variant="secondary" onClick={() => { setMessageUser(null); resetMsg() }}>Annuler</Button>
+            <Button type="submit" loading={sendMessage.isPending}>Envoyer</Button>
           </div>
         </form>
       </Modal>
@@ -348,6 +394,10 @@ export default function UsersPage() {
                 <button onClick={() => { openEdit(detailUser); setDetailUser(null) }}
                   className="w-full flex items-center gap-2 px-4 py-3 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors text-sm font-medium text-slate-700">
                   <Edit size={14} className="text-slate-400" /> Modifier le profil
+                </button>
+                <button onClick={() => { openMessage(detailUser); setDetailUser(null) }}
+                  className="w-full flex items-center gap-2 px-4 py-3 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors text-sm font-medium text-slate-700">
+                  <Mail size={14} className="text-slate-400" /> Envoyer un message
                 </button>
                 <button onClick={() => { setConfirmBan(detailUser); setDetailUser(null) }}
                   className={`w-full flex items-center gap-2 px-4 py-3 rounded-xl border transition-colors text-sm font-medium ${
