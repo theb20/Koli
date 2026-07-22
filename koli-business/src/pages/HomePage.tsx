@@ -1,4 +1,4 @@
-import { Zap, ShieldCheck, LineChart, Truck, Wallet, Headset } from 'lucide-react'
+import { Zap, ShieldCheck, LineChart, Truck, Wallet, Headset, ArrowRight } from 'lucide-react'
 
 const BENEFITS = [
   { icon: Zap,         title: 'Mise en ligne simple',    desc: 'Ajoutez un produit en moins de 2 minutes, photos comprises.' },
@@ -15,34 +15,10 @@ const STEPS = [
   { n: '3', title: 'Vendez et encaissez',  desc: 'Chaque vente est versée sur votre compte sous 48 h maximum.' },
 ]
 
-function DashboardGlyph() {
-  return (
-    <div className="w-full max-w-[440px] aspect-[4/3] rounded-2xl bg-[#141416] border border-[#26262b] p-6 flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <div className="h-2.5 w-24 rounded-full bg-[#3a3a42]" />
-        <div className="h-7 w-20 rounded-lg bg-[#1e90ff]" />
-      </div>
-      <div className="grid grid-cols-3 gap-3">
-        {[0, 1, 2].map(i => (
-          <div key={i} className="rounded-xl bg-[#1a1a1f] border border-[#26262b] p-3 flex flex-col gap-2">
-            <div className="h-1.5 w-10 rounded-full bg-[#4a4a52]" />
-            <div className="h-3 w-14 rounded-full bg-[#e5e5e2]" />
-          </div>
-        ))}
-      </div>
-      <div className="flex-1 rounded-xl bg-[#1a1a1f] border border-[#26262b] p-4 flex items-end gap-2.5">
-        {[38, 62, 44, 78, 56, 90, 68].map((h, i) => (
-          <div key={i} className="flex-1 rounded-t-sm bg-[#1e90ff]/70" style={{ height: `${h}%` }} />
-        ))}
-      </div>
-    </div>
-  )
-}
-
 export default function HomePage() {
   return (
     <div className="bg-white">
-      {/* ── Header + Hero (bloc noir) ─────────────────────────── */}
+      {/* ── Header ───────────────────────────────────────────── */}
       <div className="bg-[#0c0c0c] text-[#f4f4f2]">
         <header className="flex items-center justify-between px-8 lg:px-14 py-5 border-b border-[#262626]">
           <img src="/logo-skignas.png" alt="Skignas" className="h-8 w-auto invert" />
@@ -56,41 +32,36 @@ export default function HomePage() {
             </a>
           </nav>
         </header>
+      </div>
 
-        <section className="flex flex-col lg:flex-row items-center gap-12 px-8 lg:px-14 py-16 lg:py-20">
-          <div className="flex-1 flex flex-col gap-6 max-w-xl">
-            <h1 className="text-4xl lg:text-[54px] font-extrabold leading-[1.05] tracking-tight">
+      {/* ── Héro — photo plein cadre + carte CTA flottante ────── */}
+      <section className="relative h-[520px] lg:h-[620px] overflow-hidden">
+        <img src="/og-1.png" alt="" className="absolute inset-0 w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/35 to-transparent" />
+
+        <div className="absolute inset-x-6 lg:inset-x-14 bottom-8 lg:bottom-16 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
+          <div className="max-w-xl">
+            <h1 className="text-4xl lg:text-[54px] font-extrabold leading-[1.02] tracking-tight text-white">
               Votre boutique.<br />Votre business.<br />Skignas s'occupe du reste.
             </h1>
-            <p className="text-[#9a9a9a] text-base lg:text-[17px] leading-relaxed max-w-md">
-              Publiez vos produits, suivez vos commandes et recevez vos paiements — depuis un seul tableau de bord, sur web et mobile.
+            <p className="text-[#e0e0e4] text-base lg:text-lg leading-snug mt-5">
+              Publiez vos produits, suivez vos commandes et recevez vos paiements.
             </p>
-            <div className="flex flex-wrap gap-3.5">
-              <a href="#" className="bg-[#f4f4f2] text-[#111] rounded-lg px-7 py-3.5 text-[15px] font-bold hover:bg-white transition-colors">
-                Ouvrir ma boutique
-              </a>
-              <a href="#" className="border border-[#3a3a3a] text-[#f4f4f2] rounded-lg px-7 py-3.5 text-[15px] font-semibold hover:border-[#f4f4f2] transition-colors">
-                Se connecter
-              </a>
-            </div>
-            <div className="flex gap-9 pt-2">
-              {[
-                ['12 500+', 'marchands'],
-                ['48 h', 'versement max'],
-                ['24/7', 'support dédié'],
-              ].map(([value, label]) => (
-                <div key={label} className="flex flex-col gap-0.5">
-                  <span className="text-2xl font-extrabold">{value}</span>
-                  <span className="text-[#9a9a9a] text-[13px]">{label}</span>
-                </div>
-              ))}
-            </div>
           </div>
-          <div className="flex-1 flex justify-center lg:justify-end w-full">
-            <DashboardGlyph />
-          </div>
-        </section>
-      </div>
+
+          <a
+            href="#"
+            className="w-full lg:w-[420px] shrink-0 bg-white rounded-2xl px-8 py-8 flex items-center justify-between gap-5 text-[#0a0a0b] hover:bg-[#f4f4f2] transition-colors"
+          >
+            <span className="text-lg lg:text-xl font-extrabold leading-snug tracking-tight">
+              Créez votre compte et commencez à vendre !
+            </span>
+            <span className="w-12 h-12 shrink-0 rounded-full bg-[#111] text-white flex items-center justify-center">
+              <ArrowRight size={20} />
+            </span>
+          </a>
+        </div>
+      </section>
 
       {/* ── Avantages ──────────────────────────────────────────── */}
       <section id="avantages" className="px-8 lg:px-14 py-16 lg:py-20 flex flex-col gap-10">
