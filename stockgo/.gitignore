@@ -1,0 +1,7 @@
+.env
+/bin/
+/tmp/
+uploads/*
+!uploads/.gitkeep
+*.log
+.DS_Store

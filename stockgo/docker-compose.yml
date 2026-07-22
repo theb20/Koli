@@ -1,0 +1,41 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: stockgo
+      POSTGRES_PASSWORD: stockgo
+      POSTGRES_DB: stockgo_dev
+    ports:
+      - "5433:5432"
+    volumes:
+      - stockgo_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stockgo"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: 8080
+      ENV: development
+      DATABASE_URL: postgres://stockgo:stockgo@db:5432/stockgo_dev?sslmode=disable
+      JWT_SECRET: ${JWT_SECRET:-dev-local-jwt-secret-do-not-use-in-production}
+      API_KEY: ${API_KEY:-dev-local-api-key-do-not-use-in-production}
+      STORAGE_PATH: /storage
+      MAX_UPLOAD_SIZE: ${MAX_UPLOAD_SIZE:-104857600}
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}
+    volumes:
+      - stockgo_uploads:/storage
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  stockgo_db_data:
+  stockgo_uploads:

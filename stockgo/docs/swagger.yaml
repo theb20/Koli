@@ -1,0 +1,215 @@
+basePath: /
+definitions:
+  handlers.fileResponse:
+    properties:
+      created_at:
+        type: string
+      filename:
+        type: string
+      id:
+        type: string
+      mime:
+        type: string
+      size:
+        type: integer
+      url:
+        type: string
+    type: object
+  handlers.infoResponse:
+    properties:
+      checksum_sha256:
+        type: string
+      created_at:
+        type: string
+      extension:
+        type: string
+      id:
+        type: string
+      mime:
+        type: string
+      name:
+        type: string
+      size:
+        type: integer
+    type: object
+  handlers.listResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/handlers.fileResponse'
+        type: array
+      limit:
+        type: integer
+      page:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+info:
+  contact: {}
+  description: Service de stockage de fichiers indépendant, style Backblaze B2 simplifié,
+    pour l'écosystème Skignas.
+  title: Stockgo Storage Service
+  version: "1.0"
+paths:
+  /api/v1/files:
+    get:
+      parameters:
+      - description: Page (défaut 1)
+        in: query
+        name: page
+        type: integer
+      - description: Résultats par page (défaut 20, max 100)
+        in: query
+        name: limit
+        type: integer
+      - description: Recherche sur le nom original
+        in: query
+        name: search
+        type: string
+      - description: created_at | size | original_name
+        in: query
+        name: sort_by
+        type: string
+      - description: asc | desc
+        in: query
+        name: sort_dir
+        type: string
+      - description: Filtre par type MIME exact
+        in: query
+        name: mime_type
+        type: string
+      - description: Filtre par bucket
+        in: query
+        name: bucket
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.listResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Lister les fichiers
+      tags:
+      - files
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload multipart/form-data (image, vidéo, pdf, document, zip, audio)
+      parameters:
+      - description: Fichier à uploader
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: 'Dossier logique de destination (ex: products, avatars)'
+        in: formData
+        name: bucket
+        type: string
+      - description: 'public ou private (défaut: private)'
+        in: formData
+        name: visibility
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handlers.fileResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Uploader un fichier
+      tags:
+      - files
+  /api/v1/files/{id}:
+    delete:
+      parameters:
+      - description: ID du fichier
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Supprimer un fichier
+      tags:
+      - files
+    get:
+      parameters:
+      - description: ID du fichier
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Télécharger un fichier
+      tags:
+      - files
+  /api/v1/files/{id}/info:
+    get:
+      parameters:
+      - description: ID du fichier
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.infoResponse'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Métadonnées d'un fichier
+      tags:
+      - files
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: X-API-Key
+    type: apiKey
+swagger: "2.0"
