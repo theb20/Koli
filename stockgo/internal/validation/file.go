@@ -14,7 +14,7 @@ import (
 // explicitement listé est refusé.
 var allowedExtensions = map[string]bool{
 	// images
-	".jpg": true, ".jpeg": true, ".png": true, ".gif": true, ".webp": true, ".svg": true,
+	".jpg": true, ".jpeg": true, ".png": true, ".gif": true, ".webp": true, ".svg": true, ".avif": true,
 	// vidéos
 	".mp4": true, ".mov": true, ".avi": true, ".mkv": true, ".webm": true,
 	// pdf
@@ -32,7 +32,7 @@ var allowedExtensions = map[string]bool{
 // fichier peut mentir sur son extension ou son Content-Type, mais rarement
 // sur les deux de façon cohérente).
 var allowedMimeTypes = map[string]bool{
-	"image/jpeg": true, "image/png": true, "image/gif": true, "image/webp": true, "image/svg+xml": true,
+	"image/jpeg": true, "image/png": true, "image/gif": true, "image/webp": true, "image/svg+xml": true, "image/avif": true,
 	"video/mp4": true, "video/quicktime": true, "video/x-msvideo": true, "video/x-matroska": true, "video/webm": true,
 	"application/pdf":    true,
 	"application/msword": true, "application/vnd.openxmlformats-officedocument.wordprocessingml.document": true,
