@@ -1,25 +1,20 @@
 import { Router } from 'express'
 import type { Request, Response, NextFunction } from 'express'
 import { z } from 'zod'
-import path from 'path'
-import fs from 'fs'
 import multer from 'multer'
 import { prisma } from '../lib/prisma'
 import { requireAdmin } from '../middleware/auth'
 import { validate, validateParams, zIntIdParam } from '../middleware/validate'
 import { cacheControl } from '../middleware/cache'
 import { memoryCache } from '../middleware/memoryCache'
-import { getBackendUrl } from '../lib/backendUrl'
 import { deleteLocalUpload } from '../lib/deleteLocalUpload'
+import { uploadToStockgo, deleteFromStockgo } from '../lib/stockgo'
 import { toWebp } from '../lib/imageProcessing'
 import { logger } from '../lib/logger'
 import { logAdminAction } from '../lib/auditLog'
 import { scanBuffer } from '../lib/virusScan'
 
-/* ── Multer — buffer en mémoire, converti en WebP avant écriture ── */
-const catUploadDir = path.resolve(process.env.UPLOAD_DIR ?? './uploads', 'cat')
-if (!fs.existsSync(catUploadDir)) fs.mkdirSync(catUploadDir, { recursive: true })
-
+/* ── Multer — buffer en mémoire, converti en WebP puis envoyé à stockgo ── */
 const catUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },   // 5 MB max
@@ -211,14 +206,14 @@ router.post('/:id/image', requireAdmin, validateParams(zIntIdParam), handleCatIm
 
     const webp = await toWebp(req.file.buffer)
     const filename = `cat-${Date.now()}-${Math.random().toString(36).slice(2)}.webp`
-    fs.writeFileSync(path.join(catUploadDir, filename), webp)
+    const imageUrl = await uploadToStockgo(webp, filename, 'image/webp', 'categories')
 
-    const BASE_URL = getBackendUrl()
-    const imageUrl = `${BASE_URL}/uploads/cat/${filename}`
-
-    // Supprimer l'ancienne image si c'est un fichier local
+    // Supprimer l'ancienne image (fichier local historique, ou fichier stockgo)
     const cat = await prisma.category.findUnique({ where: { id } })
-    if (cat?.image) deleteLocalUpload(cat.image)
+    if (cat?.image) {
+      deleteLocalUpload(cat.image)
+      await deleteFromStockgo(cat.image)
+    }
 
     const updated = await prisma.category.update({
       where: { id },

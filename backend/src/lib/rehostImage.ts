@@ -1,14 +1,9 @@
-import fs from 'fs'
-import path from 'path'
 import net from 'net'
 import dns from 'dns/promises'
 import { toWebp } from './imageProcessing'
 import { logger } from './logger'
 import { scanBuffer } from './virusScan'
-
-const UPLOAD_DIR    = process.env.UPLOAD_DIR ?? './uploads'
-const PRODUCTS_DIR  = path.resolve(UPLOAD_DIR, 'products')
-if (!fs.existsSync(PRODUCTS_DIR)) fs.mkdirSync(PRODUCTS_DIR, { recursive: true })
+import { uploadToStockgo, isStockgoUrl } from './stockgo'
 
 const MAX_BYTES        = 8 * 1024 * 1024 // 8 MB
 const FETCH_TIMEOUT_MS = 10_000
@@ -51,7 +46,7 @@ export async function assertPublicHost(hostname: string): Promise<void> {
  * appelante — l'image externe reste utilisable en dégradé.
  */
 export async function rehostImage(sourceUrl: string, backendBaseUrl: string): Promise<string> {
-  if (sourceUrl.startsWith(backendBaseUrl) || sourceUrl.includes('/uploads/')) {
+  if (sourceUrl.startsWith(backendBaseUrl) || sourceUrl.includes('/uploads/') || isStockgoUrl(sourceUrl)) {
     return sourceUrl // déjà hébergée chez nous
   }
 
@@ -132,9 +127,8 @@ export async function rehostImage(sourceUrl: string, backendBaseUrl: string): Pr
 
     const webp = await toWebp(buf)
     const filename = `prod-${Date.now()}-${Math.random().toString(36).slice(2)}.webp`
-    fs.writeFileSync(path.join(PRODUCTS_DIR, filename), webp)
 
-    return `${backendBaseUrl}/uploads/products/${filename}`
+    return await uploadToStockgo(webp, filename, 'image/webp', 'products')
   } catch (err) {
     logger.error('[rehostImage]', sourceUrl, err instanceof Error ? err.message : err)
     return sourceUrl

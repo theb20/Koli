@@ -24,13 +24,12 @@
 import { Router } from 'express'
 import type { Request, Response, NextFunction } from 'express'
 import { z } from 'zod'
-import path from 'path'
-import fs from 'fs'
 import multer from 'multer'
 import { prisma } from '../lib/prisma'
 import { requireAuth, requireAdmin } from '../middleware/auth'
 import { validate, validateParams, zCuidIdParam } from '../middleware/validate'
 import { getBackendUrl } from '../lib/backendUrl'
+import { uploadToStockgo, isStockgoUrl } from '../lib/stockgo'
 import { sendReturnStatusEmail, sendNewReturnAdminEmail } from '../lib/mailer'
 import { toWebp } from '../lib/imageProcessing'
 import { logger } from '../lib/logger'
@@ -39,10 +38,7 @@ import { scanFiles } from '../lib/virusScan'
 
 const router = Router()
 
-/* ── Multer — buffer en mémoire, converti en WebP avant écriture ── */
-const returnsUploadDir = path.resolve(process.env.UPLOAD_DIR ?? './uploads', 'returns')
-if (!fs.existsSync(returnsUploadDir)) fs.mkdirSync(returnsUploadDir, { recursive: true })
-
+/* ── Multer — buffer en mémoire, converti en WebP puis envoyé à stockgo ── */
 const returnsUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024, files: 4 },
@@ -84,12 +80,10 @@ router.post('/upload-images', requireAuth, handleImageUpload, async (req, res) =
       return
     }
 
-    const BASE_URL = getBackendUrl()
     const urls = await Promise.all(files.map(async f => {
       const webp = await toWebp(f.buffer)
       const filename = `ret-${Date.now()}-${Math.random().toString(36).slice(2)}.webp`
-      fs.writeFileSync(path.join(returnsUploadDir, filename), webp)
-      return `${BASE_URL}/uploads/returns/${filename}`
+      return await uploadToStockgo(webp, filename, 'image/webp', 'returns')
     }))
     res.json({ success: true, data: { urls } })
   } catch (err) {
@@ -180,11 +174,13 @@ router.post('/', requireAuth, validate(createReturnSchema), async (req, res) => 
     }
 
     // Photos : n'accepter que des URLs pointant vers notre propre stockage
-    // (jamais une image externe hébergée ailleurs, ni un lien arbitraire).
+    // (jamais une image externe hébergée ailleurs, ni un lien arbitraire) —
+    // soit l'ancien stockage local (retours déjà en cours de saisie au
+    // moment du passage à stockgo), soit stockgo (nouveau stockage).
     const BASE_URL = getBackendUrl()
-    const photoPrefix = `${BASE_URL}/uploads/returns/`
+    const legacyPhotoPrefix = `${BASE_URL}/uploads/returns/`
     for (const url of body.photos ?? []) {
-      if (!url.startsWith(photoPrefix)) {
+      if (!url.startsWith(legacyPhotoPrefix) && !isStockgoUrl(url)) {
         res.status(400).json({ success: false, message: 'Photo invalide — utilisez /api/returns/upload-images' })
         return
       }

@@ -1,24 +1,19 @@
 import { Router } from 'express'
 import type { Request, Response, NextFunction } from 'express'
 import { z } from 'zod'
-import path from 'path'
-import fs from 'fs'
 import multer from 'multer'
 import { prisma } from '../lib/prisma'
 import { requireAdmin, optionalAuth } from '../middleware/auth'
 import { validate, validateParams, validateQuery, zCuidIdParam, zPaginationQuery } from '../middleware/validate'
 import { sendNewProductRequestAdminEmail, sendProductRequestReplyEmail } from '../lib/mailer'
-import { getBackendUrl } from '../lib/backendUrl'
+import { uploadToStockgo } from '../lib/stockgo'
 import { toWebp } from '../lib/imageProcessing'
 import { logger } from '../lib/logger'
 import { scanFiles } from '../lib/virusScan'
 
 const router = Router()
 
-/* ── Multer — buffer en mémoire, converti en WebP avant écriture ── */
-const reqUploadDir = path.resolve(process.env.UPLOAD_DIR ?? './uploads', 'requests')
-if (!fs.existsSync(reqUploadDir)) fs.mkdirSync(reqUploadDir, { recursive: true })
-
+/* ── Multer — buffer en mémoire, converti en WebP puis envoyé à stockgo ── */
 const reqUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024, files: 4 },
@@ -92,12 +87,10 @@ router.post('/upload-images', handleImageUpload, async (req, res) => {
       return
     }
 
-    const BASE_URL = getBackendUrl()
     const urls = await Promise.all(files.map(async f => {
       const webp = await toWebp(f.buffer)
       const filename = `req-${Date.now()}-${Math.random().toString(36).slice(2)}.webp`
-      fs.writeFileSync(path.join(reqUploadDir, filename), webp)
-      return `${BASE_URL}/uploads/requests/${filename}`
+      return await uploadToStockgo(webp, filename, 'image/webp', 'requests')
     }))
     res.json({ success: true, data: { urls } })
   } catch (err) {
