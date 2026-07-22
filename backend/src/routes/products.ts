@@ -14,7 +14,6 @@ import { memoryCache } from '../middleware/memoryCache'
 import { rehostImages } from '../lib/rehostImage'
 import { getBackendUrl } from '../lib/backendUrl'
 import { deleteLocalUpload } from '../lib/deleteLocalUpload'
-import { syncAllProductsToMerchant, isMerchantConfigured } from '../lib/merchantFeed'
 import { logger } from '../lib/logger'
 import { logAdminAction } from '../lib/auditLog'
 import { scanBuffer } from '../lib/virusScan'
@@ -279,23 +278,11 @@ router.get('/image-jpg/:filename', async (req, res) => {
 })
 
 /* ─────────────────────────────────────────────────────────────
-   POST /api/products/sync-merchant  [ADMIN] — pousse tous les
-   produits actifs vers Google Merchant Center (API Merchant).
-   Voir lib/merchantFeed.ts pour la configuration requise.
+   La synchronisation Google Merchant (preview/start/historique/export)
+   vit désormais dans routes/merchant-sync.ts, monté sur
+   /api/products/sync-merchant dans app.ts — module plus large
+   (jobs async, historique) qui ne tenait plus dans ce fichier.
 ───────────────────────────────────────────────────────────── */
-router.post('/sync-merchant', requireAdmin, async (_req, res) => {
-  try {
-    if (!isMerchantConfigured()) {
-      res.status(400).json({ success: false, message: 'Google Merchant Center non configuré côté serveur (variables GOOGLE_MERCHANT_* manquantes)' })
-      return
-    }
-    const result = await syncAllProductsToMerchant()
-    res.json({ success: true, data: result })
-  } catch (err) {
-    logger.error('[products] échec sync Merchant', err)
-    res.status(500).json({ success: false, message: 'Erreur lors de la synchronisation avec Google Merchant Center' })
-  }
-})
 
 /* ─────────────────────────────────────────────────────────────
    GET /api/products/:id

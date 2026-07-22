@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Search, Edit, Trash2, Eye, EyeOff, Package, Store, Upload, X, RefreshCw } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, Eye, EyeOff, Package, Store, Upload, X, RefreshCw, History } from 'lucide-react'
 import { api, fmt, fmtDate } from '../../lib/api'
 import { Button } from '../../components/ui/Button'
 import { Badge } from '../../components/ui/Badge'
@@ -10,6 +10,8 @@ import { Pagination } from '../../components/ui/Pagination'
 import { PageTitle } from '../../components/layout/Sidebar'
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { BulkImportModal } from './BulkImportModal'
+import { SyncMerchantModal } from './SyncMerchantModal'
+import { SyncHistoryModal } from './SyncHistoryModal'
 import type { Product, Category } from '../../types'
 
 
@@ -31,28 +33,9 @@ export default function ProductsPage() {
   const [bulkOpen, setBulkOpen] = useState(false)
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
-  const [syncMsg, setSyncMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const [syncOpen, setSyncOpen] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
   const debouncedSearch = useDebouncedValue(search, 300)
-
-  type MerchantSyncResult = {
-    total: number; succeeded: number
-    failed: { productId: number; name: string; error: string }[]
-    skippedNoImage: { productId: number; name: string }[]
-  }
-
-  const syncMerchantMutation = useMutation({
-    mutationFn: async () => { const { data } = await api.post('/api/products/sync-merchant'); return data.data as MerchantSyncResult },
-    onSuccess: (result) => {
-      const parts = [`${result.succeeded}/${result.total} produits synchronisés`]
-      if (result.skippedNoImage.length) parts.push(`${result.skippedNoImage.length} ignoré(s) (sans image)`)
-      if (result.failed.length) parts.push(`${result.failed.length} échec(s)`)
-      setSyncMsg({ ok: result.failed.length === 0, text: parts.join(' · ') })
-    },
-    onError: (err) => {
-      const text = (err as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Erreur lors de la synchronisation'
-      setSyncMsg({ ok: false, text })
-    },
-  })
 
   const { data: storesData } = useQuery({
     queryKey: ['stores-list'],
@@ -129,12 +112,8 @@ export default function ProductsPage() {
         sub={`${pagination?.total ?? 0} produits au total`}
         action={
           <div className="flex items-center gap-2 flex-wrap">
-            <Button
-              variant="secondary"
-              icon={<RefreshCw size={15} className={syncMerchantMutation.isPending ? 'animate-spin' : ''} />}
-              loading={syncMerchantMutation.isPending}
-              onClick={() => { setSyncMsg(null); syncMerchantMutation.mutate() }}
-            >
+            <Button variant="secondary" icon={<History size={15} />} onClick={() => setHistoryOpen(true)}>Historique</Button>
+            <Button variant="secondary" icon={<RefreshCw size={15} />} onClick={() => setSyncOpen(true)}>
               Synchroniser Google
             </Button>
             <Button variant="secondary" icon={<Upload size={15} />} onClick={() => setBulkOpen(true)}>Import CSV</Button>
@@ -142,12 +121,14 @@ export default function ProductsPage() {
           </div>
         }
       />
-      {syncMsg && (
-        <div className={`text-sm px-4 py-2.5 rounded-xl border ${syncMsg.ok ? 'text-emerald-700 bg-emerald-50 border-emerald-100' : 'text-amber-700 bg-amber-50 border-amber-100'}`}>
-          {syncMsg.text}
-        </div>
-      )}
       <BulkImportModal open={bulkOpen} onClose={() => setBulkOpen(false)} />
+      <SyncMerchantModal
+        open={syncOpen}
+        onClose={() => setSyncOpen(false)}
+        selectedIds={[...selected]}
+        onDone={() => qc.invalidateQueries({ queryKey: ['products'] })}
+      />
+      <SyncHistoryModal open={historyOpen} onClose={() => setHistoryOpen(false)} />
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
@@ -213,7 +194,7 @@ export default function ProductsPage() {
                   className="w-4 h-4 rounded accent-indigo-600"
                 />
               </th>
-              {['Produit', 'Catégorie', 'Prix', 'Stock', 'Vendu', 'Note', 'Badge', 'Statut', 'Créé le', ''].map(h => (
+              {['Produit', 'Catégorie', 'Prix', 'Stock', 'Vendu', 'Note', 'Badge', 'Statut', 'Google', 'Créé le', ''].map(h => (
                 <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
               ))}
             </tr>
@@ -221,10 +202,10 @@ export default function ProductsPage() {
           <tbody className="divide-y divide-slate-100">
             {isLoading ? (
               Array.from({ length: 8 }).map((_, i) => (
-                <tr key={i}><td colSpan={11} className="px-4 py-3"><div className="h-8 bg-slate-100 rounded-lg animate-pulse" /></td></tr>
+                <tr key={i}><td colSpan={12} className="px-4 py-3"><div className="h-8 bg-slate-100 rounded-lg animate-pulse" /></td></tr>
               ))
             ) : products.length === 0 ? (
-              <tr><td colSpan={11} className="py-16 text-center">
+              <tr><td colSpan={12} className="py-16 text-center">
                 <Package size={32} className="mx-auto text-slate-300 mb-2" />
                 <p className="text-slate-400 text-sm">Aucun produit trouvé</p>
               </td></tr>
@@ -272,6 +253,11 @@ export default function ProductsPage() {
                   <td className="px-4 py-3 text-sm text-slate-500">⭐ {p.rating.toFixed(1)}</td>
                   <td className="px-4 py-3">{p.badge ? <Badge label={p.badge} /> : <span className="text-slate-300 text-xs">—</span>}</td>
                   <td className="px-4 py-3"><Badge label={p.isActive ? 'active' : 'inactive'} /></td>
+                  <td className="px-4 py-3">
+                    {p.merchantSyncStatus
+                      ? <Badge label={p.merchantSyncStatus} />
+                      : <span className="text-slate-300 text-xs">—</span>}
+                  </td>
                   <td className="px-4 py-3 text-xs text-slate-400">{fmtDate(p.createdAt)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">

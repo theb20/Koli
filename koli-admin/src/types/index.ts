@@ -49,6 +49,43 @@ export type Product = {
   saleEndsAt?: string | null
   images: { id: number; url: string; position: number }[]
   specs: { id: number; label: string; value: string; position: number }[]
+  merchantSyncStatus?: 'success' | 'failed' | 'skipped' | null
+  merchantSyncedAt?: string | null
+}
+
+export type MerchantSyncItem = {
+  id: string
+  runId: string
+  productId: number
+  productName: string
+  status: 'success' | 'failed' | 'skipped'
+  error?: string | null
+  warnings?: string | null
+  createdAt: string
+}
+
+export type MerchantSyncRun = {
+  id: string
+  provider: string
+  mode: 'full' | 'selected' | 'retry'
+  status: 'running' | 'completed' | 'failed'
+  actorId?: string | null
+  actorEmail?: string | null
+  total: number
+  succeeded: number
+  failedCount: number
+  skippedCount: number
+  startedAt: string
+  finishedAt?: string | null
+  items?: MerchantSyncItem[]
+}
+
+export type MerchantPreviewItem = {
+  productId: number
+  name: string
+  valid: boolean
+  errors: string[]
+  warnings: string[]
 }
 
 export type DealAnnouncement = {

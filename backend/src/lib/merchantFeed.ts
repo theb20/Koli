@@ -23,7 +23,6 @@
 ───────────────────────────────────────────────────────────── */
 import { ProductInputsServiceClient } from '@google-shopping/products'
 import { DeveloperRegistrationServiceClient } from '@google-shopping/accounts'
-import { prisma } from './prisma'
 
 const FEED_LABEL = process.env.GOOGLE_MERCHANT_FEED_LABEL ?? 'CI'
 const CURRENCY   = 'XOF' // Franc CFA (BCEAO) — devise utilisée par Skignas
@@ -136,55 +135,69 @@ function buildProductInput(p: ProductForMerchant, accountId: string, dataSourceI
   }
 }
 
-export type MerchantSyncResult = {
-  total: number
-  succeeded: number
-  failed: { productId: number; name: string; error: string }[]
-  skippedNoImage: { productId: number; name: string }[]
+export const PRODUCT_SELECT_FOR_MERCHANT = {
+  id: true, name: true, brand: true, category: true, price: true,
+  salePrice: true, stock: true, description: true,
+  images: { orderBy: { position: 'asc' as const }, select: { url: true } },
+}
+
+export type PreflightIssue = {
+  productId: number
+  name: string
+  errors: string[]   // bloque l'envoi de ce produit
+  warnings: string[] // signalé mais n'empêche pas l'envoi
 }
 
 /**
- * Pousse tous les produits actifs vers Google Merchant Center.
- * Un produit sans image est ignoré (Google exige imageLink) plutôt que
- * d'échouer toute la synchronisation. Chaque échec individuel est
- * collecté sans interrompre les suivants.
+ * Validation locale (aucun appel réseau) des règles Google Merchant les plus
+ * courantes, avant de dépenser un appel API. Le catalogue actuel n'a pas de
+ * champ GTIN dédié — non vérifiable tant que ce champ n'existe pas côté
+ * produit ; Google accepte les produits sans GTIN si `identifierExists` est
+ * correctement déclaré (c'est implicitement le cas ici, aucun GTIN n'étant
+ * jamais envoyé).
  */
-export async function syncAllProductsToMerchant(): Promise<MerchantSyncResult> {
-  if (!isMerchantConfigured()) {
-    throw new Error('Google Merchant Center non configuré (variables GOOGLE_MERCHANT_* manquantes)')
+export function preflightProduct(p: ProductForMerchant): PreflightIssue {
+  const errors: string[] = []
+  const warnings: string[] = []
+
+  if (p.images.length === 0) errors.push('Aucune image')
+  if (!p.price || p.price <= 0) errors.push('Prix invalide')
+  if (p.stock < 0) errors.push('Stock invalide')
+  if (!p.name || p.name.trim().length < 3) errors.push('Nom trop court ou manquant')
+  if (!p.category || !p.category.trim()) errors.push('Catégorie manquante')
+  if (p.salePrice != null && p.salePrice >= p.price) errors.push('Prix promo ≥ prix normal')
+
+  if (!p.brand || !p.brand.trim()) warnings.push('Marque manquante')
+  if (!p.description || !p.description.trim()) warnings.push('Pas de description (le nom sera utilisé)')
+  for (const img of p.images) {
+    if (!/^https?:\/\//i.test(img.url)) warnings.push(`URL d'image suspecte : ${img.url}`)
   }
 
-  const accountId    = process.env.GOOGLE_MERCHANT_ACCOUNT_ID!
-  const dataSourceId = process.env.GOOGLE_MERCHANT_DATA_SOURCE_ID!
-  const client = getClient()
-
-  const products = await prisma.product.findMany({
-    where: { isActive: true },
-    select: {
-      id: true, name: true, brand: true, category: true, price: true,
-      salePrice: true, stock: true, description: true,
-      images: { orderBy: { position: 'asc' }, select: { url: true } },
-    },
-  })
-
-  const result: MerchantSyncResult = { total: products.length, succeeded: 0, failed: [], skippedNoImage: [] }
-
-  for (const p of products) {
-    if (p.images.length === 0) {
-      result.skippedNoImage.push({ productId: p.id, name: p.name })
-      continue
-    }
-    const request = buildProductInput(p, accountId, dataSourceId)
-    const err = await insertWithRetry(client, request)
-    if (err) {
-      result.failed.push({ productId: p.id, name: p.name, error: err })
-    } else {
-      result.succeeded++
-    }
-  }
-
-  return result
+  return { productId: p.id, name: p.name, errors, warnings }
 }
+
+export type ProductSyncOutcome = { status: 'success' | 'failed' | 'skipped'; error?: string }
+
+/**
+ * Envoie un seul produit à Google Merchant Center. Un produit dont le
+ * préflight relève des erreurs bloquantes est "skipped" sans appel réseau.
+ */
+export async function syncProductToMerchant(
+  client: ProductInputsServiceClient,
+  p: ProductForMerchant,
+  accountId: string,
+  dataSourceId: string,
+): Promise<ProductSyncOutcome> {
+  const preflight = preflightProduct(p)
+  if (preflight.errors.length > 0) {
+    return { status: 'skipped', error: preflight.errors.join(', ') }
+  }
+  const request = buildProductInput(p, accountId, dataSourceId)
+  const err = await insertWithRetry(client, request)
+  return err ? { status: 'failed', error: err } : { status: 'success' }
+}
+
+export { getClient as getMerchantClient }
 
 /**
  * Réessaie un envoi qui échoue avec une erreur transitoire connue côté

@@ -133,6 +133,10 @@ model Product {
   saleStartsAt   DateTime?
   saleEndsAt     DateTime?
   salePrice      Int?
+  /// Dernier résultat connu d'une synchronisation Merchant (tous providers
+  /// confondus) — "success" | "failed" | "skipped" | null si jamais synchronisé.
+  merchantSyncStatus String?
+  merchantSyncedAt   DateTime?
   browseHistory  BrowseHistory[]
   giftListItems  GiftListItem[]
   orderItems     OrderItem[]
@@ -653,4 +657,43 @@ model AuditLog {
   @@index([targetType, targetId])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+/// Une exécution de synchronisation catalogue → marketplace (Google Merchant
+/// aujourd'hui, provider volontairement en champ String — pas d'enum — pour
+/// pouvoir brancher meta/tiktok/pinterest/microsoft plus tard sans migration).
+model MerchantSyncRun {
+  id           String   @id @default(cuid())
+  provider     String   @default("google")
+  mode         String   // "full" | "selected" | "retry"
+  status       String   @default("running") // "running" | "completed" | "failed"
+  actorId      String?
+  actorEmail   String?
+  total        Int      @default(0)
+  succeeded    Int      @default(0)
+  failedCount  Int      @default(0)
+  skippedCount Int      @default(0)
+  startedAt    DateTime @default(now())
+  finishedAt   DateTime?
+  items        MerchantSyncItem[]
+
+  @@index([provider, status])
+  @@index([startedAt])
+  @@map("merchant_sync_runs")
+}
+
+model MerchantSyncItem {
+  id          String   @id @default(cuid())
+  runId       String
+  run         MerchantSyncRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  productId   Int      // pas de relation FK — snapshot, doit survivre à la suppression du produit
+  productName String
+  status      String   // "success" | "failed" | "skipped"
+  error       String?
+  warnings    String?  // JSON string[] — avertissements de préflight (non bloquants)
+  createdAt   DateTime @default(now())
+
+  @@index([runId])
+  @@index([runId, status])
+  @@map("merchant_sync_items")
 }
