@@ -277,17 +277,17 @@ export default function HomePage() {
 
       {/* ── Bandeau inscription (photo + carte) ────────────────── */}
       <section className="px-8 lg:px-14 pb-16 lg:pb-20">
-        <div className="rounded-3xl overflow-hidden flex flex-col lg:flex-row lg:h-72">
-          <div className="lg:flex-1 h-56 lg:h-full">
+        <div className="flex flex-col lg:flex-row lg:h-[300px] rounded-[28px] lg:rounded-tl-[64px] lg:rounded-br-[64px] overflow-hidden">
+          <div className="lg:flex-[0.9] h-56 lg:h-full">
             <img src="/og-1.png" alt="" className="w-full h-full object-cover" />
           </div>
-          <div className="lg:flex-1 bg-white p-8 lg:p-12 flex flex-col justify-center gap-6">
-            <span className="text-2xl lg:text-[28px] font-extrabold leading-snug tracking-tight text-[#111] max-w-md">
+          <div className="lg:flex-1 bg-white p-8 lg:pl-14 lg:pr-16 flex flex-col justify-center gap-8">
+            <span className="text-2xl lg:text-[30px] font-extrabold leading-[1.2] tracking-tight text-[#111] max-w-md">
               Inscrivez-vous et commencez à bénéficier des avantages offerts par Skignas
             </span>
             <a
               href="#"
-              className="self-start inline-flex items-center gap-3 bg-[#e53e2b] hover:bg-[#c8331f] transition-colors text-white rounded-full pl-7 pr-6 py-4 text-sm font-extrabold tracking-wide uppercase"
+              className="self-start inline-flex items-center gap-4 bg-[#e5342a] hover:bg-[#c8281f] transition-colors text-white rounded-full pl-8 pr-7 py-4 text-sm font-extrabold tracking-wide uppercase"
             >
               Devenir marchand
               <ArrowRight size={16} strokeWidth={2.5} />
