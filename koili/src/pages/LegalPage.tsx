@@ -14,14 +14,14 @@ const SECTIONS = [
           <table className="w-full text-sm">
             <tbody>
               {[
-                ["Raison sociale",    "Skignas SAS"],
+                ["Raison sociale",    "Skignas "],
                 ["Forme juridique",   "Société par Actions Simplifiée (SAS)"],
-                ["Capital social",    "10 000 €"],
-                ["RCS",              "Paris B 123 456 789"],
-                ["Siège social",      "42 rue du Commerce, 75015 Paris, France"],
-                ["Téléphone",         "+33 1 23 45 67 89"],
+                ["Capital social",    "1 000 000 Fcfa"],
+                ["RCS",              "***** B 123 456 789"],
+                ["Siège social",      "Cocody, Cote d'Ivoire"],
+                ["Téléphone",         "+225 05 74 71 74 55"],
                 ["E-mail",            "legal@skignas.com"],
-                ["N° TVA intracommunautaire", "FR 12 345 678 901"],
+                ["N° TVA intracommunautaire", "CI 12 345 678 901"],
               ].map(([k, v]) => (
                 <tr key={k} className="border-b border-gray-100 last:border-none">
                   <td className="px-4 py-3 font-semibold text-gray-500 w-1/2">{k}</td>

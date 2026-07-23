@@ -97,13 +97,7 @@ export type StepProps = {
 }
 
 export const PAYS_OPTIONS = [
-  { value: 'CI', label: "Côte d'Ivoire" },
-  { value: 'SN', label: 'Sénégal' },
-  { value: 'ML', label: 'Mali' },
-  { value: 'BF', label: 'Burkina Faso' },
-  { value: 'CM', label: 'Cameroun' },
-  { value: 'TG', label: 'Togo' },
-  { value: 'BJ', label: 'Bénin' },
+  { value: 'CI', label: "Côte d'Ivoire" }
 ]
 
 // Le libellé du numéro légal dépend du pays — RCCM pour la plupart des pays

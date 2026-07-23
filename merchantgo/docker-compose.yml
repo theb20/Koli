@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: merchantgo
+      POSTGRES_PASSWORD: merchantgo
+      POSTGRES_DB: merchantgo_dev
+    ports:
+      - "5434:5432"
+    volumes:
+      - merchantgo_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U merchantgo"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    environment:
+      PORT: 8080
+      ENV: development
+      DATABASE_URL: postgres://merchantgo:merchantgo@db:5432/merchantgo_dev?sslmode=disable
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET doit être identique à backend/.env}
+      ADMIN_API_KEY: ${ADMIN_API_KEY:-dev-local-admin-key-do-not-use-in-production}
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  merchantgo_db_data:

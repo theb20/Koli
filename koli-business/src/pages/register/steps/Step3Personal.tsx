@@ -4,14 +4,10 @@ import { PAYS_OPTIONS, type StepProps } from '../types'
 
 const LANGUES = [
   { value: 'fr', label: 'Français' },
-  { value: 'en', label: 'Anglais' },
 ]
 
 const DEVISES = [
-  { value: 'XOF', label: 'Franc CFA (XOF)' },
-  { value: 'XAF', label: 'Franc CFA CEMAC (XAF)' },
-  { value: 'EUR', label: 'Euro (EUR)' },
-  { value: 'USD', label: 'Dollar (USD)' },
+  { value: 'XOF', label: 'Franc CFA (XOF)' }
 ]
 
 export function Step3Personal({ data, update }: StepProps) {

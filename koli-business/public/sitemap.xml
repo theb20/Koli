@@ -3,16 +3,25 @@
   xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
 >
-<!-- Une seule route existe pour l'instant (accueil) — à étendre au fil de
-     l'ajout des pages connexion/inscription. -->
-
   <url>
     <loc>https://business.skignas.com/</loc>
     <lastmod>2026-07-23</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
     <image:image>
-      <image:loc>https://business.skignas.com/og2.png</image:loc>
+      <image:loc>https://business.skignas.com/og2.jpg</image:loc>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://business.skignas.com/inscription</loc>
+    <lastmod>2026-07-23</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://business.skignas.com/wall/wall1.png</image:loc>
+      <image:title>Espace marchand Skignas</image:title>
+      <image:caption>Visuel affiché sur la page d'inscription marchand Skignas</image:caption>
     </image:image>
   </url>
 

@@ -63,15 +63,15 @@ const FAQS = [
 
 function Laptop({ children }: { children: ReactNode }) {
   return (
-    <div className="w-full">
-      <div className="rounded-t-2xl bg-[#1c1c1f] p-3 pb-0">
-        <div className="flex justify-center pb-2.5">
-          <div className="w-2 h-2 rounded-full bg-[#3a3a42]" />
-        </div>
-        <div className="rounded-t-lg bg-white overflow-hidden">{children}</div>
+    <div className="relative w-full aspect-[1057/638]">
+      <div className="absolute top-[4.9%] left-[9.8%] right-[9.8%] bottom-[11.8%] rounded-md bg-white overflow-hidden">
+        {children}
       </div>
-      <div className="h-3.5 rounded-b-xl bg-gradient-to-b from-[#2c2c30] to-[#1c1c1f]" />
-      <div className="h-1.5 w-1/3 mx-auto rounded-b-md bg-[#141416]" />
+      <img
+        src="/items/Laptop.png"
+        alt="Laptop"
+        className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
+      />
     </div>
   )
 }
@@ -235,18 +235,36 @@ export default function HomePage() {
         </div>
 
         {/* ── Comment ça marche ────────────────────────────────── */}
-        <div id="comment-ca-marche" className="flex flex-col gap-6 pt-4">
+        <div id="comment-ca-marche" className="flex flex-col gap-10 pt-4">
           <h2 className="text-2xl lg:text-[30px] font-extrabold tracking-tight text-[#111]">Comment ça marche</h2>
+
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
             {STEPS.map(({ n, title, desc }) => (
-              <div key={n} className="flex flex-col gap-2.5">
-                <div className="w-10 h-10 rounded-full bg-[#111] text-white flex items-center justify-center font-extrabold text-base">
-                  {n}
-                </div>
-                <span className="text-base font-extrabold text-[#111]">{title}</span>
+              <div key={n} className="flex flex-col gap-2">
+                <span className="text-6xl lg:text-9xl font-extrabold text-[#d2d2d2] leading-none tracking-tight">{n}</span>
+                <span className="text-base font-extrabold text-[#111] mt-2">{title}</span>
                 <span className="text-[#6f6f6f] text-sm leading-relaxed">{desc}</span>
               </div>
             ))}
+          </div>
+
+          <div className="flex flex-col gap-6">
+            <div className="hidden sm:block relative h-px bg-[#111]">
+              <div className="absolute inset-0 grid grid-cols-3">
+                {STEPS.map(({ n }) => (
+                  <span key={n} className="w-2 h-2 rounded-full bg-[#111] -translate-y-1/2 justify-self-start" />
+                ))}
+              </div>
+              <ArrowRight size={18} strokeWidth={2.5} className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 text-[#111]" />
+            </div>
+
+            <Link
+              to="/inscription"
+              className="self-start sm:self-end inline-flex items-center gap-4 bg-black hover:bg-[#c8281f] transition-colors text-white rounded-full pl-8 pr-7 py-4 text-sm font-extrabold tracking-wide uppercase"
+            >
+              Devenir marchand
+              <ArrowRight size={16} strokeWidth={2.5} />
+            </Link>
           </div>
         </div>
       </section>

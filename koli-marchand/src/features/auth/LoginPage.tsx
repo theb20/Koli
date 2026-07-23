@@ -1,6 +1,7 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, type SyntheticEvent } from 'react'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { AuthLayout, Field, GoogleButton } from '../components/AuthLayout'
+import { useAuthStore } from './useAuthStore'
 
 const STATS = [
   { value: '12 500+', label: 'marchands actifs' },
@@ -9,12 +10,17 @@ const STATS = [
 ]
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const { isAuthenticated, login, loading, error } = useAuthStore()
+  const navigate = useNavigate()
+  const [email, setEmail] = useState('marchand@skignas.com')
+  const [password, setPassword] = useState('skignas123')
 
-  function handleSubmit(e: React.FormEvent) {
+  if (isAuthenticated) return <Navigate to="/dashboard" replace />
+
+  async function handleSubmit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault()
-    // TODO: brancher sur l'API d'authentification marchand une fois disponible
+    const ok = await login(email, password)
+    if (ok) navigate('/dashboard', { replace: true })
   }
 
   return (
@@ -37,6 +43,11 @@ export default function LoginPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        {error && (
+          <p role="alert" className="text-[13px] text-red-600 bg-red-50 border border-red-200 rounded-lg px-3.5 py-2.5">
+            {error}
+          </p>
+        )}
         <Field
           label="Adresse e-mail"
           type="email"
@@ -56,8 +67,12 @@ export default function LoginPage() {
         />
 
         <div className="flex flex-col gap-3 pt-1">
-          <button type="submit" className="bg-[#111] hover:bg-[#2c2c2c] transition-colors text-white rounded-lg py-3.5 text-[15px] font-bold">
-            Se connecter
+          <button
+            type="submit"
+            disabled={loading}
+            className="bg-[#111] hover:bg-[#2c2c2c] transition-colors text-white rounded-lg py-3.5 text-[15px] font-bold disabled:opacity-60"
+          >
+            {loading ? 'Connexion…' : 'Se connecter'}
           </button>
           <div className="flex items-center gap-3 py-1">
             <div className="flex-1 h-px bg-[#e3e3e3]" />

@@ -1,0 +1,38 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #0a0a0b;
+  --color-surface: #f5f5f3;
+  --color-card: #ffffff;
+  --color-border: #e8e8e4;
+  --color-accent: #1E90FF;
+  --font-sans: 'Archivo', Helvetica, Arial, sans-serif;
+}
+
+body {
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  letter-spacing: -0.02em;
+  font-weight: 800;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d4d4d0; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #1E90FF; }
+
+.sidebar-item {
+  @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-[#a3a3a1] transition-colors duration-150;
+}
+.sidebar-item:hover { @apply bg-white/5 text-white; }
+.sidebar-item.active { @apply bg-[#1E90FF] text-white font-semibold; }
+
+input, select, textarea {
+  @apply outline-none;
+}
