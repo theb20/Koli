@@ -24,8 +24,8 @@ export default function LoginPage() {
         <div className="flex flex-col gap-5">
           {STATS.map(({ value, label }) => (
             <div key={label} className="flex items-baseline gap-3.5">
-              <span className="text-2xl lg:text-[26px] font-extrabold">{value}</span>
-              <span className="text-[#9a9a9a] text-[15px]">{label}</span>
+              <span className="text-2xl lg:text-[26px] font-extrabold text-white">{value}</span>
+              <span className="text-[#c8c8ce] text-[15px]">{label}</span>
             </div>
           ))}
         </div>
