@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import { Zap, ShieldCheck, LineChart, Truck, Wallet, Headset, ArrowRight, ChevronLeft, ChevronRight, Plus, Minus, Quote } from 'lucide-react'
 
 const BENEFITS = [
@@ -175,10 +176,10 @@ export default function HomePage() {
             <a href="#avantages" className="text-[#d8d8d8] hover:text-white transition-colors">Avantages</a>
             <a href="#comment-ca-marche" className="text-[#d8d8d8] hover:text-white transition-colors">Comment ça marche</a>
             <a href="#" className="text-[#d8d8d8] hover:text-white transition-colors">Aide</a>
-            <a href="#" className="text-[#d8d8d8] hover:text-white transition-colors">Se connecter</a>
-            <a href="#" className="bg-[#f4f4f2] text-[#111] rounded-md px-5 py-2.5 text-sm font-bold hover:bg-white transition-colors">
+            <Link to="/connexion" className="text-[#d8d8d8] hover:text-white transition-colors">Se connecter</Link>
+            <Link to="/inscription" className="bg-[#f4f4f2] text-[#111] rounded-md px-5 py-2.5 text-sm font-bold hover:bg-white transition-colors">
               Devenir marchand
-            </a>
+            </Link>
           </nav>
         </header>
       </div>
@@ -206,8 +207,8 @@ export default function HomePage() {
             </p>
           </div>
 
-          <a
-            href="#"
+          <Link
+            to="/inscription"
             className="w-full lg:w-[420px] shrink-0 bg-white rounded-2xl px-8 py-8 flex items-center justify-between gap-5 text-[#0a0a0b] hover:bg-[#f4f4f2] transition-colors"
           >
             <span className="text-lg lg:text-xl font-extrabold leading-snug tracking-tight">
@@ -216,7 +217,7 @@ export default function HomePage() {
             <span className="w-12 h-12 shrink-0 rounded-full bg-[#111] text-white flex items-center justify-center">
               <ArrowRight size={20} />
             </span>
-          </a>
+          </Link>
         </div>
       </section>
 
@@ -301,13 +302,13 @@ export default function HomePage() {
             <span className="text-2xl lg:text-[30px] font-extrabold leading-[1.2] tracking-tight text-[#111] max-w-md">
               Inscrivez-vous et commencez à bénéficier des avantages offerts par Skignas
             </span>
-            <a
-              href="#"
+            <Link
+              to="/inscription"
               className="self-start inline-flex items-center gap-4 bg-[#e5342a] hover:bg-[#c8281f] transition-colors text-white rounded-full pl-8 pr-7 py-4 text-sm font-extrabold tracking-wide uppercase"
             >
               Devenir marchand
               <ArrowRight size={16} strokeWidth={2.5} />
-            </a>
+            </Link>
           </div>
         </div>
       </section>
@@ -375,9 +376,9 @@ export default function HomePage() {
           <span className="text-2xl lg:text-[28px] font-extrabold tracking-tight">Prêt à développer vos ventes ?</span>
           <span className="text-[#9a9a9a] text-[15px]">Rejoignez plus de 12 500 marchands sur Skignas.</span>
         </div>
-        <a href="#" className="shrink-0 bg-[#f4f4f2] text-[#111] rounded-lg px-8 py-4 text-[15px] font-bold hover:bg-white transition-colors whitespace-nowrap">
+        <Link to="/inscription" className="shrink-0 bg-[#f4f4f2] text-[#111] rounded-lg px-8 py-4 text-[15px] font-bold hover:bg-white transition-colors whitespace-nowrap">
           Devenir marchand
-        </a>
+        </Link>
       </section>
 
       {/* ── Footer ─────────────────────────────────────────────── */}
