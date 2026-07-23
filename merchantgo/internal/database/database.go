@@ -22,6 +22,10 @@ func Connect(dsn string, production bool) (*gorm.DB, error) {
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 		Logger: gormlogger.Default.LogMode(logLevel),
+		// Permet de comparer les erreurs de contrainte (violation d'unicité
+		// sur event_id...) à gorm.ErrDuplicatedKey indépendamment du driver,
+		// plutôt que de parser un message d'erreur pgx spécifique.
+		TranslateError: true,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("connexion base de données: %w", err)
@@ -41,5 +45,5 @@ func Connect(dsn string, production bool) (*gorm.DB, error) {
 // Migrate applique les migrations de schéma (AutoMigrate — suffisant ici,
 // pas de migrations de données complexes à gérer manuellement).
 func Migrate(db *gorm.DB) error {
-	return db.AutoMigrate(&models.Application{}, &models.StatusEvent{})
+	return db.AutoMigrate(&models.Application{}, &models.StatusEvent{}, &models.DiditWebhookEvent{})
 }

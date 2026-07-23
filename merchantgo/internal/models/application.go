@@ -86,11 +86,22 @@ type Application struct {
 	MobileMoneyNumero    string `gorm:"type:varchar(30)" json:"mobile_money_numero"`
 	MoyenPaiementPrefere string `gorm:"type:varchar(30)" json:"moyen_paiement_prefere"`
 
-	// Étape 8 — KYC
+	// Étape 8 — KYC (upload manuel, conservé en fallback/historique)
 	TypeDocument            string `gorm:"type:varchar(20)" json:"type_document"`
 	DocumentIdentiteURL     string `gorm:"type:varchar(1024)" json:"document_identite_url"`
 	SelfieURL               string `gorm:"type:varchar(1024)" json:"selfie_url"`
 	JustificatifDomicileURL string `gorm:"type:varchar(1024)" json:"justificatif_domicile_url"`
+
+	// Étape 8 — KYC via Didit — alimenté par le webhook, jamais par le
+	// marchand directement. DiditDecision est le JSON brut de la décision,
+	// gardé opaque ici (type text, pas jsonb : une chaîne vide par défaut
+	// n'est pas un JSON valide, et ce service ne fait aucune requête SQL
+	// dans sa structure — inutile d'imposer une contrainte jsonb).
+	DiditSessionID   string     `gorm:"type:varchar(100);index" json:"didit_session_id,omitempty"`
+	DiditStatus      string     `gorm:"type:varchar(30)" json:"didit_status,omitempty"`
+	DiditEnvironment string     `gorm:"type:varchar(20)" json:"didit_environment,omitempty"`
+	DiditDecision    string     `gorm:"type:text" json:"didit_decision,omitempty"`
+	DiditUpdatedAt   *time.Time `json:"didit_updated_at,omitempty"`
 
 	// Étape 9 — Livraison
 	ZonesLivraison  string `gorm:"type:text" json:"zones_livraison"`

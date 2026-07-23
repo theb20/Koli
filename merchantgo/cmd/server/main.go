@@ -37,6 +37,9 @@ func main() {
 	if cfg.JWTSecret == "" || cfg.AdminAPIKey == "" {
 		logger.Warn("JWT_SECRET ou ADMIN_API_KEY absent — authentification incomplète")
 	}
+	if cfg.DiditWebhookSecret == "" {
+		logger.Warn("DIDIT_WEBHOOK_SECRET absent — tous les webhooks Didit seront rejetés")
+	}
 
 	db, err := database.Connect(cfg.DatabaseURL, cfg.IsProduction())
 	if err != nil {
@@ -52,7 +55,11 @@ func main() {
 	appHandler := handlers.NewApplicationHandler(appService, logger)
 	adminHandler := handlers.NewAdminHandler(appService, logger)
 
-	router := routes.Setup(cfg, appHandler, adminHandler, logger)
+	diditEventRepo := repository.NewDiditEventRepository(db)
+	kycService := services.NewKycService(diditEventRepo, repo, logger)
+	kycWebhookHandler := handlers.NewKycWebhookHandler(kycService, cfg, logger)
+
+	router := routes.Setup(cfg, appHandler, adminHandler, kycWebhookHandler, logger)
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.Port,

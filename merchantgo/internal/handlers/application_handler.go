@@ -113,16 +113,29 @@ type applicationResponse struct {
 	CreatedAt       string  `json:"createdAt"`
 	UpdatedAt       string  `json:"updatedAt"`
 
+	// Statut KYC Didit — en lecture seule, alimenté uniquement par le
+	// webhook (jamais par saveDraftRequest, qui reste les champs éditables
+	// par le marchand). Le détail brut de la décision (didit_decision)
+	// n'est volontairement pas exposé ici : format opaque propre à Didit,
+	// pas un contrat d'API stable.
+	DiditStatus      string  `json:"diditStatus,omitempty"`
+	DiditSessionID   string  `json:"diditSessionId,omitempty"`
+	DiditEnvironment string  `json:"diditEnvironment,omitempty"`
+	DiditUpdatedAt   *string `json:"diditUpdatedAt,omitempty"`
+
 	saveDraftRequest
 }
 
 func toApplicationResponse(app *models.Application) applicationResponse {
 	resp := applicationResponse{
-		ID:              app.ID.String(),
-		Status:          string(app.Status),
-		RejectionReason: app.RejectionReason,
-		CreatedAt:       app.CreatedAt.Format(timeLayout),
-		UpdatedAt:       app.UpdatedAt.Format(timeLayout),
+		ID:               app.ID.String(),
+		Status:           string(app.Status),
+		RejectionReason:  app.RejectionReason,
+		CreatedAt:        app.CreatedAt.Format(timeLayout),
+		UpdatedAt:        app.UpdatedAt.Format(timeLayout),
+		DiditStatus:      app.DiditStatus,
+		DiditSessionID:   app.DiditSessionID,
+		DiditEnvironment: app.DiditEnvironment,
 		saveDraftRequest: saveDraftRequest{
 			PhotoProfilURL: app.PhotoProfilURL, DateNaissance: app.DateNaissance, PaysResidence: app.PaysResidence,
 			VilleResidence: app.VilleResidence, Langue: app.Langue, Devise: app.Devise,
@@ -151,6 +164,10 @@ func toApplicationResponse(app *models.Application) applicationResponse {
 	if app.ReviewedAt != nil {
 		s := app.ReviewedAt.Format(timeLayout)
 		resp.ReviewedAt = &s
+	}
+	if app.DiditUpdatedAt != nil {
+		s := app.DiditUpdatedAt.Format(timeLayout)
+		resp.DiditUpdatedAt = &s
 	}
 	return resp
 }

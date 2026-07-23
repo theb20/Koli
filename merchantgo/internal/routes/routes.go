@@ -13,7 +13,7 @@ import (
 
 // Setup construit le routeur Gin complet : middlewares globaux, health
 // check public, routes marchand (JWT) et routes admin (clé de service).
-func Setup(cfg *config.Config, appHandler *handlers.ApplicationHandler, adminHandler *handlers.AdminHandler, logger *zap.Logger) *gin.Engine {
+func Setup(cfg *config.Config, appHandler *handlers.ApplicationHandler, adminHandler *handlers.AdminHandler, kycWebhookHandler *handlers.KycWebhookHandler, logger *zap.Logger) *gin.Engine {
 	if cfg.IsProduction() {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -32,6 +32,11 @@ func Setup(cfg *config.Config, appHandler *handlers.ApplicationHandler, adminHan
 	v1 := r.Group("/api/v1")
 	v1.Use(rateLimit)
 	{
+		// Authentifié par signature HMAC (X-Signature-V2), pas par
+		// RequireAuth/RequireAdmin — c'est Didit qui appelle cette route,
+		// pas un marchand ni koli-admin.
+		v1.POST("/webhooks/didit", kycWebhookHandler.Receive)
+
 		applications := v1.Group("/applications")
 		applications.Use(middleware.RequireAuth(cfg, logger))
 		{
