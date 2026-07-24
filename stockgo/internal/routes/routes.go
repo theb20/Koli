@@ -45,7 +45,13 @@ func Setup(cfg *config.Config, fileHandler *handlers.FileHandler, logger *zap.Lo
 	// GET /:id est à part : un fichier "public" doit être chargeable par un
 	// <img src="..."> de navigateur, qui n'envoie ni clé API ni JWT. Le
 	// handler applique lui-même RequireAuth pour les fichiers "private".
-	r.GET("/api/v1/files/:id", middleware.OptionalAuth(cfg), rateLimit, fileHandler.Download)
+	// Pas de rate-limit ici : une seule page produit peut déclencher 20-30
+	// requêtes /files en parallèle (grille + vignettes de survol) depuis la
+	// même IP, ce qui dépassait le burst=15 et faisait disparaître des
+	// images au hasard (429). Le rate-limit reste sur les routes
+	// d'écriture/gestion ci-dessous (upload, liste, suppression), qui ne
+	// sont jamais appelées en rafale par un navigateur.
+	r.GET("/api/v1/files/:id", middleware.OptionalAuth(cfg), fileHandler.Download)
 
 	v1 := r.Group("/api/v1")
 	v1.Use(middleware.RequireAuth(cfg, logger))
