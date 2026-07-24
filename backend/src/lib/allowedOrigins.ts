@@ -13,6 +13,8 @@ export const ALLOWED_ORIGINS = [
   'https://skignas.com',
   'https://www.skignas.com',
   'https://admin.skignas.com',
+  'https://skignas-bc817.web.app',
+  'https://skignas-bc817.firebaseapp.com',
   // koli-business — wizard d'inscription marchand (11 étapes)
   'http://localhost:5175',
   'https://business.skignas.com',
