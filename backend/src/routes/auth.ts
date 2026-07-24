@@ -15,6 +15,14 @@ import { findReferrer, awardReferralBonus } from './referral'
 
 const router = Router()
 
+// Verrouillage de compte — au-delà de MAX_LOGIN_ATTEMPTS mots de passe
+// erronés consécutifs (tous panneaux de connexion confondus : koili,
+// koli-admin, koli-marchand — tous appellent ce même endpoint), le compte
+// est bloqué LOCKOUT_DURATION_MS avant toute nouvelle tentative, y compris
+// avec le bon mot de passe.
+const MAX_LOGIN_ATTEMPTS = 3
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000
+
 /* ── Schemas ─────────────────────────────────────────────────── */
 
 const registerSchema = z.object({
@@ -205,10 +213,40 @@ router.post('/login', validate(loginSchema), async (req, res) => {
       return
     }
 
+    // Verrouillage actif — refuse même un mot de passe correct tant que le
+    // délai n'est pas écoulé, pour ne pas laisser une tentative tardive
+    // réussie contourner le verrouillage.
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      const minutesLeft = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60_000)
+      res.status(429).json({
+        success: false,
+        message: `Compte temporairement bloqué après plusieurs échecs — réessayez dans ${minutesLeft} min.`,
+      })
+      return
+    }
+
     const valid = await bcrypt.compare(password, user.password)
     if (!valid) {
+      const attempts = user.failedLoginAttempts + 1
+      const lockedUntil = attempts >= MAX_LOGIN_ATTEMPTS ? new Date(Date.now() + LOCKOUT_DURATION_MS) : null
+      await prisma.user.update({
+        where: { id: user.id },
+        data:  { failedLoginAttempts: lockedUntil ? 0 : attempts, lockedUntil },
+      })
+
+      if (lockedUntil) {
+        res.status(429).json({
+          success: false,
+          message: `Trop de tentatives échouées — compte bloqué ${LOCKOUT_DURATION_MS / 60_000} min.`,
+        })
+        return
+      }
       res.status(401).json({ success: false, message: 'Email ou mot de passe incorrect' })
       return
+    }
+
+    if (user.failedLoginAttempts > 0 || user.lockedUntil) {
+      await prisma.user.update({ where: { id: user.id }, data: { failedLoginAttempts: 0, lockedUntil: null } })
     }
 
     // Ne bloque que si une date de naissance est connue et indique moins de 18 ans —
