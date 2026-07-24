@@ -63,14 +63,14 @@ const FAQS = [
 
 function Laptop({ children }: { children: ReactNode }) {
   return (
-    <div className="relative w-full aspect-[1057/638]">
-      <div className="absolute top-[4.9%] left-[9.8%] right-[9.8%] bottom-[11.8%] rounded-md bg-white overflow-hidden">
+    <div className="relative w-full aspect-[1357/1038]">
+      <div className="absolute top-[11%] left-[9.8%] right-[9.8%] bottom-[11.8%] rounded-md bg-white overflow-hidden">
         {children}
       </div>
       <img
         src="/items/Laptop.png"
         alt="Laptop"
-        className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
+        className="absolute inset-0 w-full h-[438px] object-contain pointer-events-none select-none"
       />
     </div>
   )
@@ -176,7 +176,7 @@ export default function HomePage() {
             <a href="#avantages" className="text-[#d8d8d8] hover:text-white transition-colors">Avantages</a>
             <a href="#comment-ca-marche" className="text-[#d8d8d8] hover:text-white transition-colors">Comment ça marche</a>
             <a href="#" className="text-[#d8d8d8] hover:text-white transition-colors">Aide</a>
-            <Link to="/connexion" className="text-[#d8d8d8] hover:text-white transition-colors">Se connecter</Link>
+            <Link to="https://me.skignas.com/connexion" className="text-[#d8d8d8] hover:text-white transition-colors">Se connecter</Link>
             <Link to="/inscription" className="bg-[#f4f4f2] text-[#111] rounded-md px-5 py-2.5 text-sm font-bold hover:bg-white transition-colors">
               Devenir marchand
             </Link>
@@ -272,7 +272,7 @@ export default function HomePage() {
       {/* ── Fonctionnement ─────────────────────────────────────── */}
       <section className="px-8 lg:px-14 pb-16 lg:pb-20 flex flex-col gap-8">
         <h2 className="text-2xl lg:text-[30px] font-extrabold tracking-tight text-[#111]">Fonctionnement</h2>
-        <div className="bg-[#f5f5f3] rounded-3xl p-8 lg:p-14 flex flex-col lg:flex-row gap-10 lg:gap-16 lg:items-center">
+        <div className="bg-[#f5f5f3] relative h-[300px] rounded-3xl p-8 lg:p-14 flex flex-col lg:flex-row gap-10 lg:gap-16 lg:items-center">
           <div className="flex-1 max-w-md flex flex-col gap-5">
             <span className="text-2xl lg:text-[28px] font-extrabold tracking-tight text-[#111]">{walk.title}</span>
             <p className="text-[#4a4a52] text-[15px] leading-relaxed">{walk.desc}</p>
@@ -296,7 +296,7 @@ export default function HomePage() {
               </div>
             </div>
           </div>
-          <div className="flex-[1.3]">
+          <div className="flex-[1] ">
             <Laptop>{walkScreens[walkIndex]}</Laptop>
           </div>
         </div>
