@@ -82,6 +82,7 @@ type ApprovedApplication = {
   logoBoutiqueUrl?: string
   banniereBoutiqueUrl?: string
   adresseComplete?: string
+  whatsapp?: string
 }
 
 /*
@@ -107,6 +108,10 @@ async function provisionSellerStore(app: ApprovedApplication) {
       logo:        app.logoBoutiqueUrl || undefined,
       banner:      app.banniereBoutiqueUrl || undefined,
       address:     app.adresseComplete || undefined,
+      // Aucun champ "téléphone boutique" dédié dans le formulaire d'inscription —
+      // le WhatsApp saisi à l'étape contact/réseaux est le numéro de contact
+      // le plus proche de ce qu'affiche la boutique publiquement.
+      phone:       app.whatsapp || undefined,
       isApproved:  true,
     },
     update: {
@@ -114,6 +119,7 @@ async function provisionSellerStore(app: ApprovedApplication) {
       description: app.descriptionBoutique || undefined,
       logo:        app.logoBoutiqueUrl || undefined,
       banner:      app.banniereBoutiqueUrl || undefined,
+      phone:       app.whatsapp || undefined,
       isApproved:  true,
     },
   })
