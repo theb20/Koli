@@ -17,8 +17,21 @@ export function isStockgoConfigured(): boolean {
   return Boolean(STOCKGO_URL && STOCKGO_API_KEY)
 }
 
+// Le domaine personnalisé (STOCKGO_URL, utilisé pour les appels API) et le
+// domaine que stockgo utilise réellement dans les URL qu'il génère
+// (PUBLIC_URL sur son propre service Railway) divergent en prod — ce
+// dernier n'a jamais été repointé vers storage.skignas.com. Tant que ça
+// n'est pas corrigé côté stockgo, cette liste doit accepter les deux.
+const STOCKGO_TRUSTED_HOSTS = [STOCKGO_URL, 'https://koli-production-a314.up.railway.app']
+  .filter((u): u is string => Boolean(u))
+  .map(u => new URL(u).host)
+
 export function isStockgoUrl(url: string): boolean {
-  return Boolean(STOCKGO_URL) && url.startsWith(STOCKGO_URL!)
+  try {
+    return STOCKGO_TRUSTED_HOSTS.includes(new URL(url).host)
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -59,6 +72,21 @@ export async function uploadToStockgo(
   }
   const data = await res.json() as { url: string }
   return data.url
+}
+
+/**
+ * Récupère un fichier stockgo (public ou privé) en s'authentifiant avec
+ * STOCKGO_API_KEY — sert à relayer les documents KYC (uploadés en
+ * 'private') vers koli-admin sans jamais exposer cette clé au navigateur.
+ * L'appelant est responsable de vérifier isStockgoUrl(url) avant d'appeler
+ * cette fonction (ne jamais relayer une URL arbitraire fournie par le
+ * client — risque de SSRF).
+ */
+export async function fetchStockgoFile(url: string): Promise<Response> {
+  if (!isStockgoConfigured()) {
+    throw new Error('Stockgo non configuré (STOCKGO_URL / STOCKGO_API_KEY manquants)')
+  }
+  return fetch(url, { headers: { 'X-API-Key': STOCKGO_API_KEY! } })
 }
 
 /**
