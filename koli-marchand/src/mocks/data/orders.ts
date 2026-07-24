@@ -1,7 +1,7 @@
-import type { Order, OrderItem, OrderStatus, PaymentMethod, Product, Customer } from '@/types'
+import type { Order, OrderItem, OrderStatus, OrderPaymentMethod, Product, Customer } from '@/types'
 import { daysAgo, mulberry32, pick, randomInt } from './rng'
 
-const PAYMENT_METHODS: PaymentMethod[] = ['wave', 'orange_money', 'mtn_money', 'card', 'cash_on_delivery']
+const PAYMENT_METHODS: OrderPaymentMethod[] = ['online', 'cash']
 const ADDRESS_STREETS = [
   'Rue des Jardins', 'Boulevard Latrille', 'Avenue de la République', 'Rue du Commerce',
   'Rue des Palmiers', 'Boulevard de Marseille', 'Rue 12', 'Avenue Chardy',
@@ -10,8 +10,8 @@ const ADDRESS_STREETS = [
 function statusFor(rand: () => number, daysOld: number): OrderStatus {
   if (daysOld > 10) return pick(rand, ['delivered', 'delivered', 'delivered', 'cancelled'] as const)
   if (daysOld > 5) return pick(rand, ['delivered', 'shipped'] as const)
-  if (daysOld > 2) return pick(rand, ['shipped', 'preparing'] as const)
-  return pick(rand, ['pending', 'preparing'] as const)
+  if (daysOld > 2) return pick(rand, ['shipped', 'processing'] as const)
+  return pick(rand, ['pending', 'confirmed'] as const)
 }
 
 export function generateOrders(products: Product[], customers: Customer[], count = 60): Order[] {

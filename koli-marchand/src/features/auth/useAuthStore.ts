@@ -1,6 +1,6 @@
 import { create } from 'zustand'
-import { api, ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, USER_KEY } from '@/lib/api'
-import type { AuthResponse, MerchantUser } from '@/types'
+import { api, ACCESS_TOKEN_KEY, USER_KEY } from '@/lib/api'
+import type { MerchantUser } from '@/types'
 
 interface AuthState {
   user: MerchantUser | null
@@ -20,6 +20,9 @@ function readStoredUser(): MerchantUser | null {
   }
 }
 
+type BackendUser = { id: string; prenom: string; nom: string; email: string; role: string }
+type BackendStore = { id: number; name: string; description: string | null; logo: string | null; isApproved: boolean } | null
+
 export const useAuthStore = create<AuthState>((set) => ({
   user: readStoredUser(),
   loading: false,
@@ -29,13 +32,32 @@ export const useAuthStore = create<AuthState>((set) => ({
   login: async (email, password) => {
     set({ loading: true, error: null })
     try {
-      const { data } = await api.post<AuthResponse>('/api/auth/login', { email, password })
-      localStorage.setItem(ACCESS_TOKEN_KEY, data.accessToken)
-      localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken)
-      localStorage.setItem(USER_KEY, JSON.stringify(data.user))
-      set({ user: data.user, isAuthenticated: true, loading: false })
+      const { data } = await api.post<{ data: { user: BackendUser; accessToken: string } }>('/api/auth/login', { email, password })
+      const { user: backendUser, accessToken } = data.data
+
+      if (backendUser.role !== 'seller') {
+        set({ error: 'Ce compte n\'est pas un compte marchand.', loading: false })
+        return false
+      }
+
+      localStorage.setItem(ACCESS_TOKEN_KEY, accessToken)
+
+      // Le token doit être en place avant cet appel (intercepteur lib/api.ts)
+      const meRes = await api.get<{ data: { store: BackendStore } }>('/api/seller/me')
+      const store = meRes.data.data.store
+
+      const merchantUser: MerchantUser = {
+        id: backendUser.id,
+        shopName: store?.name ?? backendUser.prenom,
+        ownerName: `${backendUser.prenom} ${backendUser.nom}`.trim(),
+        email: backendUser.email,
+        isVerified: store?.isApproved ?? false,
+      }
+      localStorage.setItem(USER_KEY, JSON.stringify(merchantUser))
+      set({ user: merchantUser, isAuthenticated: true, loading: false })
       return true
     } catch (err: unknown) {
+      localStorage.removeItem(ACCESS_TOKEN_KEY)
       const message =
         (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
         'E-mail ou mot de passe incorrect.'
@@ -46,7 +68,6 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: () => {
     localStorage.removeItem(ACCESS_TOKEN_KEY)
-    localStorage.removeItem(REFRESH_TOKEN_KEY)
     localStorage.removeItem(USER_KEY)
     api.post('/api/auth/logout').catch(() => {})
     set({ user: null, isAuthenticated: false })

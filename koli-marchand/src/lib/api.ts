@@ -1,5 +1,4 @@
 import axios from 'axios'
-import type { AuthResponse } from '@/types'
 
 export const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:4000'
 
@@ -12,6 +11,16 @@ export const api = axios.create({
   withCredentials: true,
 })
 
+// Toutes les routes /api/seller/* de backend/ répondent enveloppées dans
+// {success, data} (convention utilisée partout ailleurs dans ce backend) —
+// contrairement aux anciens handlers mockés, qui renvoyaient le payload
+// brut. `unwrap` centralise ce déballage plutôt que de le répéter dans
+// chaque hook.
+export type ApiEnvelope<T> = { success: boolean; data: T }
+export function unwrap<T>(res: { data: ApiEnvelope<T> }): T {
+  return res.data.data
+}
+
 /* ── En-tête d'authentification ──────────────────────────── */
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem(ACCESS_TOKEN_KEY)
@@ -19,17 +28,20 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-/* ── Refresh silencieux — un seul appel en vol à la fois ─── */
+/*
+ * ── Refresh silencieux ────────────────────────────────────
+ * backend/'s /api/auth/login ne renvoie le refresh token que via un
+ * cookie httpOnly (jamais dans le corps JSON, illisible en JS) — le
+ * navigateur l'envoie automatiquement (withCredentials) sur cet appel,
+ * pas besoin de le lire ni de le stocker nous-mêmes.
+ */
 let refreshPromise: Promise<string | null> | null = null
 
 async function refreshAccessToken(): Promise<string | null> {
-  const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)
-  if (!refreshToken) return null
-
   if (!refreshPromise) {
     refreshPromise = axios
-      .post<AuthResponse>(`${BASE}/api/auth/refresh`, { refreshToken }, { withCredentials: true })
-      .then((res) => res.data.accessToken)
+      .post(`${BASE}/api/auth/refresh`, {}, { withCredentials: true })
+      .then((res) => res.data?.data?.accessToken ?? null)
       .catch(() => null)
       .finally(() => {
         refreshPromise = null

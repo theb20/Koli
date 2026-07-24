@@ -1,18 +1,21 @@
 import { NavLink } from 'react-router-dom'
 import {
-  LayoutDashboard, Package, ShoppingCart, Wallet, Users, Tag, BarChart2,
+  LayoutDashboard, Package, ShoppingCart, Users, BarChart2,
   Settings, LifeBuoy, LogOut, X,
 } from 'lucide-react'
 import { useUiStore } from '@/store/useUiStore'
 import { useAuthStore } from '@/features/auth/useAuthStore'
 
+// Paiements et Promotions retirés du menu : pas encore branchés sur un vrai
+// backend (le premier suppose un système de wallet à concevoir séparément,
+// le second une évolution de schéma pour scoper les codes promo par
+// boutique) — cf. discussion de périmètre. Les pages/routes existent
+// toujours, juste inaccessibles depuis la navigation pour l'instant.
 const nav = [
   { to: '/dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
   { to: '/produits', label: 'Produits', icon: Package },
   { to: '/commandes', label: 'Commandes', icon: ShoppingCart },
-  { to: '/paiements', label: 'Paiements', icon: Wallet },
   { to: '/clients', label: 'Clients', icon: Users },
-  { to: '/promotions', label: 'Promotions', icon: Tag },
   { to: '/statistiques', label: 'Statistiques', icon: BarChart2 },
   { to: '/parametres', label: 'Paramètres', icon: Settings },
 ]

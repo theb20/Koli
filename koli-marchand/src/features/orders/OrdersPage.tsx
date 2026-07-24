@@ -6,7 +6,7 @@ import { FilterPills } from '@/components/ui/FilterPills'
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { fmtDate, fmtFcfa } from '@/lib/format'
-import { orderStatusMap, paymentMethodLabels } from '@/lib/statusMaps'
+import { orderStatusMap, orderPaymentMethodLabels } from '@/lib/statusMaps'
 import type { Order, OrderStatus } from '@/types'
 import { useOrders } from './api/useOrders'
 import { OrderDetailDrawer } from './components/OrderDetailDrawer'
@@ -26,7 +26,7 @@ export default function OrdersPage() {
     const all = allData?.items ?? []
     return {
       pending: all.filter((o) => o.status === 'pending').length,
-      preparing: all.filter((o) => o.status === 'preparing').length,
+      preparing: all.filter((o) => o.status === 'processing' || o.status === 'confirmed').length,
       shipped: all.filter((o) => o.status === 'shipped').length,
       delivered: all.filter((o) => o.status === 'delivered').length,
     }
@@ -38,7 +38,7 @@ export default function OrdersPage() {
     { key: 'items', header: 'Articles', align: 'right', render: (o) => o.itemsCount },
     { key: 'date', header: 'Date', render: (o) => fmtDate(o.createdAt) },
     { key: 'amount', header: 'Montant', align: 'right', render: (o) => <span className="font-semibold">{fmtFcfa(o.totalAmount)}</span> },
-    { key: 'payment', header: 'Paiement', render: (o) => paymentMethodLabels[o.paymentMethod] },
+    { key: 'payment', header: 'Paiement', render: (o) => orderPaymentMethodLabels[o.paymentMethod] },
     {
       key: 'status',
       header: 'Statut',
@@ -64,7 +64,7 @@ export default function OrdersPage() {
           options={[
             { value: 'all', label: 'Toutes' },
             { value: 'pending', label: 'En attente' },
-            { value: 'preparing', label: 'En préparation' },
+            { value: 'processing', label: 'En préparation' },
             { value: 'shipped', label: 'Expédiées' },
             { value: 'delivered', label: 'Livrées' },
             { value: 'cancelled', label: 'Annulées' },

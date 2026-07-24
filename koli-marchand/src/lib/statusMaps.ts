@@ -1,5 +1,6 @@
 import type {
   CustomerSegment,
+  OrderPaymentMethod,
   OrderStatus,
   PaymentMethod,
   PayoutStatus,
@@ -21,10 +22,12 @@ interface StatusEntry {
 
 export const orderStatusMap: Record<OrderStatus, StatusEntry> = {
   pending: { label: 'En attente', tone: 'orange' },
-  preparing: { label: 'En préparation', tone: 'orange' },
+  confirmed: { label: 'Confirmée', tone: 'blue' },
+  processing: { label: 'En préparation', tone: 'orange' },
   shipped: { label: 'Expédiée', tone: 'blue' },
   delivered: { label: 'Livrée', tone: 'green' },
   cancelled: { label: 'Annulée', tone: 'red' },
+  refunded: { label: 'Remboursée', tone: 'gray' },
 }
 
 export const productStatusMap: Record<ProductStatus, StatusEntry> = {
@@ -58,6 +61,11 @@ export const paymentMethodLabels: Record<PaymentMethod, string> = {
   mtn_money: 'MTN Money',
   card: 'Carte bancaire',
   cash_on_delivery: 'Paiement à la livraison',
+}
+
+export const orderPaymentMethodLabels: Record<OrderPaymentMethod, string> = {
+  online: 'Paiement en ligne',
+  cash: 'Paiement à la livraison',
 }
 
 export const badgeToneClasses: Record<BadgeTone, string> = {

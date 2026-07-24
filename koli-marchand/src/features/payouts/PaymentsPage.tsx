@@ -9,7 +9,6 @@ import { fmtDate, fmtFcfa } from '@/lib/format'
 import { payoutStatusMap, paymentMethodLabels } from '@/lib/statusMaps'
 import type { Payout } from '@/types'
 import { useBalance, usePayoutsHistory, useWithdraw } from './api/usePayouts'
-import { useSettings } from '@/features/settings/api/useSettings'
 import { WithdrawModal } from './components/WithdrawModal'
 
 const columns: DataTableColumn<Payout>[] = [
@@ -28,7 +27,6 @@ export default function PaymentsPage() {
   const [withdrawOpen, setWithdrawOpen] = useState(false)
   const { data: balance, isLoading: balanceLoading } = useBalance()
   const { data: history, isLoading: historyLoading } = usePayoutsHistory()
-  const { data: settings } = useSettings()
   const withdraw = useWithdraw()
 
   return (
@@ -90,10 +88,10 @@ export default function PaymentsPage() {
       <h2 className="font-bold text-[#0a0a0b] mb-4">Historique des versements</h2>
       <DataTable columns={columns} rows={history?.items ?? []} rowKey={(p) => p.id} isLoading={historyLoading} />
 
-      {withdrawOpen && balance && settings && (
+      {withdrawOpen && balance && (
         <WithdrawModal
           available={balance.available}
-          methods={settings.payoutMethods}
+          methods={[]}
           onClose={() => setWithdrawOpen(false)}
           isSubmitting={withdraw.isPending}
           onSubmit={(values) =>

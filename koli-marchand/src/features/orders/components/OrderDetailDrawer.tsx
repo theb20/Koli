@@ -1,7 +1,7 @@
 import { Drawer } from '@/components/ui/Drawer'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { fmtDateTime, fmtFcfa } from '@/lib/format'
-import { orderStatusMap, paymentMethodLabels } from '@/lib/statusMaps'
+import { orderStatusMap, orderPaymentMethodLabels } from '@/lib/statusMaps'
 import type { OrderStatus } from '@/types'
 import { useOrder, useUpdateOrderStatus } from '../api/useOrders'
 
@@ -10,7 +10,7 @@ interface OrderDetailDrawerProps {
   onClose: () => void
 }
 
-const STATUS_OPTIONS: OrderStatus[] = ['pending', 'preparing', 'shipped', 'delivered', 'cancelled']
+const STATUS_OPTIONS: OrderStatus[] = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded']
 
 export function OrderDetailDrawer({ orderId, onClose }: OrderDetailDrawerProps) {
   const { data: order, isLoading } = useOrder(orderId)
@@ -85,7 +85,7 @@ export function OrderDetailDrawer({ orderId, onClose }: OrderDetailDrawerProps) 
 
           <section>
             <h3 className="text-xs font-semibold text-[#6b6b68] uppercase tracking-wider mb-2">Paiement</h3>
-            <p className="text-sm text-[#0a0a0b]">{paymentMethodLabels[order.paymentMethod]}</p>
+            <p className="text-sm text-[#0a0a0b]">{orderPaymentMethodLabels[order.paymentMethod]}</p>
           </section>
         </div>
       )}

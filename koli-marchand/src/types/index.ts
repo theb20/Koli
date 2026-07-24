@@ -1,10 +1,16 @@
 /* ── Statuts (unions de littéraux) ────────────────────────── */
 
 export type ProductStatus = 'online' | 'draft' | 'out_of_stock'
-export type OrderStatus = 'pending' | 'preparing' | 'shipped' | 'delivered' | 'cancelled'
+// Aligné sur les statuts réels de backend/ (Order.status) — pas de
+// 'preparing', mais 'confirmed'/'processing'/'refunded' en plus.
+export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded'
 export type PayoutStatus = 'pending' | 'paid' | 'failed'
 export type PromotionStatus = 'active' | 'scheduled' | 'expired' | 'draft'
 export type PromotionType = 'percentage' | 'fixed_amount'
+// Moyen de paiement de la commande côté client (backend/ Order.paymentMethod)
+export type OrderPaymentMethod = 'online' | 'cash'
+// Moyen de versement au marchand — distinct de OrderPaymentMethod, non
+// branché sur un vrai backend pour l'instant (cf. Sidebar.tsx)
 export type PaymentMethod = 'wave' | 'orange_money' | 'mtn_money' | 'card' | 'cash_on_delivery'
 export type CustomerSegment = 'new' | 'regular' | 'vip'
 
@@ -70,7 +76,7 @@ export interface Order {
   items: OrderItem[]
   itemsCount: number
   totalAmount: number
-  paymentMethod: PaymentMethod
+  paymentMethod: OrderPaymentMethod
   status: OrderStatus
   shippingAddress: ShippingAddress
   createdAt: string

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { api } from '@/lib/api'
+import { api, unwrap } from '@/lib/api'
 import type { Customer, CustomerSegment, Order, Paginated } from '@/types'
 
 export interface CustomerFilters {
@@ -11,10 +11,10 @@ export function useCustomers(filters: CustomerFilters) {
   return useQuery({
     queryKey: ['customers', filters],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<Customer>>('/api/customers', {
+      const res = await api.get('/api/seller/customers', {
         params: { segment: filters.segment, search: filters.search || undefined, pageSize: 100 },
       })
-      return data
+      return unwrap<Paginated<Customer>>(res)
     },
     staleTime: 15_000,
   })
@@ -23,10 +23,7 @@ export function useCustomers(filters: CustomerFilters) {
 export function useCustomer(id: string | undefined) {
   return useQuery({
     queryKey: ['customers', 'detail', id],
-    queryFn: async () => {
-      const { data } = await api.get<{ customer: Customer; orders: Order[] }>(`/api/customers/${id}`)
-      return data
-    },
+    queryFn: async () => unwrap<{ customer: Customer; orders: Order[] }>(await api.get(`/api/seller/customers/${id}`)),
     enabled: !!id,
   })
 }

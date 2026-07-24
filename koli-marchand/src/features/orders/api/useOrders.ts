@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api } from '@/lib/api'
+import { api, unwrap } from '@/lib/api'
 import type { Order, OrderStatus, Paginated } from '@/types'
 
 export interface OrderFilters {
@@ -11,10 +11,10 @@ export function useOrders(filters: OrderFilters) {
   return useQuery({
     queryKey: ['orders', filters],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<Order>>('/api/orders', {
+      const res = await api.get('/api/seller/orders', {
         params: { status: filters.status, search: filters.search || undefined, pageSize: 100 },
       })
-      return data
+      return unwrap<Paginated<Order>>(res)
     },
     staleTime: 15_000,
   })
@@ -23,10 +23,7 @@ export function useOrders(filters: OrderFilters) {
 export function useOrder(id: string | null) {
   return useQuery({
     queryKey: ['orders', 'detail', id],
-    queryFn: async () => {
-      const { data } = await api.get<Order>(`/api/orders/${id}`)
-      return data
-    },
+    queryFn: async () => unwrap<Order>(await api.get(`/api/seller/orders/${id}`)),
     enabled: !!id,
   })
 }
@@ -34,10 +31,8 @@ export function useOrder(id: string | null) {
 export function useUpdateOrderStatus() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: OrderStatus }) => {
-      const { data } = await api.patch<Order>(`/api/orders/${id}/status`, { status })
-      return data
-    },
+    mutationFn: async ({ id, status }: { id: string; status: OrderStatus }) =>
+      unwrap<Order>(await api.patch(`/api/seller/orders/${id}/status`, { status })),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['orders'] }),
   })
 }
