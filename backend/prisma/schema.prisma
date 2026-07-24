@@ -79,25 +79,28 @@ model Store {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   logo         String?
-  products     Product[]
 
   @@map("stores")
 }
 
 model SellerStore {
-  id          Int             @id @default(autoincrement())
-  userId      String          @unique
-  name        String
-  description String?
-  logo        String?
-  banner      String?
-  phone       String?
-  address     String?
-  isApproved  Boolean         @default(false)
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  products    SellerProduct[]
-  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id            Int             @id @default(autoincrement())
+  userId        String          @unique
+  name          String
+  description   String?
+  logo          String?
+  banner        String?
+  phone         String?
+  address       String?
+  isApproved    Boolean         @default(false)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  products      SellerProduct[]
+  // Produits appartenant directement à la boutique (modèle koli-marchand,
+  // via Product.storeId) — distinct de `products` ci-dessus (SellerProduct,
+  // le système de dropship/commission préexistant). Voir seller.ts.
+  ownedProducts Product[]
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("seller_stores")
 }
@@ -149,7 +152,7 @@ model Product {
   images         ProductImage[]
   specs          ProductSpec[]
   categoryRel    Category?       @relation(fields: [categoryId], references: [id])
-  store          Store?          @relation(fields: [storeId], references: [id])
+  store          SellerStore?    @relation(fields: [storeId], references: [id])
   reviewItems    Review[]
   sellerProducts SellerProduct[]
   stockAlerts    StockAlert[]

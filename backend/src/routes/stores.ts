@@ -42,11 +42,11 @@ const importProductSchema = z.object({
 ───────────────────────────────────────────────────────────── */
 router.get('/admin/all', async (_req, res) => {
   try {
-    const stores = await prisma.store.findMany({
-      include: { _count: { select: { products: true } } },
-      orderBy: { createdAt: 'desc' },
-    })
-    return res.json({ success: true, data: { stores } })
+    // Store (magasin bulk-import) n'a plus de produits qui lui sont rattachés depuis que
+    // Product.storeId référence seller_stores (voir migration product_storeid_references_sellerstore) —
+    // le compteur reste dans la réponse pour ne pas casser le front, mais vaut toujours 0.
+    const stores = await prisma.store.findMany({ orderBy: { createdAt: 'desc' } })
+    return res.json({ success: true, data: { stores: stores.map(s => ({ ...s, _count: { products: 0 } })) } })
   } catch (err) {
     logger.error(err)
     return res.status(500).json({ success: false, message: 'Erreur serveur' })
@@ -59,12 +59,9 @@ router.get('/admin/all', async (_req, res) => {
 router.get('/:id', validateParams(zIntIdParam), async (req, res) => {
   try {
     const id = Number(req.params.id)
-    const store = await prisma.store.findUnique({
-      where: { id },
-      include: { _count: { select: { products: true } } },
-    })
+    const store = await prisma.store.findUnique({ where: { id } })
     if (!store) return res.status(404).json({ success: false, message: 'Magasin introuvable' })
-    return res.json({ success: true, data: { store } })
+    return res.json({ success: true, data: { store: { ...store, _count: { products: 0 } } } })
   } catch {
     return res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
@@ -187,7 +184,12 @@ router.post('/:id/import', validateParams(zIntIdParam), async (req, res) => {
         data: {
           ...rest,
           categoryId,
-          storeId,
+          // Product.storeId référence désormais seller_stores (ownership marchand,
+          // voir seller.ts) — un import catalogue admin via /api/stores ne doit
+          // JAMAIS y écrire l'id du Store "magasin" ci-dessus : les espaces
+          // d'id se chevauchent, ça attacherait le produit importé à un
+          // marchand réel sans rapport. Le produit reste donc sans propriétaire
+          // (storeId: null), comme une création admin classique.
           isActive: true,
           images: rehostedImages?.length
             ? { create: rehostedImages.map((img, i) => ({ url: img.url, thumbnailUrl: img.thumbnailUrl, position: i })) }
