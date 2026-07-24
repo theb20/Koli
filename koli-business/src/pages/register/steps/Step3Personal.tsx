@@ -18,7 +18,7 @@ export function Step3Personal({ data, update }: StepProps) {
       <FileInput
         label="Photo de profil (facultatif)"
         value={data.photoProfil}
-        onChange={f => update({ photoProfil: f })}
+        onChange={f => update({ photoProfil: f, photoProfilUrl: '' })}
         accept="image/*"
       />
       <Field label="Date de naissance" type="date" value={data.dateNaissance} onChange={e => update({ dateNaissance: e.target.value })} />

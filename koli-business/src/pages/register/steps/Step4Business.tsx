@@ -21,10 +21,10 @@ export function Step4Business({ data, update }: StepProps) {
 
       <div className="flex gap-3.5">
         <div className="flex-1">
-          <FileInput label="Logo de la boutique" value={data.logoBoutique} onChange={f => update({ logoBoutique: f })} accept="image/*" />
+          <FileInput label="Logo de la boutique" value={data.logoBoutique} onChange={f => update({ logoBoutique: f, logoBoutiqueUrl: '' })} accept="image/*" />
         </div>
         <div className="flex-1">
-          <FileInput label="Bannière" value={data.banniereBoutique} onChange={f => update({ banniereBoutique: f })} accept="image/*" />
+          <FileInput label="Bannière" value={data.banniereBoutique} onChange={f => update({ banniereBoutique: f, banniereBoutiqueUrl: '' })} accept="image/*" />
         </div>
       </div>
 

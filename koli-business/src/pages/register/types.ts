@@ -17,6 +17,7 @@ export type RegisterFormData = {
 
   // 3. Informations personnelles
   photoProfil: File | null
+  photoProfilUrl: string
   dateNaissance: string
   paysResidence: string
   villeResidence: string
@@ -26,7 +27,9 @@ export type RegisterFormData = {
   // 4. Informations entreprise
   nomBoutique: string
   logoBoutique: File | null
+  logoBoutiqueUrl: string
   banniereBoutique: File | null
+  banniereBoutiqueUrl: string
   descriptionBoutique: string
   categorieActivite: string
   siteWeb: string
@@ -58,8 +61,11 @@ export type RegisterFormData = {
   // 8. KYC
   typeDocument: IdDocType
   documentIdentite: File | null
+  documentIdentiteUrl: string
   selfie: File | null
+  selfieUrl: string
   justificatifDomicile: File | null
+  justificatifDomicileUrl: string
 
   // 9. Livraison
   zonesLivraison: string
@@ -81,12 +87,12 @@ export type RegisterFormData = {
 export const initialRegisterFormData: RegisterFormData = {
   prenom: '', nom: '', email: '', telephone: '', password: '', acceptedTerms: false,
   emailVerified: false, phoneVerified: false,
-  photoProfil: null, dateNaissance: '', paysResidence: '', villeResidence: '', langue: 'fr', devise: 'XOF',
-  nomBoutique: '', logoBoutique: null, banniereBoutique: null, descriptionBoutique: '', categorieActivite: '', siteWeb: '',
+  photoProfil: null, photoProfilUrl: '', dateNaissance: '', paysResidence: '', villeResidence: '', langue: 'fr', devise: 'XOF',
+  nomBoutique: '', logoBoutique: null, logoBoutiqueUrl: '', banniereBoutique: null, banniereBoutiqueUrl: '', descriptionBoutique: '', categorieActivite: '', siteWeb: '',
   typeEntreprise: 'individuel', numeroLegal: '', numeroNCC: '', formeJuridique: '', nomEntreprise: '', adresseSiege: '',
   paysAdresse: '', regionAdresse: '', villeAdresse: '', codePostal: '', adresseComplete: '',
   titulaireCompte: '', banque: '', iban: '', swift: '', mobileMoneyOperateur: '', mobileMoneyNumero: '', moyenPaiementPrefere: 'mobile_money',
-  typeDocument: 'cni', documentIdentite: null, selfie: null, justificatifDomicile: null,
+  typeDocument: 'cni', documentIdentite: null, documentIdentiteUrl: '', selfie: null, selfieUrl: '', justificatifDomicile: null, justificatifDomicileUrl: '',
   zonesLivraison: '', modesLivraison: '', delaisLivraison: '', fraisLivraison: '', retraitMagasin: false,
   domainePersonnalise: '', horairesOuverture: '', facebook: '', instagram: '', whatsapp: '', politiqueRetour: '', cgv: false,
 }

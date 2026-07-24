@@ -28,9 +28,9 @@ export function Step8Kyc({ data, update }: StepProps) {
         onChange={v => update({ typeDocument: v as IdDocType })}
       />
 
-      <FileInput label={docLabel} value={data.documentIdentite} onChange={f => update({ documentIdentite: f })} accept="image/*,.pdf" />
-      <FileInput label="Selfie (visage bien visible)" value={data.selfie} onChange={f => update({ selfie: f })} accept="image/*" />
-      <FileInput label="Justificatif de domicile" hint="Facture récente, attestation…" value={data.justificatifDomicile} onChange={f => update({ justificatifDomicile: f })} accept="image/*,.pdf" />
+      <FileInput label={docLabel} value={data.documentIdentite} onChange={f => update({ documentIdentite: f, documentIdentiteUrl: '' })} accept="image/*,.pdf" />
+      <FileInput label="Selfie (visage bien visible)" value={data.selfie} onChange={f => update({ selfie: f, selfieUrl: '' })} accept="image/*" />
+      <FileInput label="Justificatif de domicile" hint="Facture récente, attestation…" value={data.justificatifDomicile} onChange={f => update({ justificatifDomicile: f, justificatifDomicileUrl: '' })} accept="image/*,.pdf" />
     </div>
   )
 }
