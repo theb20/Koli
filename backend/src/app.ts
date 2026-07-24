@@ -49,6 +49,14 @@ import merchantApplicationsRouter from './routes/merchant-applications'
 
 const app = express()
 
+// Railway (comme tout PaaS) place le serveur derrière un reverse proxy —
+// sans ça, express-rate-limit ne peut pas dériver l'IP réelle du client de
+// X-Forwarded-For de façon fiable (et lève une ValidationError à chaque
+// requête limitée). `1` = fait confiance au premier proxy en amont
+// uniquement (celui de Railway), pas à une chaîne arbitraire fournie par le
+// client — évite qu'un en-tête forgé ne permette de contourner les limites.
+app.set('trust proxy', 1)
+
 /* ── CORS (must be before helmet) ──────────────────────────── */
 app.use(cors({
   origin: (origin, callback) => {
