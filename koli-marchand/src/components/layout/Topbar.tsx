@@ -4,18 +4,25 @@ import { Bell, BadgeCheck, Menu, Search } from 'lucide-react'
 import { useUiStore } from '@/store/useUiStore'
 import { useAuthStore } from '@/features/auth/useAuthStore'
 import { fmtDateTime } from '@/lib/format'
-
-const NOTIFICATIONS = [
-  { id: 1, text: 'Nouvelle commande reçue — SKG-10042', date: new Date().toISOString() },
-  { id: 2, text: 'Versement de 148 500 FCFA effectué sur Wave', date: new Date(Date.now() - 86_400_000).toISOString() },
-  { id: 3, text: 'Stock faible : Écouteurs sans fil Pro X (3 restants)', date: new Date(Date.now() - 2 * 86_400_000).toISOString() },
-]
+import { useMarkAllNotificationsRead, useMarkNotificationRead, useNotifications } from '@/features/notifications/api/useNotifications'
 
 export function Topbar() {
   const { openMobileSidebar, notificationsOpen, toggleNotifications, closeNotifications } = useUiStore()
   const user = useAuthStore((s) => s.user)
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
+
+  const { data: notifData } = useNotifications()
+  const markRead = useMarkNotificationRead()
+  const markAllRead = useMarkAllNotificationsRead()
+  const notifications = notifData?.notifications ?? []
+  const unreadCount = notifData?.unreadCount ?? 0
+
+  const openNotification = (n: { id: string; isRead: boolean; link: string | null }) => {
+    if (!n.isRead) markRead.mutate(n.id)
+    closeNotifications()
+    if (n.link) navigate(n.link)
+  }
 
   const initials = (user?.shopName ?? 'MB')
     .split(' ')
@@ -64,24 +71,50 @@ export function Topbar() {
             className="relative p-2 rounded-lg text-[#0a0a0b] hover:bg-[#f0f0ed] transition-colors"
           >
             <Bell size={19} />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#1E90FF]" aria-hidden="true" />
+            {unreadCount > 0 && (
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#1E90FF]" aria-hidden="true" />
+            )}
           </button>
           {notificationsOpen && (
             <>
               <div className="fixed inset-0 z-10" onClick={closeNotifications} aria-hidden="true" />
               <div
                 role="menu"
-                className="absolute right-0 mt-2 w-80 bg-white border border-[#e8e8e4] rounded-2xl py-2 z-20"
+                className="absolute right-0 mt-2 w-80 bg-white border border-[#e8e8e4] rounded-2xl py-2 z-20 max-h-96 overflow-y-auto"
               >
-                <p className="px-4 py-2 text-xs font-semibold text-[#6b6b68] uppercase tracking-wider">
-                  Notifications
-                </p>
-                {NOTIFICATIONS.map((n) => (
-                  <div key={n.id} className="px-4 py-2.5 hover:bg-[#f5f5f3] transition-colors">
-                    <p className="text-sm text-[#0a0a0b]">{n.text}</p>
-                    <p className="text-xs text-[#a3a3a1] mt-0.5">{fmtDateTime(n.date)}</p>
-                  </div>
-                ))}
+                <div className="flex items-center justify-between px-4 py-2">
+                  <p className="text-xs font-semibold text-[#6b6b68] uppercase tracking-wider">
+                    Notifications
+                  </p>
+                  {unreadCount > 0 && (
+                    <button
+                      onClick={() => markAllRead.mutate()}
+                      className="text-xs font-medium text-[#1E90FF] hover:underline"
+                    >
+                      Tout marquer comme lu
+                    </button>
+                  )}
+                </div>
+                {notifications.length === 0 ? (
+                  <p className="px-4 py-6 text-sm text-[#a3a3a1] text-center">Aucune notification</p>
+                ) : (
+                  notifications.map((n) => (
+                    <button
+                      key={n.id}
+                      onClick={() => openNotification(n)}
+                      className={`w-full text-left px-4 py-2.5 hover:bg-[#f5f5f3] transition-colors ${!n.isRead ? 'bg-[#1E90FF]/5' : ''}`}
+                    >
+                      <div className="flex items-start gap-2">
+                        {!n.isRead && <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#1E90FF] shrink-0" aria-hidden="true" />}
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-[#0a0a0b]">{n.title}</p>
+                          <p className="text-sm text-[#6b6b68]">{n.body}</p>
+                          <p className="text-xs text-[#a3a3a1] mt-0.5">{fmtDateTime(n.createdAt)}</p>
+                        </div>
+                      </div>
+                    </button>
+                  ))
+                )}
               </div>
             </>
           )}
