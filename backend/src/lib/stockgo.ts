@@ -25,8 +25,20 @@ export function isStockgoUrl(url: string): boolean {
  * Upload un buffer déjà traité (converti en WebP, scanné antivirus en
  * amont) vers stockgo. `bucket` organise les fichiers par usage (products,
  * categories, returns, requests) — cf. stockgo/README.md.
+ *
+ * `visibility` par défaut à 'public' (comportement historique — servi
+ * directement par le site, sans authentification). Les documents KYC
+ * (pièce d'identité, selfie, justificatif de domicile) DOIVENT être
+ * uploadés en 'private' — ce sont des données personnelles sensibles, pas
+ * des images à afficher publiquement.
  */
-export async function uploadToStockgo(buffer: Buffer, filename: string, mimeType: string, bucket: string): Promise<string> {
+export async function uploadToStockgo(
+  buffer: Buffer,
+  filename: string,
+  mimeType: string,
+  bucket: string,
+  visibility: 'public' | 'private' = 'public',
+): Promise<string> {
   if (!isStockgoConfigured()) {
     throw new Error('Stockgo non configuré (STOCKGO_URL / STOCKGO_API_KEY manquants)')
   }
@@ -34,7 +46,7 @@ export async function uploadToStockgo(buffer: Buffer, filename: string, mimeType
   const form = new FormData()
   form.append('file', new Blob([new Uint8Array(buffer)], { type: mimeType }), filename)
   form.append('bucket', bucket)
-  form.append('visibility', 'public') // servi directement par le site, sans authentification
+  form.append('visibility', visibility)
 
   const res = await fetch(`${STOCKGO_URL}/api/v1/files`, {
     method: 'POST',

@@ -44,6 +44,7 @@ import returnsRouter           from './routes/returns'
 import auditLogRouter          from './routes/audit-log'
 import paymentsRouter          from './routes/payments'
 import merchantSyncRouter      from './routes/merchant-sync'
+import merchantOnboardingRouter from './routes/merchant-onboarding'
 
 const app = express()
 
@@ -184,6 +185,7 @@ app.use('/api/auth/magic',          authActionSlowDown, authActionLimiter)
 app.use('/api/auth/password',       authActionSlowDown, authActionLimiter)
 app.use('/api/auth',                authRouter)
 app.use('/api/products/sync-merchant', merchantSyncRouter)
+app.use('/api/merchant-onboarding', merchantOnboardingRouter)
 app.use('/api/products',      publicDataLimiter, productsRouter)
 app.use('/api/orders',        ordersRouter)
 app.use('/api/addresses',     addressesRouter)
