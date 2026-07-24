@@ -190,7 +190,7 @@ router.post('/:id/import', validateParams(zIntIdParam), async (req, res) => {
           storeId,
           isActive: true,
           images: rehostedImages?.length
-            ? { create: rehostedImages.map((url, i) => ({ url, position: i })) }
+            ? { create: rehostedImages.map((img, i) => ({ url: img.url, thumbnailUrl: img.thumbnailUrl, position: i })) }
             : undefined,
           specs: specs?.length
             ? { create: specs.map((s, i) => ({ ...s, position: i })) }

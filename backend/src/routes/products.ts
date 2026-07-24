@@ -683,7 +683,7 @@ router.post('/bulk-import/commit', requireAdmin, validate(bulkImportCommitSchema
           isNew:       d.isNew,
           description: d.description,
           isActive:    true,
-          images: { create: rehostedImages.map((url, idx) => ({ url, position: idx })) },
+          images: { create: rehostedImages.map((img, idx) => ({ url: img.url, thumbnailUrl: img.thumbnailUrl, position: idx })) },
         },
       })
       created++
@@ -719,7 +719,7 @@ router.post('/', requireAdmin, validate(createProductSchemaChecked), async (req,
         categoryId: catRow.id,
         colors: colors ? JSON.stringify(colors) : null,
         images: {
-          create: rehostedImages.map((url, i) => ({ url, position: i })),
+          create: rehostedImages.map((img, i) => ({ url: img.url, thumbnailUrl: img.thumbnailUrl, position: i })),
         },
         specs: specs ? {
           create: specs.map((s, i) => ({ ...s, position: i })),
@@ -787,7 +787,7 @@ router.put('/:id', requireAdmin, validateParams(zIntIdParam), validate(createPro
         ...(rehostedImages ? {
           images: {
             deleteMany: {},
-            create: rehostedImages.map((url, i) => ({ url, position: i })),
+            create: rehostedImages.map((img, i) => ({ url: img.url, thumbnailUrl: img.thumbnailUrl, position: i })),
           },
         } : {}),
         ...(specs ? {
@@ -801,7 +801,7 @@ router.put('/:id', requireAdmin, validateParams(zIntIdParam), validate(createPro
     })
 
     if (rehostedImages) {
-      const keptUrls = new Set(rehostedImages)
+      const keptUrls = new Set(rehostedImages.map(img => img.url))
       for (const old of previousImages) {
         if (!keptUrls.has(old.url)) deleteLocalUpload(old.url)
       }

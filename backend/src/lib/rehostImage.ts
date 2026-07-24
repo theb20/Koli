@@ -1,9 +1,14 @@
 import net from 'net'
 import dns from 'dns/promises'
-import { toWebp } from './imageProcessing'
+import { toWebp, toWebpThumbnail } from './imageProcessing'
 import { logger } from './logger'
 import { scanBuffer } from './virusScan'
 import { uploadToStockgo, isStockgoUrl } from './stockgo'
+
+export interface RehostedImage {
+  url: string
+  thumbnailUrl: string
+}
 
 const MAX_BYTES        = 8 * 1024 * 1024 // 8 MB
 const FETCH_TIMEOUT_MS = 10_000
@@ -45,18 +50,18 @@ export async function assertPublicHost(hostname: string): Promise<void> {
  * l'URL d'origine telle quelle plutôt que de faire échouer l'opération
  * appelante — l'image externe reste utilisable en dégradé.
  */
-export async function rehostImage(sourceUrl: string, backendBaseUrl: string): Promise<string> {
+export async function rehostImage(sourceUrl: string, backendBaseUrl: string): Promise<RehostedImage> {
   if (sourceUrl.startsWith(backendBaseUrl) || sourceUrl.includes('/uploads/') || isStockgoUrl(sourceUrl)) {
-    return sourceUrl // déjà hébergée chez nous
+    return { url: sourceUrl, thumbnailUrl: sourceUrl } // déjà hébergée chez nous
   }
 
   let url: URL
   try {
     url = new URL(sourceUrl)
   } catch {
-    return sourceUrl
+    return { url: sourceUrl, thumbnailUrl: sourceUrl }
   }
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') return sourceUrl
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return { url: sourceUrl, thumbnailUrl: sourceUrl }
 
   try {
     let currentUrl = url
@@ -83,9 +88,9 @@ export async function rehostImage(sourceUrl: string, backendBaseUrl: string): Pr
 
       if (res.status >= 300 && res.status < 400) {
         const location = res.headers.get('location')
-        if (!location || redirects >= MAX_REDIRECTS) return sourceUrl
+        if (!location || redirects >= MAX_REDIRECTS) return { url: sourceUrl, thumbnailUrl: sourceUrl }
         const nextUrl = new URL(location, currentUrl)
-        if (nextUrl.protocol !== 'http:' && nextUrl.protocol !== 'https:') return sourceUrl
+        if (nextUrl.protocol !== 'http:' && nextUrl.protocol !== 'https:') return { url: sourceUrl, thumbnailUrl: sourceUrl }
         currentUrl = nextUrl
         redirects++
         continue
@@ -93,16 +98,16 @@ export async function rehostImage(sourceUrl: string, backendBaseUrl: string): Pr
       break
     }
 
-    if (!res.ok) return sourceUrl
+    if (!res.ok) return { url: sourceUrl, thumbnailUrl: sourceUrl }
 
     const contentType = res.headers.get('content-type') ?? ''
-    if (!/^image\//.test(contentType)) return sourceUrl
+    if (!/^image\//.test(contentType)) return { url: sourceUrl, thumbnailUrl: sourceUrl }
 
     const declaredLength = Number(res.headers.get('content-length') ?? '0')
-    if (declaredLength > MAX_BYTES) return sourceUrl
+    if (declaredLength > MAX_BYTES) return { url: sourceUrl, thumbnailUrl: sourceUrl }
 
     const reader = res.body?.getReader()
-    if (!reader) return sourceUrl
+    if (!reader) return { url: sourceUrl, thumbnailUrl: sourceUrl }
 
     const chunks: Uint8Array[] = []
     let total = 0
@@ -112,29 +117,36 @@ export async function rehostImage(sourceUrl: string, backendBaseUrl: string): Pr
       total += value.byteLength
       if (total > MAX_BYTES) {
         await reader.cancel()
-        return sourceUrl
+        return { url: sourceUrl, thumbnailUrl: sourceUrl }
       }
       chunks.push(value)
     }
     const buf = Buffer.concat(chunks.map(c => Buffer.from(c)))
-    if (buf.length === 0) return sourceUrl
+    if (buf.length === 0) return { url: sourceUrl, thumbnailUrl: sourceUrl }
 
     const scan = await scanBuffer(buf, currentUrl.pathname.split('/').pop() || 'image')
     if (!scan.clean) {
       logger.error('[rehostImage] fichier malveillant détecté, non rehébergé', sourceUrl, scan.reason)
-      return sourceUrl // dégradé : garde le lien externe plutôt que d'héberger le fichier détecté
+      return { url: sourceUrl, thumbnailUrl: sourceUrl } // dégradé : garde le lien externe plutôt que d'héberger le fichier détecté
     }
 
-    const webp = await toWebp(buf)
-    const filename = `prod-${Date.now()}-${Math.random().toString(36).slice(2)}.webp`
+    const [webp, thumb] = await Promise.all([toWebp(buf), toWebpThumbnail(buf)])
+    const rand = Math.random().toString(36).slice(2)
+    const filename = `prod-${Date.now()}-${rand}.webp`
+    const thumbFilename = `prod-${Date.now()}-${rand}-thumb.webp`
 
-    return await uploadToStockgo(webp, filename, 'image/webp', 'products')
+    const [uploadedUrl, uploadedThumbUrl] = await Promise.all([
+      uploadToStockgo(webp, filename, 'image/webp', 'products'),
+      uploadToStockgo(thumb, thumbFilename, 'image/webp', 'products'),
+    ])
+
+    return { url: uploadedUrl, thumbnailUrl: uploadedThumbUrl }
   } catch (err) {
     logger.error('[rehostImage]', sourceUrl, err instanceof Error ? err.message : err)
-    return sourceUrl
+    return { url: sourceUrl, thumbnailUrl: sourceUrl }
   }
 }
 
-export async function rehostImages(urls: string[], backendBaseUrl: string): Promise<string[]> {
+export async function rehostImages(urls: string[], backendBaseUrl: string): Promise<RehostedImage[]> {
   return Promise.all(urls.map(u => rehostImage(u, backendBaseUrl)))
 }
