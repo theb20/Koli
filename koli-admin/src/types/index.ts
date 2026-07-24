@@ -314,3 +314,76 @@ export type ApiResponse<T> = {
   data: T
   message?: string
 }
+
+/* ── Candidatures marchand (merchantgo, relayé par backend/) ────── */
+export type MerchantApplicationStatus = 'draft' | 'submitted' | 'pending_review' | 'approved' | 'rejected'
+
+export type MerchantApplication = {
+  id: string
+  email?: string
+  status: MerchantApplicationStatus
+  rejectionReason?: string
+  submittedAt?: string
+  reviewedAt?: string
+  createdAt: string
+  updatedAt: string
+
+  diditStatus?: string
+  diditSessionId?: string
+  diditEnvironment?: string
+  diditUpdatedAt?: string
+
+  photoProfilUrl: string
+  dateNaissance: string
+  paysResidence: string
+  villeResidence: string
+  langue: string
+  devise: string
+
+  nomBoutique: string
+  logoBoutiqueUrl: string
+  banniereBoutiqueUrl: string
+  descriptionBoutique: string
+  categorieActivite: string
+  siteWeb: string
+
+  typeEntreprise: 'individuel' | 'auto-entrepreneur' | 'societe'
+  numeroLegal: string
+  numeroNCC: string
+  formeJuridique: string
+  nomEntreprise: string
+  adresseSiege: string
+
+  paysAdresse: string
+  regionAdresse: string
+  villeAdresse: string
+  codePostal: string
+  adresseComplete: string
+
+  titulaireCompte: string
+  banque: string
+  iban: string
+  swift: string
+  mobileMoneyOperateur: string
+  mobileMoneyNumero: string
+  moyenPaiementPrefere: 'mobile_money' | 'virement_bancaire'
+
+  typeDocument: 'cni' | 'passeport' | 'permis'
+  documentIdentiteUrl: string
+  selfieUrl: string
+  justificatifDomicileUrl: string
+
+  zonesLivraison: string
+  modesLivraison: string
+  delaisLivraison: string
+  fraisLivraison: string
+  retraitMagasin: boolean
+
+  domainePersonnalise: string
+  horairesOuverture: string
+  facebook: string
+  instagram: string
+  whatsapp: string
+  politiqueRetour: string
+  cgv: boolean
+}

@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   LayoutDashboard, Package, ShoppingCart, Users, BookOpen,
   Tag, Star, MessageSquare, Settings, LogOut,
-  Bell, BarChart2, Store, Layers, Percent, Zap, PackageSearch, Send, RotateCcw, X, Gift
+  Bell, BarChart2, Store, Layers, Percent, Zap, PackageSearch, Send, RotateCcw, X, Gift, Briefcase
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { api } from '../../lib/api'
@@ -15,6 +15,7 @@ const nav = [
   { to: '/categories', label: 'Catégories',    icon: Layers },
   { to: '/stores',     label: 'Magasins',      icon: Store },
   { to: '/orders',   label: 'Commandes',      icon: ShoppingCart },
+  { to: '/merchant-applications', label: 'Candidatures marchand', icon: Briefcase },
   { to: '/product-requests', label: 'Demandes de sourcing', icon: PackageSearch },
   { to: '/returns',   label: 'Retours',        icon: RotateCcw },
   { to: '/loyalty',  label: 'Fidélité',       icon: Gift },
@@ -51,6 +52,12 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   const { data: pendingReturnsCount = 0 } = useQuery({
     queryKey: ['returns-pending-count'],
     queryFn:  async () => { const { data } = await api.get('/api/returns/admin/all?status=requested'); return (data.data as unknown[]).length },
+    refetchInterval: 30_000,
+  })
+
+  const { data: pendingApplicationsCount = 0 } = useQuery({
+    queryKey: ['merchant-applications-pending-count'],
+    queryFn:  async () => { const { data } = await api.get('/api/admin/merchant-applications?status=submitted&limit=1'); return data.data.total as number },
     refetchInterval: 30_000,
   })
 
@@ -113,6 +120,11 @@ export function Sidebar({ open, onClose }: SidebarProps) {
               {to === '/returns' && pendingReturnsCount > 0 && (
                 <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
                   {pendingReturnsCount > 99 ? '99+' : pendingReturnsCount}
+                </span>
+              )}
+              {to === '/merchant-applications' && pendingApplicationsCount > 0 && (
+                <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                  {pendingApplicationsCount > 99 ? '99+' : pendingApplicationsCount}
                 </span>
               )}
             </NavLink>

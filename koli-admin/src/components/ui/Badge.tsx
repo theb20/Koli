@@ -29,6 +29,8 @@ const colors: Record<string, string> = {
   success:    'bg-green-50 text-green-700 border-green-200',
   running:    'bg-blue-50 text-blue-700 border-blue-200',
   skipped:    'bg-slate-100 text-slate-500 border-slate-200',
+  submitted:      'bg-yellow-50 text-yellow-700 border-yellow-200',
+  pending_review: 'bg-orange-50 text-orange-700 border-orange-200',
   default:    'bg-slate-100 text-slate-600 border-slate-200',
 }
 
@@ -41,6 +43,7 @@ const labels: Record<string, string> = {
   quoted: 'Devis envoyé', fulfilled: 'Traitée', rejected: 'Refusée',
   requested: 'Demandé', approved: 'Approuvé', received: 'Reçu',
   success: 'Synchronisé', running: 'En cours', skipped: 'Ignoré',
+  submitted: 'Soumis', pending_review: 'En revue',
 }
 
 export function Badge({ label, color }: Props) {
