@@ -7,6 +7,7 @@ import {
 } from '../lib/merchantgo'
 import { isStockgoUrl, fetchStockgoFile } from '../lib/stockgo'
 import { logger } from '../lib/logger'
+import { prisma } from '../lib/prisma'
 
 const router = Router()
 router.use(requireAdmin)
@@ -74,11 +75,61 @@ router.get('/:id', async (req, res) => {
   }
 })
 
+type ApprovedApplication = {
+  userId?: string
+  nomBoutique?: string
+  descriptionBoutique?: string
+  logoBoutiqueUrl?: string
+  banniereBoutiqueUrl?: string
+  adresseComplete?: string
+}
+
+/*
+ * L'approbation côté merchantgo ne fait que changer le statut de la
+ * candidature — c'est ici, une fois confirmée, que la boutique devient
+ * réelle : SellerStore créée/mise à jour et approuvée, rôle du compte
+ * passé à 'seller'. Sans ce pont, un marchand approuvé n'aurait toujours
+ * aucun moyen de se connecter à koli-marchand (aucune boutique, aucun
+ * rôle) — l'onboarding KYC serait une impasse.
+ * Non bloquant pour la réponse à koli-admin : l'approbation merchantgo a
+ * déjà eu lieu, un échec de provisioning ne doit pas donner l'impression
+ * que l'approbation elle-même a échoué (elle est juste incomplète, à
+ * rattraper manuellement le cas échéant).
+ */
+async function provisionSellerStore(app: ApprovedApplication) {
+  if (!app.userId) return
+  await prisma.sellerStore.upsert({
+    where:  { userId: app.userId },
+    create: {
+      userId:      app.userId,
+      name:        app.nomBoutique || 'Boutique',
+      description: app.descriptionBoutique || undefined,
+      logo:        app.logoBoutiqueUrl || undefined,
+      banner:      app.banniereBoutiqueUrl || undefined,
+      address:     app.adresseComplete || undefined,
+      isApproved:  true,
+    },
+    update: {
+      name:        app.nomBoutique || undefined,
+      description: app.descriptionBoutique || undefined,
+      logo:        app.logoBoutiqueUrl || undefined,
+      banner:      app.banniereBoutiqueUrl || undefined,
+      isApproved:  true,
+    },
+  })
+  await prisma.user.update({ where: { id: app.userId }, data: { role: 'seller' } })
+}
+
 /* POST /api/admin/merchant-applications/:id/approve */
 router.post('/:id/approve', async (req, res) => {
   try {
     const { note } = z.object({ note: z.string().max(1000).optional() }).parse(req.body ?? {})
-    const data = await approveMerchantApplication(req.params.id, req.user!.userId, note)
+    const data = await approveMerchantApplication(req.params.id, req.user!.userId, note) as ApprovedApplication
+    try {
+      await provisionSellerStore(data)
+    } catch (err) {
+      logger.error('[merchant-applications] approuvée côté merchantgo mais échec de provisioning SellerStore', req.params.id, err)
+    }
     res.json({ success: true, data })
   } catch (err) {
     forward(err, res)

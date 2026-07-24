@@ -48,6 +48,17 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
   })
 }
 
+/** Middleware — vérifie le rôle seller (marchand) */
+export function requireSeller(req: Request, res: Response, next: NextFunction): void {
+  requireAuth(req, res, () => {
+    if (req.user?.role !== 'seller') {
+      res.status(403).json({ success: false, message: 'Accès réservé aux marchands' })
+      return
+    }
+    next()
+  })
+}
+
 /** Middleware — optionnel : injecte req.user si token présent, sans bloquer */
 export function optionalAuth(req: Request, _res: Response, next: NextFunction): void {
   try {
