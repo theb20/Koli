@@ -380,6 +380,21 @@ model Notification {
   @@map("notifications")
 }
 
+/// Code de vérification e-mail à 6 chiffres pour l'étape 2 du wizard
+/// d'inscription marchand (koli-business) — envoyé et vérifié AVANT que le
+/// compte User n'existe (créé plus tard, à l'étape 3), donc pas rattachable
+/// à un User. Une ligne par email, régénérée à chaque renvoi.
+model EmailVerification {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  codeHash    String
+  attempts    Int      @default(0)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  @@map("email_verifications")
+}
+
 model ContactMessage {
   id        String   @id @default(cuid())
   prenom    String

@@ -27,3 +27,4 @@ export { sendProductRequestReplyEmail }    from './templates/product-request-rep
 export { sendReturnStatusEmail }           from './templates/return-status'
 export { sendNewReturnAdminEmail }         from './templates/new-return-admin'
 export type { NewReturnAdminPayload }      from './templates/new-return-admin'
+export { sendVerificationCodeEmail }       from './templates/verification-code'

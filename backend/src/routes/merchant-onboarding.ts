@@ -1,9 +1,13 @@
 import { Router } from 'express'
 import type { Request, Response, NextFunction } from 'express'
 import multer from 'multer'
+import crypto from 'crypto'
+import { z } from 'zod'
 import { requireAuth } from '../middleware/auth'
 import { uploadToStockgo } from '../lib/stockgo'
 import { scanBuffer } from '../lib/virusScan'
+import { sendVerificationCodeEmail } from '../lib/mailer'
+import { prisma } from '../lib/prisma'
 import { logger } from '../lib/logger'
 
 /*
@@ -83,6 +87,96 @@ router.post('/upload', requireAuth, handleUpload, async (req, res) => {
   } catch (err) {
     logger.error('[merchant-onboarding] échec upload', err)
     res.status(500).json({ success: false, message: 'Échec de l\'upload' })
+  }
+})
+
+/*
+ * ── Vérification e-mail (étape 2 du wizard) ─────────────────────────
+ * Se produit AVANT la création du compte (étape 3, une fois la date de
+ * naissance connue) — donc non authentifié, juste email + code. Le
+ * rate limit publicFormLimiter (app.ts) protège cette route au même titre
+ * que les autres formulaires publics.
+ */
+
+const CODE_TTL_MS = 15 * 60 * 1000
+const MAX_ATTEMPTS = 5
+
+function hashCode(code: string): string {
+  return crypto.createHash('sha256').update(code).digest('hex')
+}
+
+/* POST /api/merchant-onboarding/email-verification/send */
+router.post('/email-verification/send', async (req, res) => {
+  try {
+    const { email } = z.object({ email: z.string().email() }).parse(req.body)
+    const normalizedEmail = email.toLowerCase().trim()
+
+    const existingUser = await prisma.user.findUnique({ where: { email: normalizedEmail } })
+    if (existingUser) {
+      res.status(409).json({ success: false, message: 'Un compte existe déjà avec cet email.' })
+      return
+    }
+
+    const code = crypto.randomInt(100000, 1000000).toString()
+    await prisma.emailVerification.upsert({
+      where:  { email: normalizedEmail },
+      create: { email: normalizedEmail, codeHash: hashCode(code), expiresAt: new Date(Date.now() + CODE_TTL_MS) },
+      update: { codeHash: hashCode(code), attempts: 0, expiresAt: new Date(Date.now() + CODE_TTL_MS) },
+    })
+
+    await sendVerificationCodeEmail(normalizedEmail, code)
+    res.json({ success: true, message: 'Code envoyé.' })
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ success: false, message: 'Email invalide' }); return }
+    logger.error('[merchant-onboarding] échec envoi code de vérification', err)
+    res.status(500).json({ success: false, message: 'Échec de l\'envoi du code' })
+  }
+})
+
+/* POST /api/merchant-onboarding/email-verification/confirm */
+router.post('/email-verification/confirm', async (req, res) => {
+  try {
+    const { email, code } = z.object({
+      email: z.string().email(),
+      code:  z.string().length(6),
+    }).parse(req.body)
+    const normalizedEmail = email.toLowerCase().trim()
+
+    const verification = await prisma.emailVerification.findUnique({ where: { email: normalizedEmail } })
+    if (!verification) {
+      res.status(400).json({ success: false, message: 'Aucun code envoyé pour cet email — redemandez-en un.' })
+      return
+    }
+
+    if (verification.expiresAt < new Date()) {
+      await prisma.emailVerification.delete({ where: { email: normalizedEmail } })
+      res.status(400).json({ success: false, message: 'Code expiré — redemandez-en un.' })
+      return
+    }
+
+    if (verification.attempts >= MAX_ATTEMPTS) {
+      await prisma.emailVerification.delete({ where: { email: normalizedEmail } })
+      res.status(429).json({ success: false, message: 'Trop de tentatives — redemandez un nouveau code.' })
+      return
+    }
+
+    const providedHash = Buffer.from(hashCode(code))
+    const expectedHash  = Buffer.from(verification.codeHash)
+    const valid = providedHash.length === expectedHash.length && crypto.timingSafeEqual(providedHash, expectedHash)
+
+    if (!valid) {
+      await prisma.emailVerification.update({ where: { email: normalizedEmail }, data: { attempts: { increment: 1 } } })
+      res.status(400).json({ success: false, message: 'Code invalide.' })
+      return
+    }
+
+    // À usage unique — supprimé après validation réussie
+    await prisma.emailVerification.delete({ where: { email: normalizedEmail } })
+    res.json({ success: true })
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ success: false, message: 'Requête invalide' }); return }
+    logger.error('[merchant-onboarding] échec confirmation code de vérification', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
 })
 
