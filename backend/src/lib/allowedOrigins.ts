@@ -24,4 +24,5 @@ export const ALLOWED_ORIGINS = [
   'http://localhost:5176',
   'https://marchant-e58f1.web.app',
   'https://marchant-e58f1.firebaseapp.com',
+  'https://me.skignas.com',
 ]
