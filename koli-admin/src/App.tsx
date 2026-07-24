@@ -25,6 +25,8 @@ import SettingsPage       from './pages/SettingsPage'
 import NotificationsPage  from './pages/NotificationsPage'
 import StoresPage         from './pages/stores/StoresPage'
 import StoreDetailPage    from './pages/stores/StoreDetailPage'
+import MerchantsPage       from './pages/merchants/MerchantsPage'
+import MerchantDetailPage2 from './pages/merchants/MerchantDetailPage'
 import CategoriesPage     from './pages/categories/CategoriesPage'
 import TaxPage            from './pages/TaxPage'
 import EmailTemplatesPage from './pages/EmailTemplatesPage'
@@ -54,6 +56,8 @@ export default function App() {
             <Route path="/categories"    element={<CategoriesPage />} />
             <Route path="/stores"        element={<StoresPage />} />
             <Route path="/stores/:id"    element={<StoreDetailPage />} />
+            <Route path="/merchants"     element={<MerchantsPage />} />
+            <Route path="/merchants/:id" element={<MerchantDetailPage2 />} />
             <Route path="/orders"        element={<OrdersPage />} />
             <Route path="/orders/:id"    element={<OrderDetailPage />} />
             <Route path="/users"         element={<UsersPage />} />
