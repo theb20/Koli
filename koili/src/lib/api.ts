@@ -31,7 +31,7 @@ export type PaginationMeta = {
 }
 
 /* ── Produit API ── */
-export type ApiProductImage = { id: number; url: string; position: number }
+export type ApiProductImage = { id: number; url: string; thumbnailUrl?: string | null; position: number }
 export type ApiProductSpec  = { id: number; label: string; value: string; position: number }
 
 export type ApiProduct = {
@@ -210,10 +210,15 @@ export async function apiFetch<T = unknown>(
 /** Convertit un ApiProduct en shape Product utilisé par le frontend */
 export function mapApiProduct(p: ApiProduct) {
   // images : tableau [url] minimum 4 (on duplique la 1ère si besoin)
-  const imgUrls = (p.images ?? [])
-    .sort((a, b) => a.position - b.position)
-    .map(i => i.url)
+  const sortedImages = (p.images ?? []).sort((a, b) => a.position - b.position)
+  const imgUrls = sortedImages.map(i => i.url)
   while (imgUrls.length < 4) imgUrls.push(imgUrls[0] ?? '')
+
+  // vignettes : mêmes positions mais en résolution réduite (grille produits) —
+  // retombe sur l'image pleine résolution si aucune vignette n'a été générée
+  // (images uploadées avant l'ajout du redimensionnement serveur).
+  const thumbUrls = sortedImages.map(i => i.thumbnailUrl || i.url)
+  while (thumbUrls.length < 4) thumbUrls.push(thumbUrls[0] ?? '')
 
   // colors : JSON string → string[]
   let colors: string[] | undefined
@@ -243,6 +248,7 @@ export function mapApiProduct(p: ApiProduct) {
     colors,
     specs,
     images: imgUrls as [string, string, string, string],
+    thumbnails: thumbUrls as [string, string, string, string],
   }
 }
 

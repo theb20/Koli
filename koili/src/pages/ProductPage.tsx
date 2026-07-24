@@ -469,7 +469,7 @@ function RelatedCard({ product }: { product: ReturnType<typeof mapApiProduct> })
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.img
             key={imgIdx}
-            src={product.images[imgIdx]}
+            src={product.thumbnails[imgIdx]}
             alt={product.name}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -482,7 +482,7 @@ function RelatedCard({ product }: { product: ReturnType<typeof mapApiProduct> })
         <div className="absolute bottom-0 inset-x-0 flex justify-center gap-1 pb-2 pt-6
                         bg-gradient-to-t from-black/40 to-transparent
                         opacity-0 group-hover:opacity-100 transition-opacity">
-          {product.images.map((_, i) => (
+          {product.thumbnails.map((_, i) => (
             <button key={i}
               onMouseEnter={() => setImgIdx(i)}
               onClick={e => { e.preventDefault(); setImgIdx(i) }}
@@ -615,7 +615,7 @@ export default function ProductPage() {
       brand: product.brand,
       price: product.price,
       oldPrice: product.oldPrice,
-      image: product.images[0],
+      image: product.thumbnails[0],
       color: product.colors?.[color],
       stock: product.stock ?? undefined,
     }, qty)
@@ -927,7 +927,7 @@ export default function ProductPage() {
                       brand:     product.brand,
                       price:     product.price,
                       oldPrice:  product.oldPrice,
-                      image:     product.images[0],
+                      image:     product.thumbnails[0],
                       color:     product.colors?.[color],
                       stock:     product.stock ?? undefined,
                     }, qty)

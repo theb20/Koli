@@ -630,7 +630,7 @@ function SuggestedProducts({ currentIds }: { currentIds: number[] }) {
         {suggested.map(p => (
           <div key={p.id} className="flex gap-2.5 p-2.5 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors">
             <Link to={`/catalogue/${p.id}`} className="shrink-0">
-              <img src={p.images[0]} alt={p.name}
+              <img src={p.thumbnails[0]} alt={p.name}
                 className="w-14 h-14 rounded-lg object-cover bg-gray-50" />
             </Link>
             <div className="flex-1 min-w-0">
@@ -638,7 +638,7 @@ function SuggestedProducts({ currentIds }: { currentIds: number[] }) {
               <p className="text-xs font-semibold text-gray-800 line-clamp-2 leading-snug">{p.name}</p>
               <div className="flex items-center justify-between mt-1.5">
                 <p className="text-xs font-bold text-gray-900">{fmtCart(p.price)}</p>
-                <button onClick={() => addItem({ productId: p.id, name: p.name, brand: p.brand, price: p.price, oldPrice: p.oldPrice, image: p.images[0] })}
+                <button onClick={() => addItem({ productId: p.id, name: p.name, brand: p.brand, price: p.price, oldPrice: p.oldPrice, image: p.thumbnails[0] })}
                   className="w-6 h-6 rounded-lg bg-gray-900 text-white flex items-center justify-center hover:bg-gray-700 transition-colors">
                   <Plus size={10} />
                 </button>

@@ -58,7 +58,7 @@ export function RecentlyViewedSection() {
             {products.map((p: ReturnType<typeof mapApiProduct>) => (
               <Link key={p.id} to={`/catalogue/${p.id}`} className="group text-center">
                 <div className="aspect-square rounded-xl overflow-hidden bg-gray-50 mb-2">
-                  <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
+                  <img src={p.thumbnails[0]} alt={p.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
                 </div>
                 <p className="text-xs font-semibold text-gray-800 line-clamp-2 group-hover:text-blue-600 transition-colors">{p.name}</p>
                 <p className="text-xs font-bold text-blue-600 mt-1">{fmt(p.price)}</p>

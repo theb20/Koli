@@ -37,7 +37,7 @@ function Countdown({ endsAt }: { endsAt: string }) {
 
 type FlashProduct = {
   id: number; name: string; brand: string; price: number; salePrice: number; saleEndsAt: string
-  images: { url: string }[]
+  images: { url: string; thumbnailUrl?: string | null }[]
   stock: number
 }
 
@@ -45,7 +45,7 @@ function FlashCard({ product }: { product: FlashProduct }) {
   const { addItem } = useCart()
   const [added, setAdded] = useState(false)
   const disc = Math.round(((product.price - product.salePrice) / product.price) * 100)
-  const img = product.images[0]?.url ?? ''
+  const img = product.images[0]?.thumbnailUrl || product.images[0]?.url || ''
 
   const handleAdd = (e: React.MouseEvent) => {
     e.preventDefault()

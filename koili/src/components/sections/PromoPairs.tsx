@@ -146,7 +146,7 @@ function HeroDeal({ product }: { product: Product }) {
       <div className="absolute -top-20 -right-20 w-64 h-64 rounded-full blur-[80px] opacity-20 pointer-events-none" style={{ background: ACCENT }} />
 
       <div className="relative h-[200px] sm:h-[240px] lg:h-[280px] overflow-hidden bg-gray-50">
-        <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
+        <img src={product.thumbnails[0]} alt={product.name} className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-white via-white/10 to-transparent" />
         <div className="absolute top-4 left-4 flex items-center gap-2">
           {disc > 0 && (
@@ -191,7 +191,7 @@ function HeroDeal({ product }: { product: Product }) {
 
         <div className="flex items-center gap-3 mt-7">
           <motion.button whileTap={{ scale: 0.96 }} whileHover={{ scale: 1.02 }}
-            onClick={() => addItem({ productId: product.id, name: product.name, brand: product.brand, price: product.price, oldPrice: product.oldPrice, image: product.images[0] })}
+            onClick={() => addItem({ productId: product.id, name: product.name, brand: product.brand, price: product.price, oldPrice: product.oldPrice, image: product.thumbnails[0] })}
             className="flex-1 inline-flex items-center justify-center gap-2 text-white text-sm px-6 py-3.5 rounded-xl shadow-lg transition-all"
             style={{ background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT_END})` }}>
             <ShoppingCart size={15} /> Ajouter au panier
@@ -225,7 +225,7 @@ function SideDeal({ product, index }: { product: Product; index: number }) {
       <div className="absolute -top-10 -right-10 w-36 h-36 rounded-full blur-[50px] opacity-10 pointer-events-none transition-opacity group-hover:opacity-20" style={{ background: accent }} />
 
       <div className="relative shrink-0 w-[108px] h-[108px] rounded-xl overflow-hidden bg-gray-50">
-        <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
+        <img src={product.thumbnails[0]} alt={product.name} className="w-full h-full object-cover" />
         {disc > 0 && (
           <div className="absolute -top-2 -right-2 w-9 h-9 rounded-full flex items-center justify-center text-white text-[10px] shadow-md" style={{ background: accent }}>
             -{disc}%
@@ -251,7 +251,7 @@ function SideDeal({ product, index }: { product: Product; index: number }) {
           </div>
           <StockBar stock={product.stock ?? 20} sold={product.sold} accent={accent} />
           <motion.button whileTap={{ scale: 0.95 }}
-            onClick={() => addItem({ productId: product.id, name: product.name, brand: product.brand, price: product.price, oldPrice: product.oldPrice, image: product.images[0] })}
+            onClick={() => addItem({ productId: product.id, name: product.name, brand: product.brand, price: product.price, oldPrice: product.oldPrice, image: product.thumbnails[0] })}
             className="mt-3 w-full inline-flex items-center justify-center gap-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 text-xs font-semibold py-2 rounded-lg transition-colors">
             <ShoppingCart size={12} /> Ajouter
           </motion.button>

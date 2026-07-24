@@ -60,7 +60,7 @@ function ProductCard({ product, rank }: { product: Product; rank: number }) {
       brand:     product.brand,
       price:     product.price,
       oldPrice:  product.oldPrice,
-      image:     product.images[0],
+      image:     product.thumbnails[0],
       stock:     product.stock ?? undefined,
     })
     setAdded(true)
@@ -98,7 +98,7 @@ function ProductCard({ product, rank }: { product: Product; rank: number }) {
           <AnimatePresence mode="popLayout" initial={false}>
             <motion.img
               key={imgIdx}
-              src={product.images[imgIdx]}
+              src={product.thumbnails[imgIdx]}
               alt={product.name}
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               transition={{ duration: 0.22 }}
@@ -112,7 +112,7 @@ function ProductCard({ product, rank }: { product: Product; rank: number }) {
           bg-gradient-to-t from-black/55 to-transparent
           opacity-0 group-hover:opacity-100 transition-opacity duration-200
           pointer-events-none group-hover:pointer-events-auto" style={{ zIndex: 15 }}>
-          {product.images.slice(0, 4).map((img, i) => (
+          {product.thumbnails.slice(0, 4).map((img, i) => (
             <button key={i}
               onMouseEnter={() => setImgIdx(i)}
               onClick={e => { e.preventDefault(); setImgIdx(i) }}

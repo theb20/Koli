@@ -9,7 +9,7 @@ const TRENDING = ['Montre', 'Écouteurs', 'Skincare', 'Gaming', 'Sport']
 
 type ApiResult = {
   id: number; name: string; brand: string; category: string
-  price: number; images: { url: string }[]
+  price: number; images: { url: string; thumbnailUrl?: string | null }[]
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -163,7 +163,7 @@ export default function UltraSearchBar() {
                         <div className="flex items-center gap-3">
                           <div className="w-9 h-9 rounded-lg overflow-hidden bg-gray-100 shrink-0">
                             {p.images[0]?.url
-                              ? <img src={p.images[0].url} alt="" className="w-full h-full object-cover" />
+                              ? <img src={p.images[0].thumbnailUrl || p.images[0].url} alt="" className="w-full h-full object-cover" />
                               : <Search size={13} className="text-gray-400 m-auto mt-2" />}
                           </div>
                           <div>

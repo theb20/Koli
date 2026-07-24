@@ -11,7 +11,7 @@ type GiftItem = {
   id: number
   productId: number
   isPurchased: boolean
-  product: { id: number; name: string; brand: string; price: number; images: { url: string }[] }
+  product: { id: number; name: string; brand: string; price: number; images: { url: string; thumbnailUrl?: string | null }[] }
 }
 
 type GiftList = {
@@ -95,7 +95,7 @@ export default function GiftListPublicPage() {
           {/* Items */}
           <div className="space-y-3">
             {data.items.map(item => {
-              const img = item.product.images[0]?.url ?? ''
+              const img = item.product.images[0]?.thumbnailUrl || item.product.images[0]?.url || ''
               return (
                 <div key={item.id}
                   className={`flex gap-4 p-4 rounded-2xl border transition-all ${item.isPurchased ? 'border-emerald-100 bg-emerald-50' : 'border-gray-100 bg-white'}`}>

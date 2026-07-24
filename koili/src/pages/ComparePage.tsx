@@ -69,12 +69,12 @@ export default function ComparePage() {
                     {products.map(p => (
                       <th key={p.id} className="px-4 pb-6 text-center min-w-[200px]">
                         <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-                          <img src={p.images[0]} alt={p.name} className="w-full h-40 object-contain rounded-xl mb-3" />
+                          <img src={p.thumbnails[0]} alt={p.name} className="w-full h-40 object-contain rounded-xl mb-3" />
                           <p className="text-xs text-gray-400 font-semibold uppercase">{p.brand}</p>
                           <p className="text-sm font-bold text-gray-900 mt-1 line-clamp-2">{p.name}</p>
                           <p className="text-lg font-black text-blue-600 mt-2">{fmt(p.price)}</p>
                           <button
-                            onClick={() => p.stock !== 0 && addItem({ productId: p.id, name: p.name, brand: p.brand, price: p.price, image: p.images[0], stock: p.stock ?? undefined })}
+                            onClick={() => p.stock !== 0 && addItem({ productId: p.id, name: p.name, brand: p.brand, price: p.price, image: p.thumbnails[0], stock: p.stock ?? undefined })}
                             disabled={p.stock === 0}
                             className={`mt-3 w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-colors ${
                               p.stock === 0

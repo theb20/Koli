@@ -228,7 +228,7 @@ function GridCard({ p, idx }: { p: Product; idx: number }) {
   const handleAdd = (e: React.MouseEvent) => {
     e.preventDefault()
     if (p.stock === 0) return
-    addItem({ productId: p.id, name: p.name, brand: p.brand, price: p.price, oldPrice: p.oldPrice, image: p.images[0], stock: p.stock ?? undefined })
+    addItem({ productId: p.id, name: p.name, brand: p.brand, price: p.price, oldPrice: p.oldPrice, image: p.thumbnails[0], stock: p.stock ?? undefined })
     setAdded(true)
     setTimeout(() => setAdded(false), 1800)
   }
@@ -285,7 +285,7 @@ function GridCard({ p, idx }: { p: Product; idx: number }) {
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.img
             key={imgIdx}
-            src={p.images[imgIdx]}
+            src={p.thumbnails[imgIdx]}
             alt={p.name}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -297,7 +297,7 @@ function GridCard({ p, idx }: { p: Product; idx: number }) {
           />
         </AnimatePresence>
 
-        <ThumbStrip images={p.images} active={imgIdx} onHover={setImgIdx} />
+        <ThumbStrip images={p.thumbnails} active={imgIdx} onHover={setImgIdx} />
 
         <div className="absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300"
              style={{ zIndex: 20 }}>
@@ -363,7 +363,7 @@ function ListCard({ p, idx }: { p: Product; idx: number }) {
 
   const handleAdd = () => {
     if (p.stock === 0) return
-    addItem({ productId: p.id, name: p.name, brand: p.brand, price: p.price, oldPrice: p.oldPrice, image: p.images[0], stock: p.stock ?? undefined })
+    addItem({ productId: p.id, name: p.name, brand: p.brand, price: p.price, oldPrice: p.oldPrice, image: p.thumbnails[0], stock: p.stock ?? undefined })
     setAdded(true)
     setTimeout(() => setAdded(false), 1800)
   }
@@ -399,7 +399,7 @@ function ListCard({ p, idx }: { p: Product; idx: number }) {
             </span>
           )}
           <AnimatePresence mode="popLayout" initial={false}>
-            <motion.img key={imgIdx} src={p.images[imgIdx]} alt={p.name}
+            <motion.img key={imgIdx} src={p.thumbnails[imgIdx]} alt={p.name}
               initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
               transition={{ duration:0.2 }}
               className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
@@ -409,7 +409,7 @@ function ListCard({ p, idx }: { p: Product; idx: number }) {
         </div>
 
         <div className="flex gap-1 w-28 sm:w-36">
-          {p.images.map((img, i) => (
+          {p.thumbnails.map((img, i) => (
             <button key={i}
               onMouseEnter={() => setImgIdx(i)}
               onClick={() => setImgIdx(i)}
