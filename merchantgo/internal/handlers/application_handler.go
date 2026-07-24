@@ -106,6 +106,7 @@ func (r saveDraftRequest) toInput() services.ApplicationInput {
 
 type applicationResponse struct {
 	ID              string  `json:"id"`
+	UserID          string  `json:"userId,omitempty"`
 	Email           string  `json:"email,omitempty"`
 	Status          string  `json:"status"`
 	RejectionReason string  `json:"rejectionReason,omitempty"`
@@ -130,6 +131,7 @@ type applicationResponse struct {
 func toApplicationResponse(app *models.Application) applicationResponse {
 	resp := applicationResponse{
 		ID:               app.ID.String(),
+		UserID:           app.UserID,
 		Email:            app.Email,
 		Status:           string(app.Status),
 		RejectionReason:  app.RejectionReason,
