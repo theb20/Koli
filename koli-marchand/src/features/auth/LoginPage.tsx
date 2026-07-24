@@ -63,7 +63,7 @@ export default function LoginPage() {
           value={password}
           onChange={e => setPassword(e.target.value)}
           required
-          extra={<Link to="#" className="text-[13px] text-[#111] underline">Mot de passe oublié ?</Link>}
+          extra={<Link to="/mot-de-passe-oublie" className="text-[13px] text-[#111] underline">Mot de passe oublié ?</Link>}
         />
 
         <div className="flex flex-col gap-3 pt-1">
@@ -84,10 +84,10 @@ export default function LoginPage() {
       </form>
 
       <p className="text-center text-sm text-[#6f6f6f]">
-        Nouveau sur Skignas ? <Link to="/inscription" className="text-[#111] font-bold underline">Créer un compte marchand</Link>
+        Nouveau sur Skignas ? <Link to="https://business.skignas.com/inscription" className="text-[#111] font-bold underline">Créer un compte marchand</Link>
       </p>
       <p className="text-center text-[13px]">
-        <a href="#" className="text-[#9a9a9a] hover:text-[#111] transition-colors">Aide &amp; support</a>
+        <a href="https://business.skignas.com/aide" target="_blank" className="text-[#9a9a9a] hover:text-[#111] transition-colors">Aide &amp; support</a>
       </p>
     </AuthLayout>
   )
