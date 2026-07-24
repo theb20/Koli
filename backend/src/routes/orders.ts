@@ -447,6 +447,43 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
       }
     })()
 
+    // 6e. Notifier le(s) marchand(s) concerné(s) — un marchand n'est alerté que pour SES
+    //     propres produits dans la commande, sans identité/coordonnées du client : la
+    //     commande complète ne lui est communiquée qu'après confirmation du paiement
+    //     (côté koli-marchand), cette notification n'est qu'une alerte de nouvelle activité.
+    ;(async () => {
+      try {
+        const storeIds = [...new Set(products.map(p => p.storeId).filter((id): id is number => id != null))]
+        if (storeIds.length === 0) return
+
+        const stores = await prisma.sellerStore.findMany({
+          where:  { id: { in: storeIds } },
+          select: { id: true, userId: true },
+        })
+
+        const notifData = stores.map(store => {
+          const storeItems = body.items.filter(item => {
+            const p = products.find(pr => pr.id === item.productId)
+            return p?.storeId === store.id
+          })
+          const itemCount = storeItems.reduce((sum, i) => sum + i.qty, 0)
+          return {
+            userId: store.userId,
+            type:   'order',
+            title:  'Nouvelle commande reçue',
+            body:   `${itemCount} article${itemCount > 1 ? 's' : ''} · ${orderNumber}`,
+            link:   `/commandes`,
+          }
+        })
+
+        if (notifData.length > 0) {
+          await prisma.notification.createMany({ data: notifData })
+        }
+      } catch (err) {
+        logger.error('[orders] échec notification marchand', err) // non bloquant
+      }
+    })()
+
     // 7. Email de confirmation (sans bloquer)
     sendOrderConfirmationEmail(body.clientEmail, {
       orderNumber,
