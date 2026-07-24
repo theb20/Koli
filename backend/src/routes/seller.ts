@@ -357,9 +357,12 @@ router.post('/products', requireSeller, async (req, res) => {
     if (!store.isApproved) { res.status(403).json({ success: false, message: 'Boutique en attente de validation.' }); return }
 
     const body = productInputSchema.parse(req.body)
+    const cat = await prisma.category.findUnique({ where: { slug: body.category } })
+    if (!cat) { res.status(400).json({ success: false, message: `Catégorie "${body.category}" introuvable` }); return }
+
     const product = await prisma.product.create({
       data: {
-        name: body.name, category: body.category, brand: store.name,
+        name: body.name, category: cat.slug, categoryId: cat.id, brand: store.name,
         price: body.price, oldPrice: body.compareAtPrice, stock: body.stock,
         isActive: body.status !== 'draft', description: body.description,
         storeId: store.id,
@@ -386,13 +389,18 @@ router.patch('/products/:id', requireSeller, async (req, res) => {
     if (!existing) { res.status(404).json({ success: false, message: 'Produit introuvable.' }); return }
 
     const body = productInputSchema.partial().parse(req.body)
+    let cat: { id: number; slug: string } | null = null
+    if (body.category) {
+      cat = await prisma.category.findUnique({ where: { slug: body.category }, select: { id: true, slug: true } })
+      if (!cat) { res.status(400).json({ success: false, message: `Catégorie "${body.category}" introuvable` }); return }
+    }
     if (body.images) {
       await prisma.productImage.deleteMany({ where: { productId: id } })
     }
     const product = await prisma.product.update({
       where: { id },
       data: {
-        name: body.name, category: body.category, price: body.price,
+        name: body.name, category: cat?.slug, categoryId: cat?.id, price: body.price,
         oldPrice: body.compareAtPrice, stock: body.stock,
         isActive: body.status ? body.status !== 'draft' : undefined,
         description: body.description,

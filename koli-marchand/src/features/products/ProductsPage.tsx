@@ -12,6 +12,7 @@ import { productStatusMap } from '@/lib/statusMaps'
 import type { Product, ProductInput, ProductStatus } from '@/types'
 import { useCreateProduct, useDeleteProduct, useDuplicateProduct, useProducts, useUpdateProduct } from './api/useProducts'
 import { ProductFormModal } from './components/ProductFormModal'
+import { useCategories } from '@/features/categories/api/useCategories'
 
 type StatusFilter = ProductStatus | 'all'
 
@@ -23,6 +24,11 @@ export default function ProductsPage() {
 
   const { data, isLoading } = useProducts({ status, search })
   const { data: allData } = useProducts({ status: 'all', search: '' })
+  const { data: categories } = useCategories()
+  const categoryNameBySlug = useMemo(
+    () => new Map((categories ?? []).map((c) => [c.slug, c.name])),
+    [categories],
+  )
   const createProduct = useCreateProduct()
   const updateProduct = useUpdateProduct()
   const deleteProduct = useDeleteProduct()
@@ -58,7 +64,7 @@ export default function ProductsPage() {
         </div>
       ),
     },
-    { key: 'category', header: 'Catégorie', render: (p) => p.category },
+    { key: 'category', header: 'Catégorie', render: (p) => categoryNameBySlug.get(p.category) ?? p.category },
     { key: 'price', header: 'Prix', align: 'right', render: (p) => <span className="font-semibold">{fmtFcfa(p.price)}</span> },
     { key: 'stock', header: 'Stock', align: 'right', render: (p) => (p.stock === 0 ? <span className="text-rose-600 font-semibold">0</span> : p.stock) },
     {

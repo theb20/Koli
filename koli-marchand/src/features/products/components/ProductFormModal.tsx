@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { TextField, TextAreaField, SelectField } from '@/components/ui/FormField'
-import { PRODUCT_CATEGORIES } from '@/mocks/data/products'
+import { useCategories } from '@/features/categories/api/useCategories'
 import type { Product, ProductInput } from '@/types'
 
 const productSchema = z.object({
@@ -33,18 +33,19 @@ const statusOptions = [
   { value: 'out_of_stock', label: 'Rupture de stock' },
 ]
 
-const categoryOptions = PRODUCT_CATEGORIES.map((c) => ({ value: c, label: c }))
-
 export function ProductFormModal({ product, onClose, onSubmit, isSubmitting }: ProductFormModalProps) {
+  const { data: categories, isLoading: categoriesLoading } = useCategories()
+  const categoryOptions = (categories ?? []).map((c) => ({ value: c.slug, label: c.name }))
+
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<ProductFormInput, unknown, ProductFormValues>({
     resolver: zodResolver(productSchema),
-    defaultValues: {
+    values: {
       name: product?.name ?? '',
-      category: product?.category ?? PRODUCT_CATEGORIES[0],
+      category: product?.category ?? '',
       price: product?.price ?? 0,
       stock: product?.stock ?? 0,
       description: product?.description ?? '',
@@ -75,7 +76,8 @@ export function ProductFormModal({ product, onClose, onSubmit, isSubmitting }: P
             label="Catégorie"
             id="category"
             required
-            options={categoryOptions}
+            disabled={categoriesLoading}
+            options={categoriesLoading ? [{ value: '', label: 'Chargement…' }] : categoryOptions}
             error={errors.category?.message}
             {...register('category')}
           />
