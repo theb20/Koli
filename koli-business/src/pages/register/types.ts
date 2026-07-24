@@ -13,7 +13,6 @@ export type RegisterFormData = {
 
   // 2. Vérification
   emailVerified: boolean
-  phoneVerified: boolean
 
   // 3. Informations personnelles
   photoProfil: File | null
@@ -86,7 +85,7 @@ export type RegisterFormData = {
 
 export const initialRegisterFormData: RegisterFormData = {
   prenom: '', nom: '', email: '', telephone: '', password: '', acceptedTerms: false,
-  emailVerified: false, phoneVerified: false,
+  emailVerified: false,
   photoProfil: null, photoProfilUrl: '', dateNaissance: '', paysResidence: '', villeResidence: '', langue: 'fr', devise: 'XOF',
   nomBoutique: '', logoBoutique: null, logoBoutiqueUrl: '', banniereBoutique: null, banniereBoutiqueUrl: '', descriptionBoutique: '', categorieActivite: '', siteWeb: '',
   typeEntreprise: 'individuel', numeroLegal: '', numeroNCC: '', formeJuridique: '', nomEntreprise: '', adresseSiege: '',

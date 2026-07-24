@@ -33,7 +33,7 @@ export default function RegisterPage() {
   const canAdvance = (): boolean => {
     switch (step) {
       case 0: return !!(data.prenom && data.nom && data.email && data.telephone && data.password && data.acceptedTerms)
-      case 1: return data.emailVerified && data.phoneVerified
+      case 1: return data.emailVerified
       case 2: return !!(data.dateNaissance && data.paysResidence && data.villeResidence)
       case 7: return !!(data.documentIdentite && data.selfie)
       case 9: return data.cgv

@@ -53,6 +53,25 @@ export async function registerAccount(data: RegisterFormData): Promise<void> {
   setAccessToken(body.data.accessToken)
 }
 
+/* ── Vérification e-mail (étape 2, avant création du compte) ─────── */
+export async function sendVerificationCode(email: string): Promise<void> {
+  const res = await fetch(`${BACKEND_URL}/api/merchant-onboarding/email-verification/send`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  })
+  await parseJsonOrThrow(res)
+}
+
+export async function confirmVerificationCode(email: string, code: string): Promise<void> {
+  const res = await fetch(`${BACKEND_URL}/api/merchant-onboarding/email-verification/confirm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, code }),
+  })
+  await parseJsonOrThrow(res)
+}
+
 /* ── Upload de fichiers (backend/ → stockgo) ─────────────────────── */
 export type UploadBucket =
   | 'photo-profil' | 'logo-boutique' | 'banniere-boutique'
@@ -78,7 +97,7 @@ export async function uploadFile(bucket: UploadBucket, file: File): Promise<stri
 export type ApplicationPayload = Omit<
   RegisterFormData,
   | 'prenom' | 'nom' | 'email' | 'telephone' | 'password' | 'acceptedTerms'
-  | 'emailVerified' | 'phoneVerified'
+  | 'emailVerified'
   | 'photoProfil' | 'logoBoutique' | 'banniereBoutique'
   | 'documentIdentite' | 'selfie' | 'justificatifDomicile'
 >
@@ -86,7 +105,7 @@ export type ApplicationPayload = Omit<
 export function buildApplicationPayload(data: RegisterFormData): ApplicationPayload {
   const {
     prenom: _prenom, nom: _nom, email: _email, telephone: _telephone, password: _password, acceptedTerms: _acceptedTerms,
-    emailVerified: _emailVerified, phoneVerified: _phoneVerified,
+    emailVerified: _emailVerified,
     photoProfil: _photoProfil, logoBoutique: _logoBoutique, banniereBoutique: _banniereBoutique,
     documentIdentite: _documentIdentite, selfie: _selfie, justificatifDomicile: _justificatifDomicile,
     ...payload
