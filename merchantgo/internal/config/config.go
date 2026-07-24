@@ -15,8 +15,23 @@ type Config struct {
 	JWTSecret          string
 	AdminAPIKey        string
 	DiditWebhookSecret string
+	AllowedOrigins     []string
 	RateLimitRPS       int
 	RateLimitBurst     int
+}
+
+// defaultAllowedOrigins reprend exactement la liste de
+// backend/src/lib/allowedOrigins.ts — les deux services doivent rester
+// synchronisés puisque koli-business appelle l'un puis l'autre dans le
+// même parcours (inscription).
+var defaultAllowedOrigins = []string{
+	"http://localhost:5175",
+	"https://business.skignas.com",
+	"https://skignas-business.web.app",
+	"https://skignas-business.firebaseapp.com",
+	"http://localhost:5176",
+	"https://marchant-e58f1.web.app",
+	"https://marchant-e58f1.firebaseapp.com",
 }
 
 // Load lit la configuration depuis les variables d'environnement (avec
@@ -48,6 +63,12 @@ func Load() (*Config, error) {
 		DiditWebhookSecret: v.GetString("DIDIT_WEBHOOK_SECRET"),
 		RateLimitRPS:       v.GetInt("RATE_LIMIT_RPS"),
 		RateLimitBurst:     v.GetInt("RATE_LIMIT_BURST"),
+	}
+
+	if raw := v.GetString("ALLOWED_ORIGINS"); raw != "" {
+		cfg.AllowedOrigins = strings.Split(raw, ",")
+	} else {
+		cfg.AllowedOrigins = defaultAllowedOrigins
 	}
 
 	return cfg, nil

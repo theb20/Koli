@@ -143,7 +143,14 @@ func (in ApplicationInput) missingRequiredFields() []string {
 	}
 	check("nomBoutique", in.NomBoutique)
 	check("typeEntreprise", in.TypeEntreprise)
-	check("numeroLegal", in.NumeroLegal)
+	// numeroLegal (RCCM) n'est exigé que pour auto-entrepreneur/société —
+	// un particulier vend en son nom propre sans immatriculation, sa pièce
+	// d'identité (déjà vérifiée via documentIdentiteUrl) suffit. Cf.
+	// koli-business/.../Step5Legal.tsx, qui n'affiche même pas ce champ
+	// pour le statut "individuel".
+	if in.TypeEntreprise == "auto-entrepreneur" || in.TypeEntreprise == "societe" {
+		check("numeroLegal", in.NumeroLegal)
+	}
 	check("paysAdresse", in.PaysAdresse)
 	check("villeAdresse", in.VilleAdresse)
 	check("adresseComplete", in.AdresseComplete)

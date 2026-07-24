@@ -21,6 +21,7 @@ func Setup(cfg *config.Config, appHandler *handlers.ApplicationHandler, adminHan
 	r := gin.New()
 	r.Use(middleware.Recovery(logger))
 	r.Use(middleware.RequestLogger(logger))
+	r.Use(middleware.CORS(cfg.AllowedOrigins))
 
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": true, "status": "OK"})
