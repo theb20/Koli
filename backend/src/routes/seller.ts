@@ -13,6 +13,7 @@ import { rehostImages } from '../lib/rehostImage'
 import { getBackendUrl } from '../lib/backendUrl'
 import { parseSpreadsheet } from '../lib/spreadsheet'
 import { deleteProductAtomic } from '../lib/productDeletion'
+import { searchProductIds, normalizeSearchQuery } from '../lib/search'
 import type { Prisma, Order, OrderItem } from '@prisma/client'
 
 const router = Router()
@@ -613,7 +614,7 @@ router.get('/products', requireSeller, async (req, res) => {
     if (status === 'draft') where.isActive = false
     if (status === 'online') { where.isActive = true; where.stock = { gt: 0 } }
     if (status === 'out_of_stock') { where.isActive = true; where.stock = { lte: 0 } }
-    if (search) where.name = { contains: search, mode: 'insensitive' }
+    if (search) where.id = { in: await searchProductIds(search, { storeId: store.id }) }
 
     const [total, products] = await Promise.all([
       prisma.product.count({ where }),
@@ -807,7 +808,7 @@ router.get('/orders', requireSeller, async (req, res) => {
     if (!store) { res.status(404).json({ success: false, message: 'Boutique introuvable.' }); return }
 
     const status   = String(req.query.status ?? 'all')
-    const search   = req.query.search ? String(req.query.search).toLowerCase() : undefined
+    const search   = req.query.search ? normalizeSearchQuery(String(req.query.search)) : undefined
     const page     = Math.max(1, Number(req.query.page ?? 1))
     const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize ?? 20)))
 
@@ -823,8 +824,8 @@ router.get('/orders', requireSeller, async (req, res) => {
     if (search) {
       orderIds = orderIds.filter(id => {
         const o = byOrder.get(id)![0].order
-        return o.orderNumber.toLowerCase().includes(search) ||
-          `${o.clientPrenom} ${o.clientNom}`.toLowerCase().includes(search)
+        return normalizeSearchQuery(o.orderNumber).includes(search) ||
+          normalizeSearchQuery(`${o.clientPrenom} ${o.clientNom}`).includes(search)
       })
     }
     orderIds.sort((a, b) => byOrder.get(b)![0].order.createdAt.getTime() - byOrder.get(a)![0].order.createdAt.getTime())
@@ -895,7 +896,7 @@ router.get('/customers', requireSeller, async (req, res) => {
     const store = await requireMyStore(req.user!.userId)
     if (!store) { res.status(404).json({ success: false, message: 'Boutique introuvable.' }); return }
 
-    const search   = req.query.search ? String(req.query.search).toLowerCase() : undefined
+    const search   = req.query.search ? normalizeSearchQuery(String(req.query.search)) : undefined
     const segment  = String(req.query.segment ?? 'all')
     const page     = Math.max(1, Number(req.query.page ?? 1))
     const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize ?? 20)))
@@ -922,7 +923,7 @@ router.get('/customers', requireSeller, async (req, res) => {
     }))
 
     if (segment !== 'all') customers = customers.filter(c => c.segment === segment)
-    if (search) customers = customers.filter(c => c.name.toLowerCase().includes(search) || c.email.toLowerCase().includes(search))
+    if (search) customers = customers.filter(c => normalizeSearchQuery(c.name).includes(search) || normalizeSearchQuery(c.email).includes(search))
     customers.sort((a, b) => b.totalSpent - a.totalSpent)
 
     const total = customers.length
@@ -984,24 +985,19 @@ router.get('/search', requireSeller, async (req, res) => {
 
     const q = String(req.query.q ?? '').trim()
     if (q.length < 2) { res.json({ success: true, data: { products: [], orders: [], customers: [] } }); return }
-    const needle = q.toLowerCase()
+    const needle = normalizeSearchQuery(q)
 
-    // "SKG-00042" ou "42" → id produit direct, en plus de la recherche par nom.
-    const skuMatch = needle.match(/^(?:skg-)?0*(\d+)$/)
+    // "SKG-00042" ou "42" → id produit direct, en plus de la recherche par nom/marque.
+    const skuMatch = needle.match(/^(?:skg )?0*(\d+)$/)
     const skuId = skuMatch ? Number(skuMatch[1]) : null
 
-    const products = await prisma.product.findMany({
-      where: {
-        storeId: store.id,
-        OR: [
-          { name: { contains: q, mode: 'insensitive' } },
-          ...(skuId !== null ? [{ id: skuId }] : []),
-        ],
-      },
-      orderBy: { createdAt: 'desc' },
+    const matchedIds = await searchProductIds(q, { storeId: store.id, limit: 5 })
+    const productIds = [...new Set([...matchedIds, ...(skuId !== null ? [skuId] : [])])]
+    const products = productIds.length > 0 ? await prisma.product.findMany({
+      where: { id: { in: productIds }, storeId: store.id },
       take: 5,
       select: { id: true, name: true, price: true, images: { take: 1, orderBy: { position: 'asc' }, select: { url: true, thumbnailUrl: true } } },
-    })
+    }) : []
 
     const allItems = await storeOrderItems(store.id)
     const byOrder = new Map<string, typeof allItems>()
@@ -1012,7 +1008,7 @@ router.get('/search', requireSeller, async (req, res) => {
     const matchingOrders = [...byOrder.values()]
       .filter(its => {
         const o = its[0].order
-        return o.orderNumber.toLowerCase().includes(needle) || `${o.clientPrenom} ${o.clientNom}`.toLowerCase().includes(needle)
+        return normalizeSearchQuery(o.orderNumber).includes(needle) || normalizeSearchQuery(`${o.clientPrenom} ${o.clientNom}`).includes(needle)
       })
       .sort((a, b) => b[0].order.createdAt.getTime() - a[0].order.createdAt.getTime())
       .slice(0, 5)
@@ -1033,7 +1029,7 @@ router.get('/search', requireSeller, async (req, res) => {
       byCustomer.set(key, curr)
     }
     const matchingCustomers = [...byCustomer.entries()]
-      .filter(([, c]) => c.name.toLowerCase().includes(needle) || c.email.toLowerCase().includes(needle))
+      .filter(([, c]) => normalizeSearchQuery(c.name).includes(needle) || normalizeSearchQuery(c.email).includes(needle))
       .sort((a, b) => b[1].lastOrderAt.localeCompare(a[1].lastOrderAt))
       .slice(0, 5)
       .map(([id, c]) => ({ id, name: c.name, email: c.email }))

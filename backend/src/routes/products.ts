@@ -7,6 +7,7 @@ import sharp from 'sharp'
 import ExcelJS from 'exceljs'
 import { prisma } from '../lib/prisma'
 import { parseSpreadsheet } from '../lib/spreadsheet'
+import { searchProductIds } from '../lib/search'
 import { requireAdmin, optionalAuth, requireApiKey } from '../middleware/auth'
 import { validate, validateParams, zIntIdParam } from '../middleware/validate'
 import { cacheControl } from '../middleware/cache'
@@ -101,11 +102,9 @@ router.get('/', optionalAuth, cacheControl(30), memoryCache(30), async (req, res
       }
     }
     if (q) {
-      where['OR'] = [
-        { name:  { contains: q } },
-        { brand: { contains: q } },
-        { description: { contains: q } },
-      ]
+      // Insensible à la casse et aux accents, tolérant aux fautes de frappe
+      // (unaccent()/pg_trgm côté Postgres) — voir lib/search.ts.
+      where['id'] = { in: await searchProductIds(q) }
     }
 
     const orderBy = (() => {
