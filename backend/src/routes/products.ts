@@ -14,6 +14,7 @@ import { memoryCache } from '../middleware/memoryCache'
 import { rehostImages } from '../lib/rehostImage'
 import { getBackendUrl } from '../lib/backendUrl'
 import { deleteLocalUpload } from '../lib/deleteLocalUpload'
+import { deleteProductAtomic } from '../lib/productDeletion'
 import { logger } from '../lib/logger'
 import { logAdminAction } from '../lib/auditLog'
 import { scanBuffer } from '../lib/virusScan'
@@ -768,14 +769,20 @@ router.put('/:id', requireAdmin, validateParams(zIntIdParam), validate(createPro
 })
 
 /* ─────────────────────────────────────────────────────────────
-   DELETE /api/products/:id  [ADMIN]  (soft delete)
+   DELETE /api/products/:id  [ADMIN]
+   Suppression définitive si le produit n'a jamais été commandé (cascade +
+   purge des fichiers), sinon désactivation (historique de commande
+   préservé) — voir lib/productDeletion.ts.
 ───────────────────────────────────────────────────────────── */
 router.delete('/:id', requireAdmin, validateParams(zIntIdParam), async (req, res) => {
   try {
     const id = Number(req.params['id'])
-    await prisma.product.update({ where: { id }, data: { isActive: false } })
-    logAdminAction(req, { action: 'product.delete', targetType: 'Product', targetId: String(id) })
-    res.json({ success: true, message: 'Produit désactivé' })
+    const result = await deleteProductAtomic(id)
+    logAdminAction(req, { action: result === 'hard' ? 'product.delete' : 'product.deactivate', targetType: 'Product', targetId: String(id) })
+    res.json({
+      success: true,
+      message: result === 'hard' ? 'Produit supprimé définitivement' : 'Produit désactivé (déjà commandé — historique conservé)',
+    })
   } catch {
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }

@@ -22,6 +22,7 @@ router.get('/', requireAuth, async (req, res) => {
       where:   { userId: req.user!.userId },
       include: {
         items: {
+          where:   { product: { isActive: true } },
           include: { product: { include: { images: { take: 1, orderBy: { position: 'asc' } } } } },
         },
       },
@@ -41,6 +42,7 @@ router.get('/:slug', validateParams(zSlugParam), async (req, res) => {
       include: {
         user:  { select: { prenom: true, nom: true, avatar: true } },
         items: {
+          where:   { product: { isActive: true } },
           include: {
             product: {
               include: { images: { take: 1, orderBy: { position: 'asc' } } },

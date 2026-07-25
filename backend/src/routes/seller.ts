@@ -12,6 +12,7 @@ import { uploadToStockgo } from '../lib/stockgo'
 import { rehostImages } from '../lib/rehostImage'
 import { getBackendUrl } from '../lib/backendUrl'
 import { parseSpreadsheet } from '../lib/spreadsheet'
+import { deleteProductAtomic } from '../lib/productDeletion'
 import type { Prisma, Order, OrderItem } from '@prisma/client'
 
 const router = Router()
@@ -745,6 +746,14 @@ router.patch('/products/:id', requireSeller, async (req, res) => {
   }
 })
 
+/*
+ * Suppression définitive si le produit n'a jamais été commandé (cascade +
+ * purge des fichiers), sinon désactivation (historique de commande
+ * préservé) — voir lib/productDeletion.ts. Avant ce fix, DELETE tentait
+ * toujours une suppression définitive : un produit déjà vendu faisait
+ * échouer la requête avec une violation de clé étrangère (OrderItem n'a
+ * pas de cascade), renvoyée en 500 générique sans explication au marchand.
+ */
 router.delete('/products/:id', requireSeller, async (req, res) => {
   try {
     const store = await requireMyStore(req.user!.userId)
@@ -754,8 +763,11 @@ router.delete('/products/:id', requireSeller, async (req, res) => {
     const existing = await prisma.product.findFirst({ where: { id, storeId: store.id } })
     if (!existing) { res.status(404).json({ success: false, message: 'Produit introuvable.' }); return }
 
-    await prisma.product.delete({ where: { id } })
-    res.json({ success: true })
+    const result = await deleteProductAtomic(id)
+    res.json({
+      success: true,
+      message: result === 'hard' ? 'Produit supprimé définitivement' : 'Produit désactivé (déjà commandé — historique conservé)',
+    })
   } catch (err) {
     logger.error('[seller/products delete]', err)
     res.status(500).json({ success: false, message: 'Erreur serveur' })

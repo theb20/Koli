@@ -9,7 +9,7 @@ const router = Router()
 router.get('/', requireAuth, async (req, res) => {
   try {
     const items = await prisma.wishlistItem.findMany({
-      where: { userId: req.user!.userId },
+      where: { userId: req.user!.userId, product: { isActive: true } },
       orderBy: { createdAt: 'desc' },
       include: {
         product: {
