@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, unwrap } from '@/lib/api'
-import type { Paginated, Product, ProductInput, ProductStatus } from '@/types'
+import type { Paginated, Product, ProductImage, ProductInput, ProductStatus } from '@/types'
 
 export interface ProductFilters {
   status: ProductStatus | 'all'
@@ -44,6 +44,16 @@ export function useDeleteProduct() {
       await api.delete(`/api/seller/products/${id}`)
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
+  })
+}
+
+export function useUploadProductImage() {
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData()
+      form.append('file', file)
+      return unwrap<ProductImage>(await api.post('/api/seller/products/upload-image', form))
+    },
   })
 }
 

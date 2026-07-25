@@ -56,7 +56,7 @@ export default function ProductsPage() {
       header: 'Produit',
       render: (p) => (
         <div className="flex items-center gap-3 min-w-[220px]">
-          <img src={p.images[0]} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0 bg-[#f5f5f3]" />
+          <img src={p.images[0]?.thumbnailUrl || p.images[0]?.url} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0 bg-[#f5f5f3]" />
           <div className="min-w-0">
             <p className="font-semibold text-[#0a0a0b] truncate">{p.name}</p>
             <p className="text-xs text-[#a3a3a1]">{p.sku}</p>

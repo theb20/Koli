@@ -29,7 +29,7 @@ export function generateOrders(products: Product[], customers: Customer[], count
         id: `item_${i}_${j}`,
         productId: product.id,
         productName: product.name,
-        thumbnail: product.images[0],
+        thumbnail: product.images[0]?.url ?? '',
         quantity,
         unitPrice: product.price,
         totalPrice: product.price * quantity,

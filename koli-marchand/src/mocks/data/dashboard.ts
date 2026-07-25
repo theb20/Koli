@@ -42,7 +42,7 @@ export function computeBestSellers(products: Product[], limit = 5): BestSellingP
     .map((p) => ({
       productId: p.id,
       name: p.name,
-      thumbnail: p.images[0],
+      thumbnail: p.images[0]?.url ?? '',
       soldCount: p.soldCount,
       revenue: p.revenue,
     }))

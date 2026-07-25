@@ -34,6 +34,7 @@ export const productHandlers = [
     const now = new Date().toISOString()
     const product: Product = {
       ...input,
+      brand: input.brand || 'Boutique Démo',
       id: nextId('prod'),
       sku: `SKG-${Math.floor(1000 + Math.random() * 9000)}`,
       soldCount: 0,

@@ -16,24 +16,30 @@ export type CustomerSegment = 'new' | 'regular' | 'vip'
 
 /* ── Produit ──────────────────────────────────────────────── */
 
+export interface ProductImage {
+  url: string
+  thumbnailUrl?: string
+}
+
 export interface Product {
   id: string
   sku: string
   name: string
+  brand: string
   category: string
   price: number
   compareAtPrice?: number
   stock: number
   status: ProductStatus
   description: string
-  images: string[]
+  images: ProductImage[]
   soldCount: number
   revenue: number
   createdAt: string
   updatedAt: string
 }
 
-export type ProductInput = Omit<Product, 'id' | 'sku' | 'soldCount' | 'revenue' | 'createdAt' | 'updatedAt'>
+export type ProductInput = Omit<Product, 'id' | 'sku' | 'brand' | 'soldCount' | 'revenue' | 'createdAt' | 'updatedAt'> & { brand?: string }
 
 /* ── Client ───────────────────────────────────────────────── */
 

@@ -1,11 +1,37 @@
 import { Router } from 'express'
+import type { Request, Response, NextFunction } from 'express'
+import multer from 'multer'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { requireAuth, requireSeller } from '../middleware/auth'
 import { logger } from '../lib/logger'
+import { toWebp, toWebpThumbnail } from '../lib/imageProcessing'
+import { scanBuffer } from '../lib/virusScan'
+import { uploadToStockgo } from '../lib/stockgo'
 import type { Prisma, Order, OrderItem } from '@prisma/client'
 
 const router = Router()
+
+const productImageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 }, // 8 Mo
+  fileFilter: (_req, file, cb) => {
+    if (/^image\/(jpeg|png|webp|heic|heif|avif)$/.test(file.mimetype)) cb(null, true)
+    else cb(new Error('Seuls les fichiers image (jpg, png, webp, heic, avif) sont acceptés'))
+  },
+})
+
+/** Cf. merchant-onboarding.ts — évite qu'une erreur multer ressorte en 500 générique */
+function handleImageUpload(req: Request, res: Response, next: NextFunction) {
+  productImageUpload.single('file')(req, res, (err: unknown) => {
+    if (!err) { next(); return }
+    if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+      res.status(400).json({ success: false, message: 'Fichier trop volumineux (8 Mo maximum)' })
+      return
+    }
+    res.status(400).json({ success: false, message: err instanceof Error ? err.message : 'Fichier invalide' })
+  })
+}
 
 /*
  * ─────────────────────────────────────────────────────────────────────
@@ -46,13 +72,14 @@ function shapeProduct(p: ProductWithImages, revenue = 0) {
     id:              String(p.id),
     sku:             productSku(p.id),
     name:            p.name,
+    brand:           p.brand,
     category:        p.category,
     price:           p.price,
     compareAtPrice:  p.oldPrice ?? undefined,
     stock:           p.stock,
     status:          productStatus(p),
     description:     p.description ?? '',
-    images:          p.images.sort((a, b) => a.position - b.position).map(i => i.url),
+    images:          p.images.sort((a, b) => a.position - b.position).map(i => ({ url: i.url, thumbnailUrl: i.thumbnailUrl ?? undefined })),
     soldCount:       p.sold,
     revenue,
     createdAt:       p.createdAt.toISOString(),
@@ -341,13 +368,42 @@ router.get('/products', requireSeller, async (req, res) => {
 
 const productInputSchema = z.object({
   name:            z.string().min(2).max(150),
+  brand:           z.string().max(80).optional(),
   category:        z.string().min(1).max(80),
   price:           z.number().int().positive(),
   compareAtPrice:  z.number().int().positive().optional(),
   stock:           z.number().int().min(0),
   status:          z.enum(['online', 'draft', 'out_of_stock']).optional(),
   description:     z.string().max(5000).optional(),
-  images:          z.array(z.string().url()).max(10).optional(),
+  images:          z.array(z.object({ url: z.string().url(), thumbnailUrl: z.string().url().optional() })).max(10).optional(),
+})
+
+/* POST /api/seller/products/upload-image — un fichier à la fois, renvoie
+   {url, thumbnailUrl} (même pipeline que rehostImage.ts pour les images
+   externes : conversion WebP + vignette 480px pour la grille produits). */
+router.post('/products/upload-image', requireSeller, handleImageUpload, async (req, res) => {
+  try {
+    if (!req.file) { res.status(400).json({ success: false, message: "Champ 'file' manquant" }); return }
+
+    const scan = await scanBuffer(req.file.buffer, req.file.originalname)
+    if (!scan.clean) {
+      logger.error('[seller/upload-image] fichier rejeté (antivirus)', req.user!.userId, scan.reason)
+      res.status(400).json({ success: false, message: 'Fichier rejeté par le scan antivirus' })
+      return
+    }
+
+    const [webp, thumb] = await Promise.all([toWebp(req.file.buffer), toWebpThumbnail(req.file.buffer)])
+    const rand = Math.random().toString(36).slice(2)
+    const [url, thumbnailUrl] = await Promise.all([
+      uploadToStockgo(webp, `prod-${Date.now()}-${rand}.webp`, 'image/webp', 'products'),
+      uploadToStockgo(thumb, `prod-${Date.now()}-${rand}-thumb.webp`, 'image/webp', 'products'),
+    ])
+
+    res.status(201).json({ success: true, data: { url, thumbnailUrl } })
+  } catch (err) {
+    logger.error('[seller/upload-image] échec', err)
+    res.status(500).json({ success: false, message: "Échec de l'upload" })
+  }
 })
 
 router.post('/products', requireSeller, async (req, res) => {
@@ -362,11 +418,11 @@ router.post('/products', requireSeller, async (req, res) => {
 
     const product = await prisma.product.create({
       data: {
-        name: body.name, category: cat.slug, categoryId: cat.id, brand: store.name,
+        name: body.name, category: cat.slug, categoryId: cat.id, brand: body.brand || store.name,
         price: body.price, oldPrice: body.compareAtPrice, stock: body.stock,
         isActive: body.status !== 'draft', description: body.description,
         storeId: store.id,
-        images: body.images ? { create: body.images.map((url, position) => ({ url, position })) } : undefined,
+        images: body.images ? { create: body.images.map((img, position) => ({ url: img.url, thumbnailUrl: img.thumbnailUrl, position })) } : undefined,
       },
       include: { images: true },
     })
@@ -400,11 +456,11 @@ router.patch('/products/:id', requireSeller, async (req, res) => {
     const product = await prisma.product.update({
       where: { id },
       data: {
-        name: body.name, category: cat?.slug, categoryId: cat?.id, price: body.price,
+        name: body.name, brand: body.brand, category: cat?.slug, categoryId: cat?.id, price: body.price,
         oldPrice: body.compareAtPrice, stock: body.stock,
         isActive: body.status ? body.status !== 'draft' : undefined,
         description: body.description,
-        images: body.images ? { create: body.images.map((url, position) => ({ url, position })) } : undefined,
+        images: body.images ? { create: body.images.map((img, position) => ({ url: img.url, thumbnailUrl: img.thumbnailUrl, position })) } : undefined,
       },
       include: { images: true },
     })
@@ -448,7 +504,7 @@ router.post('/products/:id/duplicate', requireSeller, async (req, res) => {
         name: `${source.name} (copie)`, category: source.category, brand: source.brand,
         price: source.price, oldPrice: source.oldPrice, stock: source.stock,
         isActive: false, description: source.description, storeId: store.id,
-        images: { create: source.images.map(i => ({ url: i.url, position: i.position })) },
+        images: { create: source.images.map(i => ({ url: i.url, thumbnailUrl: i.thumbnailUrl, position: i.position })) },
       },
       include: { images: true },
     })
