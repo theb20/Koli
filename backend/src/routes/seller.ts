@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import type { Request, Response, NextFunction } from 'express'
 import multer from 'multer'
+import ExcelJS from 'exceljs'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { requireAuth, requireSeller } from '../middleware/auth'
@@ -8,6 +9,9 @@ import { logger } from '../lib/logger'
 import { toWebp, toWebpThumbnail } from '../lib/imageProcessing'
 import { scanBuffer } from '../lib/virusScan'
 import { uploadToStockgo } from '../lib/stockgo'
+import { rehostImages } from '../lib/rehostImage'
+import { getBackendUrl } from '../lib/backendUrl'
+import { parseSpreadsheet } from '../lib/spreadsheet'
 import type { Prisma, Order, OrderItem } from '@prisma/client'
 
 const router = Router()
@@ -32,6 +36,275 @@ function handleImageUpload(req: Request, res: Response, next: NextFunction) {
     res.status(400).json({ success: false, message: err instanceof Error ? err.message : 'Fichier invalide' })
   })
 }
+
+const csvUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 Mo — largement suffisant pour un tableur de produits
+  fileFilter: (_req, file, cb) => {
+    if (/\.(csv|xlsx)$/i.test(file.originalname)) cb(null, true)
+    else cb(new Error('Seuls les fichiers CSV ou Excel (.xlsx) sont acceptés'))
+  },
+})
+
+/*
+ * Import massif — même flux en 2 temps que /api/products/bulk-import (admin) :
+ * preview (parse + valide, n'écrit rien) puis commit (crée réellement les
+ * lignes validées). Contrairement à la version admin, brand est optionnel
+ * (retombe sur le nom de la boutique, comme la création à l'unité) et
+ * storeId n'est jamais fourni par le client — toujours celle du marchand
+ * authentifié, pour qu'un marchand ne puisse importer que dans sa propre
+ * boutique.
+ */
+const bulkImportRowSchema = z.object({
+  name:        z.string().min(3, 'Nom trop court').max(200),
+  brand:       z.string().max(100).optional(),
+  category:    z.string().min(1, 'Catégorie requise'),
+  price:       z.coerce.number().int('Prix invalide').positive('Prix invalide'),
+  oldPrice:    z.coerce.number().int().positive().optional().or(z.literal('')),
+  stock:       z.coerce.number().int().nonnegative().optional(),
+  description: z.string().optional(),
+  images:      z.string().optional(),
+})
+
+type BulkImportRow = {
+  name: string
+  brand?: string
+  category: string
+  price: number
+  oldPrice?: number
+  stock: number
+  description?: string
+  images: string[]
+}
+
+function validateSellerBulkImportRows(records: Record<string, string>[], categorySlugSet: Set<string>) {
+  const valid: { row: number; data: BulkImportRow }[] = []
+  const skipped: { row: number; reason: string }[] = []
+
+  for (let i = 0; i < records.length; i++) {
+    const rowNum = i + 2 // +1 header, +1 index→1-based
+    const parsed = bulkImportRowSchema.safeParse(records[i])
+    if (!parsed.success) {
+      skipped.push({ row: rowNum, reason: parsed.error.issues.map(e => e.message).join(', ') })
+      continue
+    }
+    const d = parsed.data
+
+    if (!categorySlugSet.has(d.category)) {
+      skipped.push({ row: rowNum, reason: `Catégorie "${d.category}" introuvable` })
+      continue
+    }
+
+    const imageUrls = (d.images ?? '').split(/[|,]/).map(s => s.trim()).filter(Boolean).slice(0, 4)
+    if (imageUrls.length === 0) {
+      skipped.push({ row: rowNum, reason: 'Au moins une image requise' })
+      continue
+    }
+    const invalidUrl = imageUrls.find(u => !z.string().url().safeParse(u).success)
+    if (invalidUrl) {
+      skipped.push({ row: rowNum, reason: `URL image invalide : ${invalidUrl}` })
+      continue
+    }
+
+    valid.push({
+      row: rowNum,
+      data: {
+        name: d.name,
+        brand: d.brand || undefined,
+        category: d.category,
+        price: d.price,
+        oldPrice: d.oldPrice || undefined,
+        stock: d.stock ?? 100,
+        description: d.description || undefined,
+        images: imageUrls,
+      },
+    })
+  }
+
+  return { valid, skipped, total: records.length }
+}
+
+/* POST /api/seller/products/bulk-import/preview — parse + valide, n'écrit rien */
+router.post('/products/bulk-import/preview', requireSeller, csvUpload.single('file'), async (req, res) => {
+  try {
+    const store = await requireMyStore(req.user!.userId)
+    if (!store) { res.status(404).json({ success: false, message: 'Boutique introuvable.' }); return }
+    if (!store.isApproved) { res.status(403).json({ success: false, message: 'Boutique en attente de validation.' }); return }
+
+    if (!req.file) { res.status(400).json({ success: false, message: 'Aucun fichier reçu' }); return }
+
+    const scan = await scanBuffer(req.file.buffer, req.file.originalname)
+    if (!scan.clean) {
+      res.status(400).json({ success: false, message: `Fichier refusé — contenu malveillant détecté (${scan.reason})` })
+      return
+    }
+
+    const isXlsx = /\.xlsx$/i.test(req.file.originalname)
+    let records: Record<string, string>[]
+    try {
+      records = await parseSpreadsheet(req.file.buffer, isXlsx)
+    } catch {
+      res.status(400).json({ success: false, message: 'Fichier invalide ou mal formaté' })
+      return
+    }
+    if (records.length === 0) { res.status(400).json({ success: false, message: 'Le fichier est vide' }); return }
+    if (records.length > 200) { res.status(400).json({ success: false, message: 'Maximum 200 lignes par import' }); return }
+
+    const categories = await prisma.category.findMany({ select: { slug: true } })
+    const categorySlugSet = new Set(categories.map(c => c.slug))
+    const result = validateSellerBulkImportRows(records, categorySlugSet)
+
+    res.json({ success: true, data: result })
+  } catch (err) {
+    logger.error('[seller/bulk-import preview]', err)
+    res.status(500).json({ success: false, message: "Erreur lors de l'analyse du fichier" })
+  }
+})
+
+/* GET /api/seller/products/bulk-import/template — modèle Excel prêt à l'emploi */
+router.get('/products/bulk-import/template', requireSeller, async (_req, res) => {
+  try {
+    const categories = await prisma.category.findMany({ select: { slug: true }, orderBy: { position: 'asc' } })
+    const categorySlugs = categories.map(c => c.slug)
+
+    const wb = new ExcelJS.Workbook()
+    wb.creator = 'Skignas'
+    wb.created = new Date()
+
+    const ws = wb.addWorksheet('Produits')
+    const columns: { header: string; key: keyof BulkImportRow | 'images'; width: number }[] = [
+      { header: 'name',        key: 'name',        width: 32 },
+      { header: 'brand',       key: 'brand',        width: 18 },
+      { header: 'category',    key: 'category',     width: 16 },
+      { header: 'price',       key: 'price',        width: 12 },
+      { header: 'oldPrice',    key: 'oldPrice',     width: 12 },
+      { header: 'stock',       key: 'stock',        width: 10 },
+      { header: 'description', key: 'description', width: 40 },
+      { header: 'images',      key: 'images',       width: 60 },
+    ]
+    ws.columns = columns.map(c => ({ header: c.header, key: c.key, width: c.width }))
+
+    const headerRow = ws.getRow(1)
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } }
+    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E90FF' } }
+    headerRow.alignment = { vertical: 'middle' }
+    headerRow.height = 20
+
+    ws.addRow({
+      name: 'Manette Pro X', brand: 'GameX', category: categorySlugs[0] ?? 'gaming',
+      price: 15000, oldPrice: 20000, stock: 30,
+      description: 'Manette sans fil haute précision, autonomie 20h',
+      images: 'https://exemple.com/image1.jpg|https://exemple.com/image2.jpg',
+    })
+    ws.addRow({
+      name: 'Casque Gamer', brand: 'SoundMax', category: categorySlugs[0] ?? 'gaming',
+      price: 25000, oldPrice: '', stock: 15,
+      description: 'Casque avec micro rétractable',
+      images: 'https://exemple.com/image3.jpg',
+    })
+    ws.getRow(2).font = { italic: true, color: { argb: 'FF94A3B8' } }
+    ws.getRow(3).font = { italic: true, color: { argb: 'FF94A3B8' } }
+
+    const LAST_ROW = 201
+    for (let r = 2; r <= LAST_ROW; r++) {
+      if (categorySlugs.length > 0) {
+        ws.getCell(`C${r}`).dataValidation = {
+          type: 'list', allowBlank: false,
+          formulae: [`"${categorySlugs.join(',')}"`],
+          showErrorMessage: true, errorTitle: 'Catégorie invalide',
+          error: 'Choisissez une catégorie existante dans la liste.',
+        }
+      }
+    }
+
+    const notes = wb.addWorksheet('Instructions')
+    notes.columns = [{ header: 'Colonne', key: 'col', width: 16 }, { header: 'Explication', key: 'desc', width: 80 }]
+    notes.getRow(1).font = { bold: true }
+    notes.addRows([
+      { col: 'name', desc: 'Nom du produit (min. 3 caractères)' },
+      { col: 'brand', desc: 'Marque du produit (optionnel — reprend le nom de votre boutique si vide)' },
+      { col: 'category', desc: `Slug d'une catégorie existante : ${categorySlugs.join(', ') || '(aucune catégorie créée)'}` },
+      { col: 'price', desc: 'Prix de vente en FCFA, nombre entier positif' },
+      { col: 'oldPrice', desc: 'Ancien prix barré (optionnel)' },
+      { col: 'stock', desc: 'Quantité en stock (par défaut 100 si vide)' },
+      { col: 'description', desc: 'Description du produit (optionnel)' },
+      { col: 'images', desc: "Une ou plusieurs URLs d'image séparées par | (jusqu'à 4). Les images sont automatiquement retéléchargées et réhébergées côté serveur." },
+    ])
+
+    const buffer = await wb.xlsx.writeBuffer()
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    res.setHeader('Content-Disposition', 'attachment; filename="modele-import-produits.xlsx"')
+    res.send(Buffer.from(buffer))
+  } catch (err) {
+    logger.error('[seller/bulk-import template]', err)
+    res.status(500).json({ success: false, message: 'Erreur lors de la génération du modèle' })
+  }
+})
+
+const bulkImportCommitSchema = z.object({
+  rows: z.array(z.object({
+    name:        z.string().min(3).max(200),
+    brand:       z.string().max(100).optional(),
+    category:    z.string().min(1),
+    price:       z.number().int().positive(),
+    oldPrice:    z.number().int().positive().optional(),
+    stock:       z.number().int().nonnegative(),
+    description: z.string().optional(),
+    images:      z.array(z.string().url()).min(1).max(4),
+  })).min(1).max(200),
+})
+
+/* POST /api/seller/products/bulk-import/commit — crée réellement les lignes validées */
+router.post('/products/bulk-import/commit', requireSeller, async (req, res) => {
+  try {
+    const store = await requireMyStore(req.user!.userId)
+    if (!store) { res.status(404).json({ success: false, message: 'Boutique introuvable.' }); return }
+    if (!store.isApproved) { res.status(403).json({ success: false, message: 'Boutique en attente de validation.' }); return }
+
+    const { rows } = bulkImportCommitSchema.parse(req.body)
+
+    const categories = await prisma.category.findMany({ select: { id: true, slug: true } })
+    const categoryIdBySlug = new Map(categories.map(c => [c.slug, c.id]))
+    const BASE_URL = getBackendUrl()
+
+    let created = 0
+    const skipped: { row: number; reason: string }[] = []
+
+    for (let i = 0; i < rows.length; i++) {
+      const d = rows[i]
+      const categoryId = categoryIdBySlug.get(d.category)
+      if (!categoryId) {
+        skipped.push({ row: i + 1, reason: `Catégorie "${d.category}" introuvable` })
+        continue
+      }
+
+      const rehostedImages = await rehostImages(d.images, BASE_URL)
+
+      await prisma.product.create({
+        data: {
+          name:        d.name,
+          brand:       d.brand || store.name,
+          category:    d.category,
+          categoryId,
+          storeId:     store.id,
+          price:       d.price,
+          oldPrice:    d.oldPrice,
+          stock:       d.stock,
+          description: d.description,
+          isActive:    true,
+          images: { create: rehostedImages.map((img, idx) => ({ url: img.url, thumbnailUrl: img.thumbnailUrl, position: idx })) },
+        },
+      })
+      created++
+    }
+
+    res.json({ success: true, data: { created, skipped, total: rows.length } })
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ success: false, message: err.issues[0]?.message ?? 'Requête invalide' }); return }
+    logger.error('[seller/bulk-import commit]', err)
+    res.status(500).json({ success: false, message: "Erreur lors de l'import" })
+  }
+})
 
 /*
  * ─────────────────────────────────────────────────────────────────────

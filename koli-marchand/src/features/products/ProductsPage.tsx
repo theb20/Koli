@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, Search } from 'lucide-react'
+import { Plus, Search, Upload } from 'lucide-react'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { FilterPills } from '@/components/ui/FilterPills'
@@ -12,6 +12,7 @@ import { productStatusMap } from '@/lib/statusMaps'
 import type { Product, ProductInput, ProductStatus } from '@/types'
 import { useCreateProduct, useDeleteProduct, useDuplicateProduct, useProducts, useUpdateProduct } from './api/useProducts'
 import { ProductFormModal } from './components/ProductFormModal'
+import { BulkImportModal } from './components/BulkImportModal'
 import { useCategories } from '@/features/categories/api/useCategories'
 
 type StatusFilter = ProductStatus | 'all'
@@ -21,6 +22,7 @@ export default function ProductsPage() {
   const [status, setStatus] = useState<StatusFilter>('all')
   const [search, setSearch] = useState(searchParams.get('search') ?? '')
   const [modalMode, setModalMode] = useState<'create' | Product | null>(null)
+  const [bulkImportOpen, setBulkImportOpen] = useState(false)
 
   const { data, isLoading } = useProducts({ status, search })
   const { data: allData } = useProducts({ status: 'all', search: '' })
@@ -94,9 +96,14 @@ export default function ProductsPage() {
         title="Produits"
         subtitle={`${allData?.total ?? 0} produit${(allData?.total ?? 0) > 1 ? 's' : ''} · ${outOfStockCount} en rupture`}
         action={
-          <Button icon={<Plus size={16} />} onClick={() => setModalMode('create')}>
-            Ajouter un produit
-          </Button>
+          <div className="flex items-center gap-2.5">
+            <Button variant="secondary" icon={<Upload size={15} />} onClick={() => setBulkImportOpen(true)}>
+              Importer
+            </Button>
+            <Button icon={<Plus size={16} />} onClick={() => setModalMode('create')}>
+              Ajouter un produit
+            </Button>
+          </div>
         }
       />
 
@@ -136,6 +143,8 @@ export default function ProductsPage() {
           isSubmitting={createProduct.isPending || updateProduct.isPending}
         />
       )}
+
+      {bulkImportOpen && <BulkImportModal onClose={() => setBulkImportOpen(false)} />}
     </div>
   )
 }
