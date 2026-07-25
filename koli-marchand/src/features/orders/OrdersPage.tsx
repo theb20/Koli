@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Clock, PackageCheck, PackageSearch, Truck } from 'lucide-react'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatCard } from '@/components/ui/StatCard'
@@ -14,8 +15,9 @@ import { OrderDetailDrawer } from './components/OrderDetailDrawer'
 type StatusFilter = OrderStatus | 'all'
 
 export default function OrdersPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [status, setStatus] = useState<StatusFilter>('all')
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(searchParams.get('search') ?? '')
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
 
   const { data, isLoading } = useOrders({ status, search })
@@ -72,7 +74,10 @@ export default function OrdersPage() {
         />
         <input
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => {
+            setSearch(e.target.value)
+            setSearchParams(e.target.value ? { search: e.target.value } : {})
+          }}
           placeholder="Rechercher un client, un n° de commande..."
           aria-label="Rechercher une commande"
           className="sm:ml-auto sm:w-72 rounded-xl border border-[#e8e8e4] px-3 py-2 text-sm focus:border-[#1E90FF] focus:ring-2 focus:ring-[#1E90FF]/20 transition-colors"

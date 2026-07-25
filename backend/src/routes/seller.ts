@@ -957,6 +957,89 @@ router.get('/customers/:id', requireSeller, async (req, res) => {
   }
 })
 
+/*
+ * GET /api/seller/search?q= — recherche globale (barre du Topbar) : produits
+ * (nom, SKU), commandes (numéro, client), clients (nom, email) — toujours
+ * scopée à la boutique du marchand authentifié. Plafonnée à 5 résultats par
+ * catégorie : c'est une aide à la navigation rapide, pas une page de
+ * résultats — la recherche complète reste sur chaque page dédiée
+ * (Produits/Commandes/Clients) qui a déjà son propre filtre.
+ */
+router.get('/search', requireSeller, async (req, res) => {
+  try {
+    const store = await requireMyStore(req.user!.userId)
+    if (!store) { res.status(404).json({ success: false, message: 'Boutique introuvable.' }); return }
+
+    const q = String(req.query.q ?? '').trim()
+    if (q.length < 2) { res.json({ success: true, data: { products: [], orders: [], customers: [] } }); return }
+    const needle = q.toLowerCase()
+
+    // "SKG-00042" ou "42" → id produit direct, en plus de la recherche par nom.
+    const skuMatch = needle.match(/^(?:skg-)?0*(\d+)$/)
+    const skuId = skuMatch ? Number(skuMatch[1]) : null
+
+    const products = await prisma.product.findMany({
+      where: {
+        storeId: store.id,
+        OR: [
+          { name: { contains: q, mode: 'insensitive' } },
+          ...(skuId !== null ? [{ id: skuId }] : []),
+        ],
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+      select: { id: true, name: true, price: true, images: { take: 1, orderBy: { position: 'asc' }, select: { url: true, thumbnailUrl: true } } },
+    })
+
+    const allItems = await storeOrderItems(store.id)
+    const byOrder = new Map<string, typeof allItems>()
+    for (const it of allItems) {
+      if (!byOrder.has(it.orderId)) byOrder.set(it.orderId, [])
+      byOrder.get(it.orderId)!.push(it)
+    }
+    const matchingOrders = [...byOrder.values()]
+      .filter(its => {
+        const o = its[0].order
+        return o.orderNumber.toLowerCase().includes(needle) || `${o.clientPrenom} ${o.clientNom}`.toLowerCase().includes(needle)
+      })
+      .sort((a, b) => b[0].order.createdAt.getTime() - a[0].order.createdAt.getTime())
+      .slice(0, 5)
+      .map(its => ({
+        id: its[0].order.id, orderNumber: its[0].order.orderNumber, status: its[0].order.status,
+        client: `${its[0].order.clientPrenom} ${its[0].order.clientNom}`.trim(),
+        total: its.reduce((s, i) => s + i.price * i.qty, 0),
+      }))
+
+    const byCustomer = new Map<string, { name: string; email: string; lastOrderAt: string }>()
+    for (const it of allItems) {
+      const key = it.order.userId ?? it.order.clientEmail
+      const curr = byCustomer.get(key) ?? {
+        name: `${it.order.clientPrenom} ${it.order.clientNom}`.trim(),
+        email: it.order.clientEmail, lastOrderAt: it.order.createdAt.toISOString(),
+      }
+      if (it.order.createdAt.toISOString() > curr.lastOrderAt) curr.lastOrderAt = it.order.createdAt.toISOString()
+      byCustomer.set(key, curr)
+    }
+    const matchingCustomers = [...byCustomer.entries()]
+      .filter(([, c]) => c.name.toLowerCase().includes(needle) || c.email.toLowerCase().includes(needle))
+      .sort((a, b) => b[1].lastOrderAt.localeCompare(a[1].lastOrderAt))
+      .slice(0, 5)
+      .map(([id, c]) => ({ id, name: c.name, email: c.email }))
+
+    res.json({
+      success: true,
+      data: {
+        products: products.map(p => ({ id: p.id, name: p.name, price: p.price, image: p.images[0]?.thumbnailUrl || p.images[0]?.url || null })),
+        orders: matchingOrders,
+        customers: matchingCustomers,
+      },
+    })
+  } catch (err) {
+    logger.error('[seller/search]', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
 /* ── Statistiques ─────────────────────────────────────────────────── */
 router.get('/analytics', requireSeller, async (req, res) => {
   try {
