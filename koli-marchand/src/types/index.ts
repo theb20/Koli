@@ -78,13 +78,18 @@ export interface ShippingAddress {
 export interface Order {
   id: string
   orderNumber: string
-  customer: Pick<Customer, 'id' | 'name' | 'phone' | 'email'>
+  // null tant que la commande n'est pas payée (order.paymentStatus !== 'paid')
+  // — frontière anti-fraude côté serveur, voir seller.ts shapeOrder(). Le
+  // marchand ne voit l'identité du client, les articles et l'adresse
+  // qu'une fois le paiement confirmé.
+  isPaid: boolean
+  customer: Pick<Customer, 'id' | 'name' | 'phone' | 'email'> | null
   items: OrderItem[]
   itemsCount: number
   totalAmount: number
   paymentMethod: OrderPaymentMethod
   status: OrderStatus
-  shippingAddress: ShippingAddress
+  shippingAddress: ShippingAddress | null
   createdAt: string
   updatedAt: string
 }

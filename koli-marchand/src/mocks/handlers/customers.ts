@@ -35,7 +35,7 @@ export const customerHandlers = [
     await delay(150)
     const customer = db.customers.find((c) => c.id === params.id)
     if (!customer) return HttpResponse.json({ message: 'Client introuvable' }, { status: 404 })
-    const orders = db.orders.filter((o) => o.customer.id === customer.id)
+    const orders = db.orders.filter((o) => o.customer?.id === customer.id)
     return HttpResponse.json({ customer, orders })
   }),
 ]

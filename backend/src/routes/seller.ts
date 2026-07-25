@@ -376,19 +376,31 @@ async function storeOrderItems(storeId: number, opts: { since?: Date; statuses?:
   })
 }
 
+/*
+ * Frontière anti-fraude : un marchand ne doit voir l'identité du client, le
+ * détail des articles et l'adresse de livraison qu'une fois la commande
+ * réellement payée (order.paymentStatus === 'paid') — pas seulement
+ * "confirmée". Avant paiement, il ne voit qu'un total et un nombre
+ * d'articles (déjà donné par la notification de nouvelle commande), pour
+ * qu'il ne puisse ni fabriquer une fausse livraison ni contacter le client
+ * sur une commande jamais réglée. Voir memory: order-payment-architecture.
+ */
 function shapeOrder(order: Order, items: OrderItem[]) {
   const itemsCount = items.reduce((s, i) => s + i.qty, 0)
   const totalAmount = items.reduce((s, i) => s + i.price * i.qty, 0)
+  const isPaid = order.paymentStatus === 'paid'
+
   return {
     id:          order.id,
     orderNumber: order.orderNumber,
-    customer: {
+    isPaid,
+    customer: isPaid ? {
       id:    order.userId ?? `guest-${order.id}`,
       name:  `${order.clientPrenom} ${order.clientNom}`.trim(),
       phone: order.clientTelephone,
       email: order.clientEmail,
-    },
-    items: items.map(i => ({
+    } : null,
+    items: isPaid ? items.map(i => ({
       id:          String(i.id),
       productId:   String(i.productId),
       productName: i.name,
@@ -396,12 +408,12 @@ function shapeOrder(order: Order, items: OrderItem[]) {
       quantity:    i.qty,
       unitPrice:   i.price,
       totalPrice:  i.price * i.qty,
-    })),
+    })) : [],
     itemsCount,
     totalAmount,
     paymentMethod:    order.paymentMethod,
     status:           order.status,
-    shippingAddress: { address: order.shippingAddress, city: '', country: '' },
+    shippingAddress: isPaid ? { address: order.shippingAddress, city: '', country: '' } : null,
     createdAt: order.createdAt.toISOString(),
     updatedAt: order.updatedAt.toISOString(),
   }
@@ -874,6 +886,11 @@ router.patch('/orders/:id/status', requireSeller, async (req, res) => {
       include: { order: true },
     })
     if (items.length === 0) { res.status(404).json({ success: false, message: 'Commande introuvable.' }); return }
+
+    if (items[0].order.paymentStatus !== 'paid') {
+      res.status(403).json({ success: false, message: "Cette commande n'est pas encore payée — vous ne pouvez pas la faire progresser." })
+      return
+    }
 
     const updated = await prisma.order.update({
       where: { id: req.params.id },

@@ -18,7 +18,7 @@ export const orderHandlers = [
       items = items.filter(
         (o) =>
           o.orderNumber.toLowerCase().includes(search) ||
-          o.customer.name.toLowerCase().includes(search),
+          (o.customer?.name.toLowerCase().includes(search) ?? false),
       )
     }
 

@@ -41,6 +41,7 @@ export function generateOrders(products: Product[], customers: Customer[], count
     return {
       id: `ord_${String(i + 1).padStart(4, '0')}`,
       orderNumber: `SKG-${String(10000 + i)}`,
+      isPaid: true,
       customer: { id: customer.id, name: customer.name, phone: customer.phone, email: customer.email },
       items,
       itemsCount: items.reduce((sum, item) => sum + item.quantity, 0),

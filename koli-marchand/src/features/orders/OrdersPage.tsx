@@ -36,7 +36,7 @@ export default function OrdersPage() {
 
   const columns: DataTableColumn<Order>[] = [
     { key: 'orderNumber', header: 'N° commande', render: (o) => <span className="font-semibold text-[#0a0a0b]">{o.orderNumber}</span> },
-    { key: 'customer', header: 'Client', render: (o) => o.customer.name },
+    { key: 'customer', header: 'Client', render: (o) => o.customer?.name ?? <span className="text-[#a3a3a1] italic">En attente de paiement</span> },
     { key: 'items', header: 'Articles', align: 'right', render: (o) => o.itemsCount },
     { key: 'date', header: 'Date', render: (o) => fmtDate(o.createdAt) },
     { key: 'amount', header: 'Montant', align: 'right', render: (o) => <span className="font-semibold">{fmtFcfa(o.totalAmount)}</span> },
