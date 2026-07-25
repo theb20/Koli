@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { requireAuth, requireAdmin, optionalAuth } from '../middleware/auth'
 import { validate, validateParams, validateQuery, zCuidIdParam, zPaginationQuery } from '../middleware/validate'
-import { sendOrderConfirmationEmail, sendOrderStatusEmail, sendNewOrderAdminEmail } from '../lib/mailer'
+import { sendOrderConfirmationEmail, sendOrderStatusEmail, sendNewOrderAdminEmail, sendNewOrderMerchantEmail } from '../lib/mailer'
 import { buildInvoicePdf } from '../lib/invoicePdf'
 import { sendNewOrderWhatsAppNotification } from '../lib/whatsapp/newOrderNotification'
 import { logger } from '../lib/logger'
@@ -457,28 +457,37 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
         if (storeIds.length === 0) return
 
         const stores = await prisma.sellerStore.findMany({
-          where:  { id: { in: storeIds } },
-          select: { id: true, userId: true },
+          where:   { id: { in: storeIds } },
+          select:  { id: true, userId: true, user: { select: { email: true } } },
         })
 
-        const notifData = stores.map(store => {
+        const storeItemCounts = new Map<number, number>()
+        for (const store of stores) {
           const storeItems = body.items.filter(item => {
             const p = products.find(pr => pr.id === item.productId)
             return p?.storeId === store.id
           })
-          const itemCount = storeItems.reduce((sum, i) => sum + i.qty, 0)
-          return {
-            userId: store.userId,
-            type:   'order',
-            title:  'Nouvelle commande reçue',
-            body:   `${itemCount} article${itemCount > 1 ? 's' : ''} · ${orderNumber}`,
-            link:   `/commandes`,
-          }
-        })
+          storeItemCounts.set(store.id, storeItems.reduce((sum, i) => sum + i.qty, 0))
+        }
+
+        const notifData = stores.map(store => ({
+          userId: store.userId,
+          type:   'order',
+          title:  'Nouvelle commande reçue',
+          body:   `${storeItemCounts.get(store.id)} article${(storeItemCounts.get(store.id) ?? 0) > 1 ? 's' : ''} · ${orderNumber}`,
+          link:   `/commandes`,
+        }))
 
         if (notifData.length > 0) {
           await prisma.notification.createMany({ data: notifData })
         }
+
+        // Email en plus de la notification in-app — même contenu minimal,
+        // non bloquant individuellement par boutique.
+        await Promise.allSettled(stores.map(store => sendNewOrderMerchantEmail(store.user.email, {
+          orderNumber,
+          itemCount: storeItemCounts.get(store.id) ?? 0,
+        })))
       } catch (err) {
         logger.error('[orders] échec notification marchand', err) // non bloquant
       }

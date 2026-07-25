@@ -12,6 +12,7 @@ export {
   sendContactReply,
   sendBroadcastEmail,
   sendNewOrderAdminEmail,
+  sendNewOrderMerchantEmail,
   sendNewProductRequestAdminEmail,
   sendProductRequestReplyEmail,
   sendReturnStatusEmail,
