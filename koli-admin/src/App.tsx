@@ -28,6 +28,7 @@ import StoreDetailPage    from './pages/stores/StoreDetailPage'
 import MerchantsPage       from './pages/merchants/MerchantsPage'
 import MerchantDetailPage2 from './pages/merchants/MerchantDetailPage'
 import CategoriesPage     from './pages/categories/CategoriesPage'
+import SubscriptionPlansPage from './pages/plans/SubscriptionPlansPage'
 import TaxPage            from './pages/TaxPage'
 import EmailTemplatesPage from './pages/EmailTemplatesPage'
 import ReturnsPage        from './pages/ReturnsPage'
@@ -58,6 +59,7 @@ export default function App() {
             <Route path="/stores/:id"    element={<StoreDetailPage />} />
             <Route path="/merchants"     element={<MerchantsPage />} />
             <Route path="/merchants/:id" element={<MerchantDetailPage2 />} />
+            <Route path="/plans"         element={<SubscriptionPlansPage />} />
             <Route path="/orders"        element={<OrdersPage />} />
             <Route path="/orders/:id"    element={<OrderDetailPage />} />
             <Route path="/users"         element={<UsersPage />} />
