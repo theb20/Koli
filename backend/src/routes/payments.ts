@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { prisma } from '../lib/prisma'
 import { logger } from '../lib/logger'
 import { confirmInvoice } from '../lib/paydunya'
+import { notifyMerchantsOrderPaid } from '../lib/merchantWallet'
 import { optionalAuth } from '../middleware/auth'
 import { validateParams, zCuidIdParam } from '../middleware/validate'
 
@@ -72,6 +73,7 @@ router.post('/paydunya/ipn', async (req, res) => {
         },
       })
       logger.info('[paydunya-ipn] commande marquée payée', order.orderNumber)
+      notifyMerchantsOrderPaid(order.id, order.orderNumber).catch(() => {})
     }
 
     res.status(200).send('ok')

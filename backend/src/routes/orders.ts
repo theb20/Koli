@@ -8,6 +8,7 @@ import { buildInvoicePdf } from '../lib/invoicePdf'
 import { sendNewOrderWhatsAppNotification } from '../lib/whatsapp/newOrderNotification'
 import { logger } from '../lib/logger'
 import { logAdminAction } from '../lib/auditLog'
+import { notifyMerchantsOrderPaid } from '../lib/merchantWallet'
 import { getLoyaltySettings } from './loyalty'
 import { createInvoice, isPaydunyaConfigured } from '../lib/paydunya'
 import { getBackendUrl } from '../lib/backendUrl'
@@ -113,9 +114,18 @@ async function applyOrderStatusChange(orderId: string, status: OrderStatusValue)
     const deliveredAt = status === 'delivered' && order.status !== 'delivered' ? new Date() : undefined
 
     const updated = await tx.order.update({ where: { id: orderId }, data: { status, paymentStatus, deliveredAt } })
-    return { updated, changed: order.status !== status }
+    const becamePaid = order.paymentStatus !== 'paid' && paymentStatus === 'paid'
+    return { updated, changed: order.status !== status, becamePaid }
   })
   if (!result) return null
+
+  // Vient de passer payée — crédite chaque marchand concerné (commission
+  // calculée côté merchantgo). Non bloquant, après coup : la commande est
+  // déjà mise à jour, un incident merchantgo ne doit jamais faire échouer
+  // la transition de statut elle-même.
+  if (result.becamePaid) {
+    notifyMerchantsOrderPaid(result.updated.id, result.updated.orderNumber).catch(() => {})
+  }
 
   // Email + notification client à chaque changement réel de statut — non bloquant, ne doit
   // jamais faire échouer la mise à jour si l'envoi échoue. Pas de mail si le statut est

@@ -13,7 +13,16 @@ import (
 
 // Setup construit le routeur Gin complet : middlewares globaux, health
 // check public, routes marchand (JWT) et routes admin (clé de service).
-func Setup(cfg *config.Config, appHandler *handlers.ApplicationHandler, adminHandler *handlers.AdminHandler, kycWebhookHandler *handlers.KycWebhookHandler, logger *zap.Logger) *gin.Engine {
+func Setup(
+	cfg *config.Config,
+	appHandler *handlers.ApplicationHandler,
+	adminHandler *handlers.AdminHandler,
+	kycWebhookHandler *handlers.KycWebhookHandler,
+	billingHandler *handlers.BillingHandler,
+	walletHandler *handlers.WalletHandler,
+	planHandler *handlers.SubscriptionPlanHandler,
+	logger *zap.Logger,
+) *gin.Engine {
 	if cfg.IsProduction() {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -53,6 +62,38 @@ func Setup(cfg *config.Config, appHandler *handlers.ApplicationHandler, adminHan
 			admin.GET("/:id", adminHandler.Get)
 			admin.POST("/:id/approve", adminHandler.Approve)
 			admin.POST("/:id/reject", adminHandler.Reject)
+		}
+
+		// Modèle économique + portefeuille — authentifié par le même JWT
+		// backend/ que /applications (voir middleware.RequireAuth).
+		merchant := v1.Group("/merchant")
+		merchant.Use(middleware.RequireAuth(cfg, logger))
+		{
+			merchant.GET("/billing", billingHandler.GetMine)
+			merchant.PUT("/billing", billingHandler.Choose)
+			merchant.GET("/wallet/balance", walletHandler.Balance)
+			merchant.GET("/wallet/transactions", walletHandler.ListTransactions)
+		}
+
+		// Catalogue de plans, lecture publique (koli-business/koli-marchand
+		// doivent pouvoir l'afficher avant même la création du compte).
+		v1.GET("/subscription-plans", planHandler.List)
+
+		adminBilling := v1.Group("/admin/subscription-plans")
+		adminBilling.Use(middleware.RequireAdmin(cfg, logger))
+		{
+			adminBilling.GET("", planHandler.List)
+			adminBilling.POST("", planHandler.Create)
+			adminBilling.PUT("/:id", planHandler.Update)
+			adminBilling.DELETE("/:id", planHandler.Delete)
+		}
+
+		// Interne, appelé serveur-à-serveur par backend/ (Node) — jamais par
+		// un navigateur. Même clé que les autres routes /admin (X-API-Key).
+		internal := v1.Group("/internal")
+		internal.Use(middleware.RequireAdmin(cfg, logger))
+		{
+			internal.POST("/orders/paid", walletHandler.RecordSale)
 		}
 	}
 

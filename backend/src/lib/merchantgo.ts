@@ -64,3 +64,15 @@ export function approveMerchantApplication(id: string, adminId: string, note?: s
 export function rejectMerchantApplication(id: string, adminId: string, reason: string) {
   return merchantgoRequest(`/api/v1/admin/applications/${id}/reject`, { method: 'POST', body: { reason }, adminId })
 }
+
+/**
+ * Enregistre la vente d'un marchand une fois sa commande (ou sa part d'une
+ * commande) réellement payée — merchantgo calcule et journalise la
+ * commission (mode commission ou abonnement) et crédite son solde. Voir
+ * lib/merchantWallet.ts pour le regroupement par boutique en amont.
+ * Idempotent côté merchantgo (order_id + user_id) : un appel répété pour
+ * la même commande ne double-compte jamais.
+ */
+export function recordMerchantSale(input: { userId: string; orderId: string; orderNumber: string; grossAmount: number }) {
+  return merchantgoRequest(`/api/v1/internal/orders/paid`, { method: 'POST', body: input })
+}

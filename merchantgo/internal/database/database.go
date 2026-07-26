@@ -45,5 +45,8 @@ func Connect(dsn string, production bool) (*gorm.DB, error) {
 // Migrate applique les migrations de schéma (AutoMigrate — suffisant ici,
 // pas de migrations de données complexes à gérer manuellement).
 func Migrate(db *gorm.DB) error {
-	return db.AutoMigrate(&models.Application{}, &models.StatusEvent{}, &models.DiditWebhookEvent{})
+	return db.AutoMigrate(
+		&models.Application{}, &models.StatusEvent{}, &models.DiditWebhookEvent{},
+		&models.SubscriptionPlan{}, &models.MerchantBilling{}, &models.WalletTransaction{},
+	)
 }

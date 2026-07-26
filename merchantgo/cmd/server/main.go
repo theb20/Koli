@@ -50,6 +50,10 @@ func main() {
 	}
 	logger.Info("base de données connectée et migrée")
 
+	if err := database.SeedDefaultPlans(db); err != nil {
+		logger.Fatal("seed des plans d'abonnement échoué", zap.Error(err))
+	}
+
 	repo := repository.NewApplicationRepository(db)
 	appService := services.NewApplicationService(repo, logger)
 	appHandler := handlers.NewApplicationHandler(appService, logger)
@@ -59,7 +63,19 @@ func main() {
 	kycService := services.NewKycService(diditEventRepo, repo, logger)
 	kycWebhookHandler := handlers.NewKycWebhookHandler(kycService, cfg, logger)
 
-	router := routes.Setup(cfg, appHandler, adminHandler, kycWebhookHandler, logger)
+	planRepo := repository.NewSubscriptionPlanRepository(db)
+	planService := services.NewSubscriptionPlanService(planRepo, logger)
+	planHandler := handlers.NewSubscriptionPlanHandler(planService, logger)
+
+	billingRepo := repository.NewBillingRepository(db)
+	billingService := services.NewBillingService(billingRepo, planRepo, logger)
+	billingHandler := handlers.NewBillingHandler(billingService, cfg, logger)
+
+	walletRepo := repository.NewWalletRepository(db)
+	walletService := services.NewWalletService(walletRepo, billingService, logger)
+	walletHandler := handlers.NewWalletHandler(walletService, logger)
+
+	router := routes.Setup(cfg, appHandler, adminHandler, kycWebhookHandler, billingHandler, walletHandler, planHandler, logger)
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.Port,

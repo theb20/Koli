@@ -18,6 +18,9 @@ type Config struct {
 	AllowedOrigins     []string
 	RateLimitRPS       int
 	RateLimitBurst     int
+	// Nombre de jours pendant lequel un marchand ne peut pas changer de
+	// modèle économique après un choix — voir models.MerchantBilling.CanChange.
+	BillingLockDays int
 }
 
 // defaultAllowedOrigins reprend exactement la liste de
@@ -50,6 +53,7 @@ func Load() (*Config, error) {
 	v.SetDefault("ENV", "development")
 	v.SetDefault("RATE_LIMIT_RPS", 5)
 	v.SetDefault("RATE_LIMIT_BURST", 15)
+	v.SetDefault("BILLING_LOCK_DAYS", 30)
 
 	// .env optionnel — en production (Railway), les variables sont déjà
 	// injectées dans l'environnement, pas de fichier à lire.
@@ -64,6 +68,7 @@ func Load() (*Config, error) {
 		DiditWebhookSecret: v.GetString("DIDIT_WEBHOOK_SECRET"),
 		RateLimitRPS:       v.GetInt("RATE_LIMIT_RPS"),
 		RateLimitBurst:     v.GetInt("RATE_LIMIT_BURST"),
+		BillingLockDays:    v.GetInt("BILLING_LOCK_DAYS"),
 	}
 
 	if raw := v.GetString("ALLOWED_ORIGINS"); raw != "" {
