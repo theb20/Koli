@@ -1,6 +1,7 @@
 export type BusinessType = 'individuel' | 'auto-entrepreneur' | 'societe'
 export type IdDocType = 'cni' | 'passeport' | 'permis'
 export type PaymentMethod = 'mobile_money' | 'virement_bancaire'
+export type BillingMode = 'commission' | 'subscription'
 
 export type RegisterFormData = {
   // 1. Création du compte
@@ -81,6 +82,11 @@ export type RegisterFormData = {
   whatsapp: string
   politiqueRetour: string
   cgv: boolean
+
+  // 11. Facturation — enregistré séparément via merchantgo (PUT /merchant/billing),
+  // jamais envoyé à saveApplicationDraft (voir ApplicationPayload dans lib/api.ts)
+  billingMode: BillingMode
+  subscriptionPlanId: string
 }
 
 export const initialRegisterFormData: RegisterFormData = {
@@ -94,6 +100,7 @@ export const initialRegisterFormData: RegisterFormData = {
   typeDocument: 'cni', documentIdentite: null, documentIdentiteUrl: '', selfie: null, selfieUrl: '', justificatifDomicile: null, justificatifDomicileUrl: '',
   zonesLivraison: '', modesLivraison: '', delaisLivraison: '', fraisLivraison: '', retraitMagasin: false,
   domainePersonnalise: '', horairesOuverture: '', facebook: '', instagram: '', whatsapp: '', politiqueRetour: '', cgv: false,
+  billingMode: 'commission', subscriptionPlanId: '',
 }
 
 export type StepProps = {

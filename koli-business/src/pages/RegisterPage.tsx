@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { AuthLayout } from '../components/AuthLayout'
 import { initialRegisterFormData, type RegisterFormData } from './register/types'
-import { hasAccessToken, registerAccount, saveApplicationDraft, submitApplication, uploadFile, ApiError } from '../lib/api'
+import { hasAccessToken, registerAccount, saveApplicationDraft, saveMerchantBilling, submitApplication, uploadFile, ApiError } from '../lib/api'
 import { Step1Account } from './register/steps/Step1Account'
 import { Step2Verification } from './register/steps/Step2Verification'
 import { Step3Personal } from './register/steps/Step3Personal'
@@ -9,6 +9,7 @@ import { Step4Business } from './register/steps/Step4Business'
 import { Step5Legal } from './register/steps/Step5Legal'
 import { Step6Address } from './register/steps/Step6Address'
 import { Step7Payment } from './register/steps/Step7Payment'
+import { StepBilling } from './register/steps/StepBilling'
 import { Step8Kyc } from './register/steps/Step8Kyc'
 import { Step9Delivery } from './register/steps/Step9Delivery'
 import { Step10Settings } from './register/steps/Step10Settings'
@@ -16,7 +17,7 @@ import { Step11Confirmation } from './register/steps/Step11Confirmation'
 
 const STEP_TITLES = [
   'Compte', 'Vérification', 'Profil', 'Boutique', 'Statut légal',
-  'Adresse', 'Paiement', 'Identité', 'Livraison', 'Paramètres',
+  'Adresse', 'Paiement', 'Facturation', 'Identité', 'Livraison', 'Paramètres',
 ]
 
 export default function RegisterPage() {
@@ -35,8 +36,9 @@ export default function RegisterPage() {
       case 0: return !!(data.prenom && data.nom && data.email && data.telephone && data.password && data.acceptedTerms)
       case 1: return data.emailVerified
       case 2: return !!(data.dateNaissance && data.paysResidence && data.villeResidence)
-      case 7: return !!(data.documentIdentite && data.selfie)
-      case 9: return data.cgv
+      case 7: return data.billingMode === 'commission' || !!data.subscriptionPlanId
+      case 8: return !!(data.documentIdentite && data.selfie)
+      case 10: return data.cgv
       default: return true
     }
   }
@@ -72,7 +74,7 @@ export default function RegisterPage() {
         await ensureUploaded(data.logoBoutique, data.logoBoutiqueUrl, 'logo-boutique', patch, 'logoBoutiqueUrl')
         await ensureUploaded(data.banniereBoutique, data.banniereBoutiqueUrl, 'banniere-boutique', patch, 'banniereBoutiqueUrl')
       }
-      if (step === 7) {
+      if (step === 8) {
         await ensureUploaded(data.documentIdentite, data.documentIdentiteUrl, 'document-identite', patch, 'documentIdentiteUrl')
         await ensureUploaded(data.selfie, data.selfieUrl, 'selfie', patch, 'selfieUrl')
         await ensureUploaded(data.justificatifDomicile, data.justificatifDomicileUrl, 'justificatif-domicile', patch, 'justificatifDomicileUrl')
@@ -81,6 +83,9 @@ export default function RegisterPage() {
       const effectiveData = { ...data, ...patch }
       if (Object.keys(patch).length > 0) update(patch)
 
+      if (step === 7) {
+        await saveMerchantBilling(effectiveData)
+      }
       if (step >= 2) {
         await saveApplicationDraft(effectiveData)
       }
@@ -103,7 +108,7 @@ export default function RegisterPage() {
 
   const steps = [
     Step1Account, Step2Verification, Step3Personal, Step4Business, Step5Legal,
-    Step6Address, Step7Payment, Step8Kyc, Step9Delivery, Step10Settings,
+    Step6Address, Step7Payment, StepBilling, Step8Kyc, Step9Delivery, Step10Settings,
   ]
   const CurrentStep = steps[step]
 

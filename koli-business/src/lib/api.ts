@@ -100,6 +100,7 @@ export type ApplicationPayload = Omit<
   | 'emailVerified'
   | 'photoProfil' | 'logoBoutique' | 'banniereBoutique'
   | 'documentIdentite' | 'selfie' | 'justificatifDomicile'
+  | 'billingMode' | 'subscriptionPlanId'
 >
 
 export function buildApplicationPayload(data: RegisterFormData): ApplicationPayload {
@@ -108,6 +109,7 @@ export function buildApplicationPayload(data: RegisterFormData): ApplicationPayl
     emailVerified: _emailVerified,
     photoProfil: _photoProfil, logoBoutique: _logoBoutique, banniereBoutique: _banniereBoutique,
     documentIdentite: _documentIdentite, selfie: _selfie, justificatifDomicile: _justificatifDomicile,
+    billingMode: _billingMode, subscriptionPlanId: _subscriptionPlanId,
     ...payload
   } = data
   return payload
@@ -138,4 +140,42 @@ export async function submitApplication() {
 
 export async function getMyApplication() {
   return merchantgoRequest('/api/v1/applications/me', { method: 'GET' })
+}
+
+/* ── Modèle économique (merchantgo) ──────────────────────────────
+   Choisi pendant l'inscription, avant même l'approbation KYC — le
+   marchand démarre directement avec le mode voulu au lieu du défaut
+   commission 5%. Reste modifiable plus tard dans koli-marchand. */
+export type SubscriptionPlan = {
+  id: string
+  slug: string
+  name: string
+  max_products: number
+  max_employees: number
+  max_orders: number
+  storage_limit_mb: number
+  commission_rate: number
+  price_monthly: number
+  price_yearly: number
+  features: string // tableau JSON sérialisé
+  is_active: boolean
+  position: number
+}
+
+// Lecture publique — pas de JWT requis (utilisé aussi bien avant la
+// création du compte, sur la page vitrine, que pendant l'inscription).
+export async function getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
+  const res = await fetch(`${MERCHANTGO_URL}/api/v1/subscription-plans`)
+  const body = await parseJsonOrThrow(res)
+  return body.data as SubscriptionPlan[]
+}
+
+export async function saveMerchantBilling(data: RegisterFormData) {
+  return merchantgoRequest('/api/v1/merchant/billing', {
+    method: 'PUT',
+    body: JSON.stringify({
+      mode: data.billingMode,
+      subscriptionPlanId: data.billingMode === 'subscription' ? data.subscriptionPlanId : undefined,
+    }),
+  })
 }

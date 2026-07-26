@@ -1,6 +1,7 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { Zap, ShieldCheck, LineChart, Truck, Wallet, Headset, ArrowRight, ChevronLeft, ChevronRight, Plus, Minus, Quote } from 'lucide-react'
+import { Zap, ShieldCheck, LineChart, Truck, Wallet, Headset, ArrowRight, ChevronLeft, ChevronRight, Plus, Minus, Quote, Check } from 'lucide-react'
+import { getSubscriptionPlans, type SubscriptionPlan } from '../lib/api'
 
 const BENEFITS = [
   { icon: Zap,         title: 'Mise en ligne simple',    desc: 'Ajoutez un produit en moins de 2 minutes, photos comprises.' },
@@ -61,17 +62,21 @@ const FAQS = [
   { q: "Y a-t-il un nombre minimum de produits pour démarrer ?", a: "Non, vous pouvez commencer avec un seul produit et enrichir votre catalogue à votre rythme." },
 ]
 
-function Laptop({ children }: { children: ReactNode }) {
+function Laptop({ children, fit = 'height' }: { children: ReactNode; fit?: 'height' | 'width' }) {
   return (
-    <div className="relative w-full aspect-[1357/1038]">
-      <div className="absolute top-[11%] left-[9.8%] right-[9.8%] bottom-[11.8%] rounded-md bg-white overflow-hidden">
-        {children}
-      </div>
+    <div className={fit === 'height' ? 'relative inline-block h-full' : 'relative w-full'}>
       <img
         src="/items/Laptop.png"
         alt="Laptop"
-        className="absolute inset-0 w-full h-[438px] object-contain pointer-events-none select-none"
+        className={
+          fit === 'height'
+            ? 'h-full w-auto block pointer-events-none select-none'
+            : 'w-full h-auto block pointer-events-none select-none'
+        }
       />
+      <div className="absolute top-[4.9%] left-[9.7%] right-[9.8%] bottom-[11.9%] rounded-sm bg-white overflow-hidden">
+        {children}
+      </div>
     </div>
   )
 }
@@ -160,11 +165,27 @@ function StatsScreen() {
   )
 }
 
+function parseFeatures(raw: string): string[] {
+  try {
+    const arr = JSON.parse(raw)
+    return Array.isArray(arr) ? arr.filter((f): f is string => typeof f === 'string') : []
+  } catch {
+    return []
+  }
+}
+
 export default function HomePage() {
   const [openFaq, setOpenFaq] = useState(0)
   const [walkIndex, setWalkIndex] = useState(0)
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([])
   const walk = WALKTHROUGH[walkIndex]
   const walkScreens = [<DashboardScreen key="d" />, <OrdersScreen key="o" />, <StatsScreen key="s" />]
+
+  useEffect(() => {
+    getSubscriptionPlans()
+      .then(all => setPlans(all.filter(p => p.is_active)))
+      .catch(() => setPlans([]))
+  }, [])
 
   return (
     <div className="bg-white">
@@ -173,8 +194,9 @@ export default function HomePage() {
         <header className="flex items-center justify-between px-8 lg:px-14 py-5 border-b border-[#262626]">
           <img src="/logo-skignas.png" alt="Skignas" width={130} height={43} decoding="async" className="h-8 w-auto invert" />
           <nav className="hidden md:flex items-center gap-7 text-sm">
-            <a href="#avantages" className="text-[#d8d8d8] hover:text-white transition-colors">Avantages</a>
+            
             <a href="#comment-ca-marche" className="text-[#d8d8d8] hover:text-white transition-colors">Comment ça marche</a>
+            <a href="#tarifs" className="text-[#d8d8d8] hover:text-white transition-colors">Tarifs</a>
             <a href="#" className="text-[#d8d8d8] hover:text-white transition-colors">Aide</a>
             <Link to="https://me.skignas.com/connexion" className="text-[#d8d8d8] hover:text-white transition-colors">Se connecter</Link>
             <Link to="/inscription" className="bg-[#f4f4f2] text-[#111] rounded-md px-5 py-2.5 text-sm font-bold hover:bg-white transition-colors">
@@ -270,37 +292,127 @@ export default function HomePage() {
       </section>
 
       {/* ── Fonctionnement ─────────────────────────────────────── */}
-      <section className="px-8 lg:px-14 pb-16 lg:pb-20 flex flex-col gap-8">
+      <section className="px-8 lg:px-14 pt-4 pb-24 lg:pb-32 flex flex-col gap-8">
         <h2 className="text-2xl lg:text-[30px] font-extrabold tracking-tight text-[#111]">Fonctionnement</h2>
-        <div className="bg-[#f5f5f3] relative h-[300px] rounded-3xl p-8 lg:p-14 flex flex-col lg:flex-row gap-10 lg:gap-16 lg:items-center">
-          <div className="flex-1 max-w-md flex flex-col gap-5">
+
+        <div className="bg-[#f5f5f3] relative overflow-visible rounded-3xl p-8 lg:p-14 flex flex-col lg:flex-row gap-10 lg:gap-8 lg:items-center min-h-[300px] lg:min-h-[280px]">
+          {/* Texte */}
+          <div className="flex-1 max-w-md flex flex-col gap-5 relative z-10">
             <span className="text-2xl lg:text-[28px] font-extrabold tracking-tight text-[#111]">{walk.title}</span>
             <p className="text-[#4a4a52] text-[15px] leading-relaxed">{walk.desc}</p>
-            <div className="flex items-center gap-5 pt-1">
-              <span className="text-sm font-bold text-[#6f6f6f]">{walkIndex + 1}/{WALKTHROUGH.length}</span>
-              <div className="flex gap-2.5">
-                <button
-                  onClick={() => setWalkIndex(i => (i - 1 + WALKTHROUGH.length) % WALKTHROUGH.length)}
-                  className="w-11 h-11 rounded-full border border-[#111] bg-white hover:bg-[#111] hover:text-white transition-colors flex items-center justify-center"
-                  aria-label="Précédent"
-                >
-                  <ChevronLeft size={18} />
-                </button>
-                <button
-                  onClick={() => setWalkIndex(i => (i + 1) % WALKTHROUGH.length)}
-                  className="w-11 h-11 rounded-full border border-[#111] bg-white hover:bg-[#111] hover:text-white transition-colors flex items-center justify-center"
-                  aria-label="Suivant"
-                >
-                  <ChevronRight size={18} />
-                </button>
-              </div>
-            </div>
+            <span className="text-sm font-bold text-[#6f6f6f]">{walkIndex + 1}/{WALKTHROUGH.length}</span>
           </div>
-          <div className="flex-[1] ">
-            <Laptop>{walkScreens[walkIndex]}</Laptop>
+
+          {/* Laptop — visible sur mobile, en ligne */}
+          <div className="lg:hidden flex items-center justify-center h-[420px]">
+            <Laptop fit="height">{walkScreens[walkIndex]}</Laptop>
+          </div>
+
+          {/* Laptop — desktop : ancré en bas à droite, déborde largement au-dessus de la carte */}
+          <div className="hidden lg:block absolute bottom-[10%] right-[6%] xl:right-[7%] w-[52%] max-w-[700px] z-10">
+            <Laptop fit="width">{walkScreens[walkIndex]}</Laptop>
+          </div>
+
+          {/* Flèches de navigation — flottent hors du coin bas-droit de la carte */}
+          <div className="hidden lg:flex absolute -bottom-6 right-[2%] gap-2.5 z-20">
+            <button
+              onClick={() => setWalkIndex(i => (i - 1 + WALKTHROUGH.length) % WALKTHROUGH.length)}
+              className="w-11 h-11 rounded-full border border-[#111] bg-white hover:bg-[#111] hover:text-white transition-colors flex items-center justify-center shadow-sm"
+              aria-label="Précédent"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <button
+              onClick={() => setWalkIndex(i => (i + 1) % WALKTHROUGH.length)}
+              className="w-11 h-11 rounded-full border border-[#111] bg-white hover:bg-[#111] hover:text-white transition-colors flex items-center justify-center shadow-sm"
+              aria-label="Suivant"
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
+
+          {/* Flèches — mobile, sous le texte */}
+          <div className="lg:hidden flex gap-2.5">
+            <button
+              onClick={() => setWalkIndex(i => (i - 1 + WALKTHROUGH.length) % WALKTHROUGH.length)}
+              className="w-11 h-11 rounded-full border border-[#111] bg-white hover:bg-[#111] hover:text-white transition-colors flex items-center justify-center"
+              aria-label="Précédent"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <button
+              onClick={() => setWalkIndex(i => (i + 1) % WALKTHROUGH.length)}
+              className="w-11 h-11 rounded-full border border-[#111] bg-white hover:bg-[#111] hover:text-white transition-colors flex items-center justify-center"
+              aria-label="Suivant"
+            >
+              <ChevronRight size={18} />
+            </button>
           </div>
         </div>
       </section>
+
+      {/* ── Tarifs ──────────────────────────────────────────────── */}
+      {plans.length > 0 && (
+        <section id="tarifs" className="px-8 lg:px-14 py-16 lg:py-20 flex flex-col gap-10">
+          <div className="flex flex-col gap-3 max-w-2xl">
+            <h2 className="text-2xl lg:text-[30px] font-extrabold tracking-tight text-[#111]">Un modèle pour chaque activité</h2>
+            <p className="text-[#6f6f6f] text-[15px] leading-relaxed">
+              Démarrez en commission, sans engagement, ou passez à un abonnement pour réduire votre taux de commission à mesure que vous vendez plus.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {plans.map(plan => {
+              const features = parseFeatures(plan.features)
+              const highlighted = plan.slug === 'pro'
+              return (
+                <div
+                  key={plan.id}
+                  className={`flex flex-col gap-6 rounded-2xl p-7 ${
+                    highlighted ? 'bg-[#0c0c0c] text-white' : 'border border-[#ebebeb] text-[#111]'
+                  }`}
+                >
+                  <div className="flex flex-col gap-1.5">
+                    <span className={`text-base font-extrabold ${highlighted ? 'text-white' : 'text-[#111]'}`}>{plan.name}</span>
+                    <span className={`text-[13px] ${highlighted ? 'text-[#c8c8ce]' : 'text-[#6f6f6f]'}`}>
+                      Commission {plan.commission_rate}%
+                    </span>
+                  </div>
+
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-3xl font-extrabold tracking-tight">
+                      {plan.price_monthly === 0 ? 'Sur devis' : `${plan.price_monthly.toLocaleString('fr-FR')} FCFA`}
+                    </span>
+                    {plan.price_monthly > 0 && (
+                      <span className={`text-sm ${highlighted ? 'text-[#c8c8ce]' : 'text-[#6f6f6f]'}`}>/mois</span>
+                    )}
+                  </div>
+
+                  <ul className="flex flex-col gap-2.5 flex-1">
+                    {features.map(f => (
+                      <li key={f} className="flex items-start gap-2.5 text-sm">
+                        <Check size={16} strokeWidth={2.5} className={highlighted ? 'text-white shrink-0 mt-0.5' : 'text-[#111] shrink-0 mt-0.5'} />
+                        <span className={highlighted ? 'text-[#e0e0e4]' : 'text-[#4a4a52]'}>{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <Link
+                    to="/inscription"
+                    className={`text-center rounded-full py-3.5 text-sm font-extrabold tracking-wide uppercase transition-colors ${
+                      highlighted
+                        ? 'bg-white text-[#111] hover:bg-[#f4f4f2]'
+                        : 'bg-black text-white hover:bg-[#c8281f]'
+                    }`}
+                  >
+                    Choisir ce plan
+                  </Link>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      )}
 
       {/* ── Bandeau inscription (photo + carte) ────────────────── */}
       <section className="px-8 lg:px-14 pb-16 lg:pb-20">
