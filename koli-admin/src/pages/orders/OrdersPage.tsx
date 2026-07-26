@@ -1,13 +1,21 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Search, ShoppingCart, Eye } from 'lucide-react'
+import { Search, ShoppingCart, Eye, Store } from 'lucide-react'
 import { api, fmt, fmtDateTime } from '../../lib/api'
 import { Badge } from '../../components/ui/Badge'
 import { Pagination } from '../../components/ui/Pagination'
 import { PageTitle } from '../../components/layout/Sidebar'
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import type { Order, OrderStatus } from '../../types'
+
+type SourceFilter = '' | 'merchant' | 'direct'
+
+const SOURCES: { value: SourceFilter; label: string }[] = [
+  { value: '',         label: 'Toutes origines' },
+  { value: 'merchant', label: 'Marchand' },
+  { value: 'direct',   label: 'Catalogue Skignas' },
+]
 
 // orange/mtn/wave : anciennes valeurs (avant simplification en une seule option "online")
 const PAYMENT_LABELS: Record<string, string> = {
@@ -42,11 +50,12 @@ export default function OrdersPage() {
   const [page, setPage]       = useState(1)
   const [search, setSearch]   = useState('')
   const [status, setStatus]   = useState(params.get('status') ?? '')
+  const [source, setSource]   = useState<SourceFilter>('')
   const debouncedSearch = useDebouncedValue(search, 300)
 
   const { data, isLoading } = useQuery({
-    queryKey: ['orders', page, debouncedSearch, status],
-    queryFn: () => fetchOrders({ page, limit: 20, q: debouncedSearch, status }),
+    queryKey: ['orders', page, debouncedSearch, status, source],
+    queryFn: () => fetchOrders({ page, limit: 20, q: debouncedSearch, status, source }),
     placeholderData: (prev) => prev,
   })
 
@@ -77,12 +86,29 @@ export default function OrdersPage() {
         ))}
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }}
-          placeholder="N° commande, client, email..."
-          className="w-full bg-white border border-slate-300 rounded-xl pl-9 pr-4 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 focus:outline-none transition-all" />
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        {/* Search */}
+        <div className="relative max-w-sm">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }}
+            placeholder="N° commande, client, email..."
+            className="w-full bg-white border border-slate-300 rounded-xl pl-9 pr-4 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 focus:outline-none transition-all" />
+        </div>
+
+        {/* Origine : catalogue Skignas vs boutique marchand */}
+        <div className="flex gap-1 bg-white border border-slate-200 rounded-xl p-1 shadow-sm w-fit">
+          {SOURCES.map(s => (
+            <button
+              key={s.value}
+              onClick={() => { setSource(s.value); setPage(1) }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${source === s.value
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'}`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Table */}
@@ -112,6 +138,14 @@ export default function OrdersPage() {
                   <td className="px-4 py-3">
                     <p className="text-sm font-mono font-semibold text-indigo-600">{o.orderNumber}</p>
                     <p className="text-xs text-slate-400">{PAYMENT_LABELS[o.paymentMethod] ?? o.paymentMethod}</p>
+                    {o.merchants && o.merchants.length > 0 && (
+                      <div className="flex items-center gap-1 mt-1" title={o.merchants.map(m => m.name).join(', ')}>
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-medium">
+                          <Store size={10} />
+                          {o.merchants.length === 1 ? o.merchants[0].name : `${o.merchants.length} boutiques`}
+                        </span>
+                      </div>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <p className="text-sm text-slate-900">{o.clientPrenom} {o.clientNom}</p>

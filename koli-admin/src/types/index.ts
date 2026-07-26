@@ -129,6 +129,9 @@ export type Order = {
   updatedAt: string
   items: OrderItem[]
   user?: { prenom: string; nom: string; email: string }
+  // Boutiques marchand dont au moins un produit figure dans cette commande
+  // (Product.storeId) — tableau vide = commande 100% catalogue Skignas.
+  merchants?: { id: number; name: string }[]
 }
 
 export type OrderItem = {

@@ -635,11 +635,15 @@ const ordersAdminQuerySchema = zPaginationQuery.extend({
   limit:  z.coerce.number().int().positive().max(200).optional().default(20),
   status: z.string().max(20).optional(),
   q:      z.string().max(200).optional(),
+  // 'merchant' = contient au moins un produit d'une boutique marchand
+  // (Product.storeId non nul) ; 'direct' = uniquement des produits du
+  // catalogue Skignas (aucun storeId) ; absent/'all' = pas de filtre.
+  source: z.enum(['merchant', 'direct']).optional(),
 })
 
 router.get('/admin/all', requireAdmin, validateQuery(ordersAdminQuerySchema), async (req, res) => {
   try {
-    const { page, limit, status, q } = req.query as unknown as z.infer<typeof ordersAdminQuerySchema>
+    const { page, limit, status, q, source } = req.query as unknown as z.infer<typeof ordersAdminQuerySchema>
 
     const where = {
       ...(status ? { status } : {}),
@@ -648,6 +652,8 @@ router.get('/admin/all', requireAdmin, validateQuery(ordersAdminQuerySchema), as
         { clientEmail: { contains: q } },
         { clientTelephone: { contains: q } },
       ] } : {}),
+      ...(source === 'merchant' ? { items: { some: { product: { storeId: { not: null } } } } } : {}),
+      ...(source === 'direct'   ? { items: { none: { product: { storeId: { not: null } } } } } : {}),
     }
 
     const [total, orders] = await Promise.all([
@@ -655,11 +661,32 @@ router.get('/admin/all', requireAdmin, validateQuery(ordersAdminQuerySchema), as
       prisma.order.findMany({
         where, orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit, take: limit,
-        include: { items: { select: { name: true, qty: true, image: true } } },
+        include: {
+          items: {
+            select: { name: true, qty: true, image: true, product: { select: { storeId: true } } },
+          },
+        },
       }),
     ])
 
-    res.json({ success: true, data: { orders, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } } })
+    // Une seule requête pour résoudre les noms de boutique de tous les
+    // storeId vus sur cette page, plutôt qu'une par commande.
+    const storeIds = [...new Set(orders.flatMap(o => o.items.map(i => i.product.storeId).filter((id): id is number => id != null)))]
+    const stores = storeIds.length > 0
+      ? await prisma.sellerStore.findMany({ where: { id: { in: storeIds } }, select: { id: true, name: true } })
+      : []
+    const storeNameById = new Map(stores.map(s => [s.id, s.name]))
+
+    const shaped = orders.map(o => {
+      const merchantStoreIds = [...new Set(o.items.map(i => i.product.storeId).filter((id): id is number => id != null))]
+      return {
+        ...o,
+        items: o.items.map(({ product: _product, ...item }) => item),
+        merchants: merchantStoreIds.map(id => ({ id, name: storeNameById.get(id) ?? 'Boutique' })),
+      }
+    })
+
+    res.json({ success: true, data: { orders: shaped, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } } })
   } catch {
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
