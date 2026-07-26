@@ -87,7 +87,12 @@ async function main() {
     await page.waitForTimeout(150)
     const html = await page.content()
     await context.close()
-    return dedupeHead(html)
+    // page.content() sérialise les URLs de ressources telles que résolues
+    // dans le DOM (absolues, vers le serveur de preview local) — sans ce
+    // remplacement, les <link modulepreload>/<link stylesheet> capturés
+    // pointeraient vers http://127.0.0.1:PORT une fois déployés (mort en
+    // production), au lieu du chemin relatif /assets/... réellement servi.
+    return dedupeHead(html.split(base).join(''))
   }
 
   for (const route of ROUTES) {

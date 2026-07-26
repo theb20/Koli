@@ -17,7 +17,6 @@ export function HomePage() {
         title="Accueil"
         description="Skignas — votre marketplace en ligne. Découvrez des milliers de produits sélectionnés, paiement sécurisé et livraison rapide en Côte d'Ivoire."
         path="/"
-        image="/wall/og-home.jpg"
       />
       <PackifyHero />
       <DropShopSection />

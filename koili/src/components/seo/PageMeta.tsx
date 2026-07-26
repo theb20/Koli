@@ -10,7 +10,7 @@
  *     title="Accueil"
  *     description="Découvrez des milliers de produits..."
  *     path="/"
- *     image="/wall/og-home.jpg"   ← optionnel, fallback sur l'image globale
+ *     image="/wall/og-shop.jpg"   ← optionnel, le fichier doit exister dans public/wall/ (sinon fallback sur l'image globale)
  *   />
  */
 
@@ -21,7 +21,7 @@
 const SITE_NAME    = "Skignas"
 const BASE_URL     = "https://skignas.com"
 const TWITTER_HANDLE = "@skignas"
-const DEFAULT_IMAGE  = `${BASE_URL}/wall/og2.jpg`
+const DEFAULT_IMAGE  = `${BASE_URL}/wall/og-image.jpg`
 
 /* ─────────────────────────────────────────
    TYPES
@@ -86,8 +86,8 @@ export function PageMeta({
       <meta property="og:title"        content={fullTitle} />
       {description && <meta property="og:description" content={description} />}
       <meta property="og:image"        content={ogImage} />
-      <meta property="og:image:width"  content="1254" />
-      <meta property="og:image:height" content="1254" />
+      <meta property="og:image:width"  content="1200" />
+      <meta property="og:image:height" content="630" />
       <meta property="og:image:alt"    content={fullTitle} />
       {canonical && <meta property="og:url" content={canonical} />}
       <meta property="og:locale"       content="fr_FR" />

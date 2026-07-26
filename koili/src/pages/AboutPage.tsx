@@ -118,7 +118,6 @@ export function AboutPage() {
         title="À propos de Skignas"
         description="Découvrez l'histoire de Skignas : notre mission, nos valeurs et pourquoi plus de 12 000 Camerounais nous font confiance."
         path="/about"
-        image="/wall/og-about.jpg"
       />
 
       {/* ── HERO ─────────────────────────────────────────────── */}

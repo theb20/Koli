@@ -7,7 +7,6 @@ export function ShopPage() {
         title="Boutique"
         description="Parcourez des milliers de produits sélectionnés — high-tech, mode, maison et bien plus. Livraison rapide partout en Côte d'Ivoire."
         path="/shop"
-        image="/wall/og-shop.jpg"
       />
       <h1 className="text-4xl font-black text-gray-900 mb-2">Shop</h1>
       <p className="text-gray-400 text-sm">Browse all products</p>

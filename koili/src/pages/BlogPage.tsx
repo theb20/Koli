@@ -455,7 +455,6 @@ export function BlogPage() {
         title="Blog Skignas — Guides, Tendances & Actualités"
         description="Guides d'achat, tendances produits, actualités tech et lifestyle. Le blog Skignas pour faire les meilleurs choix."
         path="/blog"
-        image="/wall/og-blog.jpg"
       />
 
       {/* ── HERO ─────────────────────────────────────────────── */}
