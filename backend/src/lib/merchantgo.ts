@@ -76,3 +76,38 @@ export function rejectMerchantApplication(id: string, adminId: string, reason: s
 export function recordMerchantSale(input: { userId: string; orderId: string; orderNumber: string; grossAmount: number }) {
   return merchantgoRequest(`/api/v1/internal/orders/paid`, { method: 'POST', body: input })
 }
+
+/**
+ * Gestion admin des plans d'abonnement — CRUD relayé vers merchantgo
+ * (koli-admin n'appelle jamais merchantgo directement, cf. en-tête).
+ */
+export type SubscriptionPlanBody = {
+  slug: string
+  name: string
+  maxProducts: number
+  maxEmployees: number
+  maxOrders: number
+  storageLimitMb: number
+  commissionRate: number
+  priceMonthly: number
+  priceYearly: number
+  features: string
+  isActive: boolean
+  position: number
+}
+
+export function listSubscriptionPlans(all: boolean) {
+  return merchantgoRequest(`/api/v1/admin/subscription-plans${all ? '?all=true' : ''}`)
+}
+
+export function createSubscriptionPlan(body: SubscriptionPlanBody) {
+  return merchantgoRequest(`/api/v1/admin/subscription-plans`, { method: 'POST', body })
+}
+
+export function updateSubscriptionPlan(id: string, body: SubscriptionPlanBody) {
+  return merchantgoRequest(`/api/v1/admin/subscription-plans/${id}`, { method: 'PUT', body })
+}
+
+export function deleteSubscriptionPlan(id: string) {
+  return merchantgoRequest(`/api/v1/admin/subscription-plans/${id}`, { method: 'DELETE' })
+}

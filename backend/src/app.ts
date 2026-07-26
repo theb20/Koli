@@ -46,6 +46,7 @@ import paymentsRouter          from './routes/payments'
 import merchantSyncRouter      from './routes/merchant-sync'
 import merchantOnboardingRouter from './routes/merchant-onboarding'
 import merchantApplicationsRouter from './routes/merchant-applications'
+import subscriptionPlansRouter    from './routes/subscription-plans'
 import adminSellersRouter          from './routes/admin-sellers'
 
 const app = express()
@@ -197,6 +198,7 @@ app.use('/api/auth',                authRouter)
 app.use('/api/products/sync-merchant', merchantSyncRouter)
 app.use('/api/merchant-onboarding', publicFormLimiter, merchantOnboardingRouter)
 app.use('/api/admin/merchant-applications', merchantApplicationsRouter)
+app.use('/api/admin/subscription-plans', subscriptionPlansRouter)
 app.use('/api/admin/sellers', adminSellersRouter)
 app.use('/api/products',      publicDataLimiter, productsRouter)
 app.use('/api/orders',        ordersRouter)
