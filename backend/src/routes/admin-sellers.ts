@@ -11,7 +11,7 @@ type MerchantgoBilling = {
   mode: 'commission' | 'subscription'
   commission_rate: number
   subscription_plan_id?: string | null
-  subscription_plan?: { name: string } | null
+  subscription_plan?: { name: string; commission_rate: number } | null
 }
 export type BillingSummary = {
   mode: 'commission' | 'subscription'
@@ -33,7 +33,12 @@ async function fetchBillingByUserId(userIds: string[]): Promise<Record<string, B
     const raw = res.data ?? {}
     const out: Record<string, BillingSummary> = {}
     for (const [userId, b] of Object.entries(raw)) {
-      out[userId] = { mode: b.mode, commissionRate: b.commission_rate, planName: b.subscription_plan?.name ?? null, planId: b.subscription_plan_id ?? null }
+      // Pour un marchand en abonnement, commission_rate au niveau de
+      // MerchantBilling reste le défaut générique (5%) — le taux réellement
+      // appliqué (utilisé dans le calcul de commission, cf. wallet_service
+      // côté merchantgo) est celui du plan lié.
+      const effectiveRate = b.mode === 'subscription' ? (b.subscription_plan?.commission_rate ?? b.commission_rate) : b.commission_rate
+      out[userId] = { mode: b.mode, commissionRate: effectiveRate, planName: b.subscription_plan?.name ?? null, planId: b.subscription_plan_id ?? null }
     }
     return out
   } catch (err) {

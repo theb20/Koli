@@ -32,7 +32,9 @@ export function ChangeBillingModal({ merchantId, currentMode, currentCommissionR
     queryKey: ['subscription-plans-admin'],
     queryFn: async () => {
       const { data } = await api.get('/api/admin/subscription-plans?all=true')
-      return data.data as SubscriptionPlan[]
+      // La route backend relaie tel quel le corps de merchantgo (déjà
+      // enveloppé {success,data}) dans son propre {success,data}.
+      return data.data.data as SubscriptionPlan[]
     },
   })
   const activePlans = (plans ?? []).filter((p) => p.is_active)
