@@ -39,6 +39,7 @@ async function parseJsonOrThrow(res: Response) {
 export async function registerAccount(data: RegisterFormData): Promise<void> {
   const res = await fetch(`${BACKEND_URL}/api/auth/register`, {
     method: 'POST',
+    credentials: 'include', // nécessaire pour recevoir le cookie httpOnly refresh_token (voir refreshAccessToken)
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       prenom: data.prenom,
@@ -51,6 +52,26 @@ export async function registerAccount(data: RegisterFormData): Promise<void> {
   })
   const body = await parseJsonOrThrow(res)
   setAccessToken(body.data.accessToken)
+}
+
+/*
+ * L'access token expire au bout de 15 minutes (JWT_EXPIRES_IN côté
+ * backend/) — largement dépassable pendant une inscription réelle (10
+ * étapes, 3 documents KYC à uploader). Sans ce rafraîchissement silencieux,
+ * chaque appel merchantgo après expiration échouait en 401, bloquant la
+ * suite de l'inscription sans message clair pour l'utilisateur.
+ */
+let refreshPromise: Promise<string | null> | null = null
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (!refreshPromise) {
+    refreshPromise = fetch(`${BACKEND_URL}/api/auth/refresh`, { method: 'POST', credentials: 'include' })
+      .then(res => res.ok ? res.json() : null)
+      .then(body => body?.data?.accessToken ?? null)
+      .catch(() => null)
+      .finally(() => { refreshPromise = null })
+  }
+  return refreshPromise
 }
 
 /* ── Vérification e-mail (étape 2, avant création du compte) ─────── */
@@ -82,11 +103,22 @@ export async function uploadFile(bucket: UploadBucket, file: File): Promise<stri
   form.append('file', file)
   form.append('bucket', bucket)
 
-  const res = await fetch(`${BACKEND_URL}/api/merchant-onboarding/upload`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${getAccessToken()}` },
-    body: form,
-  })
+  async function attempt() {
+    return fetch(`${BACKEND_URL}/api/merchant-onboarding/upload`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${getAccessToken()}` },
+      body: form,
+    })
+  }
+
+  let res = await attempt()
+  if (res.status === 401) {
+    const newToken = await refreshAccessToken()
+    if (newToken) {
+      setAccessToken(newToken)
+      res = await attempt()
+    }
+  }
   const body = await parseJsonOrThrow(res)
   return body.data.url as string
 }
@@ -116,7 +148,7 @@ export function buildApplicationPayload(data: RegisterFormData): ApplicationPayl
 }
 
 async function merchantgoRequest(path: string, init: RequestInit) {
-  const res = await fetch(`${MERCHANTGO_URL}${path}`, {
+  const attempt = () => fetch(`${MERCHANTGO_URL}${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
@@ -124,6 +156,15 @@ async function merchantgoRequest(path: string, init: RequestInit) {
       ...init.headers,
     },
   })
+
+  let res = await attempt()
+  if (res.status === 401) {
+    const newToken = await refreshAccessToken()
+    if (newToken) {
+      setAccessToken(newToken)
+      res = await attempt()
+    }
+  }
   return parseJsonOrThrow(res)
 }
 
