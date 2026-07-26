@@ -111,3 +111,13 @@ export function updateSubscriptionPlan(id: string, body: SubscriptionPlanBody) {
 export function deleteSubscriptionPlan(id: string) {
   return merchantgoRequest(`/api/v1/admin/subscription-plans/${id}`, { method: 'DELETE' })
 }
+
+/**
+ * Vue admin du modèle économique de chaque marchand (koli-admin affiche le
+ * plan/mode dans la liste des marchands) — une seule requête groupée plutôt
+ * qu'un appel par marchand.
+ */
+export function getMerchantBillingBulk(userIds: string[]) {
+  if (userIds.length === 0) return Promise.resolve({ success: true, data: {} })
+  return merchantgoRequest(`/api/v1/admin/billing/bulk`, { method: 'POST', body: { userIds } })
+}

@@ -8,6 +8,12 @@ import { StatCard } from '../../components/ui/Card'
 import { PageTitle } from '../../components/layout/Sidebar'
 import { Pagination } from '../../components/ui/Pagination'
 
+interface BillingSummary {
+  mode: 'commission' | 'subscription'
+  commissionRate: number
+  planName: string | null
+}
+
 interface MerchantListItem {
   id: number
   name: string
@@ -19,6 +25,25 @@ interface MerchantListItem {
   productCount: number
   orderCount: number
   revenue: number
+  billing: BillingSummary | null
+}
+
+function BillingCell({ billing }: { billing: BillingSummary | null }) {
+  if (!billing) return <span className="text-xs text-slate-300">—</span>
+  if (billing.mode === 'subscription') {
+    return (
+      <div>
+        <p className="text-xs font-medium text-slate-700">{billing.planName ?? 'Abonnement'}</p>
+        <p className="text-[10px] text-slate-400">Commission {billing.commissionRate}%</p>
+      </div>
+    )
+  }
+  return (
+    <div>
+      <p className="text-xs font-medium text-slate-700">Commission</p>
+      <p className="text-[10px] text-slate-400">{billing.commissionRate}%</p>
+    </div>
+  )
 }
 
 interface MerchantsResponse {
@@ -72,7 +97,7 @@ export default function MerchantsPage() {
         <table className="w-full">
           <thead className="bg-slate-50">
             <tr className="border-b border-slate-200">
-              {['Boutique', 'Propriétaire', 'Produits', 'Commandes', 'CA', 'Statut', 'Depuis', ''].map(h => (
+              {['Boutique', 'Propriétaire', 'Produits', 'Commandes', 'CA', 'Plan', 'Statut', 'Depuis', ''].map(h => (
                 <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
               ))}
             </tr>
@@ -80,10 +105,10 @@ export default function MerchantsPage() {
           <tbody className="divide-y divide-slate-100">
             {isLoading ? (
               Array.from({ length: 6 }).map((_, i) => (
-                <tr key={i}><td colSpan={8} className="px-4 py-3"><div className="h-8 bg-slate-100 rounded-lg animate-pulse" /></td></tr>
+                <tr key={i}><td colSpan={9} className="px-4 py-3"><div className="h-8 bg-slate-100 rounded-lg animate-pulse" /></td></tr>
               ))
             ) : sellers.length === 0 ? (
-              <tr><td colSpan={8} className="py-16 text-center">
+              <tr><td colSpan={9} className="py-16 text-center">
                 <Store size={32} className="mx-auto text-slate-300 mb-2" />
                 <p className="text-slate-400 text-sm">Aucun marchand</p>
               </td></tr>
@@ -104,6 +129,7 @@ export default function MerchantsPage() {
                   <td className="px-4 py-3 text-sm text-slate-700">{m.productCount}</td>
                   <td className="px-4 py-3 text-sm text-slate-700">{m.orderCount}</td>
                   <td className="px-4 py-3 text-sm font-medium text-slate-900">{fmt(m.revenue)}</td>
+                  <td className="px-4 py-3"><BillingCell billing={m.billing} /></td>
                   <td className="px-4 py-3">
                     <Badge label={m.isApproved ? 'active' : 'inactive'} color={m.isApproved ? 'active' : 'inactive'} />
                   </td>

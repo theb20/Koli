@@ -5,6 +5,36 @@ import { requireAdmin } from '../middleware/auth'
 import { logAdminAction } from '../lib/auditLog'
 import { logger } from '../lib/logger'
 import { validateQuery, validateParams, zIntIdParam, zPaginationQuery } from '../middleware/validate'
+import { getMerchantBillingBulk, isMerchantgoConfigured } from '../lib/merchantgo'
+
+type MerchantgoBilling = {
+  mode: 'commission' | 'subscription'
+  commission_rate: number
+  subscription_plan?: { name: string } | null
+}
+export type BillingSummary = { mode: 'commission' | 'subscription'; commissionRate: number; planName: string | null }
+
+/*
+ * Le modèle économique (commission/abonnement) vit dans merchantgo, pas
+ * dans backend/ (Prisma) — cf. règle d'architecture paiements. Best-effort :
+ * si merchantgo est indisponible ou mal configuré, les marchands restent
+ * affichés sans cette info plutôt que de faire échouer toute la liste.
+ */
+async function fetchBillingByUserId(userIds: string[]): Promise<Record<string, BillingSummary>> {
+  if (!isMerchantgoConfigured() || userIds.length === 0) return {}
+  try {
+    const res = await getMerchantBillingBulk(userIds) as { data?: Record<string, MerchantgoBilling> }
+    const raw = res.data ?? {}
+    const out: Record<string, BillingSummary> = {}
+    for (const [userId, b] of Object.entries(raw)) {
+      out[userId] = { mode: b.mode, commissionRate: b.commission_rate, planName: b.subscription_plan?.name ?? null }
+    }
+    return out
+  } catch (err) {
+    logger.error('[admin-sellers] échec récupération billing groupée', err)
+    return {}
+  }
+}
 
 const router = Router()
 router.use(requireAdmin)
@@ -45,6 +75,8 @@ router.get('/', validateQuery(listQuerySchema), async (req, res) => {
       }),
     ])
 
+    const billingByUserId = await fetchBillingByUserId(stores.map(s => s.user.id))
+
     const withStats = await Promise.all(stores.map(async (store) => {
       const [productCount, orderItems] = await Promise.all([
         prisma.product.count({ where: { storeId: store.id } }),
@@ -70,6 +102,7 @@ router.get('/', validateQuery(listQuerySchema), async (req, res) => {
         productCount,
         orderCount: orderIds.size,
         revenue,
+        billing: billingByUserId[store.user.id] ?? null,
       }
     }))
 
@@ -90,7 +123,7 @@ router.get('/:id', validateParams(zIntIdParam), async (req, res) => {
     })
     if (!store) { res.status(404).json({ success: false, message: 'Marchand introuvable' }); return }
 
-    const [productCount, orderItems, products] = await Promise.all([
+    const [productCount, orderItems, products, billingByUserId] = await Promise.all([
       prisma.product.count({ where: { storeId: id } }),
       prisma.orderItem.findMany({
         where:  { product: { storeId: id } },
@@ -102,6 +135,7 @@ router.get('/:id', validateParams(zIntIdParam), async (req, res) => {
         take:    10,
         select:  { id: true, name: true, price: true, stock: true, isActive: true, images: { take: 1, orderBy: { position: 'asc' }, select: { url: true } } },
       }),
+      fetchBillingByUserId([store.user.id]),
     ])
 
     const byStatus: Record<string, number> = {}
@@ -133,6 +167,7 @@ router.get('/:id', validateParams(zIntIdParam), async (req, res) => {
           banner: store.banner, phone: store.phone, address: store.address,
           isApproved: store.isApproved, createdAt: store.createdAt.toISOString(),
           owner: store.user,
+          billing: billingByUserId[store.user.id] ?? null,
         },
         stats: { productCount, orderCount: new Set(orderItems.map(i => i.order.id)).size, revenue, byStatus },
         recentOrders,

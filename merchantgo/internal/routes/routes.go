@@ -95,6 +95,12 @@ func Setup(
 		{
 			internal.POST("/orders/paid", walletHandler.RecordSale)
 		}
+
+		adminBillingBulk := v1.Group("/admin/billing")
+		adminBillingBulk.Use(middleware.RequireAdmin(cfg, logger))
+		{
+			adminBillingBulk.POST("/bulk", billingHandler.GetBulk)
+		}
 	}
 
 	return r

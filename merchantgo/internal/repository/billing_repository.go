@@ -12,6 +12,7 @@ import (
 // BillingRepository abstrait l'accès au choix économique d'un marchand.
 type BillingRepository interface {
 	FindByUserID(ctx context.Context, userID string) (*models.MerchantBilling, error)
+	FindByUserIDs(ctx context.Context, userIDs []string) ([]models.MerchantBilling, error)
 	Save(ctx context.Context, b *models.MerchantBilling) error
 }
 
@@ -33,6 +34,18 @@ func (r *gormBillingRepository) FindByUserID(ctx context.Context, userID string)
 		return nil, err
 	}
 	return &b, nil
+}
+
+func (r *gormBillingRepository) FindByUserIDs(ctx context.Context, userIDs []string) ([]models.MerchantBilling, error) {
+	if len(userIDs) == 0 {
+		return nil, nil
+	}
+	var bs []models.MerchantBilling
+	err := r.db.WithContext(ctx).Preload("SubscriptionPlan").Where("user_id IN ?", userIDs).Find(&bs).Error
+	if err != nil {
+		return nil, err
+	}
+	return bs, nil
 }
 
 func (r *gormBillingRepository) Save(ctx context.Context, b *models.MerchantBilling) error {

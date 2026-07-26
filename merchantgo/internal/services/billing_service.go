@@ -30,6 +30,11 @@ type BillingService interface {
 	// gérer un cas particulier.
 	Get(ctx context.Context, userID string) (*models.MerchantBilling, error)
 	Choose(ctx context.Context, userID string, in BillingChoiceInput, lockDays int) (*models.MerchantBilling, error)
+	// GetBulk renvoie le choix économique de chaque userID demandé — vue
+	// admin (koli-admin affiche le plan de chaque marchand dans sa liste).
+	// Comme Get, un userID sans choix persisté obtient l'entrée virtuelle
+	// par défaut plutôt que d'être absent de la map.
+	GetBulk(ctx context.Context, userIDs []string) (map[string]*models.MerchantBilling, error)
 }
 
 type billingService struct {
@@ -55,6 +60,32 @@ func (s *billingService) Get(ctx context.Context, userID string) (*models.Mercha
 		}, nil
 	}
 	return b, nil
+}
+
+func (s *billingService) GetBulk(ctx context.Context, userIDs []string) (map[string]*models.MerchantBilling, error) {
+	found, err := s.billingRepo.FindByUserIDs(ctx, userIDs)
+	if err != nil {
+		return nil, utils.ErrInternal(err)
+	}
+
+	byUserID := make(map[string]*models.MerchantBilling, len(found))
+	for i := range found {
+		byUserID[found[i].UserID] = &found[i]
+	}
+
+	result := make(map[string]*models.MerchantBilling, len(userIDs))
+	for _, id := range userIDs {
+		if b, ok := byUserID[id]; ok {
+			result[id] = b
+			continue
+		}
+		result[id] = &models.MerchantBilling{
+			UserID:         id,
+			Mode:           models.BillingModeCommission,
+			CommissionRate: DefaultCommissionRate,
+		}
+	}
+	return result, nil
 }
 
 func (s *billingService) Choose(ctx context.Context, userID string, in BillingChoiceInput, lockDays int) (*models.MerchantBilling, error) {

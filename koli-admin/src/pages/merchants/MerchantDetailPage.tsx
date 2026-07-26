@@ -1,17 +1,24 @@
 import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Store, Mail, Phone, MapPin, Package, ShoppingCart, TrendingUp, Ban, CheckCircle2 } from 'lucide-react'
+import { ArrowLeft, Store, Mail, Phone, MapPin, Package, ShoppingCart, TrendingUp, Ban, CheckCircle2, CreditCard } from 'lucide-react'
 import { api, fmt, fmtDate, fmtDateTime } from '../../lib/api'
 import { Badge } from '../../components/ui/Badge'
 import { Card, StatCard } from '../../components/ui/Card'
 import { Confirm } from '../../components/ui/Modal'
+
+interface BillingSummary {
+  mode: 'commission' | 'subscription'
+  commissionRate: number
+  planName: string | null
+}
 
 interface MerchantDetail {
   seller: {
     id: number; name: string; description: string | null; logo: string | null; banner: string | null
     phone: string | null; address: string | null; isApproved: boolean; createdAt: string
     owner: { id: string; prenom: string; nom: string; email: string; isBanned: boolean; createdAt: string }
+    billing: BillingSummary | null
   }
   stats: { productCount: number; orderCount: number; revenue: number; byStatus: Record<string, number> }
   recentOrders: { orderNumber: string; status: string; createdAt: string; client: string; total: number }[]
@@ -106,6 +113,17 @@ export default function MerchantDetailPage() {
                 <span>{seller.address}</span>
               </div>
             )}
+            <div className="flex items-center gap-2 text-slate-600">
+              <CreditCard size={14} className="text-slate-400 shrink-0" />
+              {seller.billing ? (
+                <span>
+                  {seller.billing.mode === 'subscription' ? (seller.billing.planName ?? 'Abonnement') : 'Commission'}
+                  <span className="text-slate-400"> · {seller.billing.commissionRate}%</span>
+                </span>
+              ) : (
+                <span className="text-slate-400">Modèle économique inconnu</span>
+              )}
+            </div>
             <div className="pt-2 border-t border-slate-100">
               <p className="text-xs text-slate-400 uppercase tracking-wide font-semibold mb-1">Propriétaire</p>
               <p className="text-slate-700">{seller.owner.prenom} {seller.owner.nom}</p>

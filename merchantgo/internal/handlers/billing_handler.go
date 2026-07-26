@@ -35,6 +35,27 @@ func (h *BillingHandler) GetMine(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": b})
 }
 
+type bulkBillingRequest struct {
+	UserIDs []string `json:"userIds" binding:"required"`
+}
+
+// GetBulk — POST /api/v1/admin/billing/bulk — utilisé par koli-admin (via
+// backend/) pour afficher le plan de chaque marchand dans la liste, sans
+// un appel par ligne.
+func (h *BillingHandler) GetBulk(c *gin.Context) {
+	var req bulkBillingRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		middleware.RespondError(c, h.logger, utils.ErrBadRequest("Requête invalide", err))
+		return
+	}
+	result, err := h.service.GetBulk(c.Request.Context(), req.UserIDs)
+	if err != nil {
+		middleware.RespondError(c, h.logger, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
+}
+
 type chooseBillingRequest struct {
 	Mode               string   `json:"mode" binding:"required,oneof=commission subscription"`
 	CommissionRate     *float64 `json:"commissionRate"`
