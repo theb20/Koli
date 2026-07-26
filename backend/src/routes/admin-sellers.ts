@@ -5,14 +5,20 @@ import { requireAdmin } from '../middleware/auth'
 import { logAdminAction } from '../lib/auditLog'
 import { logger } from '../lib/logger'
 import { validateQuery, validateParams, zIntIdParam, zPaginationQuery } from '../middleware/validate'
-import { getMerchantBillingBulk, isMerchantgoConfigured } from '../lib/merchantgo'
+import { getMerchantBillingBulk, isMerchantgoConfigured, setMerchantBilling, MerchantgoError } from '../lib/merchantgo'
 
 type MerchantgoBilling = {
   mode: 'commission' | 'subscription'
   commission_rate: number
+  subscription_plan_id?: string | null
   subscription_plan?: { name: string } | null
 }
-export type BillingSummary = { mode: 'commission' | 'subscription'; commissionRate: number; planName: string | null }
+export type BillingSummary = {
+  mode: 'commission' | 'subscription'
+  commissionRate: number
+  planName: string | null
+  planId: string | null
+}
 
 /*
  * Le modèle économique (commission/abonnement) vit dans merchantgo, pas
@@ -27,7 +33,7 @@ async function fetchBillingByUserId(userIds: string[]): Promise<Record<string, B
     const raw = res.data ?? {}
     const out: Record<string, BillingSummary> = {}
     for (const [userId, b] of Object.entries(raw)) {
-      out[userId] = { mode: b.mode, commissionRate: b.commission_rate, planName: b.subscription_plan?.name ?? null }
+      out[userId] = { mode: b.mode, commissionRate: b.commission_rate, planName: b.subscription_plan?.name ?? null, planId: b.subscription_plan_id ?? null }
     }
     return out
   } catch (err) {
@@ -200,6 +206,38 @@ router.patch('/:id/status', validateParams(zIntIdParam), async (req, res) => {
   } catch (err) {
     if (err instanceof z.ZodError) { res.status(400).json({ success: false, message: err.issues[0]?.message ?? 'Requête invalide' }); return }
     logger.error('[admin-sellers status]', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+const billingSchema = z.object({
+  mode: z.enum(['commission', 'subscription']),
+  commissionRate: z.number().min(0).max(100).optional(),
+  subscriptionPlanId: z.string().optional(),
+})
+
+/* ── PUT /api/admin/sellers/:id/billing — changer le plan/mode d'un marchand ─ */
+router.put('/:id/billing', validateParams(zIntIdParam), async (req, res) => {
+  try {
+    const id = Number(req.params.id)
+    const body = billingSchema.parse(req.body)
+
+    const store = await prisma.sellerStore.findUnique({ where: { id }, select: { userId: true } })
+    if (!store) { res.status(404).json({ success: false, message: 'Marchand introuvable' }); return }
+
+    const data = await setMerchantBilling(store.userId, body)
+
+    logAdminAction(req, {
+      action:     'seller.billing.update',
+      targetType: 'SellerStore',
+      targetId:   String(id),
+    })
+
+    res.json({ success: true, data })
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ success: false, message: err.issues[0]?.message ?? 'Requête invalide' }); return }
+    if (err instanceof MerchantgoError) { res.status(err.status).json({ success: false, message: err.message }); return }
+    logger.error('[admin-sellers billing]', err)
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
 })

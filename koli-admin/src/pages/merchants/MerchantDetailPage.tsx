@@ -1,16 +1,18 @@
 import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Store, Mail, Phone, MapPin, Package, ShoppingCart, TrendingUp, Ban, CheckCircle2, CreditCard } from 'lucide-react'
+import { ArrowLeft, Store, Mail, Phone, MapPin, Package, ShoppingCart, TrendingUp, Ban, CheckCircle2, CreditCard, Pencil } from 'lucide-react'
 import { api, fmt, fmtDate, fmtDateTime } from '../../lib/api'
 import { Badge } from '../../components/ui/Badge'
 import { Card, StatCard } from '../../components/ui/Card'
 import { Confirm } from '../../components/ui/Modal'
+import { ChangeBillingModal } from './ChangeBillingModal'
 
 interface BillingSummary {
   mode: 'commission' | 'subscription'
   commissionRate: number
   planName: string | null
+  planId: string | null
 }
 
 interface MerchantDetail {
@@ -35,6 +37,7 @@ export default function MerchantDetailPage() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const [confirmToggle, setConfirmToggle] = useState(false)
+  const [billingModalOpen, setBillingModalOpen] = useState(false)
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-sellers', id],
@@ -113,16 +116,25 @@ export default function MerchantDetailPage() {
                 <span>{seller.address}</span>
               </div>
             )}
-            <div className="flex items-center gap-2 text-slate-600">
-              <CreditCard size={14} className="text-slate-400 shrink-0" />
-              {seller.billing ? (
-                <span>
-                  {seller.billing.mode === 'subscription' ? (seller.billing.planName ?? 'Abonnement') : 'Commission'}
-                  <span className="text-slate-400"> · {seller.billing.commissionRate}%</span>
-                </span>
-              ) : (
-                <span className="text-slate-400">Modèle économique inconnu</span>
-              )}
+            <div className="flex items-center justify-between gap-2 text-slate-600">
+              <div className="flex items-center gap-2 min-w-0">
+                <CreditCard size={14} className="text-slate-400 shrink-0" />
+                {seller.billing ? (
+                  <span className="truncate">
+                    {seller.billing.mode === 'subscription' ? (seller.billing.planName ?? 'Abonnement') : 'Commission'}
+                    <span className="text-slate-400"> · {seller.billing.commissionRate}%</span>
+                  </span>
+                ) : (
+                  <span className="text-slate-400">Modèle économique inconnu</span>
+                )}
+              </div>
+              <button
+                onClick={() => setBillingModalOpen(true)}
+                className="p-1.5 rounded-lg hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 transition-all shrink-0"
+                title="Changer"
+              >
+                <Pencil size={13} />
+              </button>
             </div>
             <div className="pt-2 border-t border-slate-100">
               <p className="text-xs text-slate-400 uppercase tracking-wide font-semibold mb-1">Propriétaire</p>
@@ -205,6 +217,16 @@ export default function MerchantDetailPage() {
           : 'Le marchand pourra de nouveau gérer son catalogue.'}
         confirmLabel={seller.isApproved ? 'Suspendre' : 'Réactiver'}
       />
+
+      {billingModalOpen && (
+        <ChangeBillingModal
+          merchantId={seller.id}
+          currentMode={seller.billing?.mode ?? 'commission'}
+          currentCommissionRate={seller.billing?.commissionRate ?? 5}
+          currentPlanId={seller.billing?.planId ?? undefined}
+          onClose={() => setBillingModalOpen(false)}
+        />
+      )}
     </div>
   )
 }

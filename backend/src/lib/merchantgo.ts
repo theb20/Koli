@@ -121,3 +121,13 @@ export function getMerchantBillingBulk(userIds: string[]) {
   if (userIds.length === 0) return Promise.resolve({ success: true, data: {} })
   return merchantgoRequest(`/api/v1/admin/billing/bulk`, { method: 'POST', body: { userIds } })
 }
+
+/**
+ * Modifie le modèle économique d'un marchand depuis koli-admin — contrairement
+ * au choix fait par le marchand lui-même (jamais de commissionRate libre, cf.
+ * koli-marchand), un admin peut fixer un taux personnalisé et n'est jamais
+ * bloqué par le verrou de 30 jours.
+ */
+export function setMerchantBilling(userId: string, body: { mode: 'commission' | 'subscription'; commissionRate?: number; subscriptionPlanId?: string }) {
+  return merchantgoRequest(`/api/v1/admin/billing/${userId}`, { method: 'PUT', body })
+}

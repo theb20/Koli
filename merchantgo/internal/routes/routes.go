@@ -100,6 +100,7 @@ func Setup(
 		adminBillingBulk.Use(middleware.RequireAdmin(cfg, logger))
 		{
 			adminBillingBulk.POST("/bulk", billingHandler.GetBulk)
+			adminBillingBulk.PUT("/:userId", billingHandler.AdminSet)
 		}
 	}
 
