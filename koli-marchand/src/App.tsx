@@ -8,6 +8,7 @@ import DashboardPage from '@/features/dashboard/DashboardPage'
 import ProductsPage from '@/features/products/ProductsPage'
 import OrdersPage from '@/features/orders/OrdersPage'
 import PaymentsPage from '@/features/payouts/PaymentsPage'
+import BillingPage from '@/features/billing/BillingPage'
 import CustomersPage from '@/features/customers/CustomersPage'
 import CustomerDetailPage from '@/features/customers/CustomerDetailPage'
 import PromotionsPage from '@/features/promotions/PromotionsPage'
@@ -33,6 +34,7 @@ export default function App() {
             <Route path="/produits" element={<ProductsPage />} />
             <Route path="/commandes" element={<OrdersPage />} />
             <Route path="/paiements" element={<PaymentsPage />} />
+            <Route path="/facturation" element={<BillingPage />} />
             <Route path="/clients" element={<CustomersPage />} />
             <Route path="/clients/:id" element={<CustomerDetailPage />} />
             <Route path="/promotions" element={<PromotionsPage />} />

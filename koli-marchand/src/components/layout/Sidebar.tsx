@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Package, ShoppingCart, Users, BarChart2,
-  Settings, LifeBuoy, LogOut, X,
+  Wallet, Settings, LifeBuoy, LogOut, X,
 } from 'lucide-react'
 import { useUiStore } from '@/store/useUiStore'
 import { useAuthStore } from '@/features/auth/useAuthStore'
@@ -11,12 +11,15 @@ import { useAuthStore } from '@/features/auth/useAuthStore'
 // le second une évolution de schéma pour scoper les codes promo par
 // boutique) — cf. discussion de périmètre. Les pages/routes existent
 // toujours, juste inaccessibles depuis la navigation pour l'instant.
+// Facturation (modèle économique + solde de commissions) est le vrai
+// système de wallet évoqué ci-dessus, branché sur merchantgo.
 const nav = [
   { to: '/dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
   { to: '/produits', label: 'Produits', icon: Package },
   { to: '/commandes', label: 'Commandes', icon: ShoppingCart },
   { to: '/clients', label: 'Clients', icon: Users },
   { to: '/statistiques', label: 'Statistiques', icon: BarChart2 },
+  { to: '/facturation', label: 'Facturation', icon: Wallet },
   { to: '/parametres', label: 'Paramètres', icon: Settings },
 ]
 
