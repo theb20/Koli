@@ -1,4 +1,4 @@
-# Résumé de l'audit de sécurité — 2026-07-27T23-16-04
+# Résumé de l'audit de sécurité — 2026-07-27T23-51-57
 
 **Score brut (outils, avant triage manuel) : 0/100**
 
@@ -8,7 +8,7 @@
 |---|---|
 | Critique | 0 |
 | Élevée | 21 |
-| Moyenne | 54 |
+| Moyenne | 36 |
 | Faible | 180 |
 | Info | 6 |
 
@@ -18,8 +18,7 @@
 |---|---|
 | Bearer | 187 |
 | Semgrep | 31 |
-| testssl.sh | 16 |
-| Trivy | 14 |
+| Trivy | 12 |
 | npm audit | 8 |
 | Gitleaks | 4 |
 | Trivy (Docker) | 1 |
@@ -181,16 +180,6 @@ Manually sanitizing HTML is prone to mistakes and can lead to Cross-Site Scripti
 - **CWE** : CWE-269: Improper Privilege Management
 - By not specifying a USER, a program in the container may run as 'root'. This is a security hazard. If an attacker can control a process running as root, they may have control over the container. Ensure that the last USER in a Dockerfile is a USER other than 'root'.
 
-### [MEDIUM] CVE-2026-40898 — github.com/quic-go/quic-go@v0.59.0 — Trivy
-- **Fichier** : `merchantgo/go.mod`
-- **Correctif connu** : Corrigé en 0.59.1
-- github.com/quic-go/quic-go: quic-go: Denial of Service via excessive memory allocation in HTTP/3 trailers
-
-### [MEDIUM] CVE-2026-40898 — github.com/quic-go/quic-go@v0.59.0 — Trivy
-- **Fichier** : `stockgo/go.mod`
-- **Correctif connu** : Corrigé en 0.59.1
-- github.com/quic-go/quic-go: quic-go: Denial of Service via excessive memory allocation in HTTP/3 trailers
-
 ### [MEDIUM] Missing server configuration to reduce server fingerprinting — Bearer
 - **Fichier** : `src/app.ts:53`
 - **CWE** : 693
@@ -316,80 +305,6 @@ Observable Timing Discrepancy occurs when the time it takes for certain operatio
 
 - [OWASP Guide to Cryptography](https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html)
 - [MDN Web Docs on SubtleCrypto API](https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto)
-
-### [MEDIUM] BEAST_CBC_TLS1 — testssl.sh
-- **Fichier** : `api.skignas.com`
-- **CWE** : CWE-20
-- ECDHE-ECDSA-AES128-SHA ECDHE-ECDSA-AES256-SHA
-
-### [MEDIUM] overall_grade — testssl.sh
-- **Fichier** : `api.skignas.com`
-- B
-
-### [MEDIUM] BEAST_CBC_TLS1 — testssl.sh
-- **Fichier** : `api.skignas.com`
-- **CWE** : CWE-20
-- ECDHE-ECDSA-AES128-SHA ECDHE-ECDSA-AES256-SHA
-
-### [MEDIUM] overall_grade — testssl.sh
-- **Fichier** : `api.skignas.com`
-- B
-
-### [MEDIUM] BREACH — testssl.sh
-- **Fichier** : `business.skignas.com`
-- **CWE** : CWE-310
-- potentially VULNERABLE, br gzip HTTP compression detected  - only supplied '/' tested
-
-### [MEDIUM] BEAST_CBC_TLS1 — testssl.sh
-- **Fichier** : `business.skignas.com`
-- **CWE** : CWE-20
-- ECDHE-ECDSA-AES128-SHA ECDHE-ECDSA-AES256-SHA
-
-### [MEDIUM] overall_grade — testssl.sh
-- **Fichier** : `business.skignas.com`
-- B
-
-### [MEDIUM] BREACH — testssl.sh
-- **Fichier** : `business.skignas.com`
-- **CWE** : CWE-310
-- potentially VULNERABLE, br gzip HTTP compression detected  - only supplied '/' tested
-
-### [MEDIUM] BEAST_CBC_TLS1 — testssl.sh
-- **Fichier** : `business.skignas.com`
-- **CWE** : CWE-20
-- ECDHE-ECDSA-AES128-SHA ECDHE-ECDSA-AES256-SHA
-
-### [MEDIUM] overall_grade — testssl.sh
-- **Fichier** : `business.skignas.com`
-- B
-
-### [MEDIUM] BREACH — testssl.sh
-- **Fichier** : `skignas.com`
-- **CWE** : CWE-310
-- potentially VULNERABLE, br gzip HTTP compression detected  - only supplied '/' tested
-
-### [MEDIUM] BEAST_CBC_TLS1 — testssl.sh
-- **Fichier** : `skignas.com`
-- **CWE** : CWE-20
-- ECDHE-ECDSA-AES128-SHA ECDHE-ECDSA-AES256-SHA
-
-### [MEDIUM] overall_grade — testssl.sh
-- **Fichier** : `skignas.com`
-- B
-
-### [MEDIUM] BREACH — testssl.sh
-- **Fichier** : `skignas.com`
-- **CWE** : CWE-310
-- potentially VULNERABLE, br gzip HTTP compression detected  - only supplied '/' tested
-
-### [MEDIUM] BEAST_CBC_TLS1 — testssl.sh
-- **Fichier** : `skignas.com`
-- **CWE** : CWE-20
-- ECDHE-ECDSA-AES128-SHA ECDHE-ECDSA-AES256-SHA
-
-### [MEDIUM] overall_grade — testssl.sh
-- **Fichier** : `skignas.com`
-- B
 
 ### [WARNING] ajinabraham.njsscan.crypto.crypto_node.node_insecure_random_generator — Semgrep
 - **Fichier** : `backend/scripts/scrape-action.ts:344`

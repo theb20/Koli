@@ -277,6 +277,7 @@ const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>
 </style></head><body>
 <h1>Audit de sécurité — Skignas</h1>
 <p>${ts}</p>
+<p style="max-width:640px;color:#a2a9b5;font-size:13px;line-height:1.6">Score brut mécanique (avant triage humain) — compte aussi les faux positifs. Voir <code>SECURITY-REPORT.md</code>/<code>.html</code> pour le score réel après vérification manuelle.</p>
 <div class="score">${score}<span style="font-size:20px;color:#767d89">/100</span></div>
 <div class="stats">
   <div class="stat">Critique<b style="color:#e58080">${bySeverityBucket.critical}</b></div>
