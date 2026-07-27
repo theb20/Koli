@@ -182,6 +182,16 @@
   </url>
 
   <url>
+    <loc>https://skignas.com/catalogue/139</loc>
+    <lastmod>2026-07-27</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://koli-production-a314.up.railway.app/api/v1/files/019f89d5-8cee-780b-b130-ef11e014a3e0</image:loc>
+    </image:image>
+  </url>
+
+  <url>
     <loc>https://skignas.com/catalogue/129</loc>
     <lastmod>2026-07-27</lastmod>
     <changefreq>weekly</changefreq>
@@ -218,16 +228,6 @@
     <priority>0.7</priority>
     <image:image>
       <image:loc>https://koli-production-a314.up.railway.app/api/v1/files/019f89d5-91e4-710a-ac17-7d93aef35911</image:loc>
-    </image:image>
-  </url>
-
-  <url>
-    <loc>https://skignas.com/catalogue/144</loc>
-    <lastmod>2026-07-27</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-    <image:image>
-      <image:loc>https://koli-production-a314.up.railway.app/api/v1/files/019f8e7f-3bd3-799b-9e21-472db42f879c</image:loc>
     </image:image>
   </url>
 
@@ -322,12 +322,12 @@
   </url>
 
   <url>
-    <loc>https://skignas.com/catalogue/139</loc>
+    <loc>https://skignas.com/catalogue/144</loc>
     <lastmod>2026-07-27</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image>
-      <image:loc>https://koli-production-a314.up.railway.app/api/v1/files/019f89d5-8cee-780b-b130-ef11e014a3e0</image:loc>
+      <image:loc>https://koli-production-a314.up.railway.app/api/v1/files/019f8e7f-3bd3-799b-9e21-472db42f879c</image:loc>
     </image:image>
   </url>
 

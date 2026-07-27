@@ -1,11 +1,10 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Mail, User, Calendar, ArrowRight, Check, Loader2, AlertCircle, CheckCircle, Gift } from 'lucide-react'
+import { Mail, User, Calendar, ArrowRight, Check, Loader2, AlertCircle, Gift, Lock, Eye, EyeOff } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import Button from '../components/ui/btnStyle'
 import CardUniverse from '../components/ui/Card-universe'
 import { PageMeta } from '../components/seo/PageMeta'
-import { API_BASE } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
 
 const MIN_AGE = 18
@@ -35,32 +34,48 @@ function computeAge(dateStr: string): number {
 
 export default function SignupPage() {
   const navigate = useNavigate()
-  const { loginWithGoogle } = useAuth()
+  const { register, loginWithGoogle } = useAuth()
   const [searchParams] = useSearchParams()
 
   const [nomComplet,   setNomComplet]   = useState('')
   const [email,        setEmail]        = useState('')
+  const [password,     setPassword]     = useState('')
+  const [confirmPwd,   setConfirmPwd]   = useState('')
+  const [showPwd,      setShowPwd]      = useState(false)
   const [naissance,    setNaissance]    = useState('')
   const [referralCode, setReferralCode] = useState(searchParams.get('ref') ?? '')
   const [agreed,     setAgreed]     = useState(false)
   const [error,      setError]      = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [googleLoad, setGoogleLoad] = useState(false)
-  const [sent,       setSent]       = useState(false)   // état "email envoyé"
 
   const busy = submitting || googleLoad
+
+  const strength = (() => {
+    if (!password) return 0
+    let s = 0
+    if (password.length >= 8)            s++
+    if (/[A-Z]/.test(password))          s++
+    if (/[0-9]/.test(password))          s++
+    if (/[^A-Za-z0-9]/.test(password))   s++
+    return s
+  })()
+  const strengthLabel = ['', 'Faible', 'Moyen', 'Bon', 'Excellent'][strength]
+  const strengthColor = ['', 'bg-red-400', 'bg-orange-400', 'bg-yellow-400', 'bg-emerald-500'][strength]
 
   /* ── Validation ────────────────────────────────────────── */
   const validate = (): string => {
     if (!nomComplet.trim() || nomComplet.trim().length < 2) return 'Veuillez saisir votre nom complet.'
     if (!email.trim() || !email.includes('@'))              return 'Adresse e-mail invalide.'
+    if (password.length < 8)                                return 'Le mot de passe doit contenir au moins 8 caractères.'
+    if (password !== confirmPwd)                            return 'Les mots de passe ne correspondent pas.'
     if (!naissance)                                          return 'Veuillez indiquer votre date de naissance.'
     if (computeAge(naissance) < MIN_AGE)                     return `Vous devez avoir au moins ${MIN_AGE} ans pour créer un compte.`
     if (!agreed)                                            return 'Vous devez accepter les conditions d\'utilisation.'
     return ''
   }
 
-  /* ── Inscription sans mot de passe ─────────────────────── */
+  /* ── Inscription ────────────────────────────────────────── */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const err = validate()
@@ -71,26 +86,13 @@ export default function SignupPage() {
     const { prenom, nom } = splitName(nomComplet)
 
     try {
-      const res  = await fetch(`${API_BASE}/api/auth/register`, {
-        method:      'POST',
-        credentials: 'include',
-        headers:     { 'Content-Type': 'application/json' },
-        body:        JSON.stringify({
-          prenom, nom, email: email.trim().toLowerCase(), naissance,
-          referralCode: referralCode.trim() || undefined,
-        }),
+      await register({
+        prenom, nom, email: email.trim().toLowerCase(), password, naissance,
+        referralCode: referralCode.trim() || undefined,
       })
-      const data = await res.json()
-
-      if (!res.ok) {
-        setError(data.message ?? 'Erreur lors de la création du compte.')
-        return
-      }
-
-      // Inscription sans mot de passe → magic link envoyé → afficher écran "vérifiez"
-      setSent(true)
-    } catch {
-      setError('Impossible de contacter le serveur. Vérifiez votre connexion.')
+      navigate('/onboarding')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de la création du compte.')
     } finally {
       setSubmitting(false)
     }
@@ -121,57 +123,6 @@ export default function SignupPage() {
     } finally {
       setGoogleLoad(false)
     }
-  }
-
-  /* ── Écran "email envoyé" ────────────────────────────── */
-  if (sent) {
-    return (
-      <div className="relative min-h-screen overflow-hidden bg-black text-white flex items-center justify-center p-6">
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-900" />
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="relative z-10 w-full max-w-sm text-center space-y-6"
-        >
-          <img src="/imgs_dropship/skignas_white.png" className="h-10 mx-auto mb-2" alt="Koli" />
-
-          <motion.div
-            initial={{ scale: 0 }} animate={{ scale: 1 }}
-            transition={{ delay: 0.2, type: 'spring', stiffness: 260, damping: 18 }}
-            className="w-20 h-20 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center mx-auto"
-          >
-            <CheckCircle size={40} className="text-green-400" />
-          </motion.div>
-
-          <div>
-            <h2 className="text-xl font-bold">Compte créé ! 🎉</h2>
-            <p className="text-sm text-white/55 mt-2 leading-relaxed">
-              Un lien de connexion a été envoyé à<br />
-              <strong className="text-white">{email}</strong>.<br />
-              Cliquez sur le lien pour accéder à votre compte.
-            </p>
-          </div>
-
-          <p className="text-xs text-white/35">
-            Pas reçu ?{' '}
-            <button
-              onClick={() => { setSent(false) }}
-              className="text-white/60 underline hover:text-white transition"
-            >
-              Modifier l'email
-            </button>
-          </p>
-
-          <button
-            onClick={() => navigate('/login')}
-            className="w-full py-3.5 rounded-2xl border border-white/10 text-sm font-medium text-white/70 hover:text-white hover:border-white/30 transition"
-          >
-            Retour à la connexion
-          </button>
-        </motion.div>
-      </div>
-    )
   }
 
   /* ── Formulaire principal ────────────────────────────── */
@@ -314,6 +265,58 @@ export default function SignupPage() {
                       className="w-full bg-transparent px-3 py-[14px] text-sm outline-none placeholder:text-white/30 disabled:opacity-50"
                     />
                   </div>
+                </motion.div>
+
+                {/* Mot de passe */}
+                <motion.div {...fadeUp(0.39)}>
+                  <label className="mb-2 block text-[11px] font-medium uppercase tracking-widest text-white/40">
+                    Mot de passe
+                  </label>
+                  <div className="group flex items-center rounded-2xl border border-white/[0.08] bg-white/[0.04] px-4 transition-all focus-within:border-violet-500/50 focus-within:bg-white/[0.07] hover:border-white/[0.14]">
+                    <Lock className="h-4 w-4 shrink-0 text-white/30 transition-colors group-focus-within:text-violet-400" />
+                    <input
+                      type={showPwd ? 'text' : 'password'}
+                      value={password}
+                      onChange={e => { setPassword(e.target.value); setError('') }}
+                      placeholder="Minimum 8 caractères"
+                      disabled={busy}
+                      autoComplete="new-password"
+                      className="w-full bg-transparent px-3 py-[14px] text-sm outline-none placeholder:text-white/30 disabled:opacity-50"
+                    />
+                    <button type="button" onClick={() => setShowPwd(v => !v)} className="shrink-0 text-white/30 hover:text-white/60 transition-colors">
+                      {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  {password.length > 0 && (
+                    <div className="mt-2">
+                      <div className="flex gap-1 mb-1">
+                        {[1, 2, 3, 4].map(i => <div key={i} className={`flex-1 h-1 rounded-full transition-all ${i <= strength ? strengthColor : 'bg-white/10'}`} />)}
+                      </div>
+                      <p className="text-[11px] text-white/35">Force : <span className="font-medium text-white/50">{strengthLabel}</span></p>
+                    </div>
+                  )}
+                </motion.div>
+
+                {/* Confirmer le mot de passe */}
+                <motion.div {...fadeUp(0.40)}>
+                  <label className="mb-2 block text-[11px] font-medium uppercase tracking-widest text-white/40">
+                    Confirmer le mot de passe
+                  </label>
+                  <div className="group flex items-center rounded-2xl border border-white/[0.08] bg-white/[0.04] px-4 transition-all focus-within:border-violet-500/50 focus-within:bg-white/[0.07] hover:border-white/[0.14]">
+                    <Lock className="h-4 w-4 shrink-0 text-white/30 transition-colors group-focus-within:text-violet-400" />
+                    <input
+                      type={showPwd ? 'text' : 'password'}
+                      value={confirmPwd}
+                      onChange={e => { setConfirmPwd(e.target.value); setError('') }}
+                      placeholder="Répétez le mot de passe"
+                      disabled={busy}
+                      autoComplete="new-password"
+                      className="w-full bg-transparent px-3 py-[14px] text-sm outline-none placeholder:text-white/30 disabled:opacity-50"
+                    />
+                  </div>
+                  {confirmPwd.length > 0 && confirmPwd !== password && (
+                    <p className="mt-1.5 text-[11px] text-red-400">Les mots de passe ne correspondent pas.</p>
+                  )}
                 </motion.div>
 
                 {/* Date de naissance */}

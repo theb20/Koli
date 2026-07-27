@@ -47,6 +47,7 @@ type RegisterData = {
   password: string
   telephone?: string
   naissance: string
+  referralCode?: string
 }
 
 /* ─── API helper ─────────────────────────────────────────────── */

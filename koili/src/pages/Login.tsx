@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Mail, ArrowRight, Loader2, AlertCircle, CheckCircle } from 'lucide-react'
+import { Mail, ArrowRight, Loader2, AlertCircle, CheckCircle, Lock, Eye, EyeOff } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { PageMeta } from '../components/seo/PageMeta'
 import { useAuth } from '../contexts/AuthContext'
@@ -9,9 +9,11 @@ import { API_BASE } from '../lib/api'
 
 export default function LoginPage() {
   const navigate = useNavigate()
-  const { loginWithGoogle, isLoading, authError } = useAuth()
+  const { login, loginWithGoogle, isLoading, authError } = useAuth()
 
   const [email,      setEmail]      = useState('')
+  const [password,   setPassword]   = useState('')
+  const [showPwd,    setShowPwd]    = useState(false)
   const [step,       setStep]       = useState<'email' | 'sent'>('email')
   const [error,      setError]      = useState('')
   const [sending,    setSending]    = useState(false)
@@ -20,13 +22,33 @@ export default function LoginPage() {
   // Affiche l'erreur Google remontée par AuthContext (ex: CORS, Firebase)
   const displayError = error || authError || ''
 
-  /* ── Continuer avec email — envoie le magic link ──────── */
+  /* ── Continuer — mot de passe si saisi, sinon lien magique ── */
   const handleContinue = async () => {
     setError('')
     if (!email.trim() || !email.includes('@')) {
       setError('Veuillez saisir une adresse e-mail valide.')
       return
     }
+
+    // Mot de passe saisi : connexion directe, sans passer par l'email.
+    if (password.trim()) {
+      setSending(true)
+      try {
+        const result = await login(email.trim(), password)
+        if (result.requires2FA) {
+          navigate('/verifier-2fa', { state: { tempToken: result.tempToken, redirectTo: '/' } })
+          return
+        }
+        navigate(result.needsBirthdate ? '/completer-naissance' : '/')
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'E-mail ou mot de passe incorrect.')
+      } finally {
+        setSending(false)
+      }
+      return
+    }
+
+    // Sinon, lien magique par email.
     setSending(true)
     try {
       await fetch(`${API_BASE}/api/auth/magic-link`, {
@@ -139,6 +161,29 @@ export default function LoginPage() {
                         className="w-full bg-transparent px-3 py-4 text-sm outline-none placeholder:text-white/40 disabled:opacity-50"
                       />
                     </div>
+                  </div>
+
+                  {/* Mot de passe (optionnel) */}
+                  <div>
+                    <label className="mb-2 block text-sm text-white/80">
+                      Mot de passe <span className="text-white/40">(optionnel)</span>
+                    </label>
+                    <div className="flex items-center rounded-2xl border border-white/10 bg-white/5 px-4 focus-within:border-white/30 transition-colors">
+                      <Lock className="h-4 w-4 text-white/50 shrink-0" />
+                      <input
+                        type={showPwd ? 'text' : 'password'}
+                        value={password}
+                        onChange={e => { setPassword(e.target.value); setError('') }}
+                        onKeyDown={e => e.key === 'Enter' && handleContinue()}
+                        placeholder="••••••••"
+                        disabled={busy}
+                        className="w-full bg-transparent px-3 py-4 text-sm outline-none placeholder:text-white/40 disabled:opacity-50"
+                      />
+                      <button type="button" onClick={() => setShowPwd(v => !v)} className="shrink-0 text-white/50 hover:text-white/80 transition-colors">
+                        {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    <p className="mt-1.5 text-xs text-white/35">Laissez vide pour recevoir un lien de connexion par e-mail.</p>
                   </div>
 
                   {/* Continuer */}
