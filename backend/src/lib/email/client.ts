@@ -16,12 +16,19 @@ export const emailCaptureContext = new AsyncLocalStorage<{ html: string }>()
 
 /**
  * Envoie un email via Resend.
- * Lance une erreur si l'API renvoie une erreur.
+ * Lance une erreur si l'API renvoie encore une erreur après un réessai —
+ * un aléa réseau ponctuel (observé en usage réel, cf. logs de connexion
+ * Postgres) ne doit pas suffire à bloquer un envoi, en particulier le code
+ * de vérification pendant l'inscription marchand.
  */
 export async function send(to: string, subject: string, html: string): Promise<void> {
   const capture = emailCaptureContext.getStore()
   if (capture) { capture.html = html; return }
 
   const { error } = await resend.emails.send({ from: FROM, to, subject, html })
-  if (error) throw new Error(`Resend error [${error.name}]: ${error.message}`)
+  if (!error) return
+
+  await new Promise(r => setTimeout(r, 500))
+  const retry = await resend.emails.send({ from: FROM, to, subject, html })
+  if (retry.error) throw new Error(`Resend error [${retry.error.name}]: ${retry.error.message}`)
 }

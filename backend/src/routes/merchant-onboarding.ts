@@ -105,24 +105,39 @@ function hashCode(code: string): string {
   return crypto.createHash('sha256').update(code).digest('hex')
 }
 
+/*
+ * Un aléa de connexion Postgres ponctuel (pooler qui recycle une connexion,
+ * observé en usage réel — "SSL error: unexpected eof while reading" côté
+ * serveur) ne doit pas suffire à faire échouer l'envoi du code — seule
+ * étape de l'inscription qu'un marchand ne peut absolument pas contourner.
+ */
+async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn()
+  } catch (err) {
+    await new Promise(r => setTimeout(r, 300))
+    return fn()
+  }
+}
+
 /* POST /api/merchant-onboarding/email-verification/send */
 router.post('/email-verification/send', async (req, res) => {
   try {
     const { email } = z.object({ email: z.string().email() }).parse(req.body)
     const normalizedEmail = email.toLowerCase().trim()
 
-    const existingUser = await prisma.user.findUnique({ where: { email: normalizedEmail } })
+    const existingUser = await withRetry(() => prisma.user.findUnique({ where: { email: normalizedEmail } }))
     if (existingUser) {
       res.status(409).json({ success: false, message: 'Un compte existe déjà avec cet email.' })
       return
     }
 
     const code = crypto.randomInt(100000, 1000000).toString()
-    await prisma.emailVerification.upsert({
+    await withRetry(() => prisma.emailVerification.upsert({
       where:  { email: normalizedEmail },
       create: { email: normalizedEmail, codeHash: hashCode(code), expiresAt: new Date(Date.now() + CODE_TTL_MS) },
       update: { codeHash: hashCode(code), attempts: 0, expiresAt: new Date(Date.now() + CODE_TTL_MS) },
-    })
+    }))
 
     await sendVerificationCodeEmail(normalizedEmail, code)
     res.json({ success: true, message: 'Code envoyé.' })
