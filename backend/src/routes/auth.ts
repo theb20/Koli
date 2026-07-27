@@ -4,6 +4,7 @@ import crypto from 'crypto'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { signAccessToken, signRefreshToken, verifyRefreshToken, isTokenExpiredError, unsafeDecodeExpiredRefreshToken } from '../lib/jwt'
+import { safeUserAgent, setAuthCookies, clearAuthCookies, completeAuthentication } from '../lib/authSession'
 import { validate, validateParams, validateQuery, zPassword, zCuidIdParam, zPaginationQuery } from '../middleware/validate'
 import { requireAuth, requireAdmin } from '../middleware/auth'
 import { sendWelcomeEmail, sendMagicLinkEmail, sendPasswordResetEmail, sendPasswordChangedEmail, sendBroadcastEmail } from '../lib/mailer'
@@ -68,45 +69,6 @@ const resetPasswordSchema = z.object({
   token:    z.string().min(1, 'Token requis'),
   password: zPassword,
 })
-
-/* ── Helpers ─────────────────────────────────────────────────── */
-
-/** User-Agent client tronqué avant stockage — header entièrement
- * contrôlé par l'appelant, aucune limite HTTP ne garantit une taille
- * raisonnable avant d'atteindre la base. */
-function safeUserAgent(req: import('express').Request): string | undefined {
-  const raw = req.headers['user-agent']
-  return typeof raw === 'string' ? raw.slice(0, 255) : undefined
-}
-
-function setAuthCookies(res: import('express').Response, accessToken: string, refreshToken: string) {
-  const isProd = process.env.NODE_ENV === 'production'
-  // SameSite=None : le frontend (skignas.com) et l'API (skignas.up.railway.app)
-  // sont deux domaines distincts — un cookie "Lax" n'est jamais envoyé sur les
-  // appels fetch/XHR cross-site, seulement sur une navigation directe. "None"
-  // exige Secure (HTTPS), déjà le cas en prod. En dev (http://localhost),
-  // Secure serait rejeté par le navigateur — on garde "Lax" localement, où
-  // le cookie ne sert de toute façon qu'en filet (le token est aussi renvoyé
-  // dans le corps de la réponse pour l'en-tête Authorization).
-  const crossSite = isProd
-  res.cookie('access_token', accessToken, {
-    httpOnly: true, secure: isProd, sameSite: crossSite ? 'none' : 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7j
-  })
-  res.cookie('refresh_token', refreshToken, {
-    httpOnly: true, secure: isProd, sameSite: crossSite ? 'none' : 'lax',
-    maxAge: 30 * 24 * 60 * 60 * 1000, // 30j
-  })
-}
-
-/** clearCookie doit recevoir les mêmes attributs que cookie() pour que le
- * navigateur identifie et supprime effectivement le bon cookie. */
-function clearAuthCookies(res: import('express').Response) {
-  const isProd = process.env.NODE_ENV === 'production'
-  const opts = { httpOnly: true, secure: isProd, sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax' }
-  res.clearCookie('access_token', opts)
-  res.clearCookie('refresh_token', opts)
-}
 
 /* ─────────────────────────────────────────────────────────────
    POST /api/auth/register
@@ -256,27 +218,7 @@ router.post('/login', validate(loginSchema), async (req, res) => {
       return
     }
 
-    const accessToken  = signAccessToken({ userId: user.id, email: user.email, role: user.role })
-    const refreshToken = signRefreshToken({ userId: user.id })
-
-    await prisma.session.create({
-      data: {
-        userId: user.id,
-        refreshToken,
-        userAgent: safeUserAgent(req),
-        ipAddress: req.ip,
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      },
-    })
-
-    setAuthCookies(res, accessToken, refreshToken)
-    res.json({
-      success: true,
-      data: {
-        user: { id: user.id, prenom: user.prenom, nom: user.nom, email: user.email, role: user.role, avatar: user.avatar },
-        accessToken,
-      },
-    })
+    await completeAuthentication(user, req, res)
   } catch (err) {
     logger.error(err)
     res.status(500).json({ success: false, message: 'Erreur serveur' })
@@ -370,7 +312,7 @@ router.get('/me', requireAuth, async (req, res) => {
         id: true, prenom: true, nom: true, email: true,
         telephone: true, avatar: true, genre: true, naissance: true,
         role: true, isVerified: true, createdAt: true,
-        subscribedToNewsletter: true,
+        subscribedToNewsletter: true, twoFactorEnabled: true,
         _count: { select: { orders: true, wishlist: true, reviews: true } },
       },
     })
@@ -424,7 +366,7 @@ router.put('/password', requireAuth, validate(changePasswordSchema), async (req,
     }
 
     const hashed = await bcrypt.hash(newPassword, 12)
-    await prisma.user.update({ where: { id: user.id }, data: { password: hashed } })
+    await prisma.user.update({ where: { id: user.id }, data: { password: hashed, passwordChangedAt: new Date() } })
 
     // Révoque toutes les sessions sauf l'actuelle
     const currentRefresh = req.cookies?.refresh_token
@@ -503,7 +445,7 @@ router.post('/reset-password', validate(resetPasswordSchema), async (req, res) =
     await prisma.$transaction([
       prisma.user.update({
         where: { id: user.id },
-        data: { password: hashed, resetTokenHash: null, resetTokenExpiresAt: null },
+        data: { password: hashed, resetTokenHash: null, resetTokenExpiresAt: null, passwordChangedAt: new Date() },
       }),
       // Un mot de passe réinitialisé invalide toute session existante — potentiellement compromise.
       prisma.session.deleteMany({ where: { userId: user.id } }),
@@ -546,6 +488,50 @@ router.get('/sessions', requireAuth, async (req, res) => {
     })
     res.json({ success: true, data: sessions })
   } catch {
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/*
+ * ── GET /api/auth/security-score ────────────────────────────────────
+ * Remplace le score "72%" figé côté front — recalculé à chaque appel à
+ * partir de critères réellement vérifiables (rien lié à la détection
+ * VPN/Proxy/Tor, volontairement hors périmètre pour l'instant).
+ */
+const SECURITY_CHECKLIST_WEIGHTS = {
+  email_verified:  20,
+  two_factor:      35,
+  password_recent: 20,
+  no_lockout:      15,
+  sessions_sane:   10,
+} as const
+
+router.get('/security-score', requireAuth, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.user!.userId } })
+    if (!user) { res.status(404).json({ success: false, message: 'Utilisateur introuvable' }); return }
+
+    const sessionCount = await prisma.session.count({ where: { userId: user.id, expiresAt: { gt: new Date() } } })
+
+    // Compte récent (< 30j) sans mot de passe encore changé : on ne pénalise
+    // pas un mot de passe "jamais changé" alors qu'il vient d'être choisi.
+    const passwordRecent = user.passwordChangedAt
+      ? user.passwordChangedAt > new Date(Date.now() - 180 * 24 * 60 * 60 * 1000)
+      : user.createdAt > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+
+    const checklist = [
+      { key: 'email_verified',  label: 'E-mail vérifié',                                done: user.isVerified },
+      { key: 'two_factor',      label: 'Authentification à deux facteurs (2FA)',        done: user.twoFactorEnabled },
+      { key: 'password_recent', label: 'Mot de passe changé au cours des 6 derniers mois', done: passwordRecent },
+      { key: 'no_lockout',      label: 'Aucune tentative de connexion échouée en cours', done: user.failedLoginAttempts === 0 },
+      { key: 'sessions_sane',   label: 'Nombre de sessions actives sous contrôle',        done: sessionCount > 0 && sessionCount <= 5 },
+    ] as const
+
+    const score = checklist.reduce((s, c) => s + (c.done ? SECURITY_CHECKLIST_WEIGHTS[c.key as keyof typeof SECURITY_CHECKLIST_WEIGHTS] : 0), 0)
+
+    res.json({ success: true, data: { score, checklist } })
+  } catch (err) {
+    logger.error('[security-score]', err)
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
 })
@@ -614,36 +600,10 @@ router.post('/google', async (req, res) => {
       }
     }
 
-    const accessToken  = signAccessToken({ userId: user.id, email: user.email, role: user.role })
-    const refreshToken = signRefreshToken({ userId: user.id })
-
-    await prisma.session.create({
-      data: {
-        userId:       user.id,
-        refreshToken,
-        userAgent:    safeUserAgent(req),
-        ipAddress:    req.ip,
-        expiresAt:    new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      },
-    })
-
-    setAuthCookies(res, accessToken, refreshToken)
-    res.json({
-      success: true,
-      data: {
-        user: {
-          id:     user.id,
-          prenom: user.prenom,
-          nom:    user.nom,
-          email:  user.email,
-          avatar: user.avatar,
-          role:   user.role,
-        },
-        accessToken,
-        // Google ne fournit pas la date de naissance — le front doit la demander
-        // avant de laisser l'utilisateur accéder au reste du site.
-        needsBirthdate: !user.naissance,
-      },
+    await completeAuthentication(user, req, res, {
+      // Google ne fournit pas la date de naissance — le front doit la demander
+      // avant de laisser l'utilisateur accéder au reste du site.
+      needsBirthdate: !user.naissance,
     })
   } catch (err) {
     if (err instanceof z.ZodError) {
@@ -873,32 +833,11 @@ router.post('/magic-link/verify', validate(magicLinkVerifySchema), async (req, r
     // seulement ici, que le bonus de parrainage éventuel est crédité.
     const isFirstLogin = (await prisma.session.count({ where: { userId: user.id } })) === 0
 
-    const accessToken  = signAccessToken({ userId: user.id, email: user.email, role: user.role })
-    const refreshToken = signRefreshToken({ userId: user.id })
-
-    await prisma.session.create({
-      data: {
-        userId:    user.id,
-        refreshToken,
-        userAgent: safeUserAgent(req),
-        ipAddress: req.ip,
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      },
-    })
-
     if (isFirstLogin && user.referredById) {
       await awardReferralBonus(user.referredById, `${user.prenom} ${user.nom}`)
     }
 
-    setAuthCookies(res, accessToken, refreshToken)
-    res.json({
-      success: true,
-      data: {
-        user: { id: user.id, prenom: user.prenom, nom: user.nom, email: user.email, role: user.role, avatar: user.avatar },
-        accessToken,
-        needsBirthdate: !user.naissance,
-      },
-    })
+    await completeAuthentication(user, req, res, { needsBirthdate: !user.naissance })
   } catch (err) {
     logger.error(err)
     res.status(500).json({ success: false, message: 'Erreur serveur' })

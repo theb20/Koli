@@ -18,6 +18,8 @@ export {
   sendReturnStatusEmail,
   sendNewReturnAdminEmail,
   sendVerificationCodeEmail,
+  sendTwoFactorEnabledEmail,
+  sendTwoFactorDisabledEmail,
 } from './email'
 
 export type { OrderItem, OrderConfirmationPayload, NewOrderAdminPayload, NewProductRequestAdminPayload, NewReturnAdminPayload } from './email'

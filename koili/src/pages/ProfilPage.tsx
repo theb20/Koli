@@ -10,6 +10,7 @@ import {
   Award, TrendingUp, ShoppingBag, Gift,
   Lock, RefreshCw, Loader2,
   MessageCircle, ExternalLink, X,
+  QrCode, Copy, ShieldCheck, ShieldOff, KeyRound,
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { fetchLoyalty, fetchReferral, fetchMyGiftLists, createGiftList, fetchAddresses } from '../lib/api'
@@ -82,6 +83,13 @@ type Session = {
   id: string; userAgent?: string | null
   ipAddress?: string | null; createdAt: string
 }
+
+type SecurityScore = {
+  score: number
+  checklist: { key: string; label: string; done: boolean }[]
+}
+
+type TwoFactorSetup = { secret: string; qrCodeDataUrl: string }
 
 type FullProfile = {
   id: string; prenom: string; nom: string; email: string
@@ -333,7 +341,7 @@ function TabProfil({ avatar, setAvatar, orders, profile }: {
                 <label className="text-xs font-semibold text-gray-600 block mb-1.5">Téléphone</label>
                 <div className="flex items-center rounded-xl border-2 border-gray-200 focus-within:border-gray-400 transition-colors overflow-hidden">
                   <div className="flex items-center gap-1.5 px-3 py-3 bg-gray-50 border-r border-gray-200 shrink-0 select-none">
-                    <span className="text-base leading-none">🇨🇲</span>
+                    <span className="text-base leading-none">🇨</span>
                     <span className="text-sm font-semibold text-gray-700">+225</span>
                   </div>
                   <input type="tel" value={form.telephone} onChange={e => set('telephone')(e.target.value)}
@@ -1013,6 +1021,87 @@ function TabSecurite() {
     queryFn:  () => apiFetch<Session[]>('/api/auth/sessions', token),
   })
 
+  /* ── Score de sécurité ── */
+  const { data: scoreData, isLoading: scoreLoading } = useQuery<SecurityScore>({
+    queryKey: ['security-score'],
+    queryFn:  () => apiFetch<SecurityScore>('/api/auth/security-score', token),
+  })
+  const twoFAEnabled = scoreData?.checklist.find(c => c.key === 'two_factor')?.done ?? false
+
+  /* ── 2FA : mise en place ── */
+  const [twoFAStep,   setTwoFAStep]   = useState<'idle' | 'setup' | 'recovery' | 'disable'>('idle')
+  const [twoFASetup,  setTwoFASetup]  = useState<TwoFactorSetup | null>(null)
+  const [setupCode,   setSetupCode]   = useState('')
+  const [setupLoading, setSetupLoading] = useState(false)
+  const [setupErr,    setSetupErr]    = useState<string | null>(null)
+  const [recoveryCodes, setRecoveryCodes] = useState<string[]>([])
+  const [codesCopied, setCodesCopied] = useState(false)
+
+  const [disablePwd,     setDisablePwd]     = useState('')
+  const [disableLoading, setDisableLoading] = useState(false)
+  const [disableErr,     setDisableErr]     = useState<string | null>(null)
+
+  const resetTwoFAFlow = () => {
+    setTwoFAStep('idle'); setTwoFASetup(null); setSetupCode(''); setSetupErr(null)
+    setRecoveryCodes([]); setCodesCopied(false)
+    setDisablePwd(''); setDisableErr(null)
+  }
+
+  const startTwoFASetup = async () => {
+    setSetupLoading(true); setSetupErr(null)
+    try {
+      const data = await apiFetch<TwoFactorSetup>('/api/auth/2fa/setup', token, { method: 'POST' })
+      setTwoFASetup(data)
+      setTwoFAStep('setup')
+    } catch (err) {
+      setSetupErr(err instanceof Error ? err.message : 'Erreur')
+    } finally {
+      setSetupLoading(false)
+    }
+  }
+
+  const confirmTwoFASetup = async () => {
+    if (setupCode.trim().length !== 6) return
+    setSetupLoading(true); setSetupErr(null)
+    try {
+      const data = await apiFetch<{ recoveryCodes: string[] }>('/api/auth/2fa/verify-setup', token, {
+        method: 'POST',
+        body: JSON.stringify({ code: setupCode.trim() }),
+      })
+      setRecoveryCodes(data.recoveryCodes)
+      setTwoFAStep('recovery')
+      qc.invalidateQueries({ queryKey: ['security-score'] })
+    } catch (err) {
+      setSetupErr(err instanceof Error ? err.message : 'Code invalide')
+    } finally {
+      setSetupLoading(false)
+    }
+  }
+
+  const disableTwoFA = async () => {
+    if (!disablePwd) return
+    setDisableLoading(true); setDisableErr(null)
+    try {
+      await apiFetch('/api/auth/2fa/disable', token, {
+        method: 'POST',
+        body: JSON.stringify({ password: disablePwd }),
+      })
+      qc.invalidateQueries({ queryKey: ['security-score'] })
+      resetTwoFAFlow()
+    } catch (err) {
+      setDisableErr(err instanceof Error ? err.message : 'Erreur')
+    } finally {
+      setDisableLoading(false)
+    }
+  }
+
+  const copyRecoveryCodes = () => {
+    navigator.clipboard.writeText(recoveryCodes.join('\n')).then(() => {
+      setCodesCopied(true)
+      setTimeout(() => setCodesCopied(false), 2000)
+    })
+  }
+
   /* ── Suppression compte ── */
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -1080,26 +1169,141 @@ function TabSecurite() {
             <p className="text-gray-400 text-sm mt-0.5">Protégez votre compte contre les accès non autorisés</p>
           </div>
           <div className="text-right">
-            <p className="text-3xl font-black text-emerald-400">72%</p>
-            <p className="text-gray-500 text-xs">Bon</p>
+            <p className="text-3xl font-black text-emerald-400">{scoreLoading ? '···' : `${scoreData?.score ?? 0}%`}</p>
+            <p className="text-gray-500 text-xs">
+              {(scoreData?.score ?? 0) >= 80 ? 'Excellent' : (scoreData?.score ?? 0) >= 55 ? 'Bon' : (scoreData?.score ?? 0) >= 30 ? 'Moyen' : 'Faible'}
+            </p>
           </div>
         </div>
         <div className="h-2 rounded-full bg-white/10 overflow-hidden mb-4">
-          <div className="h-full rounded-full bg-emerald-400 w-[72%]" />
+          <div className="h-full rounded-full bg-emerald-400 transition-all" style={{ width: `${scoreData?.score ?? 0}%` }} />
         </div>
         <div className="space-y-2">
-          {[
-            { label: 'E-mail vérifié',                done: true             },
-            { label: 'Connexion sécurisée (JWT)',      done: true             },
-            { label: 'Sessions actives vérifiées',     done: sessions.length > 0 },
-            { label: 'Authentification 2FA',           done: false            },
-          ].map(item => (
-            <div key={item.label} className="flex items-center gap-2 text-sm">
+          {(scoreData?.checklist ?? []).map(item => (
+            <div key={item.key} className="flex items-center gap-2 text-sm">
               {item.done ? <CheckCircle2 size={14} className="text-emerald-400 shrink-0" /> : <AlertCircle size={14} className="text-gray-500 shrink-0" />}
               <span className={item.done ? 'text-white' : 'text-gray-500'}>{item.label}</span>
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Authentification à deux facteurs */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="font-bold text-gray-900 flex items-center gap-2">
+            {twoFAEnabled ? <ShieldCheck size={15} className="text-emerald-500" /> : <ShieldOff size={15} className="text-gray-400" />}
+            Authentification à deux facteurs
+          </h3>
+          {twoFAEnabled && (
+            <span className="text-xs text-emerald-600 font-semibold bg-emerald-50 px-2 py-1 rounded-full">Activée</span>
+          )}
+        </div>
+        <p className="text-xs text-gray-400 mb-4">Protégez votre compte avec un code généré par une application d'authentification (Google Authenticator, Authy…).</p>
+
+        {twoFAStep === 'idle' && (
+          twoFAEnabled ? (
+            <button onClick={() => setTwoFAStep('disable')}
+              className="w-full py-3 rounded-xl border border-red-200 text-red-500 text-sm font-bold hover:bg-red-50 transition-colors">
+              Désactiver la 2FA
+            </button>
+          ) : (
+            <button onClick={startTwoFASetup} disabled={setupLoading}
+              className="w-full py-3 rounded-xl bg-gray-900 text-white text-sm font-bold hover:bg-gray-800 transition-colors disabled:opacity-40 flex items-center justify-center gap-2">
+              {setupLoading ? <Loader2 size={14} className="animate-spin" /> : <QrCode size={14} />}
+              {setupLoading ? 'Génération…' : 'Activer la 2FA'}
+            </button>
+          )
+        )}
+
+        {twoFAStep === 'setup' && twoFASetup && (
+          <div className="space-y-4">
+            {setupErr && (
+              <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm">
+                <AlertCircle size={14} /> {setupErr}
+              </div>
+            )}
+            <div className="flex flex-col items-center gap-3 p-4 bg-gray-50 rounded-xl">
+              <img src={twoFASetup.qrCodeDataUrl} alt="QR code 2FA" className="w-40 h-40 rounded-lg bg-white p-2 border border-gray-100" />
+              <p className="text-[11px] text-gray-500 text-center">Scannez ce QR code avec votre application d'authentification, ou saisissez la clé manuellement :</p>
+              <code className="text-xs bg-white border border-gray-200 rounded-lg px-3 py-1.5 tracking-wider select-all">{twoFASetup.secret}</code>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1.5">Code à 6 chiffres</label>
+              <input type="text" inputMode="numeric" value={setupCode}
+                onChange={e => { setSetupCode(e.target.value.replace(/\D/g, '').slice(0, 6)); setSetupErr(null) }}
+                onKeyDown={e => e.key === 'Enter' && confirmTwoFASetup()}
+                placeholder="123456" maxLength={6}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm text-center tracking-[0.3em] focus:outline-none focus:border-gray-400 transition-colors bg-white" />
+            </div>
+            <div className="flex gap-3">
+              <button onClick={resetTwoFAFlow}
+                className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:border-gray-300 transition-colors">
+                Annuler
+              </button>
+              <button onClick={confirmTwoFASetup} disabled={setupCode.length !== 6 || setupLoading}
+                className="flex-1 py-3 rounded-xl bg-gray-900 text-white text-sm font-bold hover:bg-gray-800 transition-colors disabled:opacity-40 flex items-center justify-center gap-2">
+                {setupLoading ? <Loader2 size={14} className="animate-spin" /> : null}
+                {setupLoading ? 'Vérification…' : 'Confirmer'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {twoFAStep === 'recovery' && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-emerald-700 text-sm">
+              <CheckCircle2 size={14} className="shrink-0" /> 2FA activée avec succès. Conservez ces codes de récupération en lieu sûr.
+            </div>
+            <div className="p-4 bg-gray-50 rounded-xl">
+              <p className="text-[11px] text-gray-500 mb-2 flex items-center gap-1.5"><KeyRound size={12} /> Chaque code n'est utilisable qu'une seule fois, en cas de perte d'accès à votre application d'authentification.</p>
+              <div className="grid grid-cols-2 gap-2">
+                {recoveryCodes.map(c => (
+                  <code key={c} className="text-xs bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-center tracking-wide">{c}</code>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={copyRecoveryCodes}
+                className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:border-gray-300 transition-colors flex items-center justify-center gap-2">
+                <Copy size={14} /> {codesCopied ? 'Copié !' : 'Copier les codes'}
+              </button>
+              <button onClick={resetTwoFAFlow}
+                className="flex-1 py-3 rounded-xl bg-gray-900 text-white text-sm font-bold hover:bg-gray-800 transition-colors">
+                Terminé
+              </button>
+            </div>
+          </div>
+        )}
+
+        {twoFAStep === 'disable' && (
+          <div className="space-y-3">
+            {disableErr && (
+              <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm">
+                <AlertCircle size={14} /> {disableErr}
+              </div>
+            )}
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1.5">Confirmez avec votre mot de passe</label>
+              <input type="password" value={disablePwd}
+                onChange={e => { setDisablePwd(e.target.value); setDisableErr(null) }}
+                onKeyDown={e => e.key === 'Enter' && disableTwoFA()}
+                placeholder="••••••••"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-400 transition-colors bg-white" />
+            </div>
+            <div className="flex gap-3">
+              <button onClick={resetTwoFAFlow}
+                className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:border-gray-300 transition-colors">
+                Annuler
+              </button>
+              <button onClick={disableTwoFA} disabled={!disablePwd || disableLoading}
+                className="flex-1 py-3 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 transition-colors disabled:opacity-40 flex items-center justify-center gap-2">
+                {disableLoading ? <Loader2 size={14} className="animate-spin" /> : null}
+                {disableLoading ? 'Désactivation…' : 'Désactiver'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Changer mot de passe */}

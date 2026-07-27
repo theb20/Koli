@@ -105,8 +105,14 @@ export default function SignupPage() {
       // Passe par AuthContext (pas de localStorage direct ici) — met à jour
       // le state React ET la persistance en un seul endroit, cohérent avec
       // Login.tsx.
-      const { needsBirthdate } = await loginWithGoogle(referralCode.trim() || undefined)
-      navigate(needsBirthdate ? '/completer-naissance' : '/profil')
+      const result = await loginWithGoogle(referralCode.trim() || undefined)
+      if (result.requires2FA) {
+        // Compte existant avec 2FA activée (ex: quelqu'un retente une
+        // inscription avec un email déjà utilisé) — même garde-fou que Login.tsx.
+        navigate('/verifier-2fa', { state: { tempToken: result.tempToken, redirectTo: '/profil' } })
+        return
+      }
+      navigate(result.needsBirthdate ? '/completer-naissance' : '/profil')
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : ''
       if (!msg.includes('popup-closed') && !msg.includes('cancelled')) {

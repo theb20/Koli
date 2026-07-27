@@ -34,6 +34,18 @@ model User {
   resetTokenExpiresAt    DateTime?
   magicTokenHash         String?            @unique
   magicTokenExpiresAt    DateTime?
+  /// Secret TOTP (base32) — présent même quand twoFactorEnabled=false le
+  /// temps qu'un setup en cours soit confirmé par un premier code valide.
+  twoFactorSecret        String?
+  twoFactorEnabled       Boolean            @default(false)
+  /// JSON string[] de codes de récupération — chacun stocké sous forme de
+  /// hash bcrypt (jamais en clair), à usage unique, retiré du tableau une
+  /// fois consommé. Généré une seule fois à l'activation, jamais régénéré
+  /// automatiquement (l'utilisateur doit désactiver puis réactiver la 2FA).
+  twoFactorRecoveryCodes String?
+  /// Alimente le score de sécurité réel (TabSecurite) — jamais renseigné à
+  /// la création du compte, seulement lors d'un changement effectif.
+  passwordChangedAt      DateTime?
   createdAt              DateTime           @default(now())
   updatedAt              DateTime           @updatedAt
   addresses              Address[]

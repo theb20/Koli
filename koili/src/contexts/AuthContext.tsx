@@ -17,16 +17,24 @@ export type AuthUser = {
   naissance?: string
 }
 
+// Une fois le mot de passe/magic-link/Google validé, le backend peut soit
+// connecter directement (needsBirthdate), soit exiger un code 2FA avant
+// d'émettre de vrais tokens (requires2FA) — voir verifyTwoFactor().
+export type LoginResult =
+  | { requires2FA: true; tempToken: string }
+  | { requires2FA?: false; needsBirthdate: boolean }
+
 type AuthContextValue = {
   user: AuthUser | null
   token: string | null
   isLoading: boolean
   isAuthenticated: boolean
   authError: string | null
-  login: (email: string, password: string) => Promise<void>
+  login: (email: string, password: string) => Promise<LoginResult>
   register: (data: RegisterData) => Promise<void>
-  loginWithGoogle: (referralCode?: string) => Promise<{ needsBirthdate: boolean }>
-  loginWithMagicToken: (token: string) => Promise<{ needsBirthdate: boolean }>
+  loginWithGoogle: (referralCode?: string) => Promise<LoginResult>
+  loginWithMagicToken: (token: string) => Promise<LoginResult>
+  verifyTwoFactor: (tempToken: string, code: string) => Promise<{ needsBirthdate: boolean }>
   completeBirthdate: (naissance: string) => Promise<void>
   logout: () => void
   updateUser: (data: Partial<AuthUser>) => void
@@ -91,15 +99,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   /* ── Connexion email / mot de passe ─────────────────────── */
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string): Promise<LoginResult> => {
     setIsLoading(true)
     try {
       const { data } = await apiFetch('/api/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       })
+      if (data.requires2FA) return { requires2FA: true, tempToken: data.tempToken }
       setUser(data.user)
       setToken(data.accessToken)
+      return { needsBirthdate: !!data.needsBirthdate }
     } finally {
       setIsLoading(false)
     }
@@ -121,7 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   /* ── Google popup ────────────────────────────────────────── */
-  const loginWithGoogle = useCallback(async (referralCode?: string) => {
+  const loginWithGoogle = useCallback(async (referralCode?: string): Promise<LoginResult> => {
     setIsLoading(true)
     setAuthError(null)
     try {
@@ -144,6 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }),
       })
 
+      if (data.requires2FA) return { requires2FA: true, tempToken: data.tempToken }
       setUser(data.user)
       setToken(data.accessToken)
       // navigation gérée par la page appelante (navigate('/profil'))
@@ -161,12 +172,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   /* ── Magic link ─────────────────────────────────────────── */
-  const loginWithMagicToken = useCallback(async (magicToken: string) => {
+  const loginWithMagicToken = useCallback(async (magicToken: string): Promise<LoginResult> => {
     setIsLoading(true)
     try {
       const { data } = await apiFetch('/api/auth/magic-link/verify', {
         method: 'POST',
         body: JSON.stringify({ token: magicToken }),
+      })
+      if (data.requires2FA) return { requires2FA: true, tempToken: data.tempToken }
+      setUser(data.user)
+      setToken(data.accessToken)
+      return { needsBirthdate: !!data.needsBirthdate }
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  /* ── Vérification du code 2FA (après login/magic-link/Google) ── */
+  const verifyTwoFactor = useCallback(async (tempToken: string, code: string) => {
+    setIsLoading(true)
+    try {
+      const { data } = await apiFetch('/api/auth/2fa/login-verify', {
+        method: 'POST',
+        body: JSON.stringify({ tempToken, code }),
       })
       setUser(data.user)
       setToken(data.accessToken)
@@ -209,7 +237,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider value={{
       user, token, isLoading, authError,
       isAuthenticated: !!user,
-      login, register, loginWithGoogle, loginWithMagicToken, completeBirthdate, logout, updateUser,
+      login, register, loginWithGoogle, loginWithMagicToken, verifyTwoFactor, completeBirthdate, logout, updateUser,
     }}>
       {children}
     </AuthContext.Provider>

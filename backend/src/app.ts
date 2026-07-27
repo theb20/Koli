@@ -15,6 +15,7 @@ import { logger } from './lib/logger'
 
 // Routes
 import authRouter          from './routes/auth'
+import twoFactorRouter     from './routes/two-factor'
 import productsRouter      from './routes/products'
 import ordersRouter        from './routes/orders'
 import addressesRouter     from './routes/addresses'
@@ -194,7 +195,11 @@ app.use('/api/auth/forgot-password',authActionSlowDown, authActionLimiter)
 app.use('/api/auth/reset-password', authActionSlowDown, authActionLimiter)
 app.use('/api/auth/magic',          authActionSlowDown, authActionLimiter)
 app.use('/api/auth/password',       authActionSlowDown, authActionLimiter)
+// Code TOTP à 6 chiffres — brute-forçable sans limite (1M combinaisons,
+// triviales à tenter sur une fenêtre de 30s sans throttling).
+app.use('/api/auth/2fa/login-verify', authActionSlowDown, authActionLimiter)
 app.use('/api/auth',                authRouter)
+app.use('/api/auth/2fa',            twoFactorRouter)
 app.use('/api/products/sync-merchant', merchantSyncRouter)
 app.use('/api/merchant-onboarding', publicFormLimiter, merchantOnboardingRouter)
 app.use('/api/admin/merchant-applications', merchantApplicationsRouter)

@@ -49,8 +49,12 @@ export default function LoginPage() {
     setError('')
     setGoogleLoad(true)
     try {
-      const { needsBirthdate } = await loginWithGoogle()
-      navigate(needsBirthdate ? '/completer-naissance' : '/')
+      const result = await loginWithGoogle()
+      if (result.requires2FA) {
+        navigate('/verifier-2fa', { state: { tempToken: result.tempToken, redirectTo: '/' } })
+        return
+      }
+      navigate(result.needsBirthdate ? '/completer-naissance' : '/')
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : ''
       if (!msg.includes('popup-closed') && !msg.includes('cancelled')) {

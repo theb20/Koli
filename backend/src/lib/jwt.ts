@@ -42,6 +42,24 @@ export function isTokenExpiredError(err: unknown): boolean {
   return err instanceof jwt.TokenExpiredError
 }
 
+/*
+ * Token intermédiaire émis quand le mot de passe/magic-link/Google vient
+ * d'être validé mais que la 2FA reste à vérifier — ni un access token
+ * (aucun rôle/droit dessus, refusé par requireAuth) ni un refresh token
+ * (secret dédié, ne peut pas servir à /refresh). Courte durée de vie :
+ * la fenêtre pendant laquelle un attaquant en possession du mot de passe
+ * peut encore tenter de deviner le code TOTP doit rester minimale.
+ */
+export function signTwoFactorPendingToken(userId: string): string {
+  return jwt.sign({ userId, purpose: '2fa_pending' }, SECRET + '_2fa_pending', { expiresIn: '5m' })
+}
+
+export function verifyTwoFactorPendingToken(token: string): { userId: string } {
+  const decoded = jwt.verify(token, SECRET + '_2fa_pending') as { userId: string; purpose: string }
+  if (decoded.purpose !== '2fa_pending') throw new Error('Token invalide')
+  return { userId: decoded.userId }
+}
+
 /**
  * Extrait le userId d'un refresh token SANS vérifier sa validité — à
  * n'appeler qu'après avoir confirmé via isTokenExpiredError() que jsonwebtoken

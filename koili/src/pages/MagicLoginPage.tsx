@@ -20,11 +20,16 @@ export default function MagicLoginPage() {
     }
 
     const isNew = params.get('new') === '1'
+    const normalDest = isNew ? '/onboarding' : '/profil'
 
     loginWithMagicToken(token)
-      .then(({ needsBirthdate }) => {
+      .then((result) => {
+        if (result.requires2FA) {
+          navigate('/verifier-2fa', { replace: true, state: { tempToken: result.tempToken, redirectTo: normalDest } })
+          return
+        }
         setStatus('success')
-        const dest = needsBirthdate ? '/completer-naissance' : (isNew ? '/onboarding' : '/profil')
+        const dest = result.needsBirthdate ? '/completer-naissance' : normalDest
         setTimeout(() => navigate(dest, { replace: true }), 1500)
       })
       .catch(() => setStatus('error'))
