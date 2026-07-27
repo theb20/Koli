@@ -5,7 +5,7 @@ import type { StepProps } from '../types'
 export function Step1Account({ data, update }: StepProps) {
   return (
     <div className="flex flex-col gap-5">
-      <StepHeader title="Créez votre compte" desc="Gratuit — sans engagement." />
+      <StepHeader title="Créez votre compte" desc="Avec engagement." />
 
       <div className="flex gap-3.5">
         <div className="flex-1">

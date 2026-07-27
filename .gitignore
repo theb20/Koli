@@ -1,0 +1,7 @@
+produits.xlsx
+node_modules
+.claude
+.env
+.env.test
+.env.production
+.claude/
