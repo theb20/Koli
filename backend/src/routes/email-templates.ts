@@ -25,7 +25,7 @@ import {
   sendWelcomeEmail, sendMagicLinkEmail, sendPasswordResetEmail, sendPasswordChangedEmail,
   sendOrderConfirmationEmail, sendOrderStatusEmail, sendContactReply, sendBroadcastEmail,
   sendNewOrderAdminEmail, sendNewProductRequestAdminEmail, sendProductRequestReplyEmail,
-  sendReturnStatusEmail, sendNewReturnAdminEmail,
+  sendReturnStatusEmail, sendNewReturnAdminEmail, sendSecurityUpdateEmail,
 } from '../lib/email'
 import { sendFlashDealEmail } from '../lib/email/templates/flash-deal'
 import { logger } from '../lib/logger'
@@ -54,6 +54,7 @@ const TEMPLATES: Record<string, () => Promise<void>> = {
   'order-status-cancelled': () => sendOrderStatusEmail('preview@example.com', 'Awa', 'SKG-00042', 'cancelled'),
   'contact-reply': () => sendContactReply('preview@example.com', 'Awa', 'Question sur ma commande'),
   broadcast: () => sendBroadcastEmail('preview@example.com', 'Awa', 'Nouvelle collection disponible', 'Découvrez nos derniers arrivages tech à prix imbattables cette semaine seulement.'),
+  'security-update': () => sendSecurityUpdateEmail('preview@example.com', 'Awa'),
   'new-order-admin': () => sendNewOrderAdminEmail('preview@example.com', {
     orderNumber: 'SKG-00042', clientNom: 'Awa Koné', clientTelephone: '+225 07 00 00 00 00',
     clientEmail: 'awa@example.com', items: DUMMY_ORDER_ITEMS, total: 34500,
@@ -148,6 +149,7 @@ const tokensSchema = z.object({
   logoWidth:          z.coerce.number().int().min(10).max(600),
   logoHeight:         z.coerce.number().int().min(10).max(600),
   badgeText:          z.string().min(1).max(40),
+  greeting:           z.string().min(1).max(30),
 }).partial()
 
 router.put('/design/tokens', validate(tokensSchema), async (req, res) => {
@@ -159,7 +161,7 @@ router.put('/design/tokens', validate(tokensSchema), async (req, res) => {
       emailHeaderGradientTo: tokens.headerGradientTo, emailCardRadius: tokens.cardRadius,
       emailCardBg: tokens.cardBg, emailBodyBg: tokens.bodyBg, emailFooterText: tokens.footerText,
       emailLogoUrl: tokens.logoUrl, emailLogoWidth: tokens.logoWidth, emailLogoHeight: tokens.logoHeight,
-      emailBadgeText: tokens.badgeText,
+      emailBadgeText: tokens.badgeText, emailGreeting: tokens.greeting,
     },
     update: {
       ...(tokens.primaryColor       !== undefined && { emailPrimaryColor: tokens.primaryColor }),
@@ -173,6 +175,7 @@ router.put('/design/tokens', validate(tokensSchema), async (req, res) => {
       ...(tokens.logoWidth          !== undefined && { emailLogoWidth: tokens.logoWidth }),
       ...(tokens.logoHeight         !== undefined && { emailLogoHeight: tokens.logoHeight }),
       ...(tokens.badgeText          !== undefined && { emailBadgeText: tokens.badgeText }),
+      ...(tokens.greeting           !== undefined && { emailGreeting: tokens.greeting }),
     },
   })
   res.json({ success: true, message: 'Design enregistré — appliqué à tous les emails à partir de maintenant.' })
@@ -186,7 +189,7 @@ router.delete('/design/tokens', async (_req, res) => {
       emailPrimaryColor: null, emailHeaderGradientFrom: null, emailHeaderGradientTo: null,
       emailCardRadius: null, emailCardBg: null, emailBodyBg: null,
       emailFooterText: null, emailLogoUrl: null, emailLogoWidth: null, emailLogoHeight: null,
-      emailBadgeText: null,
+      emailBadgeText: null, emailGreeting: null,
     },
   })
   res.json({ success: true, message: 'Design par défaut restauré.' })

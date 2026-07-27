@@ -1,15 +1,17 @@
-import { send }       from '../client'
-import { baseLayout } from '../layout'
+import { send }         from '../client'
+import { baseLayout }   from '../layout'
 import { getContactInfo, waLink } from '../settings'
+import { getEmailTokens } from '../tokens'
 import { subheading, heading, paragraph, ctaButton, highlightBox } from '../components'
 
 export async function sendContactReply(to: string, prenom: string, sujet: string): Promise<void> {
   const contact = await getContactInfo()
+  const { greeting } = await getEmailTokens()
 
   const html = await baseLayout(`
       ${subheading('Support client')}
       ${heading('Message bien reçu.')}
-      ${paragraph(`Bonjour <strong style="color:#111827">${prenom}</strong>,`)}
+      ${paragraph(`${greeting} <strong style="color:#111827">${prenom}</strong>,`)}
       ${paragraph(`Votre message concernant <strong style="color:#111827">&laquo;&nbsp;${sujet}&nbsp;&raquo;</strong> a été transmis à notre équipe. Nous vous répondrons dans les <strong style="color:#111827">24 heures</strong> ouvrées.`)}
 
       ${highlightBox(`

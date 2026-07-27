@@ -1,11 +1,13 @@
-import { send }       from '../client'
-import { baseLayout } from '../layout'
+import { send }         from '../client'
+import { baseLayout }   from '../layout'
+import { getEmailTokens } from '../tokens'
 import { subheading, heading, paragraph, divider, ctaButton, highlightBox } from '../components'
 
 export async function sendMagicLinkEmail(to: string, prenom: string, link: string): Promise<void> {
+  const { greeting } = await getEmailTokens()
   const html = await baseLayout(`
       ${subheading('Connexion sécurisée')}
-      ${heading(`Bonjour ${prenom},`)}
+      ${heading(`${greeting} ${prenom},`)}
       ${paragraph('Vous avez demandé un lien de connexion à votre compte Skignas. Cliquez sur le bouton ci-dessous pour vous connecter instantanément.')}
 
       ${highlightBox(`

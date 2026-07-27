@@ -1,5 +1,6 @@
-import { send }       from '../client'
-import { baseLayout } from '../layout'
+import { send }         from '../client'
+import { baseLayout }   from '../layout'
+import { getEmailTokens } from '../tokens'
 import { subheading, heading, paragraph, divider, highlightBox, ctaButton } from '../components'
 
 function fmt(n: number): string {
@@ -14,11 +15,12 @@ export async function sendProductRequestReplyEmail(
   quotedPrice?: number | null,
 ): Promise<void> {
   const frontUrl = process.env.FRONTEND_URL ?? 'https://skignas.com'
+  const { greeting } = await getEmailTokens()
 
   const html = await baseLayout(`
       ${subheading('Réponse à votre demande')}
       ${heading(`Concernant : ${productName}`)}
-      ${paragraph(`Bonjour <strong style="color:#111827">${prenom}</strong>,`)}
+      ${paragraph(`${greeting} <strong style="color:#111827">${prenom}</strong>,`)}
       ${paragraph(`Notre équipe a étudié votre demande de sourcing. Voici notre réponse :`)}
 
       ${highlightBox(`<p style="font-family:system-ui,-apple-system,sans-serif;font-size:14px;color:#111827;line-height:1.7;white-space:pre-line;margin:0">${replyMessage}</p>`)}

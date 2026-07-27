@@ -27,6 +27,7 @@ export type EmailDesignTokens = {
   logoWidth:          number
   logoHeight:         number
   badgeText:           string
+  greeting:           string
 }
 
 export const DEFAULT_TOKENS: EmailDesignTokens = {
@@ -43,6 +44,7 @@ export const DEFAULT_TOKENS: EmailDesignTokens = {
   logoWidth:          130,
   logoHeight:         34,
   badgeText:           "Côte d'Ivoire",
+  greeting:            'Bonjour',
 }
 
 /* ── Validation liste blanche — un token invalide retombe sur le défaut ──
@@ -91,6 +93,7 @@ export function sanitizeTokens(input: Record<string, unknown>): Partial<EmailDes
   if ('logoWidth'          in input) out.logoWidth          = validDimension(input['logoWidth'], DEFAULT_TOKENS.logoWidth)
   if ('logoHeight'         in input) out.logoHeight         = validDimension(input['logoHeight'], DEFAULT_TOKENS.logoHeight)
   if ('badgeText'          in input) out.badgeText          = validText(input['badgeText'], DEFAULT_TOKENS.badgeText, 40)
+  if ('greeting'           in input) out.greeting           = validText(input['greeting'], DEFAULT_TOKENS.greeting, 30)
   return out
 }
 
@@ -128,6 +131,7 @@ export async function getRawEmailTokens(): Promise<EmailDesignTokens> {
       logoWidth:          s.emailLogoWidth           ?? DEFAULT_TOKENS.logoWidth,
       logoHeight:         s.emailLogoHeight          ?? DEFAULT_TOKENS.logoHeight,
       badgeText:           s.emailBadgeText           ?? DEFAULT_TOKENS.badgeText,
+      greeting:            s.emailGreeting            ?? DEFAULT_TOKENS.greeting,
     }
   } catch {
     return DEFAULT_TOKENS
@@ -146,5 +150,6 @@ export async function getEmailTokens(): Promise<EmailDesignTokens> {
     ...raw,
     footerText: escapeHtml(raw.footerText),
     badgeText:  escapeHtml(raw.badgeText),
+    greeting:   escapeHtml(raw.greeting),
   }
 }

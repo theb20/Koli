@@ -1,5 +1,6 @@
-import { send }       from '../client'
-import { baseLayout } from '../layout'
+import { send }         from '../client'
+import { baseLayout }   from '../layout'
+import { getEmailTokens } from '../tokens'
 import { subheading, heading, paragraph, dealProductCard, ctaButton } from '../components'
 
 export type FlashDealProduct = {
@@ -25,10 +26,11 @@ export async function sendFlashDealEmail(
   const cards = products
     .map(p => dealProductCard({ ...p, url: `${frontUrl}/catalogue/${p.id}` }))
     .join('')
+  const { greeting } = await getEmailTokens()
 
   const html = await baseLayout(`
       ${subheading('Vente flash ⚡')}
-      ${heading(`Bonjour ${prenom},`)}
+      ${heading(`${greeting} ${prenom},`)}
       ${paragraph(`Une promotion à durée limitée vient d'être lancée${products.length > 1 ? ' sur plusieurs produits' : ''} — jusqu'à <strong style="color:#dc2626">-${Math.max(...products.map(p => Math.round(((p.price - p.salePrice) / p.price) * 100)))}%</strong>.`)}
 
       ${cards}

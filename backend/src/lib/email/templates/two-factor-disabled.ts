@@ -1,11 +1,13 @@
-import { send }       from '../client'
-import { baseLayout } from '../layout'
+import { send }         from '../client'
+import { baseLayout }   from '../layout'
+import { getEmailTokens } from '../tokens'
 import { subheading, heading, paragraph, highlightBox } from '../components'
 
 export async function sendTwoFactorDisabledEmail(to: string, prenom: string): Promise<void> {
+  const { greeting } = await getEmailTokens()
   const html = await baseLayout(`
       ${subheading('Sécurité du compte')}
-      ${heading(`Bonjour ${prenom},`)}
+      ${heading(`${greeting} ${prenom},`)}
       ${paragraph("La double authentification (2FA) vient d'être désactivée sur votre compte Skignas.")}
 
       ${highlightBox(`

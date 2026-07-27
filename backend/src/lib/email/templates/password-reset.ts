@@ -1,11 +1,13 @@
-import { send }       from '../client'
-import { baseLayout } from '../layout'
+import { send }         from '../client'
+import { baseLayout }   from '../layout'
+import { getEmailTokens } from '../tokens'
 import { subheading, heading, paragraph, divider, ctaButton, highlightBox } from '../components'
 
 export async function sendPasswordResetEmail(to: string, prenom: string, link: string): Promise<void> {
+  const { greeting } = await getEmailTokens()
   const html = await baseLayout(`
       ${subheading('Réinitialisation du mot de passe')}
-      ${heading(`Bonjour ${prenom},`)}
+      ${heading(`${greeting} ${prenom},`)}
       ${paragraph("Vous avez demandé la réinitialisation du mot de passe de votre compte Skignas. Cliquez sur le bouton ci-dessous pour choisir un nouveau mot de passe.")}
 
       ${highlightBox(`

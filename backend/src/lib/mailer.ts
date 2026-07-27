@@ -20,6 +20,7 @@ export {
   sendVerificationCodeEmail,
   sendTwoFactorEnabledEmail,
   sendTwoFactorDisabledEmail,
+  sendSecurityUpdateEmail,
 } from './email'
 
 export type { OrderItem, OrderConfirmationPayload, NewOrderAdminPayload, NewProductRequestAdminPayload, NewReturnAdminPayload } from './email'

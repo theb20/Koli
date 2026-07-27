@@ -1,5 +1,6 @@
-import { send }       from '../client'
-import { baseLayout } from '../layout'
+import { send }         from '../client'
+import { baseLayout }   from '../layout'
+import { getEmailTokens } from '../tokens'
 import { heading, paragraph, ctaButton, statusTag, highlightBox } from '../components'
 
 const ORDER_STATUS_MAP: Record<string, {
@@ -66,11 +67,12 @@ export async function sendOrderStatusEmail(
   if (!info) return
 
   const frontUrl = process.env.FRONTEND_URL ?? 'https://skignas.com'
+  const { greeting } = await getEmailTokens()
 
   const html = await baseLayout(`
       ${statusTag(info.tag, info.accent, info.accentBg)}
       ${heading(info.title)}
-      ${paragraph(`Bonjour <strong style="color:#111827">${prenom}</strong>,`)}
+      ${paragraph(`${greeting} <strong style="color:#111827">${prenom}</strong>,`)}
       ${paragraph(info.msg)}
 
       ${highlightBox(`

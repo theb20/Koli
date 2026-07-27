@@ -30,6 +30,7 @@ type EmailDesignTokens = {
   logoWidth:          number
   logoHeight:         number
   badgeText:          string
+  greeting:           string
 }
 
 const FIELD_LABELS: Record<keyof EmailDesignTokens, string> = {
@@ -44,6 +45,7 @@ const FIELD_LABELS: Record<keyof EmailDesignTokens, string> = {
   logoWidth:          'Largeur du logo (px)',
   logoHeight:         'Hauteur du logo (px)',
   badgeText:          'Texte du badge (header)',
+  greeting:           'Salutation ("… {prénom},")',
 }
 
 const COLOR_FIELDS: (keyof EmailDesignTokens)[] = ['primaryColor', 'headerGradientFrom', 'headerGradientTo', 'cardBg', 'bodyBg']
@@ -240,6 +242,16 @@ export default function EmailTemplatesPage() {
                     className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-indigo-400"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">{FIELD_LABELS.greeting}</label>
+                <input
+                  type="text" maxLength={30}
+                  value={tokens.greeting}
+                  onChange={e => setField('greeting', e.target.value)}
+                  className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-indigo-400"
+                />
               </div>
 
               <div>

@@ -664,6 +664,9 @@ model SiteSettings {
   emailLogoWidth          Int?
   emailLogoHeight         Int?
   emailBadgeText          String?
+  /// Mot de salutation en tête des emails ("Bonjour {prénom},") — éditable
+  /// pour varier le ton (ex: "Hello") sans toucher au code.
+  emailGreeting           String?
   /// Nombre de jours après livraison pendant lesquels un client peut demander
   /// un retour (voir eligibility check dans returns.ts).
   returnWindowDays Int      @default(14)
