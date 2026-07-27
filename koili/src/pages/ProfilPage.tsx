@@ -334,7 +334,7 @@ function TabProfil({ avatar, setAvatar, orders, profile }: {
                 <div className="flex items-center rounded-xl border-2 border-gray-200 focus-within:border-gray-400 transition-colors overflow-hidden">
                   <div className="flex items-center gap-1.5 px-3 py-3 bg-gray-50 border-r border-gray-200 shrink-0 select-none">
                     <span className="text-base leading-none">🇨🇲</span>
-                    <span className="text-sm font-semibold text-gray-700">+237</span>
+                    <span className="text-sm font-semibold text-gray-700">+225</span>
                   </div>
                   <input type="tel" value={form.telephone} onChange={e => set('telephone')(e.target.value)}
                     placeholder="6 XX XX XX XX" maxLength={12} inputMode="tel"
