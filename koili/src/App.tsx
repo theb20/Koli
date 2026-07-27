@@ -30,6 +30,7 @@ const PanierPage           = lazy(() => import('./pages/PanierPage'))
 const ProfilPage           = lazy(() => import('./pages/ProfilPage'))
 const MagicLoginPage       = lazy(() => import('./pages/MagicLoginPage'))
 const TwoFactorVerifyPage  = lazy(() => import('./pages/TwoFactorVerifyPage'))
+const ResetPasswordPage    = lazy(() => import('./pages/ResetPasswordPage'))
 const CompleteBirthdatePage = lazy(() => import('./pages/CompleteBirthdatePage'))
 const OnboardingPage       = lazy(() => import('./pages/OnboardingPage'))
 const ComparePage          = lazy(() => import('./pages/ComparePage'))
@@ -103,6 +104,7 @@ function App() {
             <Route path="/register"    element={<Register />} />
             <Route path="/auth/magic"  element={<MagicLoginPage />} />
             <Route path="/verifier-2fa" element={<TwoFactorVerifyPage />} />
+            <Route path="/reinitialiser-mot-de-passe" element={<ResetPasswordPage />} />
             <Route path="/completer-naissance" element={<CompleteBirthdatePage />} />
             <Route path="/onboarding" element={<OnboardingPage />} />
 

@@ -87,6 +87,7 @@ type Session = {
 type SecurityScore = {
   score: number
   checklist: { key: string; label: string; done: boolean }[]
+  hasPassword: boolean
 }
 
 type TwoFactorSetup = { secret: string; qrCodeDataUrl: string }
@@ -1015,6 +1016,23 @@ function TabSecurite() {
   const [pwdSuccess, setPwdSuccess] = useState(false)
   const [pwdErr,     setPwdErr]     = useState<string | null>(null)
 
+  /* ── Définir un mot de passe (comptes magic-link / Google) ── */
+  const [defPwdLoading, setDefPwdLoading] = useState(false)
+  const [defPwdSent,    setDefPwdSent]    = useState(false)
+  const [defPwdErr,     setDefPwdErr]     = useState<string | null>(null)
+
+  const requestSetPassword = async () => {
+    setDefPwdLoading(true); setDefPwdErr(null)
+    try {
+      await apiFetch('/api/auth/password/request-set', token, { method: 'POST' })
+      setDefPwdSent(true)
+    } catch (err) {
+      setDefPwdErr(err instanceof Error ? err.message : 'Erreur')
+    } finally {
+      setDefPwdLoading(false)
+    }
+  }
+
   /* ── Sessions ── */
   const { data: sessions = [], isLoading: sessLoading } = useQuery<Session[]>({
     queryKey: ['sessions'],
@@ -1207,6 +1225,10 @@ function TabSecurite() {
               className="w-full py-3 rounded-xl border border-red-200 text-red-500 text-sm font-bold hover:bg-red-50 transition-colors">
               Désactiver la 2FA
             </button>
+          ) : scoreData && !scoreData.hasPassword ? (
+            <p className="text-xs text-gray-400 bg-gray-50 rounded-xl p-3">
+              Définissez d'abord un mot de passe (ci-dessous) — sans ça, vous ne pourriez plus désactiver la 2FA vous-même.
+            </p>
           ) : (
             <button onClick={startTwoFASetup} disabled={setupLoading}
               className="w-full py-3 rounded-xl bg-gray-900 text-white text-sm font-bold hover:bg-gray-800 transition-colors disabled:opacity-40 flex items-center justify-center gap-2">
@@ -1306,7 +1328,29 @@ function TabSecurite() {
         )}
       </div>
 
-      {/* Changer mot de passe */}
+      {/* Mot de passe */}
+      {scoreData && !scoreData.hasPassword ? (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <h3 className="font-bold text-gray-900 mb-1 flex items-center gap-2"><Lock size={15} className="text-blue-500" /> Définir un mot de passe</h3>
+          <p className="text-xs text-gray-400 mb-4">Votre compte a été créé sans mot de passe (connexion par lien magique ou Google). En définir un vous permettra aussi de vous connecter par mot de passe et de gérer la 2FA.</p>
+          {defPwdErr && (
+            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm mb-4">
+              <AlertCircle size={14} /> {defPwdErr}
+            </div>
+          )}
+          {defPwdSent ? (
+            <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-emerald-700 text-sm">
+              <CheckCircle2 size={14} className="shrink-0" /> Un lien vient de vous être envoyé par email pour définir votre mot de passe.
+            </div>
+          ) : (
+            <button onClick={requestSetPassword} disabled={defPwdLoading}
+              className="w-full py-3 rounded-xl bg-gray-900 text-white text-sm font-bold hover:bg-gray-800 transition-colors disabled:opacity-40 flex items-center justify-center gap-2">
+              {defPwdLoading ? <Loader2 size={14} className="animate-spin" /> : <Lock size={14} />}
+              {defPwdLoading ? 'Envoi…' : 'Recevoir un lien par email'}
+            </button>
+          )}
+        </div>
+      ) : (
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
         <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2"><Lock size={15} className="text-blue-500" /> Changer le mot de passe</h3>
         {pwdSuccess && (
@@ -1364,6 +1408,7 @@ function TabSecurite() {
           {pwdLoading ? 'Mise à jour…' : 'Mettre à jour le mot de passe'}
         </button>
       </div>
+      )}
 
       {/* Sessions actives */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">

@@ -37,6 +37,10 @@ router.post('/setup', requireAuth, async (req, res) => {
       res.status(400).json({ success: false, message: 'La double authentification est déjà activée.' })
       return
     }
+    if (!user.hasPassword) {
+      res.status(400).json({ success: false, message: 'Définissez d\'abord un mot de passe — sinon vous ne pourrez plus désactiver la 2FA vous-même.' })
+      return
+    }
 
     const secret = generateSecret()
     await prisma.user.update({ where: { id: user.id }, data: { twoFactorSecret: secret } })

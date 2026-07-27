@@ -19,8 +19,12 @@ export default function LoginPage() {
 
   async function handleSubmit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault()
-    const ok = await login(email, password)
-    if (ok) navigate('/dashboard', { replace: true })
+    const result = await login(email, password)
+    if (result.requires2FA) {
+      navigate('/verifier-2fa', { state: { tempToken: result.tempToken } })
+      return
+    }
+    if (result.ok) navigate('/dashboard', { replace: true })
   }
 
   return (

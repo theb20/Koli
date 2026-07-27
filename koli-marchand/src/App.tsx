@@ -4,6 +4,7 @@ import { MerchantLayout } from '@/components/layout/MerchantLayout'
 import LoginPage from '@/features/auth/LoginPage'
 import ForgotPasswordPage from '@/features/auth/ForgotPasswordPage'
 import ResetPasswordPage from '@/features/auth/ResetPasswordPage'
+import TwoFactorVerifyPage from '@/features/auth/TwoFactorVerifyPage'
 import DashboardPage from '@/features/dashboard/DashboardPage'
 import ProductsPage from '@/features/products/ProductsPage'
 import OrdersPage from '@/features/orders/OrdersPage'
@@ -27,6 +28,7 @@ export default function App() {
           <Route path="/connexion" element={<LoginPage />} />
           <Route path="/mot-de-passe-oublie" element={<ForgotPasswordPage />} />
           <Route path="/reinitialiser-mot-de-passe" element={<ResetPasswordPage />} />
+          <Route path="/verifier-2fa" element={<TwoFactorVerifyPage />} />
 
           <Route element={<MerchantLayout />}>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />

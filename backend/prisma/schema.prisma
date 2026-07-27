@@ -11,6 +11,11 @@ model User {
   id                     String             @id @default(cuid())
   email                  String             @unique
   password               String
+  /// false = mot de passe inconnu de l'utilisateur (compte créé via
+  /// magic-link ou Google, `password` vaut alors '') — TabSecurite propose
+  /// « Définir un mot de passe » plutôt que « Changer » tant que c'est false,
+  /// et bloque l'activation de la 2FA (sinon aucun moyen de la désactiver).
+  hasPassword            Boolean            @default(true)
   /// Verrouillage de compte après 3 mots de passe erronés consécutifs —
   /// remis à zéro sur connexion réussie. Distinct du rate-limit par IP
   /// (authActionLimiter) : celui-ci protège le COMPTE quelle que soit l'IP

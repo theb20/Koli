@@ -88,12 +88,13 @@ router.post('/register', validate(registerSchema), async (req, res) => {
 
     const referrer = await findReferrer(referralCode)
 
-    // Mot de passe : fourni ou aléatoire (inscription sans mot de passe)
-    const passwordToHash = rawPassword ?? crypto.randomBytes(32).toString('hex')
-    const hashed = await bcrypt.hash(passwordToHash, 12)
+    // Mot de passe : fourni (inscription classique) ou absent (inscription
+    // sans mot de passe, ex. koili) — dans ce cas `password` reste vide,
+    // comme pour un compte Google, et hasPassword=false le signale au front.
+    const password = rawPassword ? await bcrypt.hash(rawPassword, 12) : ''
 
     const user = await prisma.user.create({
-      data: { prenom, nom, email: email.toLowerCase().trim(), password: hashed, telephone, naissance, referredById: referrer?.id },
+      data: { prenom, nom, email: email.toLowerCase().trim(), password, hasPassword: !!rawPassword, telephone, naissance, referredById: referrer?.id },
     })
 
     /* ── Mode sans mot de passe : envoyer un magic link ── */
@@ -425,6 +426,39 @@ router.post('/forgot-password', validate(forgotPasswordSchema), async (req, res)
 })
 
 /* ─────────────────────────────────────────────────────────────
+   POST /api/auth/password/request-set — variante authentifiée de
+   forgot-password, pour les comptes sans mot de passe (magic-link/Google,
+   hasPassword=false) qui veulent en définir un depuis TabSecurite. Même
+   mécanisme de token que reset-password, qui reste la route qui finalise.
+───────────────────────────────────────────────────────────── */
+router.post('/password/request-set', requireAuth, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.user!.userId } })
+    if (!user) { res.status(404).json({ success: false, message: 'Utilisateur introuvable' }); return }
+
+    const rawToken  = crypto.randomBytes(32).toString('hex')
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex')
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { resetTokenHash: tokenHash, resetTokenExpiresAt: new Date(Date.now() + 30 * 60 * 1000) },
+    })
+
+    const origin = req.headers.origin && ALLOWED_ORIGINS.includes(req.headers.origin)
+      ? req.headers.origin
+      : (process.env.FRONTEND_URL ?? 'http://localhost:3000')
+    const link = `${origin}/reinitialiser-mot-de-passe?token=${rawToken}`
+
+    sendPasswordResetEmail(user.email, user.prenom, link).catch(err => logger.error('[password-reset email]', err))
+
+    res.json({ success: true, message: 'Un lien pour définir votre mot de passe vient de vous être envoyé par email.' })
+  } catch (err) {
+    logger.error('[password request-set]', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/* ─────────────────────────────────────────────────────────────
    POST /api/auth/reset-password
    Consomme le token à usage unique, change le mot de passe et
    révoque toutes les sessions existantes de l'utilisateur.
@@ -445,7 +479,7 @@ router.post('/reset-password', validate(resetPasswordSchema), async (req, res) =
     await prisma.$transaction([
       prisma.user.update({
         where: { id: user.id },
-        data: { password: hashed, resetTokenHash: null, resetTokenExpiresAt: null, passwordChangedAt: new Date() },
+        data: { password: hashed, hasPassword: true, resetTokenHash: null, resetTokenExpiresAt: null, passwordChangedAt: new Date() },
       }),
       // Un mot de passe réinitialisé invalide toute session existante — potentiellement compromise.
       prisma.session.deleteMany({ where: { userId: user.id } }),
@@ -529,7 +563,7 @@ router.get('/security-score', requireAuth, async (req, res) => {
 
     const score = checklist.reduce((s, c) => s + (c.done ? SECURITY_CHECKLIST_WEIGHTS[c.key as keyof typeof SECURITY_CHECKLIST_WEIGHTS] : 0), 0)
 
-    res.json({ success: true, data: { score, checklist } })
+    res.json({ success: true, data: { score, checklist, hasPassword: user.hasPassword } })
   } catch (err) {
     logger.error('[security-score]', err)
     res.status(500).json({ success: false, message: 'Erreur serveur' })
@@ -579,7 +613,8 @@ router.post('/google', async (req, res) => {
           prenom:     body.prenom,
           nom:        body.nom,
           avatar:     body.avatar ?? null,
-          password:   '',          // compte Google — pas de mot de passe local
+          password:    '',         // compte Google — pas de mot de passe local
+          hasPassword: false,
           isVerified: true,        // email vérifié par Google
           referredById: referrer?.id,
         },
