@@ -8,6 +8,8 @@ updates:
     groups:
       dev-dependencies:
         dependency-type: "development"
+    cooldown:
+      default-days: 7
 
   - package-ecosystem: "npm"
     directory: "/koili"
@@ -17,6 +19,8 @@ updates:
     groups:
       dev-dependencies:
         dependency-type: "development"
+    cooldown:
+      default-days: 7
 
   - package-ecosystem: "npm"
     directory: "/koli-admin"
@@ -26,8 +30,34 @@ updates:
     groups:
       dev-dependencies:
         dependency-type: "development"
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: "npm"
+    directory: "/koli-marchand"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      dev-dependencies:
+        dependency-type: "development"
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: "npm"
+    directory: "/koli-business"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      dev-dependencies:
+        dependency-type: "development"
+    cooldown:
+      default-days: 7
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7

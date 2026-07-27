@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import path from 'path'
 import fs from 'fs'
-import archiver from 'archiver'
+import { ZipArchive } from 'archiver'
 import { prisma } from '../lib/prisma'
 import { requireAdmin } from '../middleware/auth'
 import { validate } from '../middleware/validate'
@@ -110,7 +110,7 @@ router.get('/images-export', requireAdmin, (_req, res) => {
   res.setHeader('Content-Type', 'application/zip')
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
 
-  const archive = archiver('zip', { zlib: { level: 9 } })
+  const archive = new ZipArchive({ zlib: { level: 9 } })
   archive.on('error', (err: Error) => {
     logger.error('[settings] échec export ZIP', err)
     if (!res.headersSent) res.status(500).json({ success: false, message: 'Erreur lors de la génération du ZIP' })

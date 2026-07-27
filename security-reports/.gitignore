@@ -1,0 +1,4 @@
+# Sorties brutes des scanners — volumineuses et régénérées à chaque
+# ./security-audit.sh, pas utile de les versionner. Les rapports de synthèse
+# (SUMMARY.md, dashboard.html, SECURITY-REPORT.*) restent trackés.
+raw/

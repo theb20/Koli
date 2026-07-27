@@ -611,31 +611,63 @@ router.post('/:id/scrape', async (req, res) => {
     const retailer = detectRetailer(url)
 
     // SSRF : refuse toute cible résolvant vers une IP interne/privée avant
-    // de faire la requête sortante (même garde-fou que rehostImage.ts).
+    // de faire la requête sortante (même garde-fou que rehostImage.ts) — et,
+    // contrairement à un simple `redirect: 'follow'`, revalide CHAQUE saut
+    // de redirection : un site public peut répondre par un 302 vers une
+    // adresse interne (ex: 169.254.169.254), que fetch() suivrait sans
+    // repasser par ce contrôle si on lui laissait suivre les redirections
+    // lui-même.
+    const MAX_SCRAPE_REDIRECTS = 3
+    let currentUrl: URL
     try {
-      await assertPublicHost(new URL(url).hostname)
+      currentUrl = new URL(url)
+    } catch {
+      return res.status(400).json({ success: false, message: 'URL invalide' })
+    }
+
+    let response: Response
+    try {
+      let redirects = 0
+      for (;;) {
+        await assertPublicHost(currentUrl.hostname)
+
+        response = await fetch(currentUrl, {
+          headers: {
+            'User-Agent':                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'Accept':                    'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language':           'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Accept-Encoding':           'gzip, deflate, br',
+            'Cache-Control':             'no-cache',
+            'Pragma':                    'no-cache',
+            'Sec-Fetch-Dest':            'document',
+            'Sec-Fetch-Mode':            'navigate',
+            'Sec-Fetch-Site':            'none',
+            'Sec-Fetch-User':            '?1',
+            'Upgrade-Insecure-Requests': '1',
+            'DNT':                       '1',
+          },
+          signal: AbortSignal.timeout(20000),
+          redirect: 'manual',
+        })
+
+        if (response.status >= 300 && response.status < 400) {
+          const location = response.headers.get('location')
+          if (!location || redirects >= MAX_SCRAPE_REDIRECTS) {
+            return res.status(400).json({ success: false, message: 'Trop de redirections' })
+          }
+          const nextUrl = new URL(location, currentUrl)
+          if (nextUrl.protocol !== 'http:' && nextUrl.protocol !== 'https:') {
+            return res.status(400).json({ success: false, message: 'URL refusée (hôte interne ou introuvable)' })
+          }
+          currentUrl = nextUrl
+          redirects++
+          continue
+        }
+        break
+      }
     } catch {
       return res.status(400).json({ success: false, message: 'URL refusée (hôte interne ou introuvable)' })
     }
-
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent':                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        'Accept':                    'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-        'Accept-Language':           'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
-        'Accept-Encoding':           'gzip, deflate, br',
-        'Cache-Control':             'no-cache',
-        'Pragma':                    'no-cache',
-        'Sec-Fetch-Dest':            'document',
-        'Sec-Fetch-Mode':            'navigate',
-        'Sec-Fetch-Site':            'none',
-        'Sec-Fetch-User':            '?1',
-        'Upgrade-Insecure-Requests': '1',
-        'DNT':                       '1',
-      },
-      signal: AbortSignal.timeout(20000),
-      redirect: 'follow',
-    })
 
     if (!response.ok) {
       return res.status(400).json({

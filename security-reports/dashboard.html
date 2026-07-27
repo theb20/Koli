@@ -1,0 +1,1227 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Audit sécurité Skignas — 2026-07-27T23-16-04</title>
+<style>
+  body{font-family:-apple-system,sans-serif;background:#14171d;color:#e7e9ee;margin:0;padding:40px}
+  h1{font-weight:500} .score{font-size:48px;font-weight:700;color:#e58080}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-top:24px}
+  th{text-align:left;color:#a2a9b5;text-transform:uppercase;font-size:11px;padding:8px;border-bottom:1px solid #2a2f39}
+  td{padding:8px;border-bottom:1px solid #2a2f39;vertical-align:top}
+  .mono{font-family:ui-monospace,monospace;color:#a2a9b5}
+  .sev{padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600}
+  .sev-critical{background:#331b1b;color:#e58080} .sev-high,.sev-error{background:#331b1b;color:#e58080}
+  .sev-medium,.sev-moderate,.sev-warning{background:#2e2410;color:#e0ac52} .sev-low{background:#1c2740;color:#7fa2f5}
+  .sev-info,.sev-unknown{background:#1f232b;color:#767d89}
+  .stats{display:flex;gap:24px;margin-top:16px} .stat{background:#1b1f27;border-radius:10px;padding:16px 20px}
+  .stat b{display:block;font-size:24px}
+</style></head><body>
+<h1>Audit de sécurité — Skignas</h1>
+<p>2026-07-27T23-16-04</p>
+<div class="score">0<span style="font-size:20px;color:#767d89">/100</span></div>
+<div class="stats">
+  <div class="stat">Critique<b style="color:#e58080">0</b></div>
+  <div class="stat">Élevée<b style="color:#e58080">21</b></div>
+  <div class="stat">Moyenne<b style="color:#e0ac52">54</b></div>
+  <div class="stat">Faible<b style="color:#7fa2f5">180</b></div>
+  <div class="stat">Info<b style="color:#767d89">6</b></div>
+</div>
+<table><thead><tr><th>Sévérité</th><th>Outil</th><th>Finding</th><th>Fichier</th></tr></thead><tbody>
+  <tr>
+    <td><span class="sev sev-high">HIGH</span></td>
+    <td>Gitleaks</td>
+    <td>Secret potentiel : generic-api-key</td>
+    <td class="mono">backend/.env.example:93</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-high">HIGH</span></td>
+    <td>Gitleaks</td>
+    <td>Secret potentiel : generic-api-key</td>
+    <td class="mono">backend/.env:22</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-high">HIGH</span></td>
+    <td>Gitleaks</td>
+    <td>Secret potentiel : gcp-api-key</td>
+    <td class="mono">koili/.env:1</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-high">HIGH</span></td>
+    <td>Gitleaks</td>
+    <td>Secret potentiel : gcp-api-key</td>
+    <td class="mono">koili/.env:4</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-high">HIGH</span></td>
+    <td>Trivy</td>
+    <td>GHSA-qwww-vcr4-c8h2 — react-router@7.18.1</td>
+    <td class="mono">koili/package-lock.json</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-high">HIGH</span></td>
+    <td>Trivy</td>
+    <td>GHSA-qwww-vcr4-c8h2 — react-router@7.18.1</td>
+    <td class="mono">koli-admin/package-lock.json</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-high">HIGH</span></td>
+    <td>Trivy</td>
+    <td>GHSA-qwww-vcr4-c8h2 — react-router@7.18.1</td>
+    <td class="mono">koli-business/package-lock.json</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-high">HIGH</span></td>
+    <td>Trivy</td>
+    <td>GHSA-qwww-vcr4-c8h2 — react-router@7.18.1</td>
+    <td class="mono">koli-marchand/package-lock.json</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-high">HIGH</span></td>
+    <td>Trivy (Docker)</td>
+    <td>DS-0002 — Image user should not be 'root'</td>
+    <td class="mono">Dockerfile</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-high">HIGH</span></td>
+    <td>Bearer</td>
+    <td>Unsanitized user input in file path</td>
+    <td class="mono">src/routes/products.ts:262</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-high">HIGH</span></td>
+    <td>Bearer</td>
+    <td>Unsanitized user input in HTTP request (SSRF)</td>
+    <td class="mono">src/routes/stores.ts:634</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-high">HIGH</span></td>
+    <td>Bearer</td>
+    <td>Usage of manual HTML sanitization (XSS)</td>
+    <td class="mono">src/lib/email/tokens.ts:61</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-high">HIGH</span></td>
+    <td>npm audit</td>
+    <td>react-router (koili)</td>
+    <td class="mono">koili/package.json</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-high">HIGH</span></td>
+    <td>npm audit</td>
+    <td>react-router-dom (koili)</td>
+    <td class="mono">koili/package.json</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-high">HIGH</span></td>
+    <td>npm audit</td>
+    <td>react-router (koli-admin)</td>
+    <td class="mono">koli-admin/package.json</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-high">HIGH</span></td>
+    <td>npm audit</td>
+    <td>react-router-dom (koli-admin)</td>
+    <td class="mono">koli-admin/package.json</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-high">HIGH</span></td>
+    <td>npm audit</td>
+    <td>react-router (koli-business)</td>
+    <td class="mono">koli-business/package.json</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-high">HIGH</span></td>
+    <td>npm audit</td>
+    <td>react-router-dom (koli-business)</td>
+    <td class="mono">koli-business/package.json</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-high">HIGH</span></td>
+    <td>npm audit</td>
+    <td>react-router (koli-marchand)</td>
+    <td class="mono">koli-marchand/package.json</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-high">HIGH</span></td>
+    <td>npm audit</td>
+    <td>react-router-dom (koli-marchand)</td>
+    <td class="mono">koli-marchand/package.json</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-error">ERROR</span></td>
+    <td>Semgrep</td>
+    <td>dockerfile.security.missing-user-entrypoint.missing-user-entrypoint</td>
+    <td class="mono">stockgo/Dockerfile:36</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-medium">MEDIUM</span></td>
+    <td>Trivy</td>
+    <td>CVE-2026-40898 — github.com/quic-go/quic-go@v0.59.0</td>
+    <td class="mono">merchantgo/go.mod</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-medium">MEDIUM</span></td>
+    <td>Trivy</td>
+    <td>CVE-2026-40898 — github.com/quic-go/quic-go@v0.59.0</td>
+    <td class="mono">stockgo/go.mod</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-medium">MEDIUM</span></td>
+    <td>Bearer</td>
+    <td>Missing server configuration to reduce server fingerprinting</td>
+    <td class="mono">src/app.ts:53</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-medium">MEDIUM</span></td>
+    <td>Bearer</td>
+    <td>Leakage of sensitive information in logger message</td>
+    <td class="mono">check-users.ts:12</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-medium">MEDIUM</span></td>
+    <td>Bearer</td>
+    <td>Leakage of sensitive information in logger message</td>
+    <td class="mono">prisma/seed.ts:200</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-medium">MEDIUM</span></td>
+    <td>Bearer</td>
+    <td>Leakage of sensitive information in logger message</td>
+    <td class="mono">prisma/seed.ts:216</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-medium">MEDIUM</span></td>
+    <td>Bearer</td>
+    <td>Leakage of sensitive information in logger message</td>
+    <td class="mono">scripts/reset-admin.ts:37</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-medium">MEDIUM</span></td>
+    <td>Bearer</td>
+    <td>Observable Timing Discrepancy</td>
+    <td class="mono">src/routes/merchant-onboarding.ts:225</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-medium">MEDIUM</span></td>
+    <td>testssl.sh</td>
+    <td>BEAST_CBC_TLS1</td>
+    <td class="mono">api.skignas.com</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-medium">MEDIUM</span></td>
+    <td>testssl.sh</td>
+    <td>overall_grade</td>
+    <td class="mono">api.skignas.com</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-medium">MEDIUM</span></td>
+    <td>testssl.sh</td>
+    <td>BEAST_CBC_TLS1</td>
+    <td class="mono">api.skignas.com</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-medium">MEDIUM</span></td>
+    <td>testssl.sh</td>
+    <td>overall_grade</td>
+    <td class="mono">api.skignas.com</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-medium">MEDIUM</span></td>
+    <td>testssl.sh</td>
+    <td>BREACH</td>
+    <td class="mono">business.skignas.com</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-medium">MEDIUM</span></td>
+    <td>testssl.sh</td>
+    <td>BEAST_CBC_TLS1</td>
+    <td class="mono">business.skignas.com</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-medium">MEDIUM</span></td>
+    <td>testssl.sh</td>
+    <td>overall_grade</td>
+    <td class="mono">business.skignas.com</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-medium">MEDIUM</span></td>
+    <td>testssl.sh</td>
+    <td>BREACH</td>
+    <td class="mono">business.skignas.com</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-medium">MEDIUM</span></td>
+    <td>testssl.sh</td>
+    <td>BEAST_CBC_TLS1</td>
+    <td class="mono">business.skignas.com</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-medium">MEDIUM</span></td>
+    <td>testssl.sh</td>
+    <td>overall_grade</td>
+    <td class="mono">business.skignas.com</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-medium">MEDIUM</span></td>
+    <td>testssl.sh</td>
+    <td>BREACH</td>
+    <td class="mono">skignas.com</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-medium">MEDIUM</span></td>
+    <td>testssl.sh</td>
+    <td>BEAST_CBC_TLS1</td>
+    <td class="mono">skignas.com</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-medium">MEDIUM</span></td>
+    <td>testssl.sh</td>
+    <td>overall_grade</td>
+    <td class="mono">skignas.com</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-medium">MEDIUM</span></td>
+    <td>testssl.sh</td>
+    <td>BREACH</td>
+    <td class="mono">skignas.com</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-medium">MEDIUM</span></td>
+    <td>testssl.sh</td>
+    <td>BEAST_CBC_TLS1</td>
+    <td class="mono">skignas.com</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-medium">MEDIUM</span></td>
+    <td>testssl.sh</td>
+    <td>overall_grade</td>
+    <td class="mono">skignas.com</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-warning">WARNING</span></td>
+    <td>Semgrep</td>
+    <td>ajinabraham.njsscan.crypto.crypto_node.node_insecure_random_generator</td>
+    <td class="mono">backend/scripts/scrape-action.ts:344</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-warning">WARNING</span></td>
+    <td>Semgrep</td>
+    <td>ajinabraham.njsscan.crypto.crypto_node.node_insecure_random_generator</td>
+    <td class="mono">backend/scripts/scrape-action.ts:345</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-warning">WARNING</span></td>
+    <td>Semgrep</td>
+    <td>ajinabraham.njsscan.crypto.crypto_node.node_insecure_random_generator</td>
+    <td class="mono">backend/scripts/scrape-action.ts:346</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-warning">WARNING</span></td>
+    <td>Semgrep</td>
+    <td>ajinabraham.njsscan.crypto.crypto_node.node_insecure_random_generator</td>
+    <td class="mono">backend/scripts/scrape-action.ts:347</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-warning">WARNING</span></td>
+    <td>Semgrep</td>
+    <td>ajinabraham.njsscan.crypto.crypto_node.node_insecure_random_generator</td>
+    <td class="mono">backend/scripts/scrape-action.ts:552</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-warning">WARNING</span></td>
+    <td>Semgrep</td>
+    <td>ajinabraham.njsscan.dos.regex_dos.regex_dos</td>
+    <td class="mono">backend/src/lib/email/tokens.ts:65</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-warning">WARNING</span></td>
+    <td>Semgrep</td>
+    <td>ajinabraham.njsscan.dos.regex_dos.regex_dos</td>
+    <td class="mono">backend/src/lib/email/tokens.ts:68</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-warning">WARNING</span></td>
+    <td>Semgrep</td>
+    <td>ajinabraham.njsscan.crypto.crypto_node.node_insecure_random_generator</td>
+    <td class="mono">backend/src/lib/rehostImage.ts:134</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-warning">WARNING</span></td>
+    <td>Semgrep</td>
+    <td>ajinabraham.njsscan.crypto.crypto_node.node_insecure_random_generator</td>
+    <td class="mono">backend/src/routes/categories.ts:208</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-warning">WARNING</span></td>
+    <td>Semgrep</td>
+    <td>javascript.express.security.audit.xss.direct-response-write.direct-response-write</td>
+    <td class="mono">backend/src/routes/merchant-applications.ts:39</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-warning">WARNING</span></td>
+    <td>Semgrep</td>
+    <td>ajinabraham.njsscan.crypto.crypto_node.node_insecure_random_generator</td>
+    <td class="mono">backend/src/routes/orders.ts:23</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-warning">WARNING</span></td>
+    <td>Semgrep</td>
+    <td>ajinabraham.njsscan.crypto.crypto_node.node_insecure_random_generator</td>
+    <td class="mono">backend/src/routes/product-requests.ts:92</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-warning">WARNING</span></td>
+    <td>Semgrep</td>
+    <td>javascript.express.security.audit.express-path-join-resolve-traversal.express-path-join-resolve-traversal</td>
+    <td class="mono">backend/src/routes/products.ts:262</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-warning">WARNING</span></td>
+    <td>Semgrep</td>
+    <td>ajinabraham.njsscan.dos.regex_dos.regex_dos</td>
+    <td class="mono">backend/src/routes/products.ts:467</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-warning">WARNING</span></td>
+    <td>Semgrep</td>
+    <td>ajinabraham.njsscan.crypto.crypto_node.node_insecure_random_generator</td>
+    <td class="mono">backend/src/routes/returns.ts:85</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-warning">WARNING</span></td>
+    <td>Semgrep</td>
+    <td>ajinabraham.njsscan.dos.regex_dos.regex_dos</td>
+    <td class="mono">backend/src/routes/seller.ts:146</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-warning">WARNING</span></td>
+    <td>Semgrep</td>
+    <td>ajinabraham.njsscan.crypto.crypto_node.node_insecure_random_generator</td>
+    <td class="mono">backend/src/routes/seller.ts:832</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-warning">WARNING</span></td>
+    <td>Semgrep</td>
+    <td>ajinabraham.njsscan.generic.hardcoded_secrets.node_username</td>
+    <td class="mono">koili/src/contexts/AuthContext.tsx:71</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-warning">WARNING</span></td>
+    <td>Semgrep</td>
+    <td>ajinabraham.njsscan.crypto.crypto_node.node_insecure_random_generator</td>
+    <td class="mono">koili/src/hooks/useAllYouTubeCategories.ts:59</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-warning">WARNING</span></td>
+    <td>Semgrep</td>
+    <td>ajinabraham.njsscan.generic.hardcoded_secrets.node_username</td>
+    <td class="mono">koili/src/pages/RequestProductPage.tsx:92</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-warning">WARNING</span></td>
+    <td>Semgrep</td>
+    <td>ajinabraham.njsscan.crypto.timing_attack_node.node_timing_attack</td>
+    <td class="mono">koili/src/pages/ResetPasswordPage.tsx:41</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-warning">WARNING</span></td>
+    <td>Semgrep</td>
+    <td>ajinabraham.njsscan.crypto.timing_attack_node.node_timing_attack</td>
+    <td class="mono">koili/src/pages/Signup.tsx:71</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-warning">WARNING</span></td>
+    <td>Semgrep</td>
+    <td>ajinabraham.njsscan.generic.hardcoded_secrets.node_username</td>
+    <td class="mono">koli-admin/src/hooks/useAuth.ts:6</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-warning">WARNING</span></td>
+    <td>Semgrep</td>
+    <td>ajinabraham.njsscan.generic.hardcoded_secrets.node_username</td>
+    <td class="mono">koli-marchand/src/lib/api.ts:7</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-warning">WARNING</span></td>
+    <td>Semgrep</td>
+    <td>ajinabraham.njsscan.crypto.crypto_node.node_insecure_random_generator</td>
+    <td class="mono">koli-marchand/src/mocks/data/db.ts:27</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-warning">WARNING</span></td>
+    <td>Semgrep</td>
+    <td>ajinabraham.njsscan.crypto.crypto_node.node_insecure_random_generator</td>
+    <td class="mono">koli-marchand/src/mocks/handlers/auth.ts:14</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-warning">WARNING</span></td>
+    <td>Semgrep</td>
+    <td>ajinabraham.njsscan.crypto.crypto_node.node_insecure_random_generator</td>
+    <td class="mono">koli-marchand/src/mocks/handlers/payouts.ts:41</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-warning">WARNING</span></td>
+    <td>Semgrep</td>
+    <td>ajinabraham.njsscan.crypto.crypto_node.node_insecure_random_generator</td>
+    <td class="mono">koli-marchand/src/mocks/handlers/products.ts:39</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-warning">WARNING</span></td>
+    <td>Semgrep</td>
+    <td>ajinabraham.njsscan.crypto.crypto_node.node_insecure_random_generator</td>
+    <td class="mono">koli-marchand/src/mocks/handlers/products.ts:66</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-warning">WARNING</span></td>
+    <td>Semgrep</td>
+    <td>go.lang.security.deserialization.unsafe-deserialization-interface.go-unsafe-deserialization-interface</td>
+    <td class="mono">merchantgo/internal/didit/signature.go:30</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Trivy</td>
+    <td>CVE-2026-41889 — github.com/jackc/pgx/v5@v5.9.0</td>
+    <td class="mono">merchantgo/go.mod</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Trivy</td>
+    <td>CVE-2026-41889 — github.com/jackc/pgx/v5@v5.9.0</td>
+    <td class="mono">stockgo/go.mod</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Usage of insufficient random value</td>
+    <td class="mono">scripts/scrape-action.ts:344</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Usage of insufficient random value</td>
+    <td class="mono">scripts/scrape-action.ts:345</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Usage of insufficient random value</td>
+    <td class="mono">scripts/scrape-action.ts:346</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Usage of insufficient random value</td>
+    <td class="mono">scripts/scrape-action.ts:347</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Usage of insufficient random value</td>
+    <td class="mono">scripts/scrape-action.ts:552</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Usage of insufficient random value</td>
+    <td class="mono">src/lib/rehostImage.ts:134</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Usage of insufficient random value</td>
+    <td class="mono">src/routes/categories.ts:208</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Usage of insufficient random value</td>
+    <td class="mono">src/routes/orders.ts:23</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Usage of insufficient random value</td>
+    <td class="mono">src/routes/product-requests.ts:92</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Usage of insufficient random value</td>
+    <td class="mono">src/routes/returns.ts:85</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Usage of insufficient random value</td>
+    <td class="mono">src/routes/seller.ts:832</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">check-users.js:10</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">check-users.js:15</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">check-users.ts:13</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">check-users.ts:18</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">prisma/seed.ts:225</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">prisma/seed.ts:239</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">prisma/seed.ts:250</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">prisma/seed.ts:279</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/export-products-xlsx.ts:35</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/export-products-xlsx.ts:88</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/export-products-xlsx.ts:93</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/migrate-images-to-stockgo.ts:111</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/migrate-images-to-stockgo.ts:124</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/migrate-images-to-stockgo.ts:127</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/migrate-images-to-stockgo.ts:132</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/migrate-images-to-stockgo.ts:133</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/migrate-images-to-stockgo.ts:143</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/migrate-images-to-stockgo.ts:174</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/migrate-images-to-stockgo.ts:187</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/reset-admin.ts:15</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/reset-admin.ts:30</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/reset-admin.ts:33</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/reset-admin.ts:37</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/reset-admin.ts:53</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/reset-admin.ts:54</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/reset-admin.ts:60</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/scrape-action.ts:224</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/scrape-action.ts:355</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/scrape-action.ts:359</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/scrape-action.ts:368</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/scrape-action.ts:382</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/scrape-action.ts:401</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/scrape-action.ts:429</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/scrape-action.ts:430</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/scrape-action.ts:431</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/scrape-action.ts:438</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/scrape-action.ts:439</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/scrape-action.ts:440</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/scrape-action.ts:441</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/scrape-action.ts:443</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/scrape-action.ts:444</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/scrape-action.ts:445</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/scrape-action.ts:450</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/scrape-action.ts:470</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/scrape-action.ts:472</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/scrape-action.ts:513</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/scrape-action.ts:514</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/scrape-action.ts:515</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/scrape-action.ts:526</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/scrape-action.ts:527</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/scrape-action.ts:528</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/scrape-action.ts:529</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/scrape-action.ts:531</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/scrape-action.ts:532</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/scrape-action.ts:533</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/scrape-action.ts:538</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/scrape-action.ts:547</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/scrape-action.ts:556</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">scripts/scrape-action.ts:560</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/app.ts:251</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/index.ts:18</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/index.ts:31</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/index.ts:35</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/lib/auditLog.ts:31</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/lib/dealAnnouncements.ts:58</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/lib/logger.ts:45</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/lib/logger.ts:48</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/lib/logger.ts:51</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/lib/merchantSyncRunner.ts:53</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/lib/merchantSyncRunner.ts:123</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/lib/merchantWallet.ts:36</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/lib/merchantWallet.ts:39</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/lib/paydunya.ts:89</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/lib/productDeletion.ts:42</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/lib/productDeletion.ts:43</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/lib/rehostImage.ts:129</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/lib/rehostImage.ts:145</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/lib/stockgo.ts:108</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/lib/virusScan.ts:46</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/lib/virusScan.ts:57</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/routes/admin-sellers.ts:45</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/routes/admin-sellers.ts:122</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/routes/admin-sellers.ts:189</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/routes/admin-sellers.ts:213</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/routes/admin-sellers.ts:245</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/routes/auth.ts:117</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/routes/auth.ts:160</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/routes/auth.ts:224</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/routes/auth.ts:418</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/routes/auth.ts:423</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/routes/auth.ts:452</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/routes/auth.ts:456</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/routes/auth.ts:488</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/routes/auth.ts:492</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/routes/auth.ts:568</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/routes/auth.ts:648</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/routes/auth.ts:818</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/routes/auth.ts:824</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/routes/auth.ts:877</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/routes/auth.ts:936</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/routes/categories.ts:225</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/routes/deal-announcements.ts:60</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/routes/email-templates.ts:122</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/routes/merchant-applications.ts:41</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/routes/merchant-applications.ts:137</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/routes/merchant-onboarding.ts:121</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/routes/merchant-onboarding.ts:133</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/routes/merchant-onboarding.ts:191</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/routes/merchant-onboarding.ts:238</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/routes/merchant-sync.ts:57</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/routes/notifications.ts:130</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-low">LOW</span></td>
+    <td>Bearer</td>
+    <td>Leakage of information in logger message</td>
+    <td class="mono">src/routes/orders.ts:408</td>
+  </tr></tbody></table>
+</body></html>
