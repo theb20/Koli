@@ -4,7 +4,31 @@ import { verifyAccessToken } from '../lib/jwt'
 import { prisma } from '../lib/prisma'
 
 /**
- * Middleware — vérifie le JWT (Bearer header ou cookie).
+ * access_token est un cookie SameSite=None en prod (nécessaire — le
+ * frontend et l'API sont deux domaines distincts, voir authSession.ts) : un
+ * site tiers peut donc déclencher une requête authentifiée par ce cookie
+ * sans jamais lire la réponse (CSRF classique — l'action elle-même suffit à
+ * causer un dégât, ex. DELETE /api/auth/account sans corps requis). Le
+ * Bearer header, lui, ne peut PAS être ajouté par un site tiers à l'insu de
+ * l'utilisateur : aucun de nos frontends n'utilise jamais le cookie seul
+ * pour une requête qui modifie l'état, donc l'exiger explicitement dessus ne
+ * casse rien de réel. Le cookie reste accepté en repli sur les méthodes
+ * sûres (lecture seule), là où un CSRF ne peut causer aucun dégât par
+ * lui-même.
+ */
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
+
+function extractToken(req: Request): string | undefined {
+  const header = req.headers.authorization
+  const tokenFromHeader = header?.startsWith('Bearer ') ? header.slice(7) : undefined
+  if (tokenFromHeader) return tokenFromHeader
+  if (SAFE_METHODS.has(req.method)) return req.cookies?.access_token as string | undefined
+  return undefined
+}
+
+/**
+ * Middleware — vérifie le JWT (Bearer header, ou cookie sur GET/HEAD
+ * uniquement — voir extractToken ci-dessus).
  * Vérifie aussi le statut banni en base à chaque requête : le JWT étant
  * stateless, ne pas le faire laisserait un compte banni actif jusqu'à
  * l'expiration de son access token (jusqu'à 15 min) au lieu d'une
@@ -12,11 +36,7 @@ import { prisma } from '../lib/prisma'
  */
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const header = req.headers.authorization
-    const tokenFromHeader = header?.startsWith('Bearer ') ? header.slice(7) : null
-    const tokenFromCookie = req.cookies?.access_token as string | undefined
-
-    const token = tokenFromHeader ?? tokenFromCookie
+    const token = extractToken(req)
     if (!token) {
       res.status(401).json({ success: false, message: 'Authentification requise' })
       return
@@ -62,8 +82,7 @@ export function requireSeller(req: Request, res: Response, next: NextFunction): 
 /** Middleware — optionnel : injecte req.user si token présent, sans bloquer */
 export function optionalAuth(req: Request, _res: Response, next: NextFunction): void {
   try {
-    const header = req.headers.authorization
-    const token  = header?.startsWith('Bearer ') ? header.slice(7) : req.cookies?.access_token
+    const token = extractToken(req)
     if (token) req.user = verifyAccessToken(token)
   } catch {
     // Token invalide ignoré

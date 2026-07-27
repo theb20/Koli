@@ -7,6 +7,8 @@ import sharp from 'sharp'
 import ExcelJS from 'exceljs'
 import { prisma } from '../lib/prisma'
 import { parseSpreadsheet } from '../lib/spreadsheet'
+import { extractExtension } from '../security/mimeValidator'
+import { verifySpreadsheetSignature } from '../security/fileSignature'
 import { searchProductIds } from '../lib/search'
 import { requireAdmin, optionalAuth, requireApiKey } from '../middleware/auth'
 import { validate, validateParams, zIntIdParam } from '../middleware/validate'
@@ -463,6 +465,11 @@ router.post('/bulk-import/preview', requireAdmin, csvUpload.single('file'), asyn
     }
 
     const isXlsx = /\.xlsx$/i.test(req.file.originalname)
+    const extension = extractExtension(req.file.originalname)
+    if (!(await verifySpreadsheetSignature(req.file.buffer, extension))) {
+      res.status(422).json({ success: false, message: 'Le contenu du fichier ne correspond pas à un CSV/Excel valide' })
+      return
+    }
 
     let records: Record<string, string>[]
     try {

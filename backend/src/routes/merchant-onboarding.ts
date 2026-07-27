@@ -9,6 +9,9 @@ import { scanBuffer } from '../lib/virusScan'
 import { sendVerificationCodeEmail } from '../lib/mailer'
 import { prisma } from '../lib/prisma'
 import { logger } from '../lib/logger'
+import { maxUploadBytes, type UploadCategory } from '../security/limits'
+import { extractExtension, isExtensionAllowed } from '../security/mimeValidator'
+import { validateUpload, UploadValidationError } from '../security/uploadValidator'
 
 /*
  * Upload de fichiers pour le wizard d'inscription marchand (koli-business),
@@ -35,15 +38,35 @@ const BUCKET_VISIBILITY: Record<string, 'public' | 'private'> = {
   'justificatif-domicile': 'private',
 }
 
+/*
+ * Catégories acceptées par bucket — un selfie ou une photo de profil doit
+ * toujours être une image (jamais un PDF), alors qu'une pièce d'identité ou
+ * un justificatif de domicile peuvent légitimement être un scan PDF. Validé
+ * ici en plus du filtre multer ci-dessous (défense en profondeur : même si
+ * l'un des deux devait être contourné, l'autre reste en place).
+ */
+const BUCKET_CATEGORIES: Record<string, UploadCategory[]> = {
+  'photo-profil':          ['image'],
+  'logo-boutique':         ['image'],
+  'banniere-boutique':     ['image'],
+  'document-identite':     ['image', 'pdf'],
+  'selfie':                ['image'],
+  'justificatif-domicile': ['image', 'pdf'],
+}
+
+// Filtre multer léger — première barrière bon marché (extension uniquement,
+// avant même de lire le corps de la requête en mémoire). La validation
+// complète (taille précise par catégorie, MIME, signature binaire réelle)
+// se fait dans le handler via security/uploadValidator, sur le fichier une
+// fois effectivement reçu.
 const onboardingUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 8 * 1024 * 1024 }, // 8 Mo — plus généreux qu'une icône (photos/scans de documents)
+  limits: { fileSize: Math.max(maxUploadBytes('image'), maxUploadBytes('pdf')) },
   fileFilter: (_req, file, cb) => {
-    if (/^image\/(jpeg|png|webp|heic|heif|avif)$/.test(file.mimetype) || file.mimetype === 'application/pdf') {
-      cb(null, true)
-    } else {
-      cb(new Error('Seuls les fichiers image (jpg, png, webp, heic, avif) ou PDF sont acceptés'))
-    }
+    const isImage = isExtensionAllowed(file.originalname, 'image')
+    const isPdf   = isExtensionAllowed(file.originalname, 'pdf')
+    if (isImage || isPdf) cb(null, true)
+    else cb(new Error('Seuls les fichiers image (jpg, png, webp, heic, avif) ou PDF sont acceptés'))
   },
 })
 
@@ -52,7 +75,7 @@ function handleUpload(req: Request, res: Response, next: NextFunction) {
   onboardingUpload.single('file')(req, res, (err: unknown) => {
     if (!err) { next(); return }
     if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
-      res.status(400).json({ success: false, message: 'Fichier trop volumineux (8 Mo maximum)' })
+      res.status(400).json({ success: false, message: `Fichier trop volumineux (${Math.round(maxUploadBytes('pdf') / (1024 * 1024))} Mo maximum)` })
       return
     }
     const message = err instanceof Error ? err.message : 'Fichier invalide'
@@ -70,10 +93,28 @@ router.post('/upload', requireAuth, handleUpload, async (req, res) => {
 
     const bucket = String(req.body.bucket ?? '')
     const visibility = BUCKET_VISIBILITY[bucket]
-    if (!visibility) {
+    const allowedCategories = BUCKET_CATEGORIES[bucket]
+    if (!visibility || !allowedCategories) {
       res.status(400).json({ success: false, message: `Bucket invalide: ${bucket}` })
       return
     }
+
+    const extension = extractExtension(req.file.originalname)
+    const category: UploadCategory = extension === 'pdf' ? 'pdf' : 'image'
+    if (!allowedCategories.includes(category)) {
+      res.status(400).json({ success: false, message: `Ce type de fichier n'est pas accepté pour ${bucket}` })
+      return
+    }
+
+    const validated = await validateUpload(
+      {
+        buffer:       req.file.buffer,
+        originalName: req.file.originalname,
+        mimeType:     req.file.mimetype,
+        declaredSize: req.file.size,
+      },
+      category,
+    )
 
     const scan = await scanBuffer(req.file.buffer, req.file.originalname)
     if (!scan.clean) {
@@ -82,9 +123,13 @@ router.post('/upload', requireAuth, handleUpload, async (req, res) => {
       return
     }
 
-    const url = await uploadToStockgo(req.file.buffer, req.file.originalname, req.file.mimetype, bucket, visibility)
+    const url = await uploadToStockgo(req.file.buffer, validated.safeFileName, req.file.mimetype, bucket, visibility)
     res.status(201).json({ success: true, data: { url } })
   } catch (err) {
+    if (err instanceof UploadValidationError) {
+      res.status(err.status).json({ success: false, message: err.message, reason: err.reason })
+      return
+    }
     logger.error('[merchant-onboarding] échec upload', err)
     res.status(500).json({ success: false, message: 'Échec de l\'upload' })
   }

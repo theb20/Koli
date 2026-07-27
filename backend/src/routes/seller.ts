@@ -12,6 +12,8 @@ import { uploadToStockgo } from '../lib/stockgo'
 import { rehostImages } from '../lib/rehostImage'
 import { getBackendUrl } from '../lib/backendUrl'
 import { parseSpreadsheet } from '../lib/spreadsheet'
+import { extractExtension } from '../security/mimeValidator'
+import { verifySpreadsheetSignature } from '../security/fileSignature'
 import { deleteProductAtomic } from '../lib/productDeletion'
 import { searchProductIds, normalizeSearchQuery } from '../lib/search'
 import type { Prisma, Order, OrderItem } from '@prisma/client'
@@ -142,6 +144,12 @@ router.post('/products/bulk-import/preview', requireSeller, csvUpload.single('fi
     }
 
     const isXlsx = /\.xlsx$/i.test(req.file.originalname)
+    const extension = extractExtension(req.file.originalname)
+    if (!(await verifySpreadsheetSignature(req.file.buffer, extension))) {
+      res.status(422).json({ success: false, message: 'Le contenu du fichier ne correspond pas à un CSV/Excel valide' })
+      return
+    }
+
     let records: Record<string, string>[]
     try {
       records = await parseSpreadsheet(req.file.buffer, isXlsx)

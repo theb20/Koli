@@ -98,7 +98,49 @@ export type UploadBucket =
   | 'photo-profil' | 'logo-boutique' | 'banniere-boutique'
   | 'document-identite' | 'selfie' | 'justificatif-domicile'
 
+// Miroir de backend/src/security/{limits,mimeValidator}.ts — cette
+// validation est une aide à l'utilisateur (échec rapide, message clair
+// avant même d'envoyer le fichier), PAS une garantie de sécurité : le
+// serveur revalide tout intégralement (taille, MIME, extension, signature
+// binaire réelle) et reste la seule source de vérité.
+const IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/avif']
+const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif', 'avif']
+const PDF_MIME_TYPE = 'application/pdf'
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024
+const MAX_PDF_BYTES   = 10 * 1024 * 1024
+
+// Buckets acceptant un PDF en plus d'une image — les autres (photo/logo/
+// bannière/selfie) doivent toujours être une image.
+const PDF_ALLOWED_BUCKETS: readonly UploadBucket[] = ['document-identite', 'justificatif-domicile']
+
+function fileExtension(name: string): string {
+  const idx = name.lastIndexOf('.')
+  return idx === -1 ? '' : name.slice(idx + 1).toLowerCase()
+}
+
+function validateFileBeforeUpload(bucket: UploadBucket, file: File): void {
+  const ext = fileExtension(file.name)
+  const isPdf = PDF_ALLOWED_BUCKETS.includes(bucket) && (file.type === PDF_MIME_TYPE || ext === 'pdf')
+
+  if (isPdf) {
+    if (file.size > MAX_PDF_BYTES) {
+      throw new ApiError(`Fichier trop volumineux (maximum ${MAX_PDF_BYTES / (1024 * 1024)} Mo)`, 400)
+    }
+    return
+  }
+
+  if (!IMAGE_MIME_TYPES.includes(file.type) || !IMAGE_EXTENSIONS.includes(ext)) {
+    const accepted = PDF_ALLOWED_BUCKETS.includes(bucket) ? 'image (jpg, png, webp) ou PDF' : 'image (jpg, png, webp)'
+    throw new ApiError(`Type de fichier non autorisé — seul un ${accepted} est accepté`, 400)
+  }
+  if (file.size > MAX_IMAGE_BYTES) {
+    throw new ApiError(`Fichier trop volumineux (maximum ${MAX_IMAGE_BYTES / (1024 * 1024)} Mo)`, 400)
+  }
+}
+
 export async function uploadFile(bucket: UploadBucket, file: File): Promise<string> {
+  validateFileBeforeUpload(bucket, file)
+
   const form = new FormData()
   form.append('file', file)
   form.append('bucket', bucket)

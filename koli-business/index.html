@@ -72,7 +72,14 @@
        (pas d'adresse/horaires publiés propres à ce portail), Person (pas de
        fondateur mis en avant), BreadcrumbList (page unique, pas de fil
        d'Ariane réel) — les ajouter reviendrait à publier des données
-       structurées inventées, ce que Google pénalise. -->
+       structurées inventées, ce que Google pénalise.
+
+       Exception CSP : un <script type="application/ld+json"> n'est PAS un
+       script exécutable — il n'est jamais concerné par script-src (spec CSP3
+       et comportement de tous les navigateurs), 'unsafe-inline' n'est donc
+       pas nécessaire pour lui. Il reste inline (plutôt qu'en fichier externe)
+       uniquement pour que les robots ne exécutant pas de JS le voient sans
+       requête supplémentaire — un choix SEO, pas une concession de sécurité. -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
