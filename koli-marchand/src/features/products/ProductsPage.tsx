@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Plus, Search, Upload } from 'lucide-react'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -21,8 +21,11 @@ export default function ProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [status, setStatus] = useState<StatusFilter>('all')
   const [search, setSearch] = useState(searchParams.get('search') ?? '')
-  const [modalMode, setModalMode] = useState<'create' | Product | null>(null)
-  const [bulkImportOpen, setBulkImportOpen] = useState(false)
+  // Lazy init depuis l'URL plutôt qu'un useEffect qui appellerait setState
+  // au montage : permet au menu "+ Ajouter" du dashboard (?new=1 / ?import=1)
+  // d'ouvrir directement le bon modal sans rendu en cascade.
+  const [modalMode, setModalMode] = useState<'create' | Product | null>(() => (searchParams.get('new') === '1' ? 'create' : null))
+  const [bulkImportOpen, setBulkImportOpen] = useState(() => searchParams.get('import') === '1')
 
   const { data, isLoading } = useProducts({ status, search })
   const { data: allData } = useProducts({ status: 'all', search: '' })
@@ -41,6 +44,18 @@ export default function ProductsPage() {
     () => (allData?.items ?? []).filter((p) => p.status === 'out_of_stock').length,
     [allData],
   )
+
+  // Nettoie ?new=1 / ?import=1 de l'URL une fois lus (état déjà pris en
+  // compte par les initialiseurs paresseux ci-dessus) — ne touche à aucun
+  // état de composant, seulement à l'URL.
+  useEffect(() => {
+    if (!searchParams.has('new') && !searchParams.has('import')) return
+    const next = new URLSearchParams(searchParams)
+    next.delete('new')
+    next.delete('import')
+    setSearchParams(next, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const closeModal = () => setModalMode(null)
 

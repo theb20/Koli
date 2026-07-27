@@ -611,6 +611,147 @@ router.get('/dashboard', requireSeller, async (req, res) => {
   }
 })
 
+/*
+ * ── Dashboard enrichi (cockpit marchand) ────────────────────────────
+ * Endpoint séparé de /dashboard (laissé intact — toujours utilisé pour
+ * BestSellers/RecentOrdersTable) plutôt que d'en changer la forme de
+ * réponse existante. Ne renvoie que des données ayant une vraie source :
+ * pas de "visiteurs" (aucun tracking n'existe), pas de commission/solde
+ * (appartient à merchantgo, jamais calculé ici — cf. règle d'architecture
+ * paiements — le front les récupère séparément et applique le taux
+ * lui-même sur ce chiffre d'affaires brut).
+ */
+const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate())
+const startOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth(), 1)
+const DAY_MS = 24 * 60 * 60 * 1000
+
+type PeriodBounds = { from: Date; to: Date; prevFrom: Date; prevTo: Date; granularity: 'day' | 'month' }
+
+function resolvePeriod(query: Request['query'], now: Date): PeriodBounds {
+  if (query.from && query.to) {
+    const from = new Date(String(query.from))
+    const to = new Date(String(query.to))
+    const span = to.getTime() - from.getTime()
+    return { from, to, prevFrom: new Date(from.getTime() - span), prevTo: from, granularity: span > 62 * DAY_MS ? 'month' : 'day' }
+  }
+  const period = String(query.period ?? '30d')
+  if (period === 'today') {
+    const from = startOfDay(now)
+    return { from, to: now, prevFrom: new Date(from.getTime() - DAY_MS), prevTo: from, granularity: 'day' }
+  }
+  if (period === '7d') {
+    const from = new Date(startOfDay(now).getTime() - 6 * DAY_MS)
+    return { from, to: now, prevFrom: new Date(from.getTime() - 7 * DAY_MS), prevTo: from, granularity: 'day' }
+  }
+  if (period === '12m') {
+    const from = startOfMonth(new Date(now.getFullYear(), now.getMonth() - 11, 1))
+    return { from, to: now, prevFrom: startOfMonth(new Date(now.getFullYear(), now.getMonth() - 23, 1)), prevTo: from, granularity: 'month' }
+  }
+  const from = new Date(startOfDay(now).getTime() - 29 * DAY_MS)
+  return { from, to: now, prevFrom: new Date(from.getTime() - 30 * DAY_MS), prevTo: from, granularity: 'day' }
+}
+
+const pctChange = (curr: number, prev: number) => prev === 0 ? (curr > 0 ? 100 : 0) : Math.round(((curr - prev) / prev) * 100)
+
+router.get('/dashboard/summary', requireSeller, async (req, res) => {
+  try {
+    const store = await requireMyStore(req.user!.userId)
+    if (!store) { res.status(404).json({ success: false, message: 'Boutique introuvable.' }); return }
+
+    const now = new Date()
+    const { from, to, prevFrom, prevTo, granularity } = resolvePeriod(req.query, now)
+
+    const sellerProducts = await prisma.sellerProduct.findMany({ where: { storeId: store.id }, select: { productId: true } })
+    const productIds = sellerProducts.map(p => p.productId)
+
+    const [windowItems, allTimeItems, activeProducts, outOfStockProducts, reviews, favoritesCount, returnItems] = await Promise.all([
+      storeOrderItems(store.id, { since: prevFrom, statuses: COUNTED_STATUSES }),
+      storeOrderItems(store.id, { statuses: COUNTED_STATUSES }),
+      prisma.product.count({ where: { storeId: store.id, isActive: true } }),
+      prisma.product.count({ where: { storeId: store.id, stock: { lte: 0 } } }),
+      prisma.review.findMany({ where: { productId: { in: productIds } }, select: { rating: true, createdAt: true } }),
+      prisma.wishlistItem.count({ where: { productId: { in: productIds } } }),
+      prisma.orderReturnItem.findMany({
+        where: { orderItem: { productId: { in: productIds } } },
+        select: { orderReturn: { select: { requestedAt: true, status: true } } },
+      }),
+    ])
+
+    const currentItems  = windowItems.filter(i => i.order.createdAt >= from && i.order.createdAt <= to)
+    const previousItems = windowItems.filter(i => i.order.createdAt >= prevFrom && i.order.createdAt < prevTo)
+    const sum = (items: typeof currentItems) => items.reduce((s, i) => s + i.price * i.qty, 0)
+    const orderCount = (items: typeof currentItems) => new Set(items.map(i => i.orderId)).size
+
+    const revenueCurrent = sum(currentItems)
+    const revenuePrevious = sum(previousItems)
+    const ordersCurrent = orderCount(currentItems)
+    const ordersPrevious = orderCount(previousItems)
+    const avgBasketCurrent = ordersCurrent ? Math.round(revenueCurrent / ordersCurrent) : 0
+    const avgBasketPrevious = ordersPrevious ? Math.round(revenuePrevious / ordersPrevious) : 0
+
+    // Clé client identique à /customers (userId si connecté, sinon email invité)
+    const customerKey = (it: (typeof allTimeItems)[number]) => it.order.userId ?? it.order.clientEmail
+    const firstOrderAt = new Map<string, Date>()
+    const orderCountByCustomer = new Map<string, Set<string>>()
+    for (const it of allTimeItems) {
+      const key = customerKey(it)
+      if (!firstOrderAt.has(key) || it.order.createdAt < firstOrderAt.get(key)!) firstOrderAt.set(key, it.order.createdAt)
+      if (!orderCountByCustomer.has(key)) orderCountByCustomer.set(key, new Set())
+      orderCountByCustomer.get(key)!.add(it.orderId)
+    }
+    const activeCustomerKeys = new Set(currentItems.map(customerKey))
+    const newCustomers = [...activeCustomerKeys].filter(k => (firstOrderAt.get(k)?.getTime() ?? 0) >= from.getTime()).length
+    const loyalCustomers = [...activeCustomerKeys].filter(k => (orderCountByCustomer.get(k)?.size ?? 0) >= 5).length
+
+    // Séries jour/mois pour graphiques + sparklines — bornées à [from, to]
+    const revenueSeries: { date: string; label: string; amount: number }[] = []
+    const ordersSeries: { date: string; label: string; count: number }[] = []
+    if (granularity === 'day') {
+      const days = Math.max(1, Math.round((to.getTime() - from.getTime()) / DAY_MS) + 1)
+      for (let i = 0; i < days; i++) {
+        const day = new Date(from.getTime() + i * DAY_MS)
+        const dayKey = day.toISOString().slice(0, 10)
+        const dayItems = currentItems.filter(it => it.order.createdAt.toISOString().slice(0, 10) === dayKey)
+        revenueSeries.push({ date: dayKey, label: day.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }), amount: sum(dayItems) })
+        ordersSeries.push({ date: dayKey, label: day.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }), count: orderCount(dayItems) })
+      }
+    } else {
+      const months = Math.max(1, (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth()) + 1)
+      for (let i = 0; i < months; i++) {
+        const month = new Date(from.getFullYear(), from.getMonth() + i, 1)
+        const monthKey = month.toISOString().slice(0, 7)
+        const monthItems = currentItems.filter(it => it.order.createdAt.toISOString().slice(0, 7) === monthKey)
+        revenueSeries.push({ date: monthKey, label: month.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' }), amount: sum(monthItems) })
+        ordersSeries.push({ date: monthKey, label: month.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' }), count: orderCount(monthItems) })
+      }
+    }
+
+    const returnsCurrent = returnItems.filter(r => r.orderReturn.requestedAt >= from && r.orderReturn.requestedAt <= to).length
+    const avgRating = reviews.length ? Math.round((reviews.reduce((s, r) => s + r.rating, 0) / reviews.length) * 10) / 10 : 0
+    const reviewsCurrent = reviews.filter(r => r.createdAt >= from && r.createdAt <= to).length
+
+    res.json({
+      success: true,
+      data: {
+        period: { from: from.toISOString(), to: to.toISOString(), granularity },
+        revenue: { current: revenueCurrent, previous: revenuePrevious, changePct: pctChange(revenueCurrent, revenuePrevious) },
+        orders: { current: ordersCurrent, previous: ordersPrevious, changePct: pctChange(ordersCurrent, ordersPrevious) },
+        avgBasket: { current: avgBasketCurrent, previous: avgBasketPrevious, changePct: pctChange(avgBasketCurrent, avgBasketPrevious) },
+        products: { active: activeProducts, outOfStock: outOfStockProducts },
+        customers: { active: activeCustomerKeys.size, new: newCustomers, loyal: loyalCustomers },
+        reviews: { count: reviewsCurrent, avgRating },
+        returns: { count: returnsCurrent },
+        favorites: { count: favoritesCount },
+        revenueSeries,
+        ordersSeries,
+      },
+    })
+  } catch (err) {
+    logger.error('[seller/dashboard/summary]', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
 /* ── Produits ─────────────────────────────────────────────────────── */
 router.get('/products', requireSeller, async (req, res) => {
   try {
