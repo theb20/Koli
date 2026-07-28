@@ -390,6 +390,7 @@ const bulkImportRowSchema = z.object({
   isNew:       z.string().optional(),
   description: z.string().optional(),
   images:      z.string().optional(),
+  specs:       z.string().optional(),
 })
 
 type BulkImportRow = {
@@ -403,6 +404,24 @@ type BulkImportRow = {
   isNew: boolean
   description?: string
   images: string[]
+  specs?: { label: string; value: string }[]
+}
+
+// "Couleur:Noir|Poids:250g" → [{label:"Couleur",value:"Noir"}, {label:"Poids",value:"250g"}].
+// Retourne `null` si un segment ne respecte pas le format "label:valeur" — permet
+// à l'appelant de rejeter la ligne plutôt que d'importer des specs tronquées.
+function parseSpecsColumn(raw: string): { label: string; value: string }[] | null {
+  const segments = raw.split('|').map(s => s.trim()).filter(Boolean)
+  const specs: { label: string; value: string }[] = []
+  for (const segment of segments) {
+    const idx = segment.indexOf(':')
+    if (idx === -1) return null
+    const label = segment.slice(0, idx).trim()
+    const value = segment.slice(idx + 1).trim()
+    if (!label || !value) return null
+    specs.push({ label, value })
+  }
+  return specs
 }
 
 function validateBulkImportRows(records: Record<string, string>[], categoryIdBySlug: Map<string, number>) {
@@ -434,6 +453,16 @@ function validateBulkImportRows(records: Record<string, string>[], categoryIdByS
       continue
     }
 
+    let specs: { label: string; value: string }[] | undefined
+    if (d.specs?.trim()) {
+      const parsed = parseSpecsColumn(d.specs)
+      if (!parsed) {
+        skipped.push({ row: rowNum, reason: `Format specs invalide (attendu "label:valeur|label:valeur") : "${d.specs}"` })
+        continue
+      }
+      specs = parsed
+    }
+
     valid.push({
       row: rowNum,
       data: {
@@ -447,6 +476,7 @@ function validateBulkImportRows(records: Record<string, string>[], categoryIdByS
         isNew: ['true', '1', 'oui', 'yes'].includes((d.isNew ?? '').trim().toLowerCase()),
         description: d.description || undefined,
         images: imageUrls,
+        specs,
       },
     })
   }
@@ -520,6 +550,7 @@ router.get('/bulk-import/template', requireAdmin, async (_req, res) => {
       { header: 'isNew',       key: 'isNew',        width: 8  },
       { header: 'description', key: 'description', width: 40 },
       { header: 'images',      key: 'images',       width: 60 },
+      { header: 'specs',       key: 'specs',        width: 50 },
     ]
     ws.columns = columns.map(c => ({ header: c.header, key: c.key, width: c.width }))
 
@@ -534,12 +565,14 @@ router.get('/bulk-import/template', requireAdmin, async (_req, res) => {
       price: 15000, oldPrice: 20000, badge: 'hot', stock: 30, isNew: 'true',
       description: 'Manette sans fil haute précision, autonomie 20h',
       images: 'https://exemple.com/image1.jpg|https://exemple.com/image2.jpg',
+      specs: 'Couleur:Noir|Connectivité:Bluetooth|Autonomie:20h',
     })
     ws.addRow({
       name: 'Casque Gamer', brand: 'SoundMax', category: categorySlugs[0] ?? 'gaming',
       price: 25000, oldPrice: '', badge: 'new', stock: 15, isNew: 'false',
       description: 'Casque avec micro rétractable',
       images: 'https://exemple.com/image3.jpg',
+      specs: '',
     })
     ws.getRow(2).font = { italic: true, color: { argb: 'FF94A3B8' } }
     ws.getRow(3).font = { italic: true, color: { argb: 'FF94A3B8' } }
@@ -581,6 +614,7 @@ router.get('/bulk-import/template', requireAdmin, async (_req, res) => {
       { col: 'isNew', desc: 'true ou false' },
       { col: 'description', desc: 'Description du produit (optionnel)' },
       { col: 'images', desc: "Une ou plusieurs URLs d'image séparées par | (jusqu'à 4). Les images sont automatiquement retéléchargées et réhébergées côté serveur." },
+      { col: 'specs', desc: 'Caractéristiques techniques (optionnel), au format "label:valeur" séparées par | — ex : Couleur:Noir|Poids:250g' },
     ])
 
     const buffer = await wb.xlsx.writeBuffer()
@@ -606,6 +640,7 @@ const bulkImportCommitSchema = z.object({
     isNew:       z.boolean(),
     description: z.string().optional(),
     images:      z.array(z.string().url()).min(1).max(4),
+    specs:       z.array(z.object({ label: z.string().min(1).max(60), value: z.string().min(1).max(200) })).max(20).optional(),
   })).min(1).max(500),
 })
 
@@ -645,6 +680,7 @@ router.post('/bulk-import/commit', requireAdmin, validate(bulkImportCommitSchema
           description: d.description,
           isActive:    true,
           images: { create: rehostedImages.map((img, idx) => ({ url: img.url, thumbnailUrl: img.thumbnailUrl, position: idx })) },
+          specs: d.specs ? { create: d.specs.map((s, idx) => ({ ...s, position: idx })) } : undefined,
         },
       })
       created++

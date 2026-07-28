@@ -3,6 +3,7 @@ import type { Request, Response, NextFunction } from 'express'
 import multer from 'multer'
 import crypto from 'crypto'
 import { z } from 'zod'
+import { rateLimit } from 'express-rate-limit'
 import { requireAuth } from '../middleware/auth'
 import { uploadToStockgo } from '../lib/stockgo'
 import { scanBuffer } from '../lib/virusScan'
@@ -23,6 +24,35 @@ import { validateUpload, UploadValidationError } from '../security/uploadValidat
  */
 
 const router = Router()
+
+/*
+ * Autrefois un seul publicFormLimiter (10 req/15 min) partagé sur tout ce
+ * routeur — un dossier marchand complet enchaîne 1 envoi de code + 1
+ * confirmation + jusqu'à 6 uploads (photo, logo, bannière, pièce
+ * d'identité, selfie, justificatif), soit déjà 8 requêtes légitimes. La
+ * moindre reprise (mauvais fichier, retour en arrière) grillait le quota et
+ * bloquait 15 min en pleine inscription. Séparé en deux limiteurs distincts :
+ * strict sur send/confirm (accessibles sans compte — la vraie surface
+ * d'abus), généreux sur /upload (déjà protégé par requireAuth, donc pas
+ * exploitable sans un compte déjà créé).
+ */
+const emailVerificationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Trop de demandes envoyées, réessayez dans 15 minutes' },
+  keyGenerator: (req) => req.ip ?? 'unknown',
+})
+
+const uploadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 40,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Trop de demandes envoyées, réessayez dans 15 minutes' },
+  keyGenerator: (req) => req.ip ?? 'unknown',
+})
 
 /*
  * Whitelist stricte du bucket → visibilité. Un bucket hors de cette liste
@@ -84,7 +114,7 @@ function handleUpload(req: Request, res: Response, next: NextFunction) {
 }
 
 /* POST /api/merchant-onboarding/upload — authentifié, un fichier à la fois */
-router.post('/upload', requireAuth, handleUpload, async (req, res) => {
+router.post('/upload', requireAuth, uploadLimiter, handleUpload, async (req, res) => {
   try {
     if (!req.file) {
       res.status(400).json({ success: false, message: "Champ 'file' manquant" })
@@ -166,7 +196,7 @@ async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 /* POST /api/merchant-onboarding/email-verification/send */
-router.post('/email-verification/send', async (req, res) => {
+router.post('/email-verification/send', emailVerificationLimiter, async (req, res) => {
   try {
     const { email } = z.object({ email: z.string().email() }).parse(req.body)
     const normalizedEmail = email.toLowerCase().trim()
@@ -194,7 +224,7 @@ router.post('/email-verification/send', async (req, res) => {
 })
 
 /* POST /api/merchant-onboarding/email-verification/confirm */
-router.post('/email-verification/confirm', async (req, res) => {
+router.post('/email-verification/confirm', emailVerificationLimiter, async (req, res) => {
   try {
     const { email, code } = z.object({
       email: z.string().email(),

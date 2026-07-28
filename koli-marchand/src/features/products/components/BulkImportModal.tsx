@@ -14,6 +14,7 @@ type BulkRow = {
   stock: number
   description?: string
   images: string[]
+  specs?: { label: string; value: string }[]
 }
 
 type SkippedRow = { row: number; reason: string }
@@ -174,7 +175,10 @@ export function BulkImportModal({ onClose }: { onClose: () => void }) {
                   <span className="text-xs text-[#a3a3a1] w-10 shrink-0">L{v.row}</span>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-[#0a0a0b] truncate">{v.data.name}</p>
-                    <p className="text-xs text-[#a3a3a1]">{v.data.category} · {v.data.price.toLocaleString('fr-FR')} FCFA · {v.data.images.length} image(s)</p>
+                    <p className="text-xs text-[#a3a3a1]">
+                      {v.data.category} · {v.data.price.toLocaleString('fr-FR')} FCFA · {v.data.images.length} image(s)
+                      {v.data.specs && v.data.specs.length > 0 && ` · ${v.data.specs.length} spec(s)`}
+                    </p>
                   </div>
                 </label>
               ))}
