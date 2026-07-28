@@ -19,7 +19,15 @@ import {
 /* ═══════════════════════════════════════════════════════════════
    CONSTANTS
 ═══════════════════════════════════════════════════════════════ */
-const BLUE = '#0421ff'
+// Même palette que CataloguePage.tsx — cohérence visuelle inter-pages.
+const BLUE = '#007185'
+const AMZ_YELLOW_FROM   = '#f7dfa5'
+const AMZ_YELLOW_TO     = '#f0c14b'
+const AMZ_YELLOW_BORDER = '#a88734'
+const AMZ_ORANGE_FROM   = '#f7b26a'
+const AMZ_ORANGE_TO     = '#eb8b3f'
+const AMZ_ORANGE_BORDER = '#a35c1e'
+const AMZ_PRICE_RED     = '#cc0c39'
 const fmt = (n: number) =>
   n.toLocaleString('fr-FR', { minimumFractionDigits: 0 }) + ' FCFA'
 const disc = (p: number, o: number) => Math.round(((o - p) / o) * 100)
@@ -465,7 +473,7 @@ function RelatedCard({ product }: { product: ReturnType<typeof mapApiProduct> })
   const d = product.oldPrice ? disc(product.price, product.oldPrice) : 0
   return (
     <Link to={`/catalogue/${product.id}`} className="group block">
-      <div className="relative overflow-hidden rounded-xl bg-gray-50 mb-3" style={{ aspectRatio: '1/1' }}>
+      <div className="relative overflow-hidden bg-gray-50/60 rounded-2xl mb-3 group-hover:shadow-md transition-shadow" style={{ aspectRatio: '1/1' }}>
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.img
             key={imgIdx}
@@ -491,13 +499,12 @@ function RelatedCard({ product }: { product: ReturnType<typeof mapApiProduct> })
           ))}
         </div>
       </div>
-      <p className="text-xs text-gray-400 mb-0.5">{product.brand}</p>
-      <p className="text-sm font-medium text-gray-800 leading-snug line-clamp-2 group-hover:text-blue-600 transition-colors">
-        {product.name}
+      <p className="text-sm leading-snug line-clamp-2 mb-1" style={{ color: '#0F1111' }}>
+        {product.brand && <span className="font-semibold">{product.brand}</span>}{product.brand ? ' — ' : ''}{product.name}
       </p>
-      <div className="flex items-baseline gap-2 mt-1.5">
-        <span className="text-sm  text-gray-900">{fmt(product.price)}</span>
-        {product.oldPrice && <span className="text-xs text-red-500 font-semibold">-{d}%</span>}
+      <div className="flex items-baseline gap-2">
+        <span className="text-base font-medium" style={{ color: '#0F1111' }}>{fmt(product.price)}</span>
+        {product.oldPrice && <span className="text-xs font-semibold" style={{ color: AMZ_PRICE_RED }}>-{d}%</span>}
       </div>
     </Link>
   )
@@ -765,8 +772,8 @@ export default function ProductPage() {
                   ))}
                 </div>
                 <span className="text-sm text-gray-800">{product.rating}</span>
-                <span className="text-sm text-gray-400 group-hover:text-blue-600 transition-colors underline underline-offset-2">
-                  ({product.reviews.toLocaleString('fr-FR')} avis)
+                <span className="text-sm transition-colors underline underline-offset-2" style={{ color: BLUE }}>
+                  {product.reviews.toLocaleString('fr-FR')} évaluations
                 </span>
                 {product.sold && (
                   <span className="text-xs text-gray-400 hidden sm:inline">
@@ -776,18 +783,18 @@ export default function ProductPage() {
               </button>
 
               {/* Price */}
-              <div className="flex items-end gap-4 mb-2">
-                <p className="text-4xl text-gray-900">{fmt(product.price)}</p>
+              <div className="flex items-end gap-3 mb-1">
                 {product.oldPrice && (
-                  <div className="flex flex-col items-start pb-1">
-                    <span className="text-sm text-gray-400 line-through leading-none">{fmt(product.oldPrice)}</span>
-                    <span className="text-sm text-red-500 leading-tight">{d}%</span>
-                  </div>
+                  <span className="text-sm font-semibold" style={{ color: AMZ_PRICE_RED }}>-{d}%</span>
                 )}
+                <p className="text-3xl font-medium leading-none" style={{ color: '#0F1111' }}>{fmt(product.price)}</p>
               </div>
               {product.oldPrice && (
-                <p className="text-xs text-emerald-600 font-semibold mb-5">
-                  Vous économisez {fmt(product.oldPrice - product.price)} 🎉
+                <p className="text-sm text-gray-500 mb-2">Prix conseillé : <span className="line-through">{fmt(product.oldPrice)}</span></p>
+              )}
+              {product.oldPrice && (
+                <p className="text-xs text-emerald-700 font-semibold mb-5">
+                  Vous économisez {fmt(product.oldPrice - product.price)}
                 </p>
               )}
 
@@ -816,132 +823,128 @@ export default function ProductPage() {
                 </div>
               )}
 
-              {/* Quantity */}
-              <div className="mb-6">
-                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">
-                  Quantité
-                </p>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden">
-                    <button
-                      onClick={() => setQty(q => Math.max(1, q - 1))}
-                      className="w-10 h-10 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition text-lg font-light"
-                    >−</button>
-                    <span className="w-10 text-center text-sm font-semibold text-gray-800">{qty}</span>
-                    <button
-                      onClick={() => setQty(q => Math.min(product.stock ?? 99, q + 1))}
-                      className="w-10 h-10 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition text-lg font-light"
-                    >+</button>
+              {/* ── Buy box (à la Amazon : bloc encadré regroupant achat + confiance) ── */}
+              <div className="border border-gray-200 rounded-2xl shadow-sm p-5">
+                {product.stock !== null && product.stock === 0 ? (
+                  <p className="text-base font-semibold mb-3" style={{ color: AMZ_PRICE_RED }}>Rupture de stock</p>
+                ) : (
+                  <p className="text-lg font-semibold mb-3" style={{ color: '#007600' }}>En stock</p>
+                )}
+
+                {/* Quantity */}
+                <div className="mb-4">
+                  <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">
+                    Quantité
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden">
+                      <button
+                        onClick={() => setQty(q => Math.max(1, q - 1))}
+                        className="w-9 h-9 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition text-lg font-light"
+                      >−</button>
+                      <span className="w-9 text-center text-sm font-semibold text-gray-800">{qty}</span>
+                      <button
+                        onClick={() => setQty(q => Math.min(product.stock ?? 99, q + 1))}
+                        className="w-9 h-9 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition text-lg font-light"
+                      >+</button>
+                    </div>
+                    {product.stock !== null && product.stock > 0 && product.stock <= 10 && (
+                      <p className="text-xs font-semibold" style={{ color: AMZ_PRICE_RED }}>
+                        Plus que {product.stock} en stock
+                      </p>
+                    )}
                   </div>
-                  {product.stock !== null && product.stock > 0 && product.stock <= 10 && (
-                    <p className="text-xs text-orange-500 font-semibold">
-                      ⚠ Plus que {product.stock} en stock
-                    </p>
-                  )}
-                  {product.stock !== null && product.stock === 0 && (
-                    <p className="text-xs text-red-600 font-bold">
-                      ✕ Rupture de stock
-                    </p>
+                </div>
+
+                {/* CTA */}
+                <div className="space-y-2 mb-4">
+                  <motion.button
+                    onClick={handleAddCart}
+                    disabled={product.stock !== null && product.stock === 0}
+                    whileTap={{ scale: 0.98 }}
+                    className={`w-full flex items-center justify-center gap-2 py-3 rounded-full text-sm font-semibold border transition-all hover:shadow-md active:scale-[0.98] ${
+                      product.stock !== null && product.stock === 0
+                        ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                        : 'text-[#0F1111]'
+                    }`}
+                    style={product.stock !== null && product.stock === 0 ? {} : {
+                      background: addedCart ? '#eafce8' : `linear-gradient(to bottom, ${AMZ_YELLOW_FROM}, ${AMZ_YELLOW_TO})`,
+                      borderColor: addedCart ? '#3d8a3d' : AMZ_YELLOW_BORDER,
+                    }}
+                  >
+                    <AnimatePresence mode="wait" initial={false}>
+                      {addedCart ? (
+                        <motion.span key="check" initial={{ opacity: 0, scale: 0.7 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2">
+                          <Check size={16} strokeWidth={2.5} /> Ajouté !
+                        </motion.span>
+                      ) : (
+                        <motion.span key="cart" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2">
+                          <ShoppingCart size={16} /> Ajouter au panier
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </motion.button>
+
+                  {product.stock !== null && product.stock === 0 ? (
+                    <div className="w-full py-2.5 rounded-full border border-gray-200 text-sm font-medium text-gray-400 flex items-center justify-center gap-2 bg-gray-50 cursor-not-allowed select-none">
+                      Indisponible
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        addItem({
+                          productId: product.id,
+                          name:      product.name,
+                          brand:     product.brand,
+                          price:     product.price,
+                          oldPrice:  product.oldPrice,
+                          image:     product.thumbnails[0],
+                          color:     product.colors?.[color],
+                          stock:     product.stock ?? undefined,
+                        }, qty)
+                        navigate('/panier')
+                      }}
+                      className="w-full flex items-center justify-center gap-2 py-3 rounded-full text-sm font-semibold text-[#0F1111] border hover:shadow-md active:scale-[0.98] transition-all"
+                      style={{ background: `linear-gradient(to bottom, ${AMZ_ORANGE_FROM}, ${AMZ_ORANGE_TO})`, borderColor: AMZ_ORANGE_BORDER }}
+                    >
+                      <Zap size={14} />
+                      Acheter maintenant
+                    </button>
                   )}
                 </div>
-              </div>
 
-              {/* CTA row */}
-              <div className="flex gap-3 mb-5">
-                <motion.button
-                  onClick={handleAddCart}
-                  disabled={product.stock !== null && product.stock === 0}
-                  whileTap={{ scale: 0.97 }}
-                  className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm transition-all ${
-                    product.stock !== null && product.stock === 0
-                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                      : addedCart
-                        ? 'bg-emerald-500 text-white'
-                        : 'text-white hover:opacity-90'
-                  }`}
-                  style={{ background: (product.stock !== null && product.stock === 0) || addedCart ? undefined : BLUE }}
-                >
-                  <AnimatePresence mode="wait" initial={false}>
-                    {addedCart ? (
-                      <motion.span key="check"
-                        initial={{ opacity: 0, scale: 0.7 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="flex items-center gap-2"
-                      >
-                        <Check size={16} strokeWidth={2.5} /> Ajouté !
-                      </motion.span>
-                    ) : (
-                      <motion.span key="cart"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="flex items-center gap-2"
-                      >
-                        <ShoppingCart size={16} /> Ajouter au panier
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                </motion.button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleWish}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-full border text-xs font-medium transition-all ${
+                      wished ? 'border-red-200 bg-red-50 text-red-600' : 'border-gray-300 hover:bg-gray-50 text-gray-600'
+                    }`}
+                  >
+                    <Heart size={14} className={wished ? 'fill-red-500 text-red-500' : ''} />
+                    {wished ? 'Dans vos favoris' : 'Ajouter aux favoris'}
+                  </button>
 
-                <button
-                  onClick={handleWish}
-                  className={`w-12 h-12 rounded-2xl border-2 flex items-center justify-center transition-all hover:scale-105 active:scale-95 ${
-                    wished ? 'border-red-200 bg-red-50' : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <Heart size={18}
-                    className={wished ? 'fill-red-500 text-red-500' : 'text-gray-400'}
-                  />
-                </button>
-
-                <button
-                  onClick={handleShare}
-                  className="w-12 h-12 rounded-2xl border-2 border-gray-200 flex items-center justify-center hover:border-gray-300 transition-all hover:scale-105 active:scale-95 relative"
-                >
-                  <AnimatePresence mode="wait">
-                    {shared ? (
-                      <motion.span key="ok" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
-                        <Check size={16} className="text-emerald-500" />
-                      </motion.span>
-                    ) : (
-                      <motion.span key="sh" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
-                        <Share2 size={16} className="text-gray-400" />
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                </button>
-              </div>
-
-              {/* Buy now */}
-              {product.stock !== null && product.stock === 0 ? (
-                <div className="w-full py-3.5 rounded-2xl border-2 border-gray-200 text-sm font-semibold text-gray-400 mb-6 flex items-center justify-center gap-2 bg-gray-50 cursor-not-allowed select-none">
-                  Rupture de stock
+                  <button
+                    onClick={handleShare}
+                    className="w-9 h-9 shrink-0 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 transition-all relative"
+                  >
+                    <AnimatePresence mode="wait">
+                      {shared ? (
+                        <motion.span key="ok" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
+                          <Check size={14} className="text-emerald-500" />
+                        </motion.span>
+                      ) : (
+                        <motion.span key="sh" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
+                          <Share2 size={14} className="text-gray-400" />
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </button>
                 </div>
-              ) : (
-                <button
-                  onClick={() => {
-                    addItem({
-                      productId: product.id,
-                      name:      product.name,
-                      brand:     product.brand,
-                      price:     product.price,
-                      oldPrice:  product.oldPrice,
-                      image:     product.thumbnails[0],
-                      color:     product.colors?.[color],
-                      stock:     product.stock ?? undefined,
-                    }, qty)
-                    navigate('/panier')
-                  }}
-                  className="w-full py-3.5 rounded-2xl border-2 border-gray-900 text-sm font-semibold text-gray-900 hover:bg-gray-900 hover:text-white transition-all mb-6 flex items-center justify-center gap-2"
-                >
-                  <Zap size={14} />
-                  Acheter maintenant
-                </button>
-              )}
+              </div>
 
               {/* Trust badges */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3 mt-5">
                 {TRUST.map(({ Icon, label }) => (
                   <div key={label} className="flex items-center gap-2.5 p-3 rounded-xl bg-gray-50">
                     <Icon size={15} className="text-gray-500 shrink-0" />
@@ -1141,7 +1144,8 @@ export default function ProductPage() {
                 <h2 className="text-xl text-gray-900">Vous aimerez aussi</h2>
                 <Link
                   to={`/catalogue?cat=${product.category}`}
-                  className="text-sm font-semibold text-blue-600 hover:text-blue-700 transition-colors"
+                  className="text-sm font-semibold transition-colors"
+                  style={{ color: BLUE }}
                 >
                   Voir tout →
                 </Link>

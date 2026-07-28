@@ -17,7 +17,15 @@ import { useDebouncedValue } from '../hooks/useDebouncedValue'
 /* ═══════════════════════════════════════════════════════════════
    CONSTANTS & TYPES
 ═══════════════════════════════════════════════════════════════ */
-const BLUE = '#0421ff'
+// Palette inspirée Amazon : lien/accent teal-bleu, prix en noir avec le
+// rabais en rouge, bouton d'achat en dégradé jaune — remplace l'accent bleu
+// vif unique utilisé partout jusqu'ici (repris automatiquement par tous les
+// usages existants de BLUE, sans devoir toucher chaque composant un par un).
+const BLUE = '#007185'
+const AMZ_YELLOW_FROM  = '#f7dfa5'
+const AMZ_YELLOW_TO    = '#f0c14b'
+const AMZ_YELLOW_BORDER = '#a88734'
+const AMZ_PRICE_RED = '#cc0c39'
 const PRICE_MAX_LIMIT = 200000
 
 export type Badge = 'hot' | 'new' | 'sale' | 'top'
@@ -118,18 +126,18 @@ function FilterPanel({
     <div className="space-y-7">
       {/* Categories */}
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-300 mb-3">Catégories</p>
-        <div className="space-y-0.5">
+        <p className="text-[15px] font-bold text-gray-900 mb-2.5">Catégories</p>
+        <div className="space-y-1.5">
           {categories.map(cat => {
             const active = category === cat.slug
             return (
               <button key={cat.slug} onClick={() => setCategory(cat.slug)}
-                className={`w-full flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm transition-all duration-150 ${active?'font-semibold text-gray-900':'text-gray-500 hover:bg-gray-50 hover:text-gray-800'}`}
-                style={{ background: active?`${BLUE}0D`:'' }}
+                className="w-full flex items-center gap-2 text-left text-sm py-0.5 transition-colors"
+                style={{ color: active ? BLUE : '#111111', fontWeight: active ? 700 : 400 }}
               >
                 {cat.image
-                  ? <img src={cat.image} alt="" className="w-5 h-5 rounded-md object-cover shrink-0" />
-                  : <span className="text-base leading-none shrink-0">{cat.icon ?? '📦'}</span>
+                  ? <img src={cat.image} alt="" className="w-4 h-4 rounded object-cover shrink-0" />
+                  : <span className="text-sm leading-none shrink-0">{cat.icon ?? '📦'}</span>
                 }
                 {cat.name}
               </button>
@@ -137,16 +145,16 @@ function FilterPanel({
           })}
         </div>
       </div>
-      <div className="h-px bg-gray-100" />
+      <div className="h-px bg-gray-200" />
       {/* Price */}
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-300 mb-3">Fourchette de prix</p>
+        <p className="text-[15px] font-bold text-gray-900 mb-2.5">Fourchette de prix</p>
         <PriceSlider min={priceMin} max={priceMax} onChange={setPriceRange} />
       </div>
       <div className="h-px bg-gray-100" />
       {/* Rating */}
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-300 mb-3">Note minimale</p>
+        <p className="text-[15px] font-bold text-gray-900 mb-2.5">Note minimale</p>
         <div className="flex items-center gap-1.5">
           {[0,3,4,4.5].map(r => (
             <button key={r} onClick={() => setMinRating(r)}
@@ -159,7 +167,7 @@ function FilterPanel({
       <div className="h-px bg-gray-100" />
       {/* Badges */}
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-300 mb-3">Filtres spéciaux</p>
+        <p className="text-[15px] font-bold text-gray-900 mb-2.5">Filtres spéciaux</p>
         <div className="space-y-2">
           {BADGE_FILTERS.map(bf => {
             const active = badges.includes(bf.id)
@@ -223,7 +231,6 @@ function GridCard({ p, idx }: { p: Product; idx: number }) {
   const [wished, setWished] = useState(false)
   const [added,  setAdded]  = useState(false)
   const discount = p.oldPrice ? disc(p.price, p.oldPrice) : 0
-  const soldPct  = Math.min(100, (p.sold / 2500) * 100)
 
   const handleAdd = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -247,36 +254,25 @@ function GridCard({ p, idx }: { p: Product; idx: number }) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, delay: idx * 0.04, ease: [0.22, 1, 0.36, 1] }}
-      className="group relative bg-white rounded-2xl border border-gray-100
-                 hover:border-transparent hover:shadow-[0_8px_40px_-8px_rgba(0,0,0,0.15)]
-                 transition-all duration-300 flex flex-col overflow-hidden"
+      transition={{ duration: 0.3, delay: idx * 0.03, ease: [0.22, 1, 0.36, 1] }}
+      className="group relative bg-white rounded-2xl border border-gray-100 p-3.5 flex flex-col overflow-hidden
+                 hover:border-gray-200 hover:shadow-[0_12px_32px_-12px_rgba(0,0,0,0.18)] hover:-translate-y-0.5
+                 transition-all duration-300"
     >
       <Link to={`/catalogue/${p.id}`} className="absolute inset-0 z-[1]" aria-label={p.name} />
 
       {/* ── Image area ── */}
-      <div className="relative overflow-hidden bg-gray-50" style={{ aspectRatio:'1/1' }}>
-        <div className="absolute top-3 left-3 z-10 flex flex-col gap-1">
-          {p.badge && (
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${BADGE_STYLE[p.badge]}`}>
-              {p.badge==='hot'?'🔥 Top':p.badge==='new'?'✨ Nouveau':p.badge==='sale'?`-${discount}%`:'⭐ Top noté'}
-            </span>
-          )}
-          {p.stock !== null && p.stock !== undefined && p.stock === 0 ? (
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-200 text-gray-500">
-              Rupture de stock
-            </span>
-          ) : p.stock !== undefined && p.stock > 0 && p.stock <= 5 ? (
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-600">
-              ⚡ {p.stock} restants
-            </span>
-          ) : null}
-        </div>
+      <div className="relative overflow-hidden bg-gray-50/60 rounded-xl mb-3" style={{ aspectRatio:'1/1' }}>
+        {p.badge === 'sale' && discount > 0 && (
+          <span className="absolute top-2 left-2 z-10 px-2 py-0.5 rounded-full text-[11px] font-bold text-white shadow-sm" style={{ background: AMZ_PRICE_RED }}>
+            -{discount}%
+          </span>
+        )}
 
         <button onClick={handleWish}
-          className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-white/90 shadow-sm
+          className="absolute top-2 right-2 z-10 w-8 h-8 rounded-full bg-white shadow-sm
                      flex items-center justify-center opacity-0 group-hover:opacity-100
                      transition-all hover:scale-110 active:scale-95">
           <Heart size={14} className={wished?'fill-red-500 text-red-500':'text-gray-400'}/>
@@ -290,61 +286,68 @@ function GridCard({ p, idx }: { p: Product; idx: number }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.22 }}
-            className="absolute inset-0 w-full h-full object-cover
-                       group-hover:scale-[1.04] transition-transform duration-500"
+            transition={{ duration: 0.18 }}
+            className="absolute inset-0 w-full h-full object-contain p-2 group-hover:scale-[1.05] transition-transform duration-500"
             loading="lazy"
           />
         </AnimatePresence>
 
         <ThumbStrip images={p.thumbnails} active={imgIdx} onHover={setImgIdx} />
-
-        <div className="absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300"
-             style={{ zIndex: 20 }}>
-          <button
-            onClick={p.stock !== null && p.stock === 0 ? undefined : handleAdd}
-            disabled={p.stock !== null && p.stock === 0}
-            className={`w-full py-3 flex items-center justify-center gap-2 text-sm font-semibold transition-colors ${
-              p.stock !== null && p.stock === 0
-                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                : 'text-white'
-            }`}
-            style={p.stock !== null && p.stock === 0 ? {} : { background: added ? '#10b981' : BLUE }}
-          >
-            {p.stock !== null && p.stock === 0
-              ? 'Rupture de stock'
-              : added ? <><Check size={15} strokeWidth={2.5}/> Ajouté !</> : <><ShoppingCart size={15}/> Ajouter au panier</>
-            }
-          </button>
-        </div>
       </div>
 
       {/* ── Body ── */}
-      <div className="p-4 flex flex-col flex-1">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-300 mb-1">{p.brand}</p>
-        <p className="text-sm font-semibold text-gray-800 leading-snug line-clamp-2 flex-1 mb-2">{p.name}</p>
+      <div className="flex flex-col flex-1">
+        <p className="text-sm leading-snug line-clamp-2 mb-1 transition-colors" style={{ color: '#0F1111' }}>
+          {p.brand && <span className="font-semibold">{p.brand}</span>}{p.brand ? ' — ' : ''}{p.name}
+        </p>
 
-        <div className="flex items-center gap-1 mb-2">
+        <div className="flex items-center gap-1 mb-1">
           {Array.from({length:5}).map((_,i) => (
-            <Star key={i} size={11} className={i<Math.round(p.rating)?'fill-yellow-400 text-yellow-400':'fill-gray-100 text-gray-100'}/>
+            <Star key={i} size={13} className={i<Math.round(p.rating)?'fill-orange-400 text-orange-400':'fill-gray-200 text-gray-200'}/>
           ))}
-          <span className="text-[11px] text-gray-400 ml-0.5">{p.rating} ({p.reviews.toLocaleString('fr-FR')})</span>
+          <span className="text-xs ml-1" style={{ color: BLUE }}>{p.reviews.toLocaleString('fr-FR')}</span>
         </div>
 
-        <div className="flex items-center gap-2 mb-3">
-          <div className="flex-1 h-1 rounded-full bg-gray-100 overflow-hidden">
-            <div className="h-full rounded-full bg-orange-400" style={{ width:`${soldPct}%` }}/>
-          </div>
-          <span className="text-[10px] text-gray-400 shrink-0">{p.sold.toLocaleString('fr-FR')} vendus</span>
-        </div>
+        {p.sold > 0 && (
+          <p className="text-xs text-gray-500 mb-1.5">{p.sold.toLocaleString('fr-FR')}+ vendus ce mois-ci</p>
+        )}
 
-        <div className="flex items-end justify-between mt-auto">
-          <div>
-            <p className="text-base font-black text-gray-900 leading-none">{fmt(p.price)}</p>
-            {p.oldPrice && <p className="text-[11px] text-gray-400 line-through mt-0.5">{fmt(p.oldPrice)}</p>}
-          </div>
-          {discount>0 && <span className="text-xs font-black text-red-500">-{discount}%</span>}
+        <div className="flex items-baseline gap-2 mb-0.5">
+          <p className="text-xl font-medium leading-none" style={{ color: '#0F1111' }}>{fmt(p.price)}</p>
         </div>
+        {p.oldPrice && (
+          <div className="flex items-center gap-1.5 mb-2">
+            <span className="text-xs text-gray-500 line-through">{fmt(p.oldPrice)}</span>
+            {discount>0 && <span className="text-xs font-semibold" style={{ color: AMZ_PRICE_RED }}>-{discount}%</span>}
+          </div>
+        )}
+
+        {p.stock === 0 ? (
+          <p className="text-xs font-semibold text-gray-500 mb-2">Rupture de stock</p>
+        ) : p.stock !== undefined && p.stock !== null && p.stock <= 5 ? (
+          <p className="text-xs font-semibold mb-2" style={{ color: AMZ_PRICE_RED }}>Il ne reste que {p.stock} exemplaire{p.stock>1?'s':''}</p>
+        ) : (
+          <div className="mb-2" />
+        )}
+
+        <button
+          onClick={p.stock !== null && p.stock === 0 ? undefined : handleAdd}
+          disabled={p.stock !== null && p.stock === 0}
+          className={`relative z-[2] mt-auto w-full py-2 rounded-full text-[13px] font-semibold border transition-all hover:shadow-md active:scale-[0.98] ${
+            p.stock !== null && p.stock === 0
+              ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+              : 'text-[#0F1111]'
+          }`}
+          style={p.stock !== null && p.stock === 0 ? {} : {
+            background: added ? '#eafce8' : `linear-gradient(to bottom, ${AMZ_YELLOW_FROM}, ${AMZ_YELLOW_TO})`,
+            borderColor: added ? '#3d8a3d' : AMZ_YELLOW_BORDER,
+          }}
+        >
+          {p.stock !== null && p.stock === 0
+            ? 'Indisponible'
+            : added ? <span className="flex items-center justify-center gap-1"><Check size={13} strokeWidth={2.5}/> Ajouté</span> : <span className="flex items-center justify-center gap-1"><ShoppingCart size={13}/> Ajouter au panier</span>
+          }
+        </button>
       </div>
     </motion.div>
   )
@@ -481,13 +484,14 @@ function ListCard({ p, idx }: { p: Product; idx: number }) {
 ═══════════════════════════════════════════════════════════════ */
 function SkeletonCard() {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden animate-pulse">
-      <div className="aspect-square bg-gray-100" />
-      <div className="p-4 space-y-2">
-        <div className="h-2.5 bg-gray-100 rounded w-1/3" />
+    <div className="bg-white p-3 animate-pulse">
+      <div className="aspect-square bg-gray-100 mb-3" />
+      <div className="space-y-2">
         <div className="h-3.5 bg-gray-100 rounded w-4/5" />
         <div className="h-3.5 bg-gray-100 rounded w-3/5" />
-        <div className="h-5 bg-gray-100 rounded w-1/2 mt-3" />
+        <div className="h-3 bg-gray-100 rounded w-1/3" />
+        <div className="h-5 bg-gray-100 rounded w-1/2 mt-2" />
+        <div className="h-7 bg-gray-100 rounded-full w-full mt-2" />
       </div>
     </div>
   )
@@ -668,93 +672,32 @@ export default function CataloguePage() {
 
       <div className="min-h-screen bg-gray-50/50">
 
-        {/* ── Hero banner ── */}
-       <div className="relative overflow-hidden flex flex-col items-start justify-center h-[400px] bg-gray-900">
-
-    {/* Background Image */}
-    <div className="absolute inset-0">
-      {currentCat?.image && (
-        <img
-          src={currentCat.image}
-          alt={currentCat.name}
-          className="w-full h-full object-cover scale-105"
-        />
-      )}
-
-      {/* Dark Overlay */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" />
-
-      {/* Gradient Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/40 to-transparent" />
-    </div>
-
-    {/* Content */}
-    <div className="relative z-20 mx-auto max-w-7xl px-4 sm:px-6 lg:px-10 py-8 sm:py-10 w-full">
-
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-xs text-gray-400 mb-4">
-        <span
-          className="hover:text-white cursor-pointer transition-colors"
-          onClick={() => setCategory('all')}
-        >
-          Catalogue
-        </span>
-
-        {category !== 'all' && (
-          <>
-            <span>/</span>
-            <span className="text-white">
-              {currentCat.name}
-            </span>
-          </>
-        )}
-      </nav>
-
-    {/* Header */}
-    <div className="flex items-end gap-6">
-
-      <div>
-        <div className="mb-3">
-          {currentCat?.image
-            ? <img src={currentCat.image} alt={currentCat.name} className="w-14 h-14 rounded-2xl object-cover shadow-lg ring-2 ring-white/20" />
-            : <span className="text-4xl block">{currentCat?.icon ?? '🛍️'}</span>
-          }
-        </div>
-
-        <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-          {currentCat.name}
-        </h1>
-
-        <p className="text-gray-300 text-sm mt-1">
-          {isLoading
-            ? '…'
-            : `${totalCount} produit${totalCount !== 1 ? 's' : ''} disponible${totalCount !== 1 ? 's' : ''}`}
-        </p>
-      </div>
-
-      {/* Categories */}
-      <div className="hidden md:flex items-center gap-2 flex-wrap ml-auto">
-        {categories.slice(1).map((cat) => (
-          <button
-            key={cat.slug}
-            onClick={() => setCategory(cat.slug)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all backdrop-blur-md border border-white/10 ${
-              category === cat.slug
-                ? 'bg-white text-gray-900'
-                : 'bg-white/10 text-white/70 hover:bg-white/20'
-            }`}
-          >
-            {cat.image
-              ? <img src={cat.image} alt="" className="w-4 h-4 rounded-full object-cover" />
-              : <span>{cat.icon}</span>
-            }
-            {cat.name}
-          </button>
-        ))}
-      </div>
-
-    </div>
-  </div>
+        {/* ── En-tête résultats ── */}
+        <div className="bg-gradient-to-b from-white to-gray-50/60 border-b border-gray-100">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-10 py-5">
+            <nav className="flex items-center gap-1.5 text-xs mb-2.5">
+              <span className="cursor-pointer font-medium transition-colors hover:opacity-70" style={{ color: BLUE }} onClick={() => setCategory('all')}>
+                Catalogue
+              </span>
+              {category !== 'all' && (
+                <>
+                  <span className="text-gray-300">›</span>
+                  <span className="text-gray-500">{currentCat.name}</span>
+                </>
+              )}
+            </nav>
+            <div className="flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-white border border-gray-100 shadow-sm flex items-center justify-center text-xl shrink-0">{currentCat?.icon ?? '🛍️'}</span>
+              <h1 className="text-2xl font-bold tracking-tight text-gray-900">
+                {isLoading
+                  ? currentCat.name
+                  : category !== 'all' ? currentCat.name : 'Tout le catalogue'}
+              </h1>
+              <span className="text-sm text-gray-400 mt-1">
+                {isLoading ? '…' : `${totalCount.toLocaleString('fr-FR')} résultat${totalCount !== 1 ? 's' : ''}`}
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* ── Sticky search ── */}
@@ -774,10 +717,10 @@ export default function CataloguePage() {
           <div className="flex gap-8">
 
             {/* ── Sidebar ── */}
-            <aside className="hidden lg:block w-60 xl:w-64 shrink-0">
-              <div className="sticky top-[220px] bg-white rounded-2xl border border-gray-100 p-5">
-                <div className="flex items-center justify-between mb-5">
-                  <p className="font-bold text-gray-900 text-sm">Filtres</p>
+            <aside className="hidden lg:block w-56 xl:w-60 shrink-0">
+              <div className="sticky top-[160px] bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <p className="font-bold text-gray-900 text-base">Filtres</p>
                   {activeFilterCount>0&&<span className="text-[11px] font-bold px-2 py-0.5 rounded-full text-white" style={{background:BLUE}}>{activeFilterCount}</span>}
                 </div>
                 <FilterPanel category={category} setCategory={setCategory}
@@ -866,7 +809,7 @@ export default function CataloguePage() {
               {/* Grid / List */}
               <AnimatePresence mode="wait">
                 {isLoading ? (
-                  <div className={`grid gap-4 sm:gap-5 grid-cols-2 ${gridCols===4?'lg:grid-cols-4':'lg:grid-cols-3'}`}>
+                  <div className={`grid gap-x-3 gap-y-6 grid-cols-2 ${gridCols===4?'lg:grid-cols-4':'lg:grid-cols-3'}`}>
                     {Array.from({length: PER_PAGE}).map((_,i) => <SkeletonCard key={i}/>)}
                   </div>
                 ) : isError ? (
@@ -880,7 +823,7 @@ export default function CataloguePage() {
                   <EmptyState key="empty" onReset={resetFilters}/>
                 ) : viewMode==='grid' ? (
                   <motion.div key={`grid-p${page}`}
-                    className={`grid gap-4 sm:gap-5 grid-cols-2 ${gridCols===4?'lg:grid-cols-4':'lg:grid-cols-3'}`}>
+                    className={`grid gap-x-3 gap-y-6 grid-cols-2 ${gridCols===4?'lg:grid-cols-4':'lg:grid-cols-3'}`}>
                     {filtered.map((p,i)=><GridCard key={p.id} p={p} idx={i}/>)}
                   </motion.div>
                 ) : (
