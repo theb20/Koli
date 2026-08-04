@@ -1,8 +1,10 @@
-import { Clock } from 'lucide-react'
+import { useState } from 'react'
+import { Clock, Download, Loader2 } from 'lucide-react'
 import { Drawer } from '@/components/ui/Drawer'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { fmtDateTime, fmtFcfa } from '@/lib/format'
 import { orderStatusMap, orderPaymentMethodLabels } from '@/lib/statusMaps'
+import { api } from '@/lib/api'
 import type { OrderStatus } from '@/types'
 import { useOrder, useUpdateOrderStatus } from '../api/useOrders'
 
@@ -16,6 +18,23 @@ const STATUS_OPTIONS: OrderStatus[] = ['pending', 'confirmed', 'processing', 'sh
 export function OrderDetailDrawer({ orderId, onClose }: OrderDetailDrawerProps) {
   const { data: order, isLoading } = useOrder(orderId)
   const updateStatus = useUpdateOrderStatus()
+  const [downloading, setDownloading] = useState(false)
+
+  const handleDownloadInvoice = async () => {
+    if (!order) return
+    setDownloading(true)
+    try {
+      const res = await api.get(`/api/seller/orders/${order.id}/invoice`, { responseType: 'blob' })
+      const url = URL.createObjectURL(res.data as Blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `recapitulatif-${order.orderNumber}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   return (
     <Drawer title={order ? order.orderNumber : 'Commande'} onClose={onClose}>
@@ -27,6 +46,17 @@ export function OrderDetailDrawer({ orderId, onClose }: OrderDetailDrawerProps) 
             <StatusBadge label={orderStatusMap[order.status].label} tone={orderStatusMap[order.status].tone} />
             <p className="text-xs text-[#6b6b68]">{fmtDateTime(order.createdAt)}</p>
           </div>
+
+          {order.isPaid && (
+            <button
+              onClick={handleDownloadInvoice}
+              disabled={downloading}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-[#e8e8e4] text-sm text-[#0a0a0b] hover:border-[#1E90FF] transition-colors disabled:opacity-40"
+            >
+              {downloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+              Récapitulatif PDF (mes articles)
+            </button>
+          )}
 
           {!order.isPaid ? (
             <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-4">

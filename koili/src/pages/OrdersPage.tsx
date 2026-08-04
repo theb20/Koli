@@ -4,11 +4,11 @@ import { useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'motion/react'
 import {
   Package, ChevronRight, Clock, Truck, CheckCircle2,
-  AlertCircle, ShoppingBag, Loader2, RotateCcw,
+  AlertCircle, ShoppingBag, Loader2, RotateCcw, Download,
 } from 'lucide-react'
 import { PageMeta } from '../components/seo/PageMeta'
 import { useAuth } from '../contexts/AuthContext'
-import { fetchMyOrders, type ApiOrder } from '../lib/api'
+import { fetchMyOrders, API_BASE, type ApiOrder } from '../lib/api'
 
 /* ─── helpers ─── */
 const fmt = (n: number) =>
@@ -42,9 +42,33 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 /* ─── Order card ─── */
-function OrderCard({ order }: { order: ApiOrder }) {
+function OrderCard({ order, token }: { order: ApiOrder; token: string | null }) {
   const preview = order.items.slice(0, 3)
   const extra   = order.items.length - 3
+  const [downloading, setDownloading] = useState(false)
+
+  const handleDownloadInvoice = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDownloading(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/orders/${encodeURIComponent(order.orderNumber)}/invoice`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      })
+      if (!res.ok) throw new Error()
+      const blob = await res.blob()
+      const url  = URL.createObjectURL(blob)
+      const a    = document.createElement('a')
+      a.href = url
+      a.download = `facture-${order.orderNumber}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      // silencieux dans la liste — la page détail affiche un message d'erreur dédié
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   return (
     <motion.div
@@ -67,8 +91,16 @@ function OrderCard({ order }: { order: ApiOrder }) {
               <p className="text-xs text-gray-400 mt-0.5">{fmtDate(order.createdAt)}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <StatusBadge status={order.status} />
+            <button
+              onClick={handleDownloadInvoice}
+              disabled={downloading}
+              title="Télécharger la facture"
+              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors disabled:opacity-40"
+            >
+              {downloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+            </button>
             <ChevronRight size={16} className="text-gray-300 group-hover:text-gray-600 group-hover:translate-x-0.5 transition-all" />
           </div>
         </div>
@@ -218,7 +250,7 @@ export default function OrdersPage() {
             <AnimatePresence mode="wait">
               <div className="space-y-3">
                 {orders.map(order => (
-                  <OrderCard key={order.id} order={order} />
+                  <OrderCard key={order.id} order={order} token={token} />
                 ))}
               </div>
             </AnimatePresence>

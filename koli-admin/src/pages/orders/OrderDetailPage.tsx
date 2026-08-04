@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, MapPin, Phone, Mail, Package, CreditCard, Lock, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, MapPin, Phone, Mail, Package, CreditCard, Lock, AlertTriangle, Download, Loader2 } from 'lucide-react'
+import { useState } from 'react'
 import { api, fmt, fmtDateTime } from '../../lib/api'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
@@ -42,6 +43,23 @@ export default function OrderDetailPage() {
     mutationFn: (status: string) => api.patch(`/api/orders/${id}/status`, { status }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['order', id] }),
   })
+
+  const [downloadingInvoice, setDownloadingInvoice] = useState(false)
+  const handleDownloadInvoice = async () => {
+    if (!order) return
+    setDownloadingInvoice(true)
+    try {
+      const res = await api.get(`/api/orders/${order.id}/invoice`, { responseType: 'blob' })
+      const url = URL.createObjectURL(res.data as Blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `facture-${order.orderNumber}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } finally {
+      setDownloadingInvoice(false)
+    }
+  }
 
   if (isLoading) return (
     <div className="flex items-center justify-center h-64">
@@ -97,6 +115,11 @@ export default function OrderDetailPage() {
             </div>
             <p className="text-sm text-slate-500 mt-0.5">{fmtDateTime(order.createdAt)}</p>
           </div>
+          <button onClick={handleDownloadInvoice} disabled={downloadingInvoice}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-slate-300 hover:text-slate-900 transition-colors disabled:opacity-40 shrink-0">
+            {downloadingInvoice ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+            Facture PDF
+          </button>
         </div>
         {/* Status update — verrouillé si annulée / remboursée */}
         {order.status === 'cancelled' || order.status === 'refunded' ? (

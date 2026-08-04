@@ -182,6 +182,46 @@
   </url>
 
   <url>
+    <loc>https://skignas.com/catalogue/170</loc>
+    <lastmod>2026-07-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://koli-production-a314.up.railway.app/api/v1/files/019fa9b1-4b29-7935-b5c7-d03fad260a02</image:loc>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://skignas.com/catalogue/171</loc>
+    <lastmod>2026-07-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://koli-production-a314.up.railway.app/api/v1/files/019fa9b1-54ce-7030-ab09-630e6421cc59</image:loc>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://skignas.com/catalogue/5</loc>
+    <lastmod>2026-07-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://asset.action.com/image/upload/t_digital_product_image/w_1920/3202088_8712879165972-111_01_fvju7m.webp</image:loc>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://skignas.com/catalogue/144</loc>
+    <lastmod>2026-07-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://koli-production-a314.up.railway.app/api/v1/files/019f8e7f-3bd3-799b-9e21-472db42f879c</image:loc>
+    </image:image>
+  </url>
+
+  <url>
     <loc>https://skignas.com/catalogue/139</loc>
     <lastmod>2026-07-28</lastmod>
     <changefreq>weekly</changefreq>
@@ -312,22 +352,22 @@
   </url>
 
   <url>
-    <loc>https://skignas.com/catalogue/5</loc>
+    <loc>https://skignas.com/catalogue/168</loc>
     <lastmod>2026-07-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image>
-      <image:loc>https://asset.action.com/image/upload/t_digital_product_image/w_1920/3202088_8712879165972-111_01_fvju7m.webp</image:loc>
+      <image:loc>https://koli-production-a314.up.railway.app/api/v1/files/019fa9b1-3858-7170-b04b-97dd1fce2328</image:loc>
     </image:image>
   </url>
 
   <url>
-    <loc>https://skignas.com/catalogue/144</loc>
+    <loc>https://skignas.com/catalogue/169</loc>
     <lastmod>2026-07-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image>
-      <image:loc>https://koli-production-a314.up.railway.app/api/v1/files/019f8e7f-3bd3-799b-9e21-472db42f879c</image:loc>
+      <image:loc>https://koli-production-a314.up.railway.app/api/v1/files/019fa9b1-43fe-7353-8d46-75e2db87602c</image:loc>
     </image:image>
   </url>
 

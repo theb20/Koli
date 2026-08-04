@@ -137,43 +137,43 @@ model SellerProduct {
 }
 
 model Product {
-  id             Int             @id @default(autoincrement())
-  name           String
-  brand          String
-  category       String
-  categoryId     Int?
-  price          Int
-  oldPrice       Int?
-  storeId        Int?
-  rating         Float           @default(0)
-  reviews        Int             @default(0)
-  badge          String?
-  sold           Int             @default(0)
-  stock          Int             @default(100)
-  isNew          Boolean         @default(false)
-  isActive       Boolean         @default(true)
-  description    String?
-  colors         String?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  saleStartsAt   DateTime?
-  saleEndsAt     DateTime?
-  salePrice      Int?
+  id                 Int             @id @default(autoincrement())
+  name               String
+  brand              String
+  category           String
+  categoryId         Int?
+  price              Int
+  oldPrice           Int?
+  storeId            Int?
+  rating             Float           @default(0)
+  reviews            Int             @default(0)
+  badge              String?
+  sold               Int             @default(0)
+  stock              Int             @default(100)
+  isNew              Boolean         @default(false)
+  isActive           Boolean         @default(true)
+  description        String?
+  colors             String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  saleStartsAt       DateTime?
+  saleEndsAt         DateTime?
+  salePrice          Int?
   /// Dernier résultat connu d'une synchronisation Merchant (tous providers
   /// confondus) — "success" | "failed" | "skipped" | null si jamais synchronisé.
   merchantSyncStatus String?
   merchantSyncedAt   DateTime?
-  browseHistory  BrowseHistory[]
-  giftListItems  GiftListItem[]
-  orderItems     OrderItem[]
-  images         ProductImage[]
-  specs          ProductSpec[]
-  categoryRel    Category?       @relation(fields: [categoryId], references: [id])
-  store          SellerStore?    @relation(fields: [storeId], references: [id])
-  reviewItems    Review[]
-  sellerProducts SellerProduct[]
-  stockAlerts    StockAlert[]
-  wishlistItems  WishlistItem[]
+  browseHistory      BrowseHistory[]
+  giftListItems      GiftListItem[]
+  orderItems         OrderItem[]
+  images             ProductImage[]
+  specs              ProductSpec[]
+  categoryRel        Category?       @relation(fields: [categoryId], references: [id])
+  store              SellerStore?    @relation(fields: [storeId], references: [id])
+  reviewItems        Review[]
+  sellerProducts     SellerProduct[]
+  stockAlerts        StockAlert[]
+  wishlistItems      WishlistItem[]
 
   @@index([categoryId])
   @@index([storeId])
@@ -209,9 +209,9 @@ model ProductSpec {
 }
 
 model Order {
-  id              String        @id @default(cuid())
-  orderNumber     String        @unique
-  clientRequestId String?       @unique
+  id              String          @id @default(cuid())
+  orderNumber     String          @unique
+  clientRequestId String?         @unique
   userId          String?
   clientPrenom    String
   clientNom       String
@@ -221,42 +221,50 @@ model Order {
   shippingAddress String
   shippingCost    Int
   paymentMethod   String
-  paymentStatus   String        @default("pending")
+  paymentStatus   String          @default("pending")
   /// Token de facture PayDunya — sert à retrouver la commande depuis l'IPN
   /// et à revérifier le statut réel auprès de PayDunya (jamais de confiance
   /// aveugle dans le contenu brut de l'IPN).
-  paydunyaToken   String?       @unique
+  paydunyaToken   String?         @unique
   subtotal        Int
-  discount        Int           @default(0)
-  taxRate         Float         @default(0)
-  taxAmount       Int           @default(0)
+  discount        Int             @default(0)
+  taxRate         Float           @default(0)
+  taxAmount       Int             @default(0)
   total           Int
   promoCode       String?
-  promoDiscount   Int           @default(0)
-  pointsEarned    Int           @default(0)
-  pointsRedeemed  Int           @default(0)
-  installmentPlan Boolean       @default(false)
-  status          String        @default("pending")
+  promoDiscount   Int             @default(0)
+  pointsEarned    Int             @default(0)
+  pointsRedeemed  Int             @default(0)
+  installmentPlan Boolean         @default(false)
+  status          String          @default("pending")
   notes           String?
   adminNotes      String?
   /// Verrouillé à la première transition vers "delivered" — base du calcul
   /// de la fenêtre d'éligibilité au retour (SiteSettings.returnWindowDays).
   deliveredAt     DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  /// Suppression douce (sélection multiple + validation côté koli-admin) —
+  /// la ligne reste en base pour l'historique/comptabilité, juste exclue des
+  /// listings admin par défaut. Restaurable. Voir logAdminAction pour la
+  /// traçabilité fine (qui, quand) au-delà de ce simple horodatage.
+  deletedAt       DateTime?
+  deletedBy       String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
   delivery        Delivery?
   installments    Installment[]
   items           OrderItem[]
   returns         OrderReturn[]
-  user            User?         @relation(fields: [userId], references: [id])
+  user            User?           @relation(fields: [userId], references: [id])
+  productRequest  ProductRequest?
 
   @@index([userId])
   @@index([status])
+  @@index([deletedAt])
   @@map("orders")
 }
 
 model OrderItem {
-  id          Int          @id @default(autoincrement())
+  id          Int               @id @default(autoincrement())
   orderId     String
   productId   Int
   name        String
@@ -265,8 +273,8 @@ model OrderItem {
   qty         Int
   image       String
   color       String?
-  product     Product      @relation(fields: [productId], references: [id])
-  order       Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product           @relation(fields: [productId], references: [id])
+  order       Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
   returnItems OrderReturnItem[]
 
   @@index([orderId])
@@ -281,11 +289,11 @@ model OrderItem {
 ///     ↓            ↓          ↓
 /// cancelled     rejected   rejected
 model OrderReturn {
-  id       String @id @default(cuid())
-  orderId  String
-  userId   String
+  id              String            @id @default(cuid())
+  orderId         String
+  userId          String
   /// requested | approved | rejected | received | refunded | cancelled
-  status   String @default("requested")
+  status          String            @default("requested")
   /// defective | wrong_item | not_as_described | no_longer_needed | other
   reason          String
   customerComment String?
@@ -293,22 +301,22 @@ model OrderReturn {
   rejectionReason String?
   /// JSON: string[] — photos de preuve envoyées par le client, ré-hébergées
   /// côté serveur comme les autres uploads (jamais un lien externe direct).
-  photos       String?
+  photos          String?
   /// Calculé à l'approbation à partir des articles retournés, plafonné au
   /// montant réellement payé — ajustable par l'admin avant remboursement.
-  refundAmount Int?
-  refundMethod String?
-  requestedAt  DateTime  @default(now())
-  approvedAt   DateTime?
-  rejectedAt   DateTime?
-  receivedAt   DateTime?
-  refundedAt   DateTime?
-  cancelledAt  DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  order        Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items        OrderReturnItem[]
+  refundAmount    Int?
+  refundMethod    String?
+  requestedAt     DateTime          @default(now())
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  receivedAt      DateTime?
+  refundedAt      DateTime?
+  cancelledAt     DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  order           Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items           OrderReturnItem[]
 
   @@index([orderId])
   @@index([userId])
@@ -412,12 +420,12 @@ model Notification {
 /// compte User n'existe (créé plus tard, à l'étape 3), donc pas rattachable
 /// à un User. Une ligne par email, régénérée à chaque renvoi.
 model EmailVerification {
-  id          String   @id @default(cuid())
-  email       String   @unique
-  codeHash    String
-  attempts    Int      @default(0)
-  expiresAt   DateTime
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  email     String   @unique
+  codeHash  String
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 
   @@map("email_verifications")
 }
@@ -446,7 +454,7 @@ model ProductRequest {
   clientTelephone String?
   productName     String
   description     String
-  images          String?   // JSON: string[] (URLs uploadées)
+  images          String? // JSON: string[] (URLs uploadées)
   quantity        Int?
   budget          Int?
   deliveryAddress String
@@ -455,9 +463,14 @@ model ProductRequest {
   adminReply      String?
   quotedPrice     Int?
   repliedAt       DateTime?
+  /// Commande générée automatiquement au passage en statut "fulfilled" — voir
+  /// routes/product-requests.ts. Un produit masqué du catalogue est créé pour
+  /// porter la ligne de commande, puisque OrderItem exige toujours un produit réel.
+  orderId         String?   @unique
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   user            User?     @relation(fields: [userId], references: [id])
+  order           Order?    @relation(fields: [orderId], references: [id])
 
   @@index([userId])
   @@index([status])
@@ -622,8 +635,8 @@ model BrowseHistory {
 /// Annonce email automatique d'une vente flash à un segment de clients
 model DealAnnouncement {
   id             Int       @id @default(autoincrement())
-  productIds     String    // JSON: number[]
-  segment        String    // 'all' | 'buyers' | 'inactive'
+  productIds     String // JSON: number[]
+  segment        String // 'all' | 'buyers' | 'inactive'
   inactiveDays   Int?
   sendAt         DateTime
   status         String    @default("pending") // pending | sent | failed | cancelled
@@ -637,19 +650,19 @@ model DealAnnouncement {
 
 /// Réglages globaux du site (singleton — une seule ligne, id fixe = 1)
 model SiteSettings {
-  id             Int      @id @default(1)
-  supportPhone   String   @default("+225 01 41 00 00 12")
-  whatsappNumber String   @default("2250700000000")
-  supportEmail   String   @default("support@skignas.com")
-  contactEmail   String   @default("hello@skignas.com")
-  address        String   @default("Cocody, Abidjan - Côte d'Ivoire")
-  facebookUrl    String?
-  instagramUrl   String?
-  youtubeUrl     String?
-  tiktokUrl      String?
+  id                      Int      @id @default(1)
+  supportPhone            String   @default("+225 01 41 00 00 12")
+  whatsappNumber          String   @default("2250700000000")
+  supportEmail            String   @default("support@skignas.com")
+  contactEmail            String   @default("hello@skignas.com")
+  address                 String   @default("Cocody, Abidjan - Côte d'Ivoire")
+  facebookUrl             String?
+  instagramUrl            String?
+  youtubeUrl              String?
+  tiktokUrl               String?
   /// Destinataires internes des emails "nouvelle commande" — liste séparée par des virgules,
   /// jamais exposée sur GET /api/settings (public)
-  orderNotifyEmails String @default("skignass@gmail.com")
+  orderNotifyEmails       String   @default("skignass@gmail.com")
   /// Design tokens des emails (back-office → Templates email). NULL = valeur par
   /// défaut codée dans layout.ts. Chaque valeur est validée par liste blanche
   /// avant écriture (voir email-templates.ts) — jamais de HTML/CSS libre.
@@ -669,17 +682,17 @@ model SiteSettings {
   emailGreeting           String?
   /// Nombre de jours après livraison pendant lesquels un client peut demander
   /// un retour (voir eligibility check dans returns.ts).
-  returnWindowDays Int      @default(14)
+  returnWindowDays        Int      @default(14)
   /// Coupe-circuit global du programme de fidélité — quand false, plus aucun
   /// point n'est gagné (commandes, parrainage) ni utilisable (redeem), mais
   /// les soldes/historiques existants restent intacts et consultables.
-  loyaltyEnabled   Boolean  @default(true)
+  loyaltyEnabled          Boolean  @default(true)
   /// Solde minimum de points requis pour pouvoir les utiliser (POST /loyalty/redeem).
-  loyaltyMinRedeem Int      @default(500)
+  loyaltyMinRedeem        Int      @default(500)
   /// Autorise "cash" (paiement à la livraison) comme mode de paiement à la
   /// commande — quand false, seul le paiement en ligne (PayDunya) est proposé.
-  codEnabled       Boolean  @default(true)
-  updatedAt      DateTime @updatedAt
+  codEnabled              Boolean  @default(true)
+  updatedAt               DateTime @updatedAt
 
   @@map("site_settings")
 }
@@ -708,17 +721,17 @@ model AuditLog {
 /// aujourd'hui, provider volontairement en champ String — pas d'enum — pour
 /// pouvoir brancher meta/tiktok/pinterest/microsoft plus tard sans migration).
 model MerchantSyncRun {
-  id           String   @id @default(cuid())
-  provider     String   @default("google")
-  mode         String   // "full" | "selected" | "retry"
-  status       String   @default("running") // "running" | "completed" | "failed"
+  id           String             @id @default(cuid())
+  provider     String             @default("google")
+  mode         String // "full" | "selected" | "retry"
+  status       String             @default("running") // "running" | "completed" | "failed"
   actorId      String?
   actorEmail   String?
-  total        Int      @default(0)
-  succeeded    Int      @default(0)
-  failedCount  Int      @default(0)
-  skippedCount Int      @default(0)
-  startedAt    DateTime @default(now())
+  total        Int                @default(0)
+  succeeded    Int                @default(0)
+  failedCount  Int                @default(0)
+  skippedCount Int                @default(0)
+  startedAt    DateTime           @default(now())
   finishedAt   DateTime?
   items        MerchantSyncItem[]
 
@@ -728,15 +741,15 @@ model MerchantSyncRun {
 }
 
 model MerchantSyncItem {
-  id          String   @id @default(cuid())
+  id          String          @id @default(cuid())
   runId       String
   run         MerchantSyncRun @relation(fields: [runId], references: [id], onDelete: Cascade)
-  productId   Int      // pas de relation FK — snapshot, doit survivre à la suppression du produit
+  productId   Int // pas de relation FK — snapshot, doit survivre à la suppression du produit
   productName String
-  status      String   // "success" | "failed" | "skipped"
+  status      String // "success" | "failed" | "skipped"
   error       String?
-  warnings    String?  // JSON string[] — avertissements de préflight (non bloquants)
-  createdAt   DateTime @default(now())
+  warnings    String? // JSON string[] — avertissements de préflight (non bloquants)
+  createdAt   DateTime        @default(now())
 
   @@index([runId])
   @@index([runId, status])

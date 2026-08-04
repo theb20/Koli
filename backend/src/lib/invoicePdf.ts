@@ -153,3 +153,90 @@ export function buildInvoicePdf(order: OrderWithItems, settings: SiteSettings): 
 
   return doc
 }
+
+/**
+ * Récapitulatif marchand — contrairement à buildInvoicePdf (facture client
+ * complète), ne montre QUE les lignes appartenant à la boutique du marchand
+ * connecté. Une commande peut mélanger les produits de plusieurs boutiques ;
+ * exposer le sous-total ou la TVA de la commande entière donnerait au
+ * marchand une vue sur ce que vendent ses concurrents dans la même commande.
+ * Ni TVA, ni promo, ni total de commande ici — seulement le sous-total de
+ * ses propres articles.
+ */
+export function buildMerchantOrderPdf(order: Order, items: OrderItem[], storeName: string): PDFKit.PDFDocument {
+  const doc = new PDFDocument({ size: 'A4', margin: 50 })
+
+  let shippingAddr: { ville?: string; quartier?: string; adresse?: string } = {}
+  try { shippingAddr = JSON.parse(order.shippingAddress) } catch { /* ignore */ }
+  const addressLine = [shippingAddr.adresse, shippingAddr.quartier, shippingAddr.ville].filter(Boolean).join(', ')
+
+  /* ── En-tête ── */
+  doc.font('Helvetica-Bold').fontSize(22).fillColor(C.text).text(storeName, 50, 50, { width: 300 })
+  doc.font('Helvetica').fontSize(9).fillColor(C.textSub).text('Boutique partenaire Skignas', 50, 80)
+
+  doc.font('Helvetica-Bold').fontSize(16).fillColor(C.text)
+    .text('RÉCAPITULATIF', 350, 50, { width: 195, align: 'right' })
+  doc.font('Helvetica').fontSize(9).fillColor(C.textSub)
+    .text(`Commande ${order.orderNumber}`, 350, 74, { width: 195, align: 'right' })
+    .text(new Date(order.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }), 350, 88, { width: 195, align: 'right' })
+
+  drawBrandBar(doc, 50, 112, 495)
+
+  doc.font('Helvetica').fontSize(8).fillColor(C.textFaint)
+    .text('Ne couvre que les articles de cette boutique — la commande peut inclure d\'autres boutiques.', 50, 126, { width: 495 })
+
+  /* ── Client / livraison ── */
+  let y = 158
+  doc.font('Helvetica-Bold').fontSize(8).fillColor(C.textFaint).text('CLIENT', 50, y)
+  doc.font('Helvetica-Bold').fontSize(10).fillColor(C.text)
+    .text(`${order.clientPrenom} ${order.clientNom}`, 50, y + 14)
+  doc.font('Helvetica').fontSize(9).fillColor(C.textSub)
+    .text(order.clientEmail, 50, y + 30)
+    .text(order.clientTelephone, 50, y + 44)
+
+  doc.font('Helvetica-Bold').fontSize(8).fillColor(C.textFaint).text('LIVRAISON', 300, y)
+  doc.font('Helvetica').fontSize(9).fillColor(C.textSub)
+    .text(addressLine || '—', 300, y + 14, { width: 245 })
+    .text(order.deliveryMethod === 'express' ? 'Express · 24-72h' : 'Standard · 3-5 jours', 300, y + 44)
+
+  /* ── Tableau des articles (boutique uniquement) ── */
+  y = 240
+  doc.font('Helvetica-Bold').fontSize(8).fillColor(C.textFaint)
+    .text('ARTICLE', 50, y)
+    .text('QTÉ', 340, y, { width: 40, align: 'right' })
+    .text('PRIX UNIT.', 390, y, { width: 75, align: 'right' })
+    .text('TOTAL', 470, y, { width: 75, align: 'right' })
+  y += 16
+  doc.moveTo(50, y).lineTo(545, y).strokeColor(C.border).stroke()
+  y += 10
+
+  let storeSubtotal = 0
+  for (const item of items) {
+    const lineTotal = item.price * item.qty
+    storeSubtotal += lineTotal
+    const nameHeight = doc.font('Helvetica').fontSize(10).heightOfString(item.name, { width: 270 })
+    doc.fillColor(C.text).text(item.name, 50, y, { width: 270 })
+    doc.fillColor(C.textSub)
+      .text(String(item.qty), 340, y, { width: 40, align: 'right' })
+      .text(fmt(item.price), 390, y, { width: 75, align: 'right' })
+      .fillColor(C.text)
+      .text(fmt(lineTotal), 470, y, { width: 75, align: 'right' })
+    y += Math.max(nameHeight, 14) + 10
+  }
+
+  doc.moveTo(50, y).lineTo(545, y).strokeColor(C.border).stroke()
+  y += 14
+
+  // Pastille bleue — sous-total de la boutique uniquement, jamais le total de la commande.
+  doc.roundedRect(345, y - 6, 200, 28, 8).fill(C.blueBg)
+  doc.font('Helvetica-Bold').fontSize(11).fillColor(C.blueDark)
+    .text('Sous-total', 358, y + 3, { width: 100 })
+    .text(fmt(storeSubtotal), 445, y + 3, { width: 93, align: 'right' })
+  y += 40
+
+  /* ── Pied de page ── */
+  doc.font('Helvetica').fontSize(8).fillColor(C.textFaint)
+    .text('Skignas, marketplace tech en Côte d\'Ivoire — récapitulatif à usage interne, ne constitue pas une facture.', 50, 760, { width: 495, align: 'center' })
+
+  return doc
+}

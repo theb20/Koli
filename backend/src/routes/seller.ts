@@ -16,6 +16,7 @@ import { extractExtension } from '../security/mimeValidator'
 import { verifySpreadsheetSignature } from '../security/fileSignature'
 import { deleteProductAtomic } from '../lib/productDeletion'
 import { searchProductIds, normalizeSearchQuery } from '../lib/search'
+import { buildMerchantOrderPdf } from '../lib/invoicePdf'
 import type { Prisma, Order, OrderItem } from '@prisma/client'
 
 const router = Router()
@@ -1055,6 +1056,40 @@ router.get('/orders/:id', requireSeller, async (req, res) => {
     res.json({ success: true, data: shapeOrder(items[0].order, items) })
   } catch (err) {
     logger.error('[seller/orders detail]', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/*
+ * PDF récapitulatif — jamais la facture complète du client (voir
+ * buildMerchantOrderPdf) : une commande peut mélanger plusieurs boutiques,
+ * le marchand ne doit voir/télécharger que ses propres lignes.
+ */
+router.get('/orders/:id/invoice', requireSeller, async (req, res) => {
+  try {
+    const store = await requireMyStore(req.user!.userId)
+    if (!store) { res.status(404).json({ success: false, message: 'Boutique introuvable.' }); return }
+
+    const items = await prisma.orderItem.findMany({
+      where: { orderId: req.params.id, product: { storeId: store.id } },
+      include: { order: true },
+    })
+    if (items.length === 0) { res.status(404).json({ success: false, message: 'Commande introuvable.' }); return }
+
+    const order = items[0]!.order
+    if (order.paymentStatus !== 'paid') {
+      res.status(403).json({ success: false, message: 'Commande pas encore payée.' })
+      return
+    }
+
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="recapitulatif-${order.orderNumber}.pdf"`)
+
+    const doc = buildMerchantOrderPdf(order, items, store.name)
+    doc.pipe(res)
+    doc.end()
+  } catch (err) {
+    logger.error('[seller/orders invoice]', err)
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
 })

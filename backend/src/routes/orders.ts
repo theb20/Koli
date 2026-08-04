@@ -649,13 +649,17 @@ const ordersAdminQuerySchema = zPaginationQuery.extend({
   // (Product.storeId non nul) ; 'direct' = uniquement des produits du
   // catalogue Skignas (aucun storeId) ; absent/'all' = pas de filtre.
   source: z.enum(['merchant', 'direct']).optional(),
+  // Vue « corbeille » — n'affiche que les commandes supprimées (deletedAt
+  // renseigné) au lieu de les exclure comme en usage normal.
+  deleted: z.coerce.boolean().optional().default(false),
 })
 
 router.get('/admin/all', requireAdmin, validateQuery(ordersAdminQuerySchema), async (req, res) => {
   try {
-    const { page, limit, status, q, source } = req.query as unknown as z.infer<typeof ordersAdminQuerySchema>
+    const { page, limit, status, q, source, deleted } = req.query as unknown as z.infer<typeof ordersAdminQuerySchema>
 
     const where = {
+      deletedAt: deleted ? { not: null } : null,
       ...(status ? { status } : {}),
       ...(q ? { OR: [
         { orderNumber: { contains: q } },
@@ -687,17 +691,85 @@ router.get('/admin/all', requireAdmin, validateQuery(ordersAdminQuerySchema), as
       : []
     const storeNameById = new Map(stores.map(s => [s.id, s.name]))
 
+    // Résolution du nom de l'admin ayant supprimé — uniquement pertinent sur
+    // la vue corbeille, pas de coût supplémentaire sur le listing normal.
+    const deletedByIds = deleted ? [...new Set(orders.map(o => o.deletedBy).filter((id): id is string => id != null))] : []
+    const deletedByAdmins = deletedByIds.length > 0
+      ? await prisma.user.findMany({ where: { id: { in: deletedByIds } }, select: { id: true, prenom: true, nom: true } })
+      : []
+    const adminNameById = new Map(deletedByAdmins.map(a => [a.id, `${a.prenom} ${a.nom}`]))
+
     const shaped = orders.map(o => {
       const merchantStoreIds = [...new Set(o.items.map(i => i.product.storeId).filter((id): id is number => id != null))]
       return {
         ...o,
         items: o.items.map(({ product: _product, ...item }) => item),
         merchants: merchantStoreIds.map(id => ({ id, name: storeNameById.get(id) ?? 'Boutique' })),
+        deletedByName: o.deletedBy ? (adminNameById.get(o.deletedBy) ?? 'Admin') : null,
       }
     })
 
     res.json({ success: true, data: { orders: shaped, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } } })
   } catch {
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+const bulkDeleteSchema = z.object({ ids: z.array(z.string().cuid()).min(1).max(200) })
+
+/* ─────────────────────────────────────────────────────────────
+   POST /api/orders/admin/bulk-delete  [ADMIN]
+   Suppression douce (sélection multiple, validée côté client par une
+   confirmation) — les lignes restent en base pour l'historique/comptabilité,
+   juste exclues des listings admin. Voir GET /admin/all?deleted=true pour
+   la corbeille et POST /admin/:id/restore pour annuler.
+───────────────────────────────────────────────────────────── */
+router.post('/admin/bulk-delete', requireAdmin, validate(bulkDeleteSchema), async (req, res) => {
+  try {
+    const { ids } = req.body as z.infer<typeof bulkDeleteSchema>
+
+    const targets = await prisma.order.findMany({
+      where: { id: { in: ids }, deletedAt: null },
+      select: { id: true, orderNumber: true },
+    })
+    if (targets.length === 0) {
+      res.status(404).json({ success: false, message: 'Aucune commande à supprimer (déjà supprimées ou introuvables)' })
+      return
+    }
+
+    await prisma.order.updateMany({
+      where: { id: { in: targets.map(t => t.id) } },
+      data: { deletedAt: new Date(), deletedBy: req.user!.userId },
+    })
+
+    for (const t of targets) {
+      logAdminAction(req, { action: 'order.delete', targetType: 'Order', targetId: t.id, metadata: { orderNumber: t.orderNumber, batchSize: targets.length } })
+    }
+
+    res.json({ success: true, message: `${targets.length} commande(s) supprimée(s)`, data: { deleted: targets.length } })
+  } catch (err) {
+    logger.error('[orders] échec suppression multiple', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/* ─────────────────────────────────────────────────────────────
+   POST /api/orders/admin/:id/restore  [ADMIN]
+───────────────────────────────────────────────────────────── */
+router.post('/admin/:id/restore', requireAdmin, validateParams(zCuidIdParam), async (req, res) => {
+  try {
+    const order = await prisma.order.findUnique({ where: { id: req.params['id']! } })
+    if (!order || !order.deletedAt) {
+      res.status(404).json({ success: false, message: 'Commande introuvable dans la corbeille' })
+      return
+    }
+
+    await prisma.order.update({ where: { id: order.id }, data: { deletedAt: null, deletedBy: null } })
+    logAdminAction(req, { action: 'order.restore', targetType: 'Order', targetId: order.id, metadata: { orderNumber: order.orderNumber } })
+
+    res.json({ success: true, message: 'Commande restaurée' })
+  } catch (err) {
+    logger.error('[orders] échec restauration', err)
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
 })

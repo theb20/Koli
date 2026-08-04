@@ -13,6 +13,15 @@ import { scanFiles } from '../lib/virusScan'
 
 const router = Router()
 
+// Même format que orders.ts (KLI-YYYYMMDD-NNNN) — dupliqué plutôt que partagé,
+// cohérent avec le reste de la base (ex: parseSpecsColumn dans products.ts/seller.ts).
+function generateOrderNumber(): string {
+  const d = new Date()
+  const date = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`
+  const rand = Math.floor(Math.random() * 9000 + 1000)
+  return `KLI-${date}-${rand}`
+}
+
 /* ── Multer — buffer en mémoire, converti en WebP puis envoyé à stockgo ── */
 const reqUpload = multer({
   storage: multer.memoryStorage(),
@@ -233,12 +242,112 @@ router.get('/:id', requireAdmin, validateParams(zCuidIdParam), async (req, res) 
 
 /* ─────────────────────────────────────────────────────────────
    PATCH /api/product-requests/:id/status  [ADMIN]
+
+   Passage à "fulfilled" : génère une vraie commande (Order + OrderItem)
+   à partir de la demande, pour qu'elle soit trackable au même titre qu'un
+   achat classique (« Mes commandes » du client, liste admin, retours...).
+   OrderItem exige toujours un produit réel — un Product masqué du catalogue
+   (isActive: false) est donc créé pour porter la ligne. Idempotent : si la
+   demande a déjà une commande liée (orderId), on ne recrée rien.
 ───────────────────────────────────────────────────────────── */
 router.patch('/:id/status', requireAdmin, validateParams(zCuidIdParam), async (req, res) => {
   try {
     const { status } = z.object({
       status: z.enum(['new', 'processing', 'quoted', 'fulfilled', 'rejected', 'cancelled']),
     }).parse(req.body)
+
+    const existing = await prisma.productRequest.findUnique({ where: { id: req.params['id']! } })
+    if (!existing) {
+      res.status(404).json({ success: false, message: 'Demande introuvable' })
+      return
+    }
+
+    if (status === 'fulfilled' && !existing.orderId) {
+      const unitPrice = existing.quotedPrice ?? existing.budget
+      if (!unitPrice) {
+        res.status(400).json({
+          success: false,
+          message: "Aucun prix n'a été communiqué au client — envoyez un devis (prix) avant de marquer la demande comme traitée.",
+        })
+        return
+      }
+
+      const quantity = existing.quantity ?? 1
+      const subtotal = unitPrice * quantity
+      const defaultTax = await prisma.taxRate.findFirst({ where: { isDefault: true, isActive: true } })
+      const taxRatePercent = defaultTax?.rate ?? 0
+      const taxAmount = Math.round(subtotal * taxRatePercent / 100)
+      const images = existing.images ? (JSON.parse(existing.images) as string[]) : []
+      const orderNumber = generateOrderNumber()
+
+      const order = await prisma.$transaction(async (tx) => {
+        // Produit masqué — n'apparaît jamais dans le catalogue public, existe
+        // uniquement pour satisfaire la contrainte OrderItem.productId.
+        const sourcedProduct = await tx.product.create({
+          data: {
+            name:        existing.productName,
+            brand:       'Sourcing Skignas',
+            category:    'sourcing',
+            price:       unitPrice,
+            stock:       0,
+            isActive:    false,
+            description: existing.description,
+            images: images.length ? { create: images.map((url, i) => ({ url, position: i })) } : undefined,
+          },
+        })
+
+        const created = await tx.order.create({
+          data: {
+            orderNumber,
+            userId:          existing.userId,
+            clientPrenom:    existing.clientPrenom,
+            clientNom:       existing.clientNom,
+            clientEmail:     existing.clientEmail,
+            clientTelephone: existing.clientTelephone ?? '',
+            deliveryMethod:  'standard',
+            shippingAddress: JSON.stringify({ ville: existing.deliveryAddress, adresse: '' }),
+            shippingCost:    0,
+            paymentMethod:   'cash',
+            paymentStatus:   'paid',
+            subtotal,
+            taxRate:         taxRatePercent,
+            taxAmount,
+            total:           subtotal + taxAmount,
+            status:          'delivered',
+            deliveredAt:     new Date(),
+            notes:           `Générée depuis la demande de sourcing ${existing.id}`,
+            items: {
+              create: [{
+                productId: sourcedProduct.id,
+                name:      existing.productName,
+                brand:     'Sourcing Skignas',
+                price:     unitPrice,
+                qty:       quantity,
+                image:     images[0] ?? '',
+              }],
+            },
+          },
+        })
+
+        await tx.productRequest.update({ where: { id: existing.id }, data: { status, orderId: created.id } })
+        return created
+      })
+
+      if (existing.userId) {
+        await prisma.notification.create({
+          data: {
+            userId: existing.userId,
+            type:   'order',
+            title:  'Votre demande de sourcing est devenue une commande',
+            body:   `« ${existing.productName} » a été trouvé — commande ${order.orderNumber} en cours de livraison.`,
+            link:   `/commandes/${order.orderNumber}`,
+          },
+        }).catch(() => {})
+      }
+
+      res.json({ success: true, data: { request: { ...existing, status, orderId: order.id }, order } })
+      return
+    }
 
     const request = await prisma.productRequest.update({ where: { id: req.params['id']! }, data: { status } })
     res.json({ success: true, data: { request } })

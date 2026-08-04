@@ -132,6 +132,8 @@ export type Order = {
   // Boutiques marchand dont au moins un produit figure dans cette commande
   // (Product.storeId) — tableau vide = commande 100% catalogue Skignas.
   merchants?: { id: number; name: string }[]
+  deletedAt?: string | null
+  deletedByName?: string | null
 }
 
 export type OrderItem = {
@@ -236,6 +238,7 @@ export type ProductRequest = {
   adminReply?: string | null
   quotedPrice?: number | null
   repliedAt?: string | null
+  orderId?: string | null
   createdAt: string
   updatedAt: string
 }

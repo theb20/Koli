@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft, Mail, Phone, MapPin, Package, Calendar, BadgeCent,
-  Box, Send, CheckCircle2, Trash2, Image as ImageIcon,
+  Box, Send, CheckCircle2, Trash2, Image as ImageIcon, ShoppingBag,
 } from 'lucide-react'
 import { api, fmt, fmtDateTime } from '../lib/api'
 import { Badge } from '../components/ui/Badge'
@@ -40,6 +40,7 @@ export default function ProductRequestDetailPage() {
     mutationFn: (status: ProductRequestStatus) => api.patch(`/api/product-requests/${id}/status`, { status }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['product-request', id] }),
   })
+  const statusErrorMessage = (statusMutation.error as { response?: { data?: { message?: string } } })?.response?.data?.message
 
   const replyMutation = useMutation({
     mutationFn: () => api.post(`/api/product-requests/${id}/reply`, {
@@ -195,7 +196,22 @@ export default function ProductRequestDetailPage() {
               onChange={e => statusMutation.mutate(e.target.value as ProductRequestStatus)}
               options={STATUS_OPTIONS}
             />
+            {statusMutation.isError && (
+              <p className="text-xs text-red-600 mt-2">{statusErrorMessage ?? 'Erreur lors du changement de statut'}</p>
+            )}
           </Card>
+
+          {request.orderId && (
+            <Card className="p-5 border-green-200 bg-green-50/30">
+              <h3 className="text-sm font-semibold text-slate-900 mb-2 flex items-center gap-2">
+                <ShoppingBag size={15} className="text-green-600" /> Commande générée
+              </h3>
+              <p className="text-xs text-slate-500 mb-3">Cette demande a été convertie en commande trackable.</p>
+              <Button onClick={() => navigate(`/orders/${request.orderId}`)} icon={<ShoppingBag size={14} />}>
+                Voir la commande
+              </Button>
+            </Card>
+          )}
 
           <Card className="p-5">
             <h3 className="text-sm font-semibold text-slate-900 mb-3">Client</h3>
