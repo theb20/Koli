@@ -105,7 +105,9 @@ export default function SignupPage() {
 
   /* ── Google ────────────────────────────────────────────── */
   const handleGoogle = async () => {
-    if (!agreed) { setError('Vous devez accepter les conditions d\'utilisation pour continuer.'); return }
+    // Pas de contrôle sur `agreed` : cette case appartient au formulaire manuel,
+    // que ce parcours contourne. L'acceptation passe par la mention affichée
+    // sous le bouton ("En continuant avec Google, vous acceptez...").
     setError('')
     setGoogleLoad(true)
     try {
@@ -430,21 +432,26 @@ export default function SignupPage() {
                   </div>
                 </motion.div>
 
-                {/* Google — la case CGU est obligatoire ici aussi (cf. handleGoogle) :
-                    sans repère visuel, le bouton semblait actif mais ne faisait rien. */}
+                {/* Google — parcours alternatif qui contourne le formulaire : la case
+                    CGU ci-dessus ne s'y applique pas. Le clic vaut acceptation, avec la
+                    mention légale affichée juste en dessous (usage standard OAuth). */}
                 <motion.div {...fadeUp(0.60)}>
-                  <div className={agreed ? '' : 'opacity-50 transition-opacity'}>
-                    <Button
-                      text={googleLoad ? 'Connexion...' : 'Google'}
-                      loading={googleLoad}
-                      onClick={handleGoogle}
-                    />
-                  </div>
-                  {!agreed && (
-                    <p className="mt-2 text-center text-[12px] text-white/40">
-                      Acceptez les conditions d'utilisation ci-dessus pour continuer avec Google.
-                    </p>
-                  )}
+                  <Button
+                    text={googleLoad ? 'Connexion...' : 'Google'}
+                    loading={googleLoad}
+                    onClick={handleGoogle}
+                  />
+                  <p className="mt-2.5 text-center text-[11px] leading-relaxed text-white/35">
+                    En continuant avec Google, vous acceptez les{' '}
+                    <a href="/cgu" target="_blank" rel="noreferrer" className="text-white/60 underline underline-offset-2 hover:text-white transition-colors">
+                      conditions d'utilisation
+                    </a>{' '}
+                    et la{' '}
+                    <a href="/privacy" target="_blank" rel="noreferrer" className="text-white/60 underline underline-offset-2 hover:text-white transition-colors">
+                      politique de confidentialité
+                    </a>
+                    .
+                  </p>
                 </motion.div>
               </form>
 
