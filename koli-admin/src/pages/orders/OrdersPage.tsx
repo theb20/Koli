@@ -116,10 +116,7 @@ export default function OrdersPage() {
   }
   const allSelected = orders.length > 0 && orders.every(o => selected.has(o.id))
   const toggleSelectAll = () => {
-    setSelected(prev => {
-      if (allSelected) return new Set()
-      return new Set(orders.map(o => o.id))
-    })
+    setSelected(allSelected ? new Set() : new Set(orders.map(o => o.id)))
   }
 
   return (

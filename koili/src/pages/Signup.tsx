@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Mail, User, Calendar, ArrowRight, Check, Loader2, AlertCircle, Gift, Lock, Eye, EyeOff } from 'lucide-react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import Button from '../components/ui/btnStyle'
 import CardUniverse from '../components/ui/Card-universe'
 import { PageMeta } from '../components/seo/PageMeta'
@@ -46,6 +46,7 @@ export default function SignupPage() {
   const [referralCode, setReferralCode] = useState(searchParams.get('ref') ?? '')
   const [agreed,     setAgreed]     = useState(false)
   const [error,      setError]      = useState('')
+  const [existingAccount, setExistingAccount] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [googleLoad, setGoogleLoad] = useState(false)
 
@@ -92,7 +93,11 @@ export default function SignupPage() {
       })
       navigate('/onboarding')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur lors de la création du compte.')
+      const msg = err instanceof Error ? err.message : ''
+      // 409 du backend — le message brut ("Un compte existe déjà avec cet email")
+      // laisse l'utilisateur sans issue : on l'oriente explicitement vers la connexion.
+      if (msg.toLowerCase().includes('existe déjà')) setExistingAccount(true)
+      setError(msg || 'Erreur lors de la création du compte.')
     } finally {
       setSubmitting(false)
     }
@@ -219,10 +224,21 @@ export default function SignupPage() {
                 {error && (
                   <motion.div
                     initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                    className="mb-4 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300"
+                    className="mb-4 flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300"
                   >
-                    <AlertCircle size={15} className="shrink-0" />
-                    {error}
+                    <AlertCircle size={15} className="shrink-0 mt-0.5" />
+                    <span>
+                      {error}
+                      {existingAccount && (
+                        <>
+                          {' '}
+                          <Link to="/login" className="font-semibold text-white underline underline-offset-2">
+                            Connectez-vous plutôt
+                          </Link>
+                          .
+                        </>
+                      )}
+                    </span>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -258,7 +274,7 @@ export default function SignupPage() {
                     <input
                       type="email"
                       value={email}
-                      onChange={e => { setEmail(e.target.value); setError('') }}
+                      onChange={e => { setEmail(e.target.value); setError(''); setExistingAccount(false) }}
                       placeholder="vous@exemple.com"
                       disabled={busy}
                       autoComplete="email"
@@ -414,13 +430,21 @@ export default function SignupPage() {
                   </div>
                 </motion.div>
 
-                {/* Google */}
+                {/* Google — la case CGU est obligatoire ici aussi (cf. handleGoogle) :
+                    sans repère visuel, le bouton semblait actif mais ne faisait rien. */}
                 <motion.div {...fadeUp(0.60)}>
-                  <Button
-                    text={googleLoad ? 'Connexion...' : 'Google'}
-                    loading={googleLoad}
-                    onClick={handleGoogle}
-                  />
+                  <div className={agreed ? '' : 'opacity-50 transition-opacity'}>
+                    <Button
+                      text={googleLoad ? 'Connexion...' : 'Google'}
+                      loading={googleLoad}
+                      onClick={handleGoogle}
+                    />
+                  </div>
+                  {!agreed && (
+                    <p className="mt-2 text-center text-[12px] text-white/40">
+                      Acceptez les conditions d'utilisation ci-dessus pour continuer avec Google.
+                    </p>
+                  )}
                 </motion.div>
               </form>
 
