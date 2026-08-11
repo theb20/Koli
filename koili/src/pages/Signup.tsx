@@ -245,6 +245,38 @@ export default function SignupPage() {
                 )}
               </AnimatePresence>
 
+              {/* Google en premier — parcours le plus court, il ne dépend d'aucun
+                  champ du formulaire ci-dessous (ni de la case CGU, qui n'appartient
+                  qu'à l'inscription manuelle). Le clic vaut acceptation, cf. mention. */}
+              <motion.div {...fadeUp(0.28)} className="mb-5">
+                <Button
+                  text={googleLoad ? 'Connexion...' : 'Google'}
+                  loading={googleLoad}
+                  onClick={handleGoogle}
+                />
+                <p className="mt-2.5 text-center text-[11px] leading-relaxed text-white/35">
+                  En continuant avec Google, vous acceptez les{' '}
+                  <a href="/cgu" target="_blank" rel="noreferrer" className="text-white/60 underline underline-offset-2 hover:text-white transition-colors">
+                    conditions d'utilisation
+                  </a>{' '}
+                  et la{' '}
+                  <a href="/privacy" target="_blank" rel="noreferrer" className="text-white/60 underline underline-offset-2 hover:text-white transition-colors">
+                    politique de confidentialité
+                  </a>
+                  .
+                </p>
+              </motion.div>
+
+              {/* Divider */}
+              <motion.div {...fadeUp(0.29)} className="relative mb-5">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-white/[0.07]" />
+                </div>
+                <div className="relative flex justify-center text-[11px] uppercase tracking-widest">
+                  <span className="bg-transparent px-3 text-white/30">ou avec votre e-mail</span>
+                </div>
+              </motion.div>
+
               <form onSubmit={handleSubmit} noValidate className="space-y-4">
 
                 {/* Nom complet */}
@@ -422,37 +454,6 @@ export default function SignupPage() {
                   </motion.button>
                 </motion.div>
 
-                {/* Divider */}
-                <motion.div {...fadeUp(0.55)} className="relative py-1">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-white/[0.07]" />
-                  </div>
-                  <div className="relative flex justify-center text-[11px] uppercase tracking-widest">
-                    <span className="bg-transparent px-3 text-white/30">ou s'inscrire avec</span>
-                  </div>
-                </motion.div>
-
-                {/* Google — parcours alternatif qui contourne le formulaire : la case
-                    CGU ci-dessus ne s'y applique pas. Le clic vaut acceptation, avec la
-                    mention légale affichée juste en dessous (usage standard OAuth). */}
-                <motion.div {...fadeUp(0.60)}>
-                  <Button
-                    text={googleLoad ? 'Connexion...' : 'Google'}
-                    loading={googleLoad}
-                    onClick={handleGoogle}
-                  />
-                  <p className="mt-2.5 text-center text-[11px] leading-relaxed text-white/35">
-                    En continuant avec Google, vous acceptez les{' '}
-                    <a href="/cgu" target="_blank" rel="noreferrer" className="text-white/60 underline underline-offset-2 hover:text-white transition-colors">
-                      conditions d'utilisation
-                    </a>{' '}
-                    et la{' '}
-                    <a href="/privacy" target="_blank" rel="noreferrer" className="text-white/60 underline underline-offset-2 hover:text-white transition-colors">
-                      politique de confidentialité
-                    </a>
-                    .
-                  </p>
-                </motion.div>
               </form>
 
               {/* Footer */}

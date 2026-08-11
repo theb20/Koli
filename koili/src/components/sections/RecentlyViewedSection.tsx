@@ -21,7 +21,9 @@ export function RecentlyViewedSection() {
           headers: { Authorization: `Bearer ${token}` },
         })
         const json = await res.json()
-        return json.data?.products ?? []
+        // /api/history renvoie les produits bruts (relation `images`) : sans ce
+        // mapping, `thumbnails` n'existe pas et le rendu plante sur thumbnails[0].
+        return (json.data?.products ?? []).map(mapApiProduct)
       }
       // Guest: use localIds to filter from a general products fetch
       if (localIds.length === 0) return []

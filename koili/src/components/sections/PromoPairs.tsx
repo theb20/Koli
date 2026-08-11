@@ -23,12 +23,18 @@ async function fetchActiveDeals(): Promise<FlashApiProduct[]> {
 
 /** Un produit en promo (prix + ancien prix + échéance réelle de fin de vente) */
 function mapDealProduct(p: FlashApiProduct): Product {
+  // `thumbnails` est obligatoire : le rendu s'en sert (thumbnails[0]) et son
+  // absence faisait planter toute la page d'accueil dès qu'une promo était active.
+  // /api/flash ne renvoie que `images`, on retombe donc dessus.
+  const urls = p.images.length ? p.images.map(i => i.url) : ['']
+
   return {
     id: p.id, name: p.name, brand: p.brand, category: '',
     price: p.salePrice, oldPrice: p.price,
     rating: p.rating, reviews: p.reviews, badge: p.badge ?? undefined,
     sold: p.sold, stock: p.stock, isNew: false,
-    images: p.images.length ? p.images.map(i => i.url) : [''],
+    images: urls,
+    thumbnails: urls,
   } as Product
 }
 
