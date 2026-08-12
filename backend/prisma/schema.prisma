@@ -62,6 +62,7 @@ model User {
   pointTransactions      PointTransaction[]
   productRequests        ProductRequest[]
   reviews                Review[]
+  siteReviews            SiteReview[]
   sellerStore            SellerStore?
   sessions               Session[]
   stockAlerts            StockAlert[]
@@ -352,6 +353,23 @@ model Address {
 
   @@index([userId])
   @@map("addresses")
+}
+
+/// Avis portant sur la plateforme elle-même (livraison, service, expérience
+/// globale), déposé depuis la page d'accueil — distinct de Review, qui exige
+/// toujours un produit précis. Même niveau de confiance que Review : réservé
+/// aux comptes connectés, publié directement.
+model SiteReview {
+  id        String   @id @default(cuid())
+  userId    String
+  rating    Int
+  body      String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("site_reviews")
 }
 
 model Review {

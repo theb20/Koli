@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react'
 import { X, Star, CheckCircle2, Camera, Search, XCircle, Loader2, LogIn, AlertCircle } from 'lucide-react'
 import { ShimmeringText } from './FlipText'
 import { useAuth } from '../../contexts/AuthContext'
-import { submitReview, fetchProducts } from '../../lib/api'
+import { submitReview, postSiteReview, fetchProducts } from '../../lib/api'
 import { useNavigate } from 'react-router-dom'
 
 /* ─────────────────────────────────────────
@@ -107,8 +107,11 @@ function ProductSearch({
   return (
     <div className="flex flex-col gap-1.5 relative" ref={ref}>
       <label className="text-xs font-semibold text-gray-700">
-        Produit concerné <span className="text-red-400">*</span>
+        Produit concerné <span className="font-normal text-gray-400">— facultatif</span>
       </label>
+      <p className="-mt-0.5 text-[11px] text-gray-400">
+        Laissez vide pour donner un avis général sur Skignas (livraison, service, expérience).
+      </p>
 
       <div className="relative">
         {loading
@@ -186,17 +189,19 @@ export function CommentModal({ onClose }: { onClose: () => void }) {
     : ''
   const initials = displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
 
-  const canSubmit = rating > 0 && !!product && text.trim().length >= 10 && !loading
+  // Produit facultatif : sans produit, l'avis porte sur la plateforme elle-même.
+  const canSubmit = rating > 0 && text.trim().length >= 10 && !loading
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    if (!canSubmit || !token || !product) return
+    if (!canSubmit || !token) return
     if (text.trim().length < 10) { setError('Minimum 10 caractères.'); return }
 
     setLoading(true)
     setError('')
     try {
-      await submitReview({ productId: product.id, rating, body: text }, token)
+      if (product) await submitReview({ productId: product.id, rating, body: text }, token)
+      else         await postSiteReview(token, rating, text.trim())
       setSubmitted(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur lors de l'envoi. Réessayez.")

@@ -287,6 +287,10 @@ export default function OrderDetailPage() {
   const [copiedTrack, setCopiedTrack] = useState(false)
   const [ratingOpen, setRatingOpen]   = useState(false)
   const [stars, setStars]             = useState(0)
+  const [reviewBody, setReviewBody]   = useState('')
+  const [reviewSending, setReviewSending] = useState(false)
+  const [reviewSent, setReviewSent]   = useState(false)
+  const [reviewError, setReviewError] = useState('')
   const [showCancel, setShowCancel]   = useState(false)
   const [showReturnModal, setShowReturnModal] = useState(false)
   const [cancellingReturn, setCancellingReturn] = useState(false)
@@ -303,6 +307,35 @@ export default function OrderDetailPage() {
     enabled:  !!token,
     retry:    false,
   })
+
+  /*
+   * L'API des avis est par produit (POST /api/reviews, body obligatoire de
+   * 10 caractères minimum), alors que le formulaire porte sur la commande :
+   * on publie donc la même note et le même commentaire pour chaque article
+   * de la commande, en séquence.
+   */
+  const handleSubmitReview = async () => {
+    if (!order || stars === 0 || reviewBody.trim().length < 10) return
+    setReviewSending(true)
+    setReviewError('')
+    try {
+      for (const item of order.items) {
+        await apiFetch<ApiResponse<unknown>>('/api/reviews', token, {
+          method: 'POST',
+          body: JSON.stringify({
+            productId: item.productId,
+            rating:    stars,
+            body:      reviewBody.trim(),
+          }),
+        })
+      }
+      setReviewSent(true)
+    } catch (err) {
+      setReviewError(err instanceof Error ? err.message : "Impossible d'envoyer votre avis pour le moment.")
+    } finally {
+      setReviewSending(false)
+    }
+  }
 
   const handleDownloadInvoice = async () => {
     if (!id) return
@@ -588,10 +621,41 @@ export default function OrderDetailPage() {
                             </span>
                           )}
                         </div>
-                        {stars > 0 && (
-                          <button className="px-5 py-2 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-800 transition-colors">
-                            Envoyer mon avis
-                          </button>
+                        {reviewSent ? (
+                          <div className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm font-semibold text-emerald-700">
+                            <CheckCircle2 size={15} className="shrink-0" />
+                            Merci ! Votre avis a bien été publié.
+                          </div>
+                        ) : stars > 0 && (
+                          <>
+                            <textarea
+                              value={reviewBody}
+                              onChange={e => { setReviewBody(e.target.value); setReviewError('') }}
+                              rows={4}
+                              maxLength={2000}
+                              disabled={reviewSending}
+                              placeholder="Qu'avez-vous pensé de votre commande ? (livraison, qualité, emballage…)"
+                              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition-colors focus:border-gray-900 placeholder:text-gray-400 disabled:opacity-50 resize-none"
+                            />
+                            <div className="mt-1.5 flex items-center justify-between gap-3">
+                              <span className="text-xs text-gray-400">
+                                {reviewBody.trim().length < 10
+                                  ? `Encore ${10 - reviewBody.trim().length} caractère${10 - reviewBody.trim().length > 1 ? 's' : ''} minimum`
+                                  : `${reviewBody.length}/2000`}
+                              </span>
+                            </div>
+                            {reviewError && (
+                              <p className="mt-2 text-xs font-semibold text-red-500">{reviewError}</p>
+                            )}
+                            <button
+                              onClick={handleSubmitReview}
+                              disabled={reviewSending || reviewBody.trim().length < 10}
+                              className="mt-3 flex items-center gap-2 px-5 py-2 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-800 transition-colors disabled:opacity-40 disabled:hover:bg-gray-900"
+                            >
+                              {reviewSending && <Loader2 size={14} className="animate-spin" />}
+                              {reviewSending ? 'Envoi…' : 'Envoyer mon avis'}
+                            </button>
+                          </>
                         )}
                       </motion.div>
                     )}

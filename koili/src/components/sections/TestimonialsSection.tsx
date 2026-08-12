@@ -6,7 +6,7 @@ import { AnimatedTooltip } from '../ui/animated-tooltip'
 import { CardStack, Highlight } from '../ui/card-stack'
 import FlipText from '../ui/FlipText'
 import { CommentModal } from '../ui/fromComment'
-import { fetchLatestReviews, type ApiReview } from '../../lib/api'
+import { fetchLatestReviews, fetchSiteReviews, type ApiReview } from '../../lib/api'
 import {
   motion,
   useInView,
@@ -624,7 +624,18 @@ export function TestimonialsSection() {
     staleTime: 60_000,
   })
 
-  const apiReviews: Review[] = (latestData?.data?.reviews ?? []).map(normalizeApiReview)
+  // Avis portant sur la plateforme (déposés depuis cette page, sans produit)
+  const { data: siteData } = useQuery({
+    queryKey: ['reviews-site'],
+    queryFn:  () => fetchSiteReviews(9),
+    staleTime: 60_000,
+  })
+
+  const apiReviews: Review[] = [
+    ...(siteData?.data?.reviews ?? []).map((r, i) =>
+      normalizeApiReview({ ...r, productId: 0, helpful: 0, verified: true, product: { name: 'Expérience Skignas' } } as ApiReview, i)),
+    ...(latestData?.data?.reviews ?? []).map((r, i) => normalizeApiReview(r, i + 100)),
+  ]
 
   // Avis API en premier, puis avis statiques en complément (évite doublons par id)
   const allReviews: Review[] = apiReviews.length > 0

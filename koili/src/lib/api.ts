@@ -301,6 +301,31 @@ export async function fetchLatestReviews(limit = 6) {
   )
 }
 
+/* ── Avis sur la plateforme (page d'accueil) ─────────────────
+   Sans produit associé, contrairement à ApiReview. */
+export type ApiSiteReview = {
+  id: string
+  userId: string
+  rating: number
+  body: string
+  createdAt: string
+  user?: { prenom: string; nom: string; avatar?: string | null }
+}
+
+export async function fetchSiteReviews(limit = 6) {
+  return apiFetch<ApiResponse<{ reviews: ApiSiteReview[] }>>(
+    `/api/reviews/site?limit=${limit}`,
+    null,
+  )
+}
+
+export async function postSiteReview(token: string, rating: number, body: string) {
+  return apiFetch<ApiResponse<ApiSiteReview>>('/api/reviews/site', token, {
+    method: 'POST',
+    body: JSON.stringify({ rating, body }),
+  })
+}
+
 export async function fetchPromo(code: string) {
   return apiFetch<ApiResponse<{
     id: number; code: string; type: string; value: number

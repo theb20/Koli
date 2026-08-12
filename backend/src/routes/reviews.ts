@@ -33,6 +33,57 @@ router.get('/latest', validateQuery(latestReviewsQuerySchema), async (req, res) 
   }
 })
 
+/* ─────────────────────────────────────────────────────────────
+   Avis sur la plateforme (page d'accueil) — sans produit associé,
+   contrairement aux avis produit ci-dessus. Déclarées avant
+   /product/:id et /:id pour ne pas être masquées par ces routes.
+───────────────────────────────────────────────────────────── */
+const siteReviewSchema = z.object({
+  rating: z.number().int().min(1).max(5),
+  body:   z.string().min(10, 'Minimum 10 caractères').max(2000),
+})
+
+/* ── GET /api/reviews/site — derniers avis plateforme (public) ── */
+router.get('/site', validateQuery(latestReviewsQuerySchema), async (req, res) => {
+  try {
+    const { limit } = req.query as unknown as z.infer<typeof latestReviewsQuerySchema>
+    const reviews = await prisma.siteReview.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      include: { user: { select: { prenom: true, nom: true, avatar: true } } },
+    })
+    res.json({ success: true, data: { reviews } })
+  } catch {
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/* ── POST /api/reviews/site — publier un avis plateforme ────── */
+router.post('/site', requireAuth, validate(siteReviewSchema), async (req, res) => {
+  try {
+    const { rating, body } = req.body as z.infer<typeof siteReviewSchema>
+    const userId = req.user!.userId
+
+    // Un seul avis plateforme par compte : le second remplace le premier
+    // (plutôt que d'empiler des doublons, la table n'ayant pas de contrainte).
+    const existing = await prisma.siteReview.findFirst({ where: { userId } })
+    const review = existing
+      ? await prisma.siteReview.update({
+          where: { id: existing.id },
+          data:  { rating, body, createdAt: new Date() },
+          include: { user: { select: { prenom: true, nom: true, avatar: true } } },
+        })
+      : await prisma.siteReview.create({
+          data: { userId, rating, body },
+          include: { user: { select: { prenom: true, nom: true, avatar: true } } },
+        })
+
+    res.status(201).json({ success: true, data: review })
+  } catch {
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
 /* ── GET /api/reviews/product/:id ─────────────────────────── */
 router.get('/product/:id', validateParams(zIntIdParam), validateQuery(zPaginationQuery), async (req, res) => {
   try {
