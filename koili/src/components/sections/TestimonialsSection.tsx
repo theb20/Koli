@@ -6,7 +6,7 @@ import { AnimatedTooltip } from '../ui/animated-tooltip'
 import { CardStack, Highlight } from '../ui/card-stack'
 import FlipText from '../ui/FlipText'
 import { CommentModal } from '../ui/fromComment'
-import { fetchLatestReviews, fetchSiteReviews, type ApiReview } from '../../lib/api'
+import { fetchLatestReviews, fetchSiteReviews, markReviewHelpful, type ApiReview } from '../../lib/api'
 import {
   motion,
   useInView,
@@ -48,7 +48,15 @@ type Review = {
   verified: boolean
   product?: string
   helpful: number
+  /// Données de démo : simple compteur de vignettes décoratives.
   photos: number
+  /// Avis réels : URLs des photos jointes par le client.
+  photoUrls?: string[]
+  /// Identifiant réel côté API (CUID) — absent sur les avis de démonstration,
+  /// nécessaire pour que le bouton « Utile » puisse être persisté.
+  apiId?: string
+  /// 'product' → /api/reviews/:id/helpful, 'site' → /api/reviews/site/:id/helpful
+  apiKind?: 'product' | 'site'
   recommend: boolean
   merchantReply?: {
     name: string
@@ -447,8 +455,20 @@ function ReviewCard({ review }: { review: Review }) {
       {/* Text */}
       <p className="text-sm text-gray-600 leading-relaxed flex-1">{review.text}</p>
 
-      {/* Photos placeholder */}
-      {review.photos > 0 && (
+      {/* Photos réellement jointes à l'avis */}
+      {review.photoUrls && review.photoUrls.length > 0 && (
+        <div className="flex gap-1.5">
+          {review.photoUrls.slice(0, 4).map((url, i) => (
+            <a key={i} href={url} target="_blank" rel="noreferrer"
+               className="w-14 h-14 rounded-lg overflow-hidden border border-gray-100 bg-gray-50 hover:opacity-80 transition-opacity">
+              <img src={url} alt="" loading="lazy" className="w-full h-full object-cover" />
+            </a>
+          ))}
+        </div>
+      )}
+
+      {/* Vignettes décoratives des avis de démonstration */}
+      {(!review.photoUrls || review.photoUrls.length === 0) && review.photos > 0 && (
         <div className="flex gap-1.5">
           {Array.from({ length: Math.min(review.photos, 4) }).map((_, i) => (
             <div
@@ -474,7 +494,18 @@ function ReviewCard({ review }: { review: Review }) {
       {/* Actions */}
       <div className="flex items-center gap-3 pt-1">
         <button
-          onClick={() => setHelpfulClicked(v => !v)}
+          onClick={async () => {
+            // Un seul vote par visiteur et par avis (état local) — le compteur
+            // n'est décrémenté nulle part côté serveur, on ne dé-vote donc pas.
+            if (helpfulClicked) return
+            setHelpfulClicked(true)
+            if (!review.apiId) return   // avis de démonstration : rien à persister
+            try {
+              await markReviewHelpful(review.apiId, review.apiKind ?? 'product')
+            } catch {
+              setHelpfulClicked(false)  // échec réseau : on rend le clic à l'utilisateur
+            }
+          }}
           className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-medium transition-all ${
             helpfulClicked
               ? 'border-gray-900 bg-gray-900 text-white'
@@ -576,7 +607,7 @@ function FilterChip({
 ───────────────────────────────────────── */
 const AVATAR_COLORS = ['#4F46E5', '#059669', '#DC2626', '#D97706', '#7C3AED', '#0891B2', '#BE185D', '#065F46']
 
-function normalizeApiReview(r: ApiReview, index: number): Review {
+function normalizeApiReview(r: ApiReview, index: number, kind: 'product' | 'site' = 'product'): Review {
   const prenom    = r.user?.prenom ?? 'Client'
   const nom       = r.user?.nom ?? ''
   const fullName  = `${prenom} ${nom ? nom[0] + '.' : ''}`.trim()
@@ -604,6 +635,9 @@ function normalizeApiReview(r: ApiReview, index: number): Review {
     product:   r.product?.name,
     helpful:   r.helpful,
     photos:    0,
+    photoUrls: (r as { images?: string[] }).images ?? [],
+    apiId:     r.id,
+    apiKind:   kind,
     recommend: r.rating >= 4,
   }
 }
@@ -633,7 +667,7 @@ export function TestimonialsSection() {
 
   const apiReviews: Review[] = [
     ...(siteData?.data?.reviews ?? []).map((r, i) =>
-      normalizeApiReview({ ...r, productId: 0, helpful: 0, verified: true, product: { name: 'Expérience Skignas' } } as ApiReview, i)),
+      normalizeApiReview({ ...r, productId: 0, verified: true, product: { name: 'Expérience Skignas' } } as unknown as ApiReview, i, 'site')),
     ...(latestData?.data?.reviews ?? []).map((r, i) => normalizeApiReview(r, i + 100)),
   ]
 

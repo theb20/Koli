@@ -3,11 +3,11 @@
   xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
 >
-<!-- Généré automatiquement le 2026-08-04 par scripts/generate-sitemap.mjs — ne pas éditer à la main -->
+<!-- Généré automatiquement le 2026-08-12 par scripts/generate-sitemap.mjs — ne pas éditer à la main -->
 
   <url>
     <loc>https://skignas.com/</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
     <image:image>
@@ -17,28 +17,28 @@
 
   <url>
     <loc>https://skignas.com/catalogue</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
 
   <url>
     <loc>https://skignas.com/catalogue?sort=newest</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
 
   <url>
     <loc>https://skignas.com/catalogue?badges=sale</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
 
   <url>
     <loc>https://skignas.com/blog</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image>
@@ -48,112 +48,112 @@
 
   <url>
     <loc>https://skignas.com/about</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
 
   <url>
     <loc>https://skignas.com/contact</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
 
   <url>
     <loc>https://skignas.com/demande</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
 
   <url>
     <loc>https://skignas.com/cgu</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
 
   <url>
     <loc>https://skignas.com/legal</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
 
   <url>
     <loc>https://skignas.com/privacy</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
 
   <url>
     <loc>https://skignas.com/catalogue?cat=reseau</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
 
   <url>
     <loc>https://skignas.com/catalogue?cat=wearables</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
 
   <url>
     <loc>https://skignas.com/catalogue?cat=smartphones</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
 
   <url>
     <loc>https://skignas.com/catalogue?cat=stockage</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
 
   <url>
     <loc>https://skignas.com/catalogue?cat=accessoires</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
 
   <url>
     <loc>https://skignas.com/catalogue?cat=ordinateurs</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
 
   <url>
     <loc>https://skignas.com/catalogue?cat=audio</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
 
   <url>
     <loc>https://skignas.com/catalogue?cat=maison-connectee</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
 
   <url>
     <loc>https://skignas.com/catalogue?cat=cameras</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
 
   <url>
     <loc>https://skignas.com/catalogue/2</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image>
@@ -162,18 +162,8 @@
   </url>
 
   <url>
-    <loc>https://skignas.com/catalogue/156</loc>
-    <lastmod>2026-08-04</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-    <image:image>
-      <image:loc>https://asset.action.com/image/upload/t_digital_product_image/w_1080/3221699_8718964272426-111_01_pwzmih.webp</image:loc>
-    </image:image>
-  </url>
-
-  <url>
     <loc>https://skignas.com/catalogue/113</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image>
@@ -182,18 +172,28 @@
   </url>
 
   <url>
-    <loc>https://skignas.com/catalogue/170</loc>
-    <lastmod>2026-08-04</lastmod>
+    <loc>https://skignas.com/catalogue/156</loc>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image>
-      <image:loc>https://koli-production-a314.up.railway.app/api/v1/files/019fa9b1-4b29-7935-b5c7-d03fad260a02</image:loc>
+      <image:loc>https://asset.action.com/image/upload/t_digital_product_image/w_1080/3221699_8718964272426-111_01_pwzmih.webp</image:loc>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://skignas.com/catalogue/173</loc>
+    <lastmod>2026-08-12</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://koli-production-a314.up.railway.app/api/v1/files/019fc8b6-1e91-70e4-9d05-75d5ee8e1895</image:loc>
     </image:image>
   </url>
 
   <url>
     <loc>https://skignas.com/catalogue/171</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image>
@@ -203,7 +203,7 @@
 
   <url>
     <loc>https://skignas.com/catalogue/172</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image>
@@ -213,7 +213,7 @@
 
   <url>
     <loc>https://skignas.com/catalogue/5</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image>
@@ -222,18 +222,38 @@
   </url>
 
   <url>
-    <loc>https://skignas.com/catalogue/173</loc>
-    <lastmod>2026-08-04</lastmod>
+    <loc>https://skignas.com/catalogue/170</loc>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image>
-      <image:loc>https://koli-production-a314.up.railway.app/api/v1/files/019fc8b6-1e91-70e4-9d05-75d5ee8e1895</image:loc>
+      <image:loc>https://koli-production-a314.up.railway.app/api/v1/files/019fa9b1-4b29-7935-b5c7-d03fad260a02</image:loc>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://skignas.com/catalogue/169</loc>
+    <lastmod>2026-08-12</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://koli-production-a314.up.railway.app/api/v1/files/019fa9b1-43fe-7353-8d46-75e2db87602c</image:loc>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://skignas.com/catalogue/178</loc>
+    <lastmod>2026-08-12</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://koli-production-a314.up.railway.app/api/v1/files/019fdc75-9499-7487-8d7e-9675390c5c6b</image:loc>
     </image:image>
   </url>
 
   <url>
     <loc>https://skignas.com/catalogue/129</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image>
@@ -243,7 +263,7 @@
 
   <url>
     <loc>https://skignas.com/catalogue/121</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image>
@@ -253,7 +273,7 @@
 
   <url>
     <loc>https://skignas.com/catalogue/123</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image>
@@ -263,7 +283,7 @@
 
   <url>
     <loc>https://skignas.com/catalogue/130</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image>
@@ -273,7 +293,7 @@
 
   <url>
     <loc>https://skignas.com/catalogue/131</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image>
@@ -283,7 +303,7 @@
 
   <url>
     <loc>https://skignas.com/catalogue/132</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image>
@@ -293,7 +313,7 @@
 
   <url>
     <loc>https://skignas.com/catalogue/135</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image>
@@ -303,7 +323,7 @@
 
   <url>
     <loc>https://skignas.com/catalogue/136</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image>
@@ -313,7 +333,7 @@
 
   <url>
     <loc>https://skignas.com/catalogue/138</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image>
@@ -323,7 +343,7 @@
 
   <url>
     <loc>https://skignas.com/catalogue/124</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image>
@@ -333,7 +353,7 @@
 
   <url>
     <loc>https://skignas.com/catalogue/126</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image>
@@ -343,7 +363,7 @@
 
   <url>
     <loc>https://skignas.com/catalogue/125</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image>
@@ -353,21 +373,11 @@
 
   <url>
     <loc>https://skignas.com/catalogue/168</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-12</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image>
       <image:loc>https://koli-production-a314.up.railway.app/api/v1/files/019fa9b1-3858-7170-b04b-97dd1fce2328</image:loc>
-    </image:image>
-  </url>
-
-  <url>
-    <loc>https://skignas.com/catalogue/169</loc>
-    <lastmod>2026-08-04</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-    <image:image>
-      <image:loc>https://koli-production-a314.up.railway.app/api/v1/files/019fa9b1-43fe-7353-8d46-75e2db87602c</image:loc>
     </image:image>
   </url>
 

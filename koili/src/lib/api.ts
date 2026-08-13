@@ -312,6 +312,12 @@ export type ApiSiteReview = {
   user?: { prenom: string; nom: string; avatar?: string | null }
 }
 
+/** Incrémente le compteur « Utile » d'un avis (produit ou plateforme). */
+export async function markReviewHelpful(id: string, kind: 'product' | 'site' = 'product') {
+  const path = kind === 'site' ? `/api/reviews/site/${id}/helpful` : `/api/reviews/${id}/helpful`
+  return apiFetch<ApiResponse<unknown>>(path, null, { method: 'POST' })
+}
+
 export async function fetchSiteReviews(limit = 6) {
   return apiFetch<ApiResponse<{ reviews: ApiSiteReview[] }>>(
     `/api/reviews/site?limit=${limit}`,
@@ -319,11 +325,31 @@ export async function fetchSiteReviews(limit = 6) {
   )
 }
 
-export async function postSiteReview(token: string, rating: number, body: string) {
+export async function postSiteReview(token: string, rating: number, body: string, images?: string[]) {
   return apiFetch<ApiResponse<ApiSiteReview>>('/api/reviews/site', token, {
     method: 'POST',
-    body: JSON.stringify({ rating, body }),
+    body: JSON.stringify({ rating, body, images }),
   })
+}
+
+/**
+ * Envoie les photos jointes à un avis et renvoie leurs URLs définitives.
+ * FormData : pas de Content-Type manuel, le navigateur pose lui-même la
+ * boundary multipart (d'où le fetch direct plutôt qu'apiFetch, qui force
+ * application/json).
+ */
+export async function uploadReviewImages(token: string, files: File[]): Promise<string[]> {
+  const form = new FormData()
+  files.forEach(f => form.append('images', f))
+
+  const res = await fetch(`${API_BASE}/api/reviews/upload-images`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  })
+  const json = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(json.message ?? "Erreur lors de l'envoi des photos")
+  return (json.data?.urls ?? []) as string[]
 }
 
 export async function fetchPromo(code: string) {
@@ -409,7 +435,7 @@ export async function postContact(body: {
 }
 
 export async function submitReview(
-  body: { productId: number; rating: number; title?: string; body: string },
+  body: { productId: number; rating: number; title?: string; body: string; images?: string[] },
   token: string,
 ) {
   return apiFetch<ApiResponse<ApiReview>>(

@@ -3,8 +3,13 @@ import { motion, AnimatePresence } from 'motion/react'
 import { X, Star, CheckCircle2, Camera, Search, XCircle, Loader2, LogIn, AlertCircle } from 'lucide-react'
 import { ShimmeringText } from './FlipText'
 import { useAuth } from '../../contexts/AuthContext'
-import { submitReview, postSiteReview, fetchProducts } from '../../lib/api'
+import { submitReview, postSiteReview, uploadReviewImages, fetchProducts } from '../../lib/api'
 import { useNavigate } from 'react-router-dom'
+
+/* Mêmes limites que la route /api/reviews/upload-images côté serveur —
+   contrôle client pour un message d'erreur immédiat, le serveur revalide. */
+const MAX_PHOTOS = 4
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024
 
 /* ─────────────────────────────────────────
    STAR PICKER
@@ -180,6 +185,7 @@ export function CommentModal({ onClose }: { onClose: () => void }) {
   const [rating,    setRating]    = useState(0)
   const [product,   setProduct]   = useState<ProductOption | null>(null)
   const [text,      setText]      = useState('')
+  const [photos,    setPhotos]    = useState<File[]>([])
   const [loading,   setLoading]   = useState(false)
   const [error,     setError]     = useState('')
   const [submitted, setSubmitted] = useState(false)
@@ -200,8 +206,12 @@ export function CommentModal({ onClose }: { onClose: () => void }) {
     setLoading(true)
     setError('')
     try {
-      if (product) await submitReview({ productId: product.id, rating, body: text }, token)
-      else         await postSiteReview(token, rating, text.trim())
+      // Les photos partent d'abord (conversion WebP + hébergement côté serveur),
+      // l'avis n'enregistre ensuite que les URLs renvoyées.
+      const imageUrls = photos.length > 0 ? await uploadReviewImages(token, photos) : undefined
+
+      if (product) await submitReview({ productId: product.id, rating, body: text, images: imageUrls }, token)
+      else         await postSiteReview(token, rating, text.trim(), imageUrls)
       setSubmitted(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur lors de l'envoi. Réessayez.")
@@ -347,14 +357,47 @@ export function CommentModal({ onClose }: { onClose: () => void }) {
                 />
               </div>
 
-              {/* Photo — futur */}
-              <button
-                type="button"
-                className="flex items-center gap-2 text-xs text-gray-400 hover:text-gray-600 transition-colors w-fit"
-              >
-                <Camera size={14} />
-                Ajouter des photos <span className="text-gray-300">(bientôt disponible)</span>
-              </button>
+              {/* Photos jointes (4 max, 5 Mo par fichier) */}
+              <div className="flex flex-col gap-2">
+                {photos.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {photos.map((file, i) => (
+                      <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
+                        <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setPhotos(p => p.filter((_, idx) => idx !== i))}
+                          className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80 transition-colors"
+                          aria-label="Retirer cette photo"
+                        >
+                          <X size={11} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {photos.length < MAX_PHOTOS && (
+                  <label className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-800 transition-colors w-fit cursor-pointer">
+                    <Camera size={14} />
+                    Ajouter des photos <span className="text-gray-300">({photos.length}/{MAX_PHOTOS})</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={e => {
+                        const picked = Array.from(e.target.files ?? [])
+                        e.target.value = '' // permet de re-choisir le même fichier après retrait
+                        const tooBig = picked.find(f => f.size > MAX_PHOTO_BYTES)
+                        if (tooBig) { setError(`"${tooBig.name}" dépasse 5 Mo.`); return }
+                        setError('')
+                        setPhotos(p => [...p, ...picked].slice(0, MAX_PHOTOS))
+                      }}
+                    />
+                  </label>
+                )}
+              </div>
 
               {/* Erreur */}
               {error && (

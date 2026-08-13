@@ -364,6 +364,10 @@ model SiteReview {
   userId    String
   rating    Int
   body      String
+  /// JSON: string[] — voir Review.images
+  images    String?
+  /// Compteur « Utile », comme Review.helpful
+  helpful   Int      @default(0)
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -379,6 +383,9 @@ model Review {
   rating    Int
   title     String?
   body      String
+  /// JSON: string[] — photos jointes par le client (max 4), déjà converties en
+  /// WebP et hébergées sur stockgo. Même convention que ProductRequest.images.
+  images    String?
   verified  Boolean  @default(false)
   helpful   Int      @default(0)
   createdAt DateTime @default(now())

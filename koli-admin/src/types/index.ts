@@ -192,14 +192,19 @@ export type PromoCode = {
   createdAt: string
 }
 
+/* Aligné sur ce que renvoie réellement /api/reviews/admin/all (champs Prisma) :
+   l'ancien type déclarait authorName/comment/isVerified, qui n'existent pas —
+   d'où un auteur et un commentaire vides dans le backoffice. */
 export type Review = {
-  id: number
+  id: string
   productId: number
   userId?: string
-  authorName: string
   rating: number
-  comment?: string
-  isVerified: boolean
+  title?: string | null
+  body: string
+  images?: string[]
+  verified: boolean
+  helpful: number
   createdAt: string
   product?: { name: string }
   user?: { prenom: string; nom: string }
