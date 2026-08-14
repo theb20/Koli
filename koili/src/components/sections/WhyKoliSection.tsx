@@ -16,7 +16,7 @@ import {
 const FEATURES = [
   {
     title: 'Livraison rapide',
-    description: 'Recevez vos commandes en 5 à 12 jours ouvrés, partout en Afrique de l\'Ouest.',
+    description: 'Recevez vos commandes en 3 à 5 jours ouvrés, ou en 24 à 72h en express, partout en Côte d\'Ivoire.',
     icon: <IconTruck size={24} />,
   },
   {
@@ -36,12 +36,12 @@ const FEATURES = [
   },
   {
     title: 'Support 7j/7',
-    description: 'Notre équipe est disponible tous les jours pour répondre à vos questions en moins d\'une heure.',
+    description: 'Notre équipe est disponible tous les jours pour répondre à vos questions sous 24h.',
     icon: <IconHeadset size={24} />,
   },
   {
     title: 'Retours facilités',
-    description: 'Vous avez 30 jours pour retourner un produit. Remboursement rapide et sans discussion.',
+    description: 'Vous avez 14 jours pour retourner un produit. Remboursement rapide et sans discussion.',
     icon: <IconArrowBack size={24} />,
   },
   {

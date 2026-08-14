@@ -15,12 +15,12 @@ const BLUE = '#0421ff'
 /* ─── Data ─────────────────────────────────────────────────── */
 
 const CATEGORIES = [
-  { id: 'all',       label: 'Tous',             count: 24 },
-  { id: 'tech',      label: 'High-Tech',         count: 8  },
-  { id: 'style',     label: 'Mode & Style',      count: 5  },
-  { id: 'lifestyle', label: 'Lifestyle',          count: 6  },
-  { id: 'guide',     label: 'Guides d\'achat',   count: 3  },
-  { id: 'news',      label: 'Actualités',         count: 2  },
+  { id: 'all',       label: 'Tous' },
+  { id: 'tech',      label: 'High-Tech' },
+  { id: 'style',     label: 'Mode & Style' },
+  { id: 'lifestyle', label: 'Lifestyle' },
+  { id: 'guide',     label: 'Guides d\'achat' },
+  { id: 'news',      label: 'Actualités' },
 ]
 
 type Article = {
@@ -444,6 +444,11 @@ export function BlogPage() {
     return matchCat && matchTag && matchSearch
   })
 
+  const categoryCounts = CATEGORIES.map(cat => ({
+    ...cat,
+    count: cat.id === 'all' ? allArticles.length : allArticles.filter(a => a.cat === cat.id).length,
+  }))
+
   const handleTagClick = (tag: string) => {
     setActiveTag(prev => prev === tag ? null : tag)
     setActiveCat('all')
@@ -519,7 +524,7 @@ export function BlogPage() {
             initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }}
             className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide"
           >
-            {CATEGORIES.map(cat => (
+            {categoryCounts.map(cat => (
               <button
                 key={cat.id}
                 onClick={() => { setActiveCat(cat.id); setActiveTag(null) }}

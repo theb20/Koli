@@ -12,7 +12,7 @@ const FALLBACK_GRADIENTS = [
 ]
 
 const TRUST = [
-  { icon: <Truck size={20} />,        title: 'Livraison rapide',    sub: '2 à 7 jours ouvrés'  },
+  { icon: <Truck size={20} />,        title: 'Livraison rapide',    sub: '3 à 5 jours ouvrés'  },
   { icon: <ShieldCheck size={20} />,  title: 'Produits de qualité', sub: 'Sélectionnés pour vous' },
   { icon: <Headphones size={20} />,   title: 'Support 7j/7',        sub: 'Réponse rapide'       },
 ]

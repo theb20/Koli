@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
-import { motion, useInView } from 'motion/react'
+import { useState, useRef } from 'react'
+import { motion } from 'motion/react'
 import { Link } from 'react-router-dom'
 import {
   Mail, Phone, MapPin, ArrowRight,
@@ -19,41 +19,38 @@ const ORANGE     = '#fb6c08'
    DATA
 ───────────────────────────────────────── */
 const STATS = [
-  { icon: ShoppingBag, value: 10000, suffix: '+', label: 'Clients actifs',    href: '/about'      },
-  { icon: TrendingUp,  value: 500,   suffix: '+', label: 'Produits gagnants', href: '/catalogue'  },
-  { icon: Star,        value: 98,    suffix: '%', label: 'Satisfaction',      href: '/about'      },
-  { icon: Headphones,  value: 24,    suffix: 'h', label: 'Support dispo',     href: '/contact'    },
+  { icon: ShoppingBag, label: 'Marketplace vérifiée',   href: '/about'      },
+  { icon: TrendingUp,  label: 'Marchands partenaires',  href: '/catalogue'  },
+  { icon: Star,        label: 'Paiement sécurisé',      href: '/about'      },
+  { icon: Headphones,  label: 'Réponse sous 24h',       href: '/contact'    },
 ]
 
 const COLUMNS = [
   {
     title: 'Navigation',
     links: [
-      { label: 'Catalogue',         href: '/catalogue'          },
-      { label: 'Meilleures ventes', href: '/catalogue?sort=sold' },
-      { label: 'Nouveautés',        href: '/catalogue?badge=new' },
-      { label: 'Offres flash',      href: '/catalogue?badge=hot' },
-      { label: 'Blog',              href: '/blog'               },
+      { label: 'Catalogue',         href: '/catalogue'             },
+      { label: 'Meilleures ventes', href: '/catalogue?sort=popular' },
+      { label: 'Nouveautés',        href: '/catalogue?badges=new'   },
+      { label: 'Offres flash',      href: '/catalogue?badges=sale'  },
+      { label: 'Blog',              href: '/blog'                  },
     ],
   },
   {
     title: 'Entreprise',
     links: [
       { label: 'À propos',          href: '/about'         },
-      { label: 'Partenaires',       href: '/about'         },
-      { label: 'Carrières',         href: '/about'         },
-      { label: 'Presse',            href: '/about'         },
       { label: 'Contact',           href: '/contact'       },
     ],
   },
   {
     title: 'Support',
     links: [
-      { label: 'FAQ',               href: '/contact'           },
-      { label: 'Livraison',         href: '/cgu#services'      },
-      { label: 'Retours & remboursements', href: '/cgu#paiement' },
-      { label: 'Suivi commande',    href: '/contact'           },
-      { label: 'Nous contacter',    href: '/contact'           },
+      { label: 'FAQ',               href: '/contact#faq'         },
+      { label: 'Livraison',         href: '/cgu#commandes'       },
+      { label: 'Retours & remboursements', href: '/cgu#commandes' },
+      { label: 'Suivi commande',    href: '/commandes'           },
+      { label: 'Nous contacter',    href: '/contact'             },
     ],
   },
   {
@@ -62,7 +59,7 @@ const COLUMNS = [
       { label: 'Confidentialité',   href: '/privacy'           },
       { label: 'CGU',               href: '/cgu'               },
       { label: 'Mentions légales',  href: '/legal'             },
-      { label: 'Vos droits RGPD',   href: '/privacy#droits'    },
+      { label: 'Vos droits sur vos données', href: '/privacy#droits' },
       { label: 'Cookies',           href: '/privacy#cookies'   },
     ],
   },
@@ -122,40 +119,10 @@ const SOCIALS = [
 ]
 
 const BADGES = [
-  { label: 'Livraison sécurisée',    icon: Truck,        href: '/cgu#services' },
-  { label: 'Paiement 100% sécurisé', icon: CheckCircle2, href: '/cgu#paiement' },
-  { label: 'Retour 30 jours',        icon: ArrowRight,   href: '/cgu#paiement' },
+  { label: 'Livraison sécurisée',    icon: Truck,        href: '/cgu#commandes' },
+  { label: 'Paiement 100% sécurisé', icon: CheckCircle2, href: '/cgu#commandes' },
+  { label: 'Retour 14 jours',        icon: ArrowRight,   href: '/cgu#commandes' },
 ]
-
-/* ─────────────────────────────────────────
-   ANIMATED COUNTER
-───────────────────────────────────────── */
-function AnimatedCounter({ target, suffix, inView }: { target: number; suffix: string; inView: boolean }) {
-  const [count, setCount] = useState(0)
-
-  useEffect(() => {
-    if (!inView) return
-    let start = 0
-    const duration = 1600
-    const step = Math.ceil(target / (duration / 16))
-    const timer = setInterval(() => {
-      start += step
-      if (start >= target) {
-        setCount(target)
-        clearInterval(timer)
-      } else {
-        setCount(start)
-      }
-    }, 16)
-    return () => clearInterval(timer)
-  }, [inView, target])
-
-  return (
-    <span className="tabular-nums">
-      {count.toLocaleString('fr-FR')}{suffix}
-    </span>
-  )
-}
 
 /* ─────────────────────────────────────────
    FOOTER
@@ -169,7 +136,6 @@ export function Footer() {
   const [error, setError]       = useState('')
   const [focused, setFocused]   = useState(false)
   const statsRef                = useRef<HTMLDivElement>(null)
-  const statsInView             = useInView(statsRef, { once: true, margin: '-80px' })
   const settings                = useSiteSettings()
 
   const socials = SOCIALS.map(s => ({
@@ -248,12 +214,11 @@ export function Footer() {
                 Newsletter exclusive
               </span>
               <h2 className="text-white text-2xl sm:text-4xl lg:text-5xl font-bold leading-[1.08] tracking-tight mb-4">
-                Rejoignez plus de<br />
-                <span style={{ color: '#86efac' }}>10 000 dropshippers</span><br />
-                qui réussissent.
+                Ne manquez plus<br />
+                <span style={{ color: '#86efac' }}>aucune bonne affaire.</span>
               </h2>
               <p className="text-white/50 text-base leading-relaxed max-w-md">
-                Recevez en avant-première nos meilleurs produits gagnants, tendances du marché et conseils pour scaler votre business.
+                Recevez en avant-première nos meilleures offres, nouveautés et bons plans directement dans votre boîte mail.
               </p>
             </motion.div>
 
@@ -352,7 +317,7 @@ export function Footer() {
             className="grid grid-cols-2 lg:grid-cols-4 gap-px rounded-2xl overflow-hidden"
             style={{ border: '1px solid rgba(255,255,255,0.06)' }}
           >
-            {STATS.map(({ icon: Icon, value, suffix, label, href }, i) => (
+            {STATS.map(({ icon: Icon, label, href }, i) => (
               <motion.div
                 key={label}
                 initial={{ opacity: 0, y: 20 }}
@@ -366,10 +331,7 @@ export function Footer() {
                   className="group flex flex-col items-center gap-2 py-7 px-4 text-center transition-colors hover:bg-white/[0.04]"
                 >
                   <Icon size={18} style={{ color: GREEN }} className="transition-transform group-hover:scale-110" />
-                  <p className="text-white text-3xl font-black leading-none">
-                    <AnimatedCounter target={value} suffix={suffix} inView={statsInView} />
-                  </p>
-                  <p className="text-white/40 text-xs font-medium group-hover:text-white/60 transition-colors">{label}</p>
+                  <p className="text-white text-sm font-bold group-hover:text-white/90 transition-colors">{label}</p>
                 </Link>
               </motion.div>
             ))}
@@ -397,7 +359,8 @@ export function Footer() {
               </Link>
 
               <p className="text-gray-400 text-sm leading-relaxed">
-                La plateforme des dropshippers ambitieux. Trouvez, vendez et scalez sans stock.
+                Votre marketplace de confiance en Côte d'Ivoire. Des produits vérifiés, livrés
+                rapidement, payés en toute sécurité.
               </p>
 
               {/* Contact */}

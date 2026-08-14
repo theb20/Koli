@@ -2,10 +2,10 @@ import { motion } from 'motion/react'
 import { Truck, ShieldCheck, RefreshCw, Headphones } from 'lucide-react'
 
 const FEATURES = [
-  { icon: Truck, title: 'Livraison rapide', subtitle: 'Gratuite dès 50€' },
+  { icon: Truck, title: 'Livraison rapide', subtitle: 'Gratuite dès 25 000 FCFA' },
   { icon: ShieldCheck, title: 'Paiement sécurisé', subtitle: 'Transactions protégées' },
-  { icon: RefreshCw, title: 'Retour facile', subtitle: 'Sous 30 jours' },
-  { icon: Headphones, title: 'Support 24/7', subtitle: 'Toujours disponible' },
+  { icon: RefreshCw, title: 'Retour facile', subtitle: 'Sous 14 jours' },
+  { icon: Headphones, title: 'Support 7j/7', subtitle: 'Toujours disponible' },
 ]
 
 export function FeaturesStrip() {

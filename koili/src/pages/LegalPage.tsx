@@ -17,11 +17,11 @@ const SECTIONS = [
                 ["Raison sociale",    "Skignas "],
                 ["Forme juridique",   "Société par Actions Simplifiée (SAS)"],
                 ["Capital social",    "1 000 000 Fcfa"],
-                ["RCS",              "***** B 123 456 789"],
-                ["Siège social",      "Cocody, Cote d'Ivoire"],
+                ["RCS",              "En cours d'immatriculation"],
+                ["Siège social",      "Cocody, Côte d'Ivoire"],
                 ["Téléphone",         "+225 05 74 71 74 55"],
                 ["E-mail",            "legal@skignas.com"],
-                ["N° TVA intracommunautaire", "CI 12 345 678 901"],
+                ["N° de compte contribuable", "En cours d'immatriculation"],
               ].map(([k, v]) => (
                 <tr key={k} className="border-b border-gray-100 last:border-none">
                   <td className="px-4 py-3 font-semibold text-gray-500 w-1/2">{k}</td>
@@ -40,7 +40,7 @@ const SECTIONS = [
     content: (
       <>
         <P>
-          Le directeur de la publication est <Strong>M. Jean-Baptiste Moreau</Strong>,
+          Le directeur de la publication est <Strong>M. Serge Soro</Strong>,
           Président de Skignas SAS.
         </P>
         <P>
@@ -79,7 +79,8 @@ const SECTIONS = [
         </div>
         <P>
           L'infrastructure de traitement des données est localisée dans des centres de données
-          situés en Europe (région EU West), conformément aux exigences du RGPD.
+          situés en Europe (région EU West), conformément aux exigences de la loi ivoirienne
+          n° 2013-450 relative à la protection des données à caractère personnel.
         </P>
       </>
     ),
@@ -91,7 +92,7 @@ const SECTIONS = [
       <>
         <P>
           L'ensemble des éléments présents sur le site (textes, images, graphismes, logotypes,
-          icônes, sons, vidéos, logiciels) est protégé par les lois françaises et internationales
+          icônes, sons, vidéos, logiciels) est protégé par les lois ivoiriennes et internationales
           relatives à la propriété intellectuelle.
         </P>
         <P>
@@ -101,9 +102,10 @@ const SECTIONS = [
         </P>
         <SubTitle>Marques déposées</SubTitle>
         <P>
-          « Skignas » et son logotype sont des marques déposées auprès de l'INPI sous le
-          numéro de dépôt FR 4 567 890. Toute utilisation non autorisée constitue une contrefaçon
-          susceptible d'engager la responsabilité civile et pénale de son auteur.
+          « Skignas » et son logotype font l'objet d'une démarche de protection en cours
+          auprès de l'OAPI (Organisation Africaine de la Propriété Intellectuelle). Toute
+          utilisation non autorisée constitue une contrefaçon susceptible d'engager la
+          responsabilité civile et pénale de son auteur.
         </P>
       </>
     ),
@@ -114,9 +116,10 @@ const SECTIONS = [
     content: (
       <>
         <P>
-          Skignas SAS traite des données à caractère personnel conformément au Règlement
-          Général sur la Protection des Données (RGPD) et à la loi Informatique et Libertés
-          modifiée.
+          Skignas SAS traite des données à caractère personnel conformément à la loi ivoirienne
+          n° 2013-450 du 19 juin 2013 relative à la protection des données à caractère personnel,
+          sous le contrôle de l'Autorité de Régulation des Télécommunications/TIC de Côte d'Ivoire
+          (ARTCI).
         </P>
         <P>
           Le responsable du traitement est Skignas SAS, représenté par son Président.
@@ -194,12 +197,12 @@ const SECTIONS = [
         </P>
         <P>
           À défaut d'accord, le litige sera soumis à la compétence des tribunaux compétents du
-          ressort du siège social de Skignas SAS (Paris), conformément au droit français.
+          ressort du siège social de Skignas SAS (Cocody, Abidjan), conformément au droit ivoirien.
         </P>
         <InfoBox variant="green">
-          Conformément aux articles L.611-1 et suivants du Code de la consommation, tout
-          consommateur a le droit de recourir gratuitement à un médiateur de la consommation
-          en vue de la résolution amiable d'un litige.
+          Conformément à la réglementation ivoirienne relative à la protection du consommateur,
+          tout client dispose du droit de rechercher une résolution amiable de tout litige avant
+          toute action judiciaire.
         </InfoBox>
       </>
     ),

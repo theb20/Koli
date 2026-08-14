@@ -515,7 +515,7 @@ function RelatedCard({ product }: { product: ReturnType<typeof mapApiProduct> })
 ═══════════════════════════════════════════════════════════════ */
 const TRUST = [
   { Icon: Truck,    label: 'Livraison J+1 à Abidjan' },
-  { Icon: RotateCcw,label: 'Retour 30 jours' },
+  { Icon: RotateCcw,label: 'Retour 14 jours' },
   { Icon: Shield,   label: 'Paiement sécurisé' },
   { Icon: Package,  label: 'Emballage soigné' },
 ]
@@ -1052,8 +1052,8 @@ export default function ProductPage() {
                         tag: 'À partir de 3 500 FCFA',
                       },
                       {
-                        icon: RotateCcw, title: 'Retour & remboursement — 30 jours',
-                        text: 'Produit non conforme ou défectueux ? Renvoyez-le sous 30 jours. Frais de retour offerts si le défaut est avéré. Remboursement sous 3 à 5 jours ouvrés via le même moyen de paiement.',
+                        icon: RotateCcw, title: 'Retour & remboursement — 14 jours',
+                        text: 'Produit non conforme ou défectueux ? Renvoyez-le sous 14 jours. Frais de retour offerts si le défaut est avéré. Remboursement sous 3 à 5 jours ouvrés via le même moyen de paiement.',
                         tag: 'Gratuit si défaut avéré',
                       },
                     ].map(({ icon: Icon, title, text, tag }) => (

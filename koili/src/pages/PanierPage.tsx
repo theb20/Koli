@@ -593,7 +593,7 @@ function StepCart({ items, totalPrice, onNext, promoCode, promoDiscount, onPromo
         {[
           { icon: <Lock size={24} />, title: 'Paiement sécurisé', sub: 'Données chiffrées' },
           { icon: <Van size={24} />, title: 'Livraison rapide',   sub: '24 à 72h' },
-          { icon: <Undo2 size={24} />, title: 'Retours gratuits',   sub: 'Sous 30 jours' },
+          { icon: <Undo2 size={24} />, title: 'Retours gratuits',   sub: 'Sous 14 jours' },
         ].map(g => (
           <div key={g.title} className="bg-white flex flex-col items-center rounded-xl border border-gray-100 p-3 text-center">
             <span className="text-xl">{g.icon}</span>

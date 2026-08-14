@@ -98,7 +98,7 @@ const REVIEWS: Review[] = [
   {
     id: 2,
     name: 'Kofi B.',
-    location: 'Dakar, SN',
+    location: 'Bouaké, CI',
     avatar: 'KB',
     color: '#059669',
     rating: 5,
@@ -114,7 +114,7 @@ const REVIEWS: Review[] = [
   {
     id: 3,
     name: 'Fatou D.',
-    location: 'Lomé, TG',
+    location: 'Yamoussoukro, CI',
     avatar: 'FD',
     color: '#DC2626',
     rating: 4,
@@ -130,7 +130,7 @@ const REVIEWS: Review[] = [
   {
     id: 4,
     name: 'Samuel N.',
-    location: 'Cotonou, BJ',
+    location: 'San-Pédro, CI',
     avatar: 'SN',
     color: '#D97706',
     rating: 5,
@@ -146,7 +146,7 @@ const REVIEWS: Review[] = [
   {
     id: 5,
     name: 'Mariama S.',
-    location: 'Bamako, ML',
+    location: 'Korhogo, CI',
     avatar: 'MS',
     color: '#7C3AED',
     rating: 5,
@@ -162,7 +162,7 @@ const REVIEWS: Review[] = [
   {
     id: 6,
     name: 'Théodore M.',
-    location: 'Yaoundé, CM',
+    location: 'Daloa, CI',
     avatar: 'TM',
     color: '#0891B2',
     rating: 4,
@@ -178,11 +178,11 @@ const REVIEWS: Review[] = [
 ]
 
 const RATING_DISTRIBUTION = [
-  { stars: 5, percent: 78, count: 342 },
-  { stars: 4, percent: 54, count: 204 },
-  { stars: 3, percent: 45, count: 122 },
-  { stars: 2, percent: 10, count: 82 },
-  { stars: 1, percent: 1, count: 42 },
+  { stars: 5, percent: 78, count: 490 },
+  { stars: 4, percent: 54, count: 140 },
+  { stars: 3, percent: 15, count: 49 },
+  { stars: 2, percent: 5,  count: 14 },
+  { stars: 1, percent: 2,  count: 7 },
 ]
 
 const GLOBAL_RATING = 4.8

@@ -198,7 +198,7 @@ function StepConfidentialite({ onNext, supportEmail }: { onNext: () => void; sup
           <Lock size={20} className="text-emerald-600" />
         </div>
         <div>
-          <h2 className="text-lg font-black text-gray-900">Confidentialité & RGPD</h2>
+          <h2 className="text-lg font-black text-gray-900">Confidentialité & protection des données</h2>
           <p className="text-xs text-gray-400">Comment nous protégeons vos données</p>
         </div>
       </div>
@@ -214,12 +214,12 @@ function StepConfidentialite({ onNext, supportEmail }: { onNext: () => void; sup
             body: 'Vos données servent exclusivement à gérer vos commandes, vous envoyer des confirmations et améliorer votre expérience. Nous ne vendons, ne louons ni ne partageons jamais vos informations personnelles avec des tiers sans votre consentement.',
           },
           {
-            icon: '⚙️', title: 'Vos droits (RGPD)',
-            body: `Vous disposez d'un droit d'accès, de rectification, d'effacement et de portabilité de vos données. Pour exercer ces droits, contactez-nous à ${supportEmail}. Toute demande est traitée sous 30 jours conformément au RGPD.`,
+            icon: '⚙️', title: 'Vos droits',
+            body: `Vous disposez d'un droit d'accès, de rectification, d'effacement et de portabilité de vos données. Pour exercer ces droits, contactez-nous à ${supportEmail}. Toute demande est traitée sous 30 jours, conformément à la loi ivoirienne n° 2013-450 relative à la protection des données à caractère personnel.`,
           },
           {
             icon: '🍪', title: 'Cookies',
-            body: 'Skignas utilise uniquement des cookies fonctionnels indispensables à votre connexion (session sécurisée). Nos statistiques de fréquentation sont mesurées via Plausible Analytics, une solution sans cookies et respectueuse de la vie privée.',
+            body: 'Skignas utilise uniquement des cookies fonctionnels indispensables à votre connexion (session sécurisée) et des statistiques de fréquentation anonymisées, sans traceur publicitaire tiers.',
           },
           {
             icon: '🔞', title: 'Âge minimum',
@@ -291,7 +291,7 @@ function StepConfirmation({ prenom, onFinish }: { prenom: string; onFinish: (des
       <div className="w-full space-y-2.5">
         {[
           'Conditions Générales d\'Utilisation',
-          'Politique de confidentialité & RGPD',
+          'Politique de confidentialité',
         ].map(item => (
           <div key={item} className="flex items-center gap-3 p-3.5 rounded-xl bg-emerald-50 border border-emerald-100">
             <div className="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center shrink-0">

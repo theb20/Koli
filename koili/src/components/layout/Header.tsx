@@ -331,26 +331,25 @@ function FullMegaMenu({ open, onClose, categories }: { open: boolean; onClose: (
               <div>
                 <p className="text-[10px] uppercase font-bold tracking-[0.18em] text-gray-400 mb-2">Sélections</p>
                 {[
-                  { label: 'Nouveautés', meta: '24' }, 
-                  { label: 'Meilleures ventes', meta: '48' }, 
-                  { label: 'En promotion', meta: '-30%', accent: true }
+                  { label: 'Nouveautés', href: `${activeHref}&badges=new` },
+                  { label: 'Meilleures ventes', href: `${activeHref}&sort=popular` },
+                  { label: 'En promotion', href: `${activeHref}&badges=sale`, accent: true },
                 ].map(item => (
-                  <Link key={item.label} to={activeHref} onClick={onClose} className="flex items-center justify-between py-2 border-b border-gray-100 hover:border-gray-300 transition-colors group">
-                    <span className="text-sm text-gray-700 group-hover:text-gray-900 group-hover:translate-x-0.5 transition-all">{item.label}</span>
-                    <span className={`text-xs font-mono ${item.accent ? 'font-bold' : 'text-gray-400'}`} style={item.accent ? { color: GREEN } : {}}>{item.meta}</span>
+                  <Link key={item.label} to={item.href} onClick={onClose} className="flex items-center justify-between py-2 border-b border-gray-100 hover:border-gray-300 transition-colors group">
+                    <span className={`text-sm group-hover:translate-x-0.5 transition-all ${item.accent ? 'font-semibold' : 'text-gray-700 group-hover:text-gray-900'}`} style={item.accent ? { color: GREEN } : {}}>{item.label}</span>
+                    <ChevronRight size={13} className="text-gray-300 group-hover:text-gray-500 transition-colors" />
                   </Link>
                 ))}
               </div>
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400 mb-2">Ressources</p>
                 {[
-                  { label: "Guide d'achat", meta: 'PDF' }, 
-                  { label: 'Comparateur', meta: 'Outil' }, 
-                  { label: 'Avis clients', meta: '4.7★' }
+                  { label: 'Comparateur', href: '/comparer' },
+                  { label: 'Avis clients', href: '/catalogue?sort=rating' },
                 ].map(item => (
-                  <Link key={item.label} to="/catalogue" onClick={onClose} className="flex items-center justify-between py-2 border-b border-gray-100 hover:border-gray-300 transition-colors group">
+                  <Link key={item.label} to={item.href} onClick={onClose} className="flex items-center justify-between py-2 border-b border-gray-100 hover:border-gray-300 transition-colors group">
                     <span className="text-sm text-gray-700 group-hover:text-gray-900 group-hover:translate-x-0.5 transition-all">{item.label}</span>
-                    <span className="text-xs font-mono text-gray-400">{item.meta}</span>
+                    <ChevronRight size={13} className="text-gray-300 group-hover:text-gray-500 transition-colors" />
                   </Link>
                 ))}
               </div>

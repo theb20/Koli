@@ -321,10 +321,10 @@ export default function BlogDetailPage() {
               <p className="text-base leading-relaxed">
                 Cet article de fond a été rédigé par notre équipe éditoriale. Il couvre en détail les aspects essentiels
                 du sujet, avec des recommandations concrètes adaptées au marché africain. Les produits mentionnés sont
-                disponibles sur Koli avec livraison rapide partout au Cameroun.
+                disponibles sur Skignas avec livraison rapide partout en Côte d'Ivoire.
               </p>
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-5 border border-blue-100">
-                <p className="font-bold text-gray-900 mb-2">🛍️ Retrouvez ces produits sur Koli</p>
+                <p className="font-bold text-gray-900 mb-2">🛍️ Retrouvez ces produits sur Skignas</p>
                 <p className="text-sm text-gray-600 mb-4">
                   Tous les produits évoqués dans cet article sont disponibles dans notre catalogue, sélectionnés pour
                   leur qualité et leur rapport qualité/prix.

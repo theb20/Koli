@@ -161,7 +161,7 @@ export default function SignupPage() {
             <motion.div initial={{ opacity: 0, x: -40 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.85 }}
               className="hidden lg:flex lg:flex-col">
               <div className="w-90 h-20 flex items-center justify-center">
-                <img src="/imgs_dropship/skignas_white.png" className="mb-12 w-auto h-auto object-contain" alt="Koli" />
+                <img src="/imgs_dropship/skignas_white.png" className="mb-12 w-auto h-auto object-contain" alt="Skignas" />
               </div>
               <h2 className="text-[1.9rem] leading-[1.1] tracking-tight">
                 Achetez vos produits
@@ -213,7 +213,7 @@ export default function SignupPage() {
 
               {/* Logo mobile */}
               <div className="mb-6 flex justify-center lg:hidden">
-                <img src="/imgs_dropship/favicon-dropship.png" className="h-16 w-16 drop-shadow-2xl" alt="Koli" />
+                <img src="/imgs_dropship/favicon-dropship.png" className="h-16 w-16 drop-shadow-2xl" alt="Skignas" />
               </div>
 
               <motion.div {...fadeUp(0.2)} className="mb-7">

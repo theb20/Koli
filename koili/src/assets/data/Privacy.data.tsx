@@ -18,9 +18,10 @@ export const SECTIONS = [
           effectue un achat ou interagit avec nos services, quelle que soit sa localisation.
         </P>
         <InfoBox variant="green">
-          Notre traitement des données est conforme au Règlement Général sur la Protection des
-          Données (RGPD – Règlement UE 2016/679) et à la loi Informatique et Libertés modifiée
-          du 6 janvier 1978.
+          Notre traitement des données est conforme à la loi ivoirienne n° 2013-450 du
+          19 juin 2013 relative à la protection des données à caractère personnel, sous le
+          contrôle de l'Autorité de Régulation des Télécommunications/TIC de Côte d'Ivoire
+          (ARTCI).
         </InfoBox>
       </>
     ),
@@ -40,7 +41,7 @@ export const SECTIONS = [
             "Identité : nom, prénom, nom de votre boutique",
             "Coordonnées : adresse e-mail, numéro de téléphone, adresse postale",
             "Informations de connexion : identifiants, mots de passe hashés",
-            "Informations de paiement : coordonnées bancaires (traitées par Stripe, non stockées par nous)",
+            "Informations de paiement : traitées par notre prestataire PayDunya (mobile money et carte), non stockées par nous",
             "Documents d'identité et justificatifs (pour la vérification des marchands)",
           ]}
         />
@@ -56,7 +57,7 @@ export const SECTIONS = [
         <Ul
           items={[
             "Informations de profil lors d'une connexion via Google ou Facebook",
-            "Données de vérification d'identité via notre partenaire Onfido",
+            "Données de vérification d'identité via notre partenaire Didit",
           ]}
         />
       </>
@@ -88,7 +89,7 @@ export const SECTIONS = [
                 ["Analyse d'audience (anonymisée)", "Intérêt légitime"],
                 ["Envoi de newsletter et offres commerciales", "Consentement"],
                 ["Prévention de la fraude", "Obligation légale"],
-                ["Conservation des factures", "Obligation légale (7 ans)"],
+                ["Conservation des factures", "Obligation légale (10 ans)"],
               ].map(([f, b]) => (
                 <tr key={f} className="border-t border-gray-100">
                   <td className="px-4 py-3 text-gray-600">{f}</td>
@@ -97,7 +98,7 @@ export const SECTIONS = [
                       className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
                         b === "Consentement"
                           ? "bg-blue-50 text-blue-700"
-                          : b === "Obligation légale (7 ans)" || b === "Obligation légale"
+                          : b === "Obligation légale (10 ans)" || b === "Obligation légale"
                           ? "bg-amber-50 text-amber-700"
                           : b === "Exécution du contrat"
                           ? "bg-green-50 text-green-700"
@@ -127,11 +128,11 @@ export const SECTIONS = [
         <SubTitle>Sous-traitants techniques</SubTitle>
         <Ul
           items={[
-            "Stripe (paiements en ligne) — données bancaires chiffrées, siège aux États-Unis (clauses contractuelles types)",
-            "Vercel (hébergement) — journaux de serveur, siège aux États-Unis (SCCs, région EU)",
-            "Postmark (e-mails transactionnels) — adresse e-mail, contenu des e-mails",
-            "Plausible Analytics (statistiques) — données anonymisées, sans cookies, hébergé en UE",
-            "Intercom (support client) — données de profil et conversations",
+            "PayDunya (paiements mobile money et carte) — données de paiement chiffrées",
+            "Firebase / Google (hébergement) — journaux de serveur, centres de données en Europe (région EU West)",
+            "Resend (e-mails transactionnels) — adresse e-mail, contenu des e-mails",
+            "Didit (vérification d'identité des marchands) — documents et selfie de vérification",
+            "WhatsApp Business (support client) — messages échangés avec notre équipe support",
           ]}
         />
         <SubTitle>Autorités légales</SubTitle>
@@ -140,8 +141,8 @@ export const SECTIONS = [
           ou administrative, conformément à la législation applicable.
         </P>
         <InfoBox variant="amber">
-          Tout transfert hors UE est encadré par des garanties appropriées (clauses contractuelles
-          types, décision d'adéquation de la Commission européenne).
+          Tout transfert de données vers un pays tiers est encadré par des garanties
+          contractuelles appropriées avec nos prestataires.
         </InfoBox>
       </>
     ),
@@ -167,7 +168,7 @@ export const SECTIONS = [
               {[
                 ["Données de compte actif", "Durée de vie du compte + 90 jours"],
                 ["Données après résiliation", "90 jours (export possible), puis suppression"],
-                ["Factures et données comptables", "10 ans (obligation légale)"],
+                ["Factures et données comptables", "10 ans (obligation légale OHADA)"],
                 ["Journaux de sécurité", "12 mois"],
                 ["Données de navigation anonymisées", "13 mois maximum"],
                 ["Candidatures non retenues", "2 ans"],
@@ -189,7 +190,8 @@ export const SECTIONS = [
     content: (
       <>
         <P>
-          Conformément au RGPD, vous disposez des droits suivants sur vos données personnelles :
+          Conformément à la loi ivoirienne n° 2013-450 relative à la protection des données à
+          caractère personnel, vous disposez des droits suivants sur vos données personnelles :
         </P>
         <Ul
           items={[
@@ -209,21 +211,22 @@ export const SECTIONS = [
           <a href="mailto:dpo@skignas.com" className="font-medium text-blue-600 underline underline-offset-2">
             dpo@skignas.com
           </a>
-          {" "}ou par courrier à Skignas SAS – DPO, 42 rue du Commerce, 75015 Paris.
+          {" "}ou par courrier à Skignas SAS – DPO, Cocody, Abidjan, Côte d'Ivoire.
           Nous vous répondrons dans un délai d'un mois (prorogeable de deux mois en cas de
           demande complexe).
         </P>
         <InfoBox variant="blue">
           Si vous estimez que vos droits ne sont pas respectés, vous pouvez introduire une
-          réclamation auprès de la CNIL (Commission Nationale de l'Informatique et des Libertés)
+          réclamation auprès de l'ARTCI (Autorité de Régulation des Télécommunications/TIC
+          de Côte d'Ivoire)
           {" "}
           <a
-            href="https://www.cnil.fr"
+            href="https://www.artci.ci"
             target="_blank"
             rel="noreferrer"
             className="font-medium underline underline-offset-2"
           >
-            www.cnil.fr
+            www.artci.ci
           </a>
           .
         </InfoBox>
@@ -253,7 +256,7 @@ export const SECTIONS = [
         <P>
           En cas de violation de données susceptible d'engendrer un risque pour vos droits et
           libertés, nous vous notifierons dans les 72 heures suivant sa découverte, conformément
-          à l'article 34 du RGPD.
+          à la réglementation ivoirienne en vigueur.
         </P>
       </>
     ),

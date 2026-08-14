@@ -28,11 +28,11 @@ const SUBJECTS = [
 const FAQ: { q: string; a: string }[] = [
   {
     q: 'Quel est le délai de livraison ?',
-    a: 'En livraison standard, comptez 3 à 5 jours ouvrés. En express, 24 à 48h. Vous recevez un SMS de suivi dès l\'expédition de votre colis.',
+    a: 'En livraison standard, comptez 3 à 5 jours ouvrés. En express, 24 à 72h. Vous recevez un SMS de suivi dès l\'expédition de votre colis.',
   },
   {
     q: 'Comment retourner un produit ?',
-    a: 'Vous disposez de 30 jours après réception pour retourner un article. Il suffit de nous contacter via WhatsApp ou email avec votre numéro de commande.',
+    a: 'Vous disposez de 14 jours après réception pour retourner un article. Il suffit de nous contacter via WhatsApp ou email avec votre numéro de commande.',
   },
   {
     q: 'Quels modes de paiement acceptez-vous ?',
@@ -47,8 +47,8 @@ const FAQ: { q: string; a: string }[] = [
     a: 'Oui, tous nos produits bénéficient d\'une garantie constructeur et d\'un service après-vente dédié joignable 7j/7 via WhatsApp.',
   },
   {
-    q: 'Livrez-vous partout au Cameroun ?',
-    a: 'Nous livrons dans toutes les grandes villes : Douala, Yaoundé, Bafoussam, Bamenda, Garoua, et bien d\'autres. Contactez-nous pour les zones rurales.',
+    q: 'Livrez-vous partout en Côte d\'Ivoire ?',
+    a: 'Nous livrons à Abidjan et dans les grandes villes du pays : Bouaké, Yamoussoukro, San-Pédro, et bien d\'autres. Contactez-nous pour vérifier votre zone.',
   },
 ]
 
@@ -469,7 +469,7 @@ export function ContactPage() {
               {/* Temps de réponse estimé */}
               <div className="flex items-center justify-center gap-2 text-xs text-gray-400">
                 <Clock size={12} />
-                Temps de réponse moyen : <strong className="text-gray-600">moins de 4h en semaine</strong>
+                Temps de réponse moyen : <strong className="text-gray-600">sous 24h</strong>
               </div>
             </form>
           </div>
@@ -575,7 +575,7 @@ export function ContactPage() {
             {/* Stats satisfaction */}
             <div className="bg-gray-50 rounded-2xl border border-gray-100 p-5 grid grid-cols-3 gap-3 text-center">
               {[
-                { value: '< 4h',  label: 'Temps de réponse', color: 'text-blue-600'    },
+                { value: '24h',   label: 'Temps de réponse', color: 'text-blue-600'    },
                 { value: '4.9★', label: 'Satisfaction',      color: 'text-yellow-500'  },
                 { value: '98%',   label: 'Résolution',        color: 'text-emerald-600' },
               ].map(s => (
@@ -590,7 +590,7 @@ export function ContactPage() {
       </section>
 
       {/* ── FAQ ── */}
-      <section className="bg-gray-50 border-t border-gray-100 py-14">
+      <section id="faq" className="bg-gray-50 border-t border-gray-100 py-14">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-8">
             <span className="text-xs font-semibold uppercase tracking-widest text-blue-600">FAQ</span>

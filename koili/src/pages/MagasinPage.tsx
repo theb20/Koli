@@ -221,7 +221,7 @@ export default function MagasinPage() {
                 </span>
               </h1>
               <p className="text-gray-400 text-base sm:text-lg leading-relaxed">
-                {PRODUCTS.length} produits soigneusement sélectionnés, livrés partout au Cameroun en 24 à 72h.
+                {PRODUCTS.length} produits soigneusement sélectionnés, livrés partout en Côte d'Ivoire en 3 à 5 jours (24 à 72h en express).
               </p>
               {/* Search hero */}
               <div className="mt-6 flex gap-3 max-w-md">
@@ -262,7 +262,7 @@ export default function MagasinPage() {
             <div className="flex items-center justify-center sm:justify-between gap-4 sm:gap-8 overflow-x-auto text-xs text-gray-400 flex-wrap">
               {[
                 { icon: <Truck size={13} />,     label: 'Livraison 24–72h partout'     },
-                { icon: <RotateCcw size={13} />, label: 'Retours gratuits 30 jours'    },
+                { icon: <RotateCcw size={13} />, label: 'Retours gratuits 14 jours'    },
                 { icon: <Shield size={13} />,    label: 'Paiement 100% sécurisé'       },
                 { icon: <Zap size={13} />,       label: 'Orange Money · Wave · MTN'    },
               ].map(g => (

@@ -3,7 +3,7 @@ import { motion, useInView } from 'motion/react'
 import { Link } from 'react-router-dom'
 import {
   Target, Heart, Shield, Zap, Globe, Users,
-  Package, Star, TrendingUp, Award, CheckCircle,
+  Star, TrendingUp, CheckCircle,
   ArrowRight, Quote, Truck, Headphones, RefreshCw,
 } from 'lucide-react'
 import { PageMeta } from '../components/seo/PageMeta'
@@ -13,28 +13,26 @@ const BLUE = '#0421ff'
 /* ─── Données ─────────────────────────────────────────────── */
 
 const STATS = [
-  { value: 12000, suffix: '+', label: 'Clients satisfaits',   icon: <Users size={20} /> },
-  { value: 450,   suffix: '+', label: 'Produits disponibles', icon: <Package size={20} /> },
-  { value: 98,    suffix: '%', label: 'Taux de satisfaction', icon: <Star size={20} /> },
-  { value: 5,     suffix:  '', label: 'Années d\'expérience', icon: <Award size={20} /> },
+  { label: 'Marchands vérifiés',  icon: <Users size={20} /> },
+  { label: 'Paiement sécurisé',   icon: <Shield size={20} /> },
+  { label: 'Support 7j/7',        icon: <Headphones size={20} /> },
+  { label: 'Livraison suivie',    icon: <Truck size={20} /> },
 ]
 
 const VALUES = [
   { icon: <Heart size={28} />,      title: 'Passion client',    desc: 'Chaque décision est prise en pensant à votre expérience. Votre satisfaction est notre unique mesure de succès.' },
   { icon: <Shield size={28} />,     title: 'Confiance & sécurité', desc: 'Paiements sécurisés, données protégées, produits authentiques. Nous ne faisons aucun compromis sur la confiance.' },
   { icon: <Zap size={28} />,        title: 'Rapidité',          desc: 'Livraison express, service client réactif, traitement immédiat des commandes. Votre temps est précieux.' },
-  { icon: <Globe size={28} />,      title: 'Accessibilité',     desc: 'Des produits premium à des prix justes, livrés partout au Cameroun. La qualité pour tous.' },
+  { icon: <Globe size={28} />,      title: 'Accessibilité',     desc: 'Des produits premium à des prix justes, livrés partout en Côte d\'Ivoire. La qualité pour tous.' },
   { icon: <Target size={28} />,     title: 'Excellence',        desc: 'Nous sélectionnons rigoureusement chaque produit. Si ce n\'est pas excellent, il ne figure pas dans notre catalogue.' },
   { icon: <TrendingUp size={28} />, title: 'Innovation',        desc: 'Toujours à l\'affût des dernières tendances pour vous proposer les meilleurs produits en avant-première.' },
 ]
 
 const TIMELINE = [
-  { year: '2024', title: 'La naissance de Skignas',      desc: 'Fondé à Abidjan par M. Serge Soro, passionné de tech et d\'e-commerce, Skignas démarre avec une vingtaine de produits soigneusement sélectionnés et une promesse simple : des prix justes en FCFA et une livraison fiable.', side: 'left'  },
-  { year: '2024', title: 'Les premières commandes',      desc: 'Paiement mobile money intégré dès le départ (Wave, Orange Money), premières livraisons dans les communes d\'Abidjan. La confiance des tout premiers clients se construit, commande après commande.', side: 'right' },
-  { year: '2025', title: 'La communauté grandit',        desc: 'Le catalogue s\'étoffe, le service client sur WhatsApp devient une signature. Livraison étendue au-delà d\'Abidjan, vers Bouaké et Yamoussoukro. Le bouche-à-oreille fait son travail.', side: 'left'  },
-  { year: '2025', title: 'Skignas passe à la vitesse supérieure', desc: 'Refonte de la plateforme, mise en place du suivi de commande en temps réel et de points relais pour sécuriser le dernier kilomètre. Ajout de Moov Money et MTN MoMo au paiement.', side: 'right' },
-  { year: '2026', title: 'L\'app mobile',                desc: 'Lancement de l\'application mobile pensée pour tous les smartphones, même en 3G, et d\'un programme de fidélité. Skignas livre désormais dans plusieurs villes de Côte d\'Ivoire.', side: 'left'  },
-  { year: 'Aujourd\'hui', title: 'L\'aventure continue', desc: 'Une communauté grandissante de clients satisfaits à travers la Côte d\'Ivoire. Skignas continue d\'enrichir son catalogue et d\'améliorer l\'expérience, avec l\'ambition de rayonner dans toute la sous-région.', side: 'right' },
+  { year: '2026', title: 'La naissance de Skignas',        desc: 'Fondé à Abidjan par Serge Soro, passionné de tech et d\'e-commerce, Skignas démarre avec un catalogue soigneusement sélectionné et une promesse simple : des prix justes en FCFA et une livraison fiable.', side: 'left'  },
+  { year: '2026', title: 'Paiement mobile money natif',    desc: 'Wave, Orange Money, MTN MoMo et Moov Money intégrés dès les premières semaines. Les premières commandes sont livrées dans les communes d\'Abidjan.', side: 'right' },
+  { year: '2026', title: 'Une marketplace de marchands vérifiés', desc: 'Skignas ouvre sa plateforme à des marchands partenaires soumis à une vérification d\'identité et de conformité, élargissant le choix tout en gardant un contrôle qualité strict.', side: 'left'  },
+  { year: 'Aujourd\'hui', title: 'L\'aventure continue',   desc: 'Suivi de commande en temps réel, service client réactif sur WhatsApp, et l\'ambition de livrer bientôt dans toute la Côte d\'Ivoire.', side: 'right' },
 ]
 
 const TEAM = [
@@ -62,32 +60,11 @@ const TESTIMONIALS = [
 ]
 
 const GUARANTEES = [
-  { icon: <Truck size={22} />,       title: 'Livraison rapide',    desc: 'Partout au Cameroun sous 24–72h' },
+  { icon: <Truck size={22} />,       title: 'Livraison rapide',    desc: 'Standard 3-5j ou Express 24-72h, partout en Côte d\'Ivoire' },
   { icon: <Shield size={22} />,      title: 'Paiement sécurisé',   desc: 'Orange Money, MTN, Wave & cash' },
   { icon: <RefreshCw size={22} />,   title: 'Retours faciles',     desc: '14 jours pour changer d\'avis' },
   { icon: <Headphones size={22} />,  title: 'Support 7j/7',        desc: 'WhatsApp & téléphone toujours disponibles' },
 ]
-
-/* ─── Animated Counter ─────────────────────────────────────── */
-function Counter({ to, suffix }: { to: number; suffix: string }) {
-  const ref  = useRef<HTMLSpanElement>(null)
-  const inView = useInView(ref, { once: true, margin: '-80px' })
-  const [count, setCount] = useState(0)
-
-  useRef(() => {})  // noop to keep lint quiet
-
-  if (inView && count === 0 && to > 0) {
-    const step = Math.ceil(to / 60)
-    const id = setInterval(() => {
-      setCount(c => {
-        if (c + step >= to) { clearInterval(id); return to }
-        return c + step
-      })
-    }, 16)
-  }
-
-  return <span ref={ref}>{count.toLocaleString('fr-FR')}{suffix}</span>
-}
 
 /* ─── Section wrapper avec fade-in ────────────────────────── */
 function FadeIn({ children, delay = 0, className = '' }: { children: React.ReactNode; delay?: number; className?: string }) {
@@ -116,7 +93,7 @@ export function AboutPage() {
     <div className="bg-white">
       <PageMeta
         title="À propos de Skignas"
-        description="Découvrez l'histoire de Skignas : notre mission, nos valeurs et pourquoi plus de 12 000 Camerounais nous font confiance."
+        description="Découvrez l'histoire de Skignas : notre mission, nos valeurs et pourquoi nos clients ivoiriens nous font confiance."
         path="/about"
       />
 
@@ -143,7 +120,7 @@ export function AboutPage() {
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
               className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 bg-white/5 text-white/70 text-xs font-semibold mb-6 backdrop-blur-sm"
             >
-              Fondé en 2020 · Abidjan côte d'ivoire
+              Fondé en 2026 · Abidjan, Côte d'Ivoire
             </motion.div>
 
             <motion.h1
@@ -159,8 +136,8 @@ export function AboutPage() {
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.25 }}
               className="text-white/60 text-lg leading-relaxed max-w-xl mb-10"
             >
-              Skignas est née d'une conviction simple : chaque Ivoirrien mérite accès aux meilleurs produits mondiaux,
-              livrés rapidement et à des prix justes. Depuis 2020, nous transformons cette vision en réalité.
+              Skignas est née d'une conviction simple : chaque Ivoirien mérite accès aux meilleurs produits mondiaux,
+              livrés rapidement et à des prix justes. Depuis 2026, nous transformons cette vision en réalité.
             </motion.p>
 
             <motion.div
@@ -194,10 +171,7 @@ export function AboutPage() {
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${BLUE}20`, color: BLUE }}>
                   {s.icon}
                 </div>
-                <div className="text-4xl font-black text-white tabular-nums">
-                  <Counter to={s.value} suffix={s.suffix} />
-                </div>
-                <p className="text-white/50 text-xs font-medium leading-tight">{s.label}</p>
+                <p className="text-white text-base font-bold leading-tight">{s.label}</p>
               </motion.div>
             ))}
           </motion.div>
@@ -276,9 +250,9 @@ export function AboutPage() {
               Ivoirien, avec une livraison rapide et un service après-vente irréprochable.
             </p>
             <p className="text-gray-500 leading-relaxed mb-8">
-              Chaque produit dans notre catalogue a été testé, évalué et approuvé par notre équipe
-              avant d'être proposé à nos clients. Nous ne vendons que ce que nous recommanderions
-              à notre propre famille.
+              Nous vérifions chaque marchand partenaire avant son intégration à la plateforme, et
+              contrôlons en continu la qualité de leur catalogue. Nous ne laissons figurer que ce
+              que nous recommanderions à notre propre famille.
             </p>
             <div className="flex flex-wrap gap-3">
               {['Sélection rigoureuse', 'Prix transparents', 'Service humain', 'Livraison fiable'].map(tag => (
@@ -327,9 +301,10 @@ export function AboutPage() {
           <p className="text-[11px] font-bold tracking-[0.2em] uppercase mb-4" style={{ color: BLUE }}>
             Notre parcours
           </p>
-          <h2 className="text-4xl lg:text-5xl font-black text-gray-900 mb-4">6 ans d'histoire</h2>
+          <h2 className="text-4xl lg:text-5xl font-black text-gray-900 mb-4">Notre histoire</h2>
           <p className="text-gray-500 max-w-xl mx-auto">
-            De 20 produits dans un appartement de Douala à la référence e-commerce du Cameroun.
+            Une jeune marketplace ivoirienne, lancée en 2026 à Abidjan, avec l'ambition de devenir
+            une référence du e-commerce en Côte d'Ivoire.
           </p>
         </FadeIn>
 
@@ -340,7 +315,7 @@ export function AboutPage() {
 
           <div className="space-y-12">
             {TIMELINE.map((item, i) => (
-              <FadeIn key={item.year} delay={i * 0.1}>
+              <FadeIn key={item.title} delay={i * 0.1}>
                 <div className={`flex items-center gap-8 ${item.side === 'right' ? 'flex-row-reverse' : ''}`}>
                   <div className={`flex-1 ${item.side === 'right' ? 'text-left' : 'text-right'}`}>
                     <div className={`inline-block p-6 rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-md transition-shadow max-w-sm ${item.side === 'right' ? '' : 'ml-auto'}`}>
@@ -365,7 +340,7 @@ export function AboutPage() {
           <div className="absolute left-3 top-0 bottom-0 w-px bg-gray-100" />
           <div className="space-y-8">
             {TIMELINE.map((item, i) => (
-              <FadeIn key={item.year} delay={i * 0.08}>
+              <FadeIn key={item.title} delay={i * 0.08}>
                 <div className="relative">
                   <div className="absolute -left-[29px] w-5 h-5 rounded-full border-4 border-white shadow" style={{ background: BLUE }} />
                   <div className="p-5 rounded-2xl border border-gray-100 bg-white shadow-sm">
@@ -469,38 +444,6 @@ export function AboutPage() {
           ))}
         </div>
       </section>
-
-
-      {/* ── CTA ──────────────────────────────────────────────── 
-      <section className="py-24 bg-gray-950 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-[0.03]"
-          style={{ backgroundImage: 'linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px)', backgroundSize: '60px 60px' }} />
-        <div className="relative max-w-3xl mx-auto px-4 text-center">
-          <FadeIn>
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 bg-white/5 text-white/60 text-xs font-semibold mb-8">
-              <Zap size={12} style={{ color: BLUE }} /> Rejoignez 12 000+ clients satisfaits
-            </div>
-            <h2 className="text-4xl lg:text-5xl font-black text-white mb-6 leading-tight">
-              Prêt à découvrir<br />
-              <span style={{ color: BLUE }}>Skignas</span> ?
-            </h2>
-            <p className="text-white/50 mb-10 text-lg max-w-xl mx-auto">
-              Parcourez notre catalogue de 450+ produits premium et bénéficiez de la livraison rapide partout au Cameroun.
-            </p>
-            <div className="flex flex-wrap justify-center gap-4">
-              <Link to="/catalogue"
-                className="inline-flex items-center gap-2 px-8 py-4 rounded-full text-sm font-bold text-white transition-opacity hover:opacity-90"
-                style={{ background: BLUE }}>
-                Voir le catalogue <ArrowRight size={16} />
-              </Link>
-              <Link to="/contact"
-                className="inline-flex items-center gap-2 px-8 py-4 rounded-full text-sm font-bold text-white border border-white/20 hover:bg-white/10 transition-colors">
-                Nous contacter
-              </Link>
-            </div>
-          </FadeIn>
-        </div>
-      </section>*/}
     </div>
   )
 }

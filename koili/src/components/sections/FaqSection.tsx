@@ -20,7 +20,7 @@ function getFaqs(settings: SiteSettings) {
   },
   {
     q: 'Combien de temps prend la livraison ?',
-    a: 'La livraison standard est effectuée en 2 à 5 jours ouvrés en Côte d\'Ivoire. Pour Abidjan, une livraison express J+1 est disponible moyennant supplément. Les délais peuvent varier en période de forte demande (promotions, fêtes).',
+    a: 'La livraison standard est effectuée en 3 à 5 jours ouvrés en Côte d\'Ivoire (1 500 FCFA, offerte dès 25 000 FCFA d\'achat). Une livraison express en 24 à 72h est disponible moyennant un supplément de 3 500 FCFA. Les délais peuvent varier en période de forte demande (promotions, fêtes).',
   },
   {
     q: 'Comment suivre ma commande en temps réel ?',
@@ -28,7 +28,7 @@ function getFaqs(settings: SiteSettings) {
   },
   {
     q: 'Puis-je retourner ou échanger un produit ?',
-    a: `Oui. Vous disposez de 30 jours à compter de la réception pour nous retourner tout produit non conforme ou défectueux. Le remboursement est effectué sous 3 à 5 jours ouvrés, via le même moyen de paiement utilisé lors de l'achat. Les frais de retour sont pris en charge par Skignas si le défaut est avéré.`,
+    a: `Oui. Vous disposez de 14 jours à compter de la réception pour nous retourner tout produit non conforme ou défectueux. Le remboursement est effectué sous 3 à 5 jours ouvrés, via le même moyen de paiement utilisé lors de l'achat. Les frais de retour sont pris en charge par Skignas si le défaut est avéré.`,
   },
   {
     q: 'Vos produits sont-ils authentiques et garantis ?',
@@ -36,11 +36,11 @@ function getFaqs(settings: SiteSettings) {
   },
   {
     q: 'Comment contacter le service client ?',
-    a: `Notre support est disponible 7j/7 de 8 h à 20 h via le chat en ligne, par e-mail à ${settings.supportEmail}, ou par téléphone au ${settings.supportPhone}. Temps de réponse moyen : moins d'une heure.`,
+    a: `Notre support est disponible 7j/7 de 8 h à 20 h via le chat en ligne, par e-mail à ${settings.supportEmail}, ou par téléphone au ${settings.supportPhone}. Temps de réponse moyen : sous 24h.`,
   },
   {
     q: 'Livrez-vous dans d\'autres pays d\'Afrique ?',
-    a: 'Oui ! Nous livrons actuellement en Côte d\'Ivoire, au Sénégal, au Mali, au Burkina Faso, au Ghana et au Togo. Des frais et délais spécifiques s\'appliquent selon la destination. D\'autres pays seront bientôt disponibles — suivez nos actualités.',
+    a: 'Pour le moment, nous livrons uniquement en Côte d\'Ivoire. Nous travaillons activement à étendre nos livraisons vers d\'autres pays d\'Afrique de l\'Ouest — suivez nos actualités pour ne rien manquer.',
   },
   {
     q: 'Comment devenir vendeur sur Skignas ?',
@@ -268,7 +268,7 @@ export function FaqSection() {
             </h2>
 
             <p className="mt-5 text-base leading-relaxed text-gray-400">
-              Vous ne trouvez pas la réponse ? Notre équipe support répond en moins d'une heure,
+              Vous ne trouvez pas la réponse ? Notre équipe support répond sous 24h,
               7 jours sur 7.
             </p>
           </motion.div>
@@ -293,7 +293,7 @@ export function FaqSection() {
             On est là pour vous.
           </h2>
           <p className="text-white/50 text-sm leading-relaxed max-w-md">
-            Notre équipe répond en moins d'une heure — commande, livraison, retour ou paiement, on gère tout.
+            Notre équipe répond sous 24h — commande, livraison, retour ou paiement, on gère tout.
           </p>
         </div>
         </BorderGlow>
@@ -345,7 +345,7 @@ export function FaqSection() {
           className="mt-16 grid grid-cols-2 divide-x divide-gray-100 rounded-2xl border border-gray-100 bg-gray-50 sm:grid-cols-4"
         >
           {[
-            { value: '< 1 h',   label: 'Temps de réponse'    },
+            { value: '24h',     label: 'Temps de réponse'    },
             { value: '7j/7',    label: 'Disponibilité support' },
             { value: '4,8 ★',   label: 'Note satisfaction'    },
             { value: '12 000+', label: 'Clients actifs'       },
