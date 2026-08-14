@@ -10,6 +10,7 @@ import { requireAuth, requireAdmin } from '../middleware/auth'
 import { sendWelcomeEmail, sendMagicLinkEmail, sendPasswordResetEmail, sendPasswordChangedEmail, sendBroadcastEmail } from '../lib/mailer'
 import { ALLOWED_ORIGINS } from '../lib/allowedOrigins'
 import { getAge, MIN_AGE } from '../lib/age'
+import { verifyRecaptcha } from '../lib/recaptcha'
 import { logger } from '../lib/logger'
 import { logAdminAction } from '../lib/auditLog'
 import { findReferrer, awardReferralBonus } from './referral'
@@ -34,6 +35,7 @@ const registerSchema = z.object({
   telephone: z.string().optional(),
   naissance: z.coerce.date({ required_error: 'Date de naissance requise', invalid_type_error: 'Date de naissance invalide' }),
   referralCode: z.string().trim().max(50).optional(),
+  recaptchaToken: z.string().optional(),
 }).refine(d => getAge(d.naissance) >= MIN_AGE, {
   message: `Vous devez avoir au moins ${MIN_AGE} ans pour créer un compte`,
   path: ['naissance'],
@@ -42,6 +44,7 @@ const registerSchema = z.object({
 const loginSchema = z.object({
   email:    z.string().email(),
   password: z.string().min(1, 'Mot de passe requis'),
+  recaptchaToken: z.string().optional(),
 })
 
 const updateProfileSchema = z.object({
@@ -77,8 +80,13 @@ const resetPasswordSchema = z.object({
 ───────────────────────────────────────────────────────────── */
 router.post('/register', validate(registerSchema), async (req, res) => {
   try {
-    const { prenom, nom, email, telephone, naissance, referralCode } = req.body as z.infer<typeof registerSchema>
+    const { prenom, nom, email, telephone, naissance, referralCode, recaptchaToken } = req.body as z.infer<typeof registerSchema>
     const rawPassword: string | undefined = req.body.password
+
+    if (!(await verifyRecaptcha(recaptchaToken, 'register'))) {
+      res.status(403).json({ success: false, message: 'Vérification anti-robot échouée, veuillez réessayer' })
+      return
+    }
 
     const exists = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } })
     if (exists) {
@@ -167,8 +175,13 @@ router.post('/register', validate(registerSchema), async (req, res) => {
 ───────────────────────────────────────────────────────────── */
 router.post('/login', validate(loginSchema), async (req, res) => {
   try {
-    const { email, password } = req.body as z.infer<typeof loginSchema>
+    const { email, password, recaptchaToken } = req.body as z.infer<typeof loginSchema>
     const normalizedEmail = email.toLowerCase().trim()
+
+    if (!(await verifyRecaptcha(recaptchaToken, 'login'))) {
+      res.status(403).json({ success: false, message: 'Vérification anti-robot échouée, veuillez réessayer' })
+      return
+    }
 
     const user = await prisma.user.findUnique({ where: { email: normalizedEmail } })
     if (!user) {

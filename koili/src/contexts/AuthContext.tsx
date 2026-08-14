@@ -5,6 +5,7 @@ import {
 import { signInWithPopup } from 'firebase/auth'
 import { auth, googleProvider } from '../lib/firebase'
 import { setAuthRefreshHandlers } from '../lib/api'
+import { getRecaptchaToken } from '../lib/recaptcha'
 
 /* ─── Types ──────────────────────────────────────────────────── */
 export type AuthUser = {
@@ -103,9 +104,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (email: string, password: string): Promise<LoginResult> => {
     setIsLoading(true)
     try {
+      const recaptchaToken = await getRecaptchaToken('login')
       const { data } = await apiFetch('/api/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, recaptchaToken }),
       })
       if (data.requires2FA) return { requires2FA: true, tempToken: data.tempToken }
       setUser(data.user)
@@ -120,9 +122,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = useCallback(async (body: RegisterData) => {
     setIsLoading(true)
     try {
+      const recaptchaToken = await getRecaptchaToken('register')
       const { data } = await apiFetch('/api/auth/register', {
         method: 'POST',
-        body: JSON.stringify(body),
+        body: JSON.stringify({ ...body, recaptchaToken }),
       })
       setUser(data.user)
       setToken(data.accessToken)
