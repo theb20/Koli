@@ -26,6 +26,19 @@ function loadScript(): Promise<void> {
 }
 
 /**
+ * Précharge le script reCAPTCHA v3 sans générer de jeton. À appeler au
+ * montage des pages Connexion/Inscription : sans ça, le script (et donc le
+ * badge "protégé par reCAPTCHA") ne se charge qu'au moment du submit, ce qui
+ * laisse la page sans badge visible pendant que l'utilisateur remplit le
+ * formulaire — Google exige que ce badge reste visible tant que la page est
+ * protégée. Ne fait rien si VITE_RECAPTCHA_SITE_KEY n'est pas configurée.
+ */
+export function preloadRecaptcha(): void {
+  if (!SITE_KEY) return
+  loadScript().catch(() => {})
+}
+
+/**
  * Renvoie un jeton reCAPTCHA v3 pour l'action donnée ("login", "register"...).
  * Renvoie `undefined` si VITE_RECAPTCHA_SITE_KEY n'est pas configurée (dev
  * local) — le backend traite alors l'absence de jeton comme un no-op tant

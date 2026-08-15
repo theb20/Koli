@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Mail, ArrowRight, Loader2, AlertCircle, CheckCircle, Lock, Eye, EyeOff } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -6,6 +6,7 @@ import { PageMeta } from '../components/seo/PageMeta'
 import { useAuth } from '../contexts/AuthContext'
 import Button from '../components/ui/btnStyle'
 import { API_BASE } from '../lib/api'
+import { preloadRecaptcha } from '../lib/recaptcha'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -18,6 +19,8 @@ export default function LoginPage() {
   const [error,      setError]      = useState('')
   const [sending,    setSending]    = useState(false)
   const [googleLoad, setGoogleLoad] = useState(false)
+
+  useEffect(() => { preloadRecaptcha() }, [])
 
   // Affiche l'erreur Google remontée par AuthContext (ex: CORS, Firebase)
   const displayError = error || authError || ''

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Mail, User, Calendar, ArrowRight, Check, Loader2, AlertCircle, Gift, Lock, Eye, EyeOff } from 'lucide-react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
@@ -6,6 +6,7 @@ import Button from '../components/ui/btnStyle'
 import CardUniverse from '../components/ui/Card-universe'
 import { PageMeta } from '../components/seo/PageMeta'
 import { useAuth } from '../contexts/AuthContext'
+import { preloadRecaptcha } from '../lib/recaptcha'
 
 const MIN_AGE = 18
 
@@ -49,6 +50,8 @@ export default function SignupPage() {
   const [existingAccount, setExistingAccount] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [googleLoad, setGoogleLoad] = useState(false)
+
+  useEffect(() => { preloadRecaptcha() }, [])
 
   const busy = submitting || googleLoad
 
