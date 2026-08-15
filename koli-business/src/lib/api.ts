@@ -1,4 +1,5 @@
 import type { RegisterFormData } from '../pages/register/types'
+import { getRecaptchaToken } from './recaptcha'
 
 export const BACKEND_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:4000'
 export const MERCHANTGO_URL = import.meta.env.VITE_MERCHANTGO_URL ?? 'http://localhost:8080'
@@ -37,6 +38,7 @@ async function parseJsonOrThrow(res: Response) {
    Créé une fois que les étapes 1 (compte) et 3 (naissance requise
    pour l'inscription) sont complètes — cf. RegisterPage.tsx. */
 export async function registerAccount(data: RegisterFormData): Promise<void> {
+  const recaptchaToken = await getRecaptchaToken('register')
   const res = await fetch(`${BACKEND_URL}/api/auth/register`, {
     method: 'POST',
     credentials: 'include', // nécessaire pour recevoir le cookie httpOnly refresh_token (voir refreshAccessToken)
@@ -48,6 +50,7 @@ export async function registerAccount(data: RegisterFormData): Promise<void> {
       password: data.password,
       telephone: data.telephone || undefined,
       naissance: data.dateNaissance,
+      recaptchaToken,
     }),
   })
   const body = await parseJsonOrThrow(res)

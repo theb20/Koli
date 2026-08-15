@@ -1,7 +1,8 @@
-import { useState, type SyntheticEvent } from 'react'
+import { useEffect, useState, type SyntheticEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { AuthLayout, Field, GoogleButton } from '../components/AuthLayout'
 import { useAuthStore } from './useAuthStore'
+import { preloadRecaptcha } from '@/lib/recaptcha'
 
 const STATS = [
   { value: '12 500+', label: 'marchands actifs' },
@@ -14,6 +15,8 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const [email, setEmail] = useState('marchand@skignas.com')
   const [password, setPassword] = useState('skignas123')
+
+  useEffect(() => { preloadRecaptcha() }, [])
 
   if (isAuthenticated) return <Navigate to="/dashboard" replace />
 

@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AuthLayout } from '../components/AuthLayout'
 import { initialRegisterFormData, type RegisterFormData } from './register/types'
 import { hasAccessToken, registerAccount, saveApplicationDraft, saveMerchantBilling, submitApplication, uploadFile, ApiError } from '../lib/api'
+import { preloadRecaptcha } from '../lib/recaptcha'
 import { Step1Account } from './register/steps/Step1Account'
 import { Step2Verification } from './register/steps/Step2Verification'
 import { Step3Personal } from './register/steps/Step3Personal'
@@ -25,6 +26,8 @@ export default function RegisterPage() {
   const [data, setData] = useState<RegisterFormData>(initialRegisterFormData)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => { preloadRecaptcha() }, [])
 
   const update = (patch: Partial<RegisterFormData>) => setData(d => ({ ...d, ...patch }))
 

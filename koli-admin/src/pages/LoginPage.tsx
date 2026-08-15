@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Lock, Mail, Eye, EyeOff, AlertCircle } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
+import { preloadRecaptcha } from '../lib/recaptcha'
 
 export default function LoginPage() {
   const { login, loading, error } = useAuth()
@@ -9,6 +10,8 @@ export default function LoginPage() {
   const [email, setEmail] = useState('admin@koli.cm')
   const [pass, setPass]   = useState('')
   const [show, setShow]   = useState(false)
+
+  useEffect(() => { preloadRecaptcha() }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

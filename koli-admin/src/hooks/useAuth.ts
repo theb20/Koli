@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import { api } from '../lib/api'
+import { getRecaptchaToken } from '../lib/recaptcha'
 import type { AdminUser } from '../types'
 
 const TOKEN_KEY = 'koli_admin_token'
@@ -17,7 +18,8 @@ export function useAuth() {
     setLoading(true)
     setError('')
     try {
-      const { data } = await api.post('/api/auth/login', { email, password })
+      const recaptchaToken = await getRecaptchaToken('login')
+      const { data } = await api.post('/api/auth/login', { email, password, recaptchaToken })
       if (data.data.user.role !== 'admin') {
         setError('Accès réservé aux administrateurs.')
         return false

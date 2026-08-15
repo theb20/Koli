@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { api, ACCESS_TOKEN_KEY, USER_KEY } from '@/lib/api'
+import { getRecaptchaToken } from '@/lib/recaptcha'
 import type { MerchantUser } from '@/types'
 
 // Login résultat : soit une session complète, soit un tempToken si le
@@ -44,9 +45,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   login: async (email, password) => {
     set({ loading: true, error: null })
     try {
+      const recaptchaToken = await getRecaptchaToken('login')
       const { data } = await api.post<{ data: { user?: BackendUser; accessToken?: string; requires2FA?: boolean; tempToken?: string } }>(
         '/api/auth/login',
-        { email, password },
+        { email, password, recaptchaToken },
       )
 
       if (data.data.requires2FA) {
