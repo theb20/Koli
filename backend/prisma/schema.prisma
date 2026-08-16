@@ -519,6 +519,26 @@ model Category {
   @@map("categories")
 }
 
+/// Bannières promotionnelles gérées depuis le backoffice (ex: rectangles
+/// publicitaires qui encadrent la grille "Meilleures ventes" sur l'accueil).
+/// `slot` identifie l'emplacement d'affichage — plusieurs emplacements
+/// pourront réutiliser ce même modèle à l'avenir sans migration.
+model PromoBanner {
+  id        Int      @id @default(autoincrement())
+  slot      String
+  image     String
+  title     String
+  href      String
+  ctaLabel  String   @default("En savoir plus")
+  position  Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slot])
+  @@map("promo_banners")
+}
+
 model TaxRate {
   id        String   @id @default(cuid())
   name      String

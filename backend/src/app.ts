@@ -27,6 +27,7 @@ import notificationsRouter from './routes/notifications'
 import blogRouter          from './routes/blog'
 import storesRouter        from './routes/stores'
 import categoriesRouter    from './routes/categories'
+import promoBannersRouter  from './routes/promo-banners'
 import taxRouter           from './routes/tax'
 import newsletterRouter    from './routes/newsletter'
 import loyaltyRouter      from './routes/loyalty'
@@ -216,6 +217,7 @@ app.use('/api/notifications', notificationsRouter)
 app.use('/api/blog',          publicDataLimiter, blogRouter)
 app.use('/api/stores',        storesRouter)
 app.use('/api/categories',   publicDataLimiter, categoriesRouter)
+app.use('/api/promo-banners', publicDataLimiter, promoBannersRouter)
 app.use('/api/tax',          taxRouter)
 app.use('/api/newsletter',   newsletterRouter)
 app.use('/api/loyalty',       loyaltyRouter)
