@@ -43,7 +43,10 @@ const router = Router()
 const bannerSchema = z.object({
   slot:     z.string().min(2).max(60).regex(/^[a-z0-9-]+$/, 'Slot: lettres minuscules, chiffres et tirets uniquement'),
   title:    z.string().min(2).max(80),
-  href:     z.string().min(1).max(300),
+  // Rendu tel quel dans <Link to={href}> côté koili — n'accepter que des
+  // chemins relatifs ou des URL http(s), jamais javascript:/data: (XSS
+  // stockée si un compte admin est un jour compromis via un autre vecteur).
+  href:     z.string().min(1).max(300).regex(/^(\/(?!\/)|https?:\/\/)/, 'Lien: chemin relatif ou URL http(s) uniquement'),
   ctaLabel: z.string().min(1).max(40).optional(),
   image:    z.string().url().optional().or(z.literal('')),
   position: z.number().int().min(0).optional(),

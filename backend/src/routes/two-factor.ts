@@ -15,6 +15,13 @@ const router = Router()
 
 const RECOVERY_CODE_COUNT = 8
 
+// Verrouillage de compte après échecs de code — protège contre le brute-force
+// distribué (botnet), que le rate-limit par IP (authActionLimiter) ne couvre
+// pas : un code à 6 chiffres n'a que 1M de combinaisons, largement atteignable
+// en réparant les tentatives sur suffisamment d'IP différentes.
+const MAX_TWOFACTOR_ATTEMPTS = 5
+const TWOFACTOR_LOCKOUT_DURATION_MS = 15 * 60 * 1000
+
 function generateRecoveryCodes(): string[] {
   // Format XXXX-XXXX, plus simple à recopier qu'un hex brut — 5 octets
   // aléatoires (40 bits) par code, largement suffisant pour un usage unique.
@@ -146,6 +153,17 @@ router.post('/login-verify', async (req, res) => {
       return
     }
 
+    // Verrouillage actif — refuse même un code correct tant que le délai n'est
+    // pas écoulé (même logique que le verrouillage mot de passe côté /login).
+    if (user.twoFactorLockedUntil && user.twoFactorLockedUntil > new Date()) {
+      const minutesLeft = Math.ceil((user.twoFactorLockedUntil.getTime() - Date.now()) / 60_000)
+      res.status(429).json({
+        success: false,
+        message: `Trop de tentatives — réessayez dans ${minutesLeft} min.`,
+      })
+      return
+    }
+
     // verifySync exige un token de 6 chiffres — un code de récupération
     // (format XXXX-XXXX-XXXX) le ferait lever une TokenLengthError.
     const validTotp = /^\d{6}$/.test(code) && verifySync({ token: code, secret: user.twoFactorSecret }).valid
@@ -160,11 +178,28 @@ router.post('/login-verify', async (req, res) => {
         if (await bcrypt.compare(normalized, hashedCodes[i])) { matchedIndex = i; break }
       }
       if (matchedIndex === -1) {
+        const attempts = user.twoFactorFailedAttempts + 1
+        const lockedUntil = attempts >= MAX_TWOFACTOR_ATTEMPTS ? new Date(Date.now() + TWOFACTOR_LOCKOUT_DURATION_MS) : null
+        await prisma.user.update({
+          where: { id: user.id },
+          data:  { twoFactorFailedAttempts: lockedUntil ? 0 : attempts, twoFactorLockedUntil: lockedUntil },
+        })
+        if (lockedUntil) {
+          res.status(429).json({
+            success: false,
+            message: `Trop de tentatives échouées — réessayez dans ${TWOFACTOR_LOCKOUT_DURATION_MS / 60_000} min.`,
+          })
+          return
+        }
         res.status(400).json({ success: false, message: 'Code invalide.' })
         return
       }
       hashedCodes.splice(matchedIndex, 1)
       await prisma.user.update({ where: { id: user.id }, data: { twoFactorRecoveryCodes: JSON.stringify(hashedCodes) } })
+    }
+
+    if (user.twoFactorFailedAttempts > 0 || user.twoFactorLockedUntil) {
+      await prisma.user.update({ where: { id: user.id }, data: { twoFactorFailedAttempts: 0, twoFactorLockedUntil: null } })
     }
 
     await issueTokensAndSession(user, req, res, { needsBirthdate: !user.naissance })

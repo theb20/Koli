@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import jwt from 'jsonwebtoken'
 import {
   signAccessToken,
@@ -77,5 +77,46 @@ describe('token 2FA intermédiaire', () => {
     // qu'à la signature.
     const fake = jwt.sign({ userId: PAYLOAD.userId, purpose: 'autre_chose' }, process.env.JWT_SECRET + '_2fa_pending')
     expect(() => verifyTwoFactorPendingToken(fake)).toThrow('Token invalide')
+  })
+})
+
+describe('bascule vers un secret refresh/2FA indépendant', () => {
+  // jwt.ts lit JWT_REFRESH_SECRET/JWT_2FA_SECRET au chargement du module —
+  // il faut donc réinitialiser le cache de modules et réimporter dynamiquement
+  // après avoir posé les variables pour que le changement soit pris en compte.
+  afterEach(() => {
+    delete process.env.JWT_REFRESH_SECRET
+    delete process.env.JWT_2FA_SECRET
+    vi.resetModules()
+  })
+
+  it('un refresh token émis AVANT la bascule reste valide APRÈS (fallback sur le secret dérivé)', async () => {
+    const legacyToken = signRefreshToken({ userId: PAYLOAD.userId })
+
+    process.env.JWT_REFRESH_SECRET = 'independent-refresh-secret-at-least-32-chars'
+    vi.resetModules()
+    const fresh = await import('./jwt')
+
+    expect(fresh.verifyRefreshToken(legacyToken).userId).toBe(PAYLOAD.userId)
+  })
+
+  it('un refresh token émis APRÈS la bascule utilise le nouveau secret (rejeté par l\'ancien seul)', async () => {
+    process.env.JWT_REFRESH_SECRET = 'independent-refresh-secret-at-least-32-chars'
+    vi.resetModules()
+    const fresh = await import('./jwt')
+    const newToken = fresh.signRefreshToken({ userId: PAYLOAD.userId })
+
+    expect(fresh.verifyRefreshToken(newToken).userId).toBe(PAYLOAD.userId)
+    expect(() => jwt.verify(newToken, process.env.JWT_SECRET + '_refresh')).toThrow()
+  })
+
+  it('un token 2FA intermédiaire émis AVANT la bascule reste valide APRÈS', async () => {
+    const legacyToken = signTwoFactorPendingToken(PAYLOAD.userId)
+
+    process.env.JWT_2FA_SECRET = 'independent-2fa-secret-at-least-32-characters'
+    vi.resetModules()
+    const fresh = await import('./jwt')
+
+    expect(fresh.verifyTwoFactorPendingToken(legacyToken).userId).toBe(PAYLOAD.userId)
   })
 })

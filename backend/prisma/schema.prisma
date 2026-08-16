@@ -48,6 +48,12 @@ model User {
   /// fois consommé. Généré une seule fois à l'activation, jamais régénéré
   /// automatiquement (l'utilisateur doit désactiver puis réactiver la 2FA).
   twoFactorRecoveryCodes String?
+  /// Verrouillage après échecs de code TOTP/récupération sur /2fa/login-verify —
+  /// même logique que failedLoginAttempts/lockedUntil mais dédiée : un code à 6
+  /// chiffres (1M combinaisons) tenu au seul rate-limit par IP reste devinable
+  /// depuis un botnet distribué (chaque IP repart avec son propre quota).
+  twoFactorFailedAttempts Int               @default(0)
+  twoFactorLockedUntil    DateTime?
   /// Alimente le score de sécurité réel (TabSecurite) — jamais renseigné à
   /// la création du compte, seulement lors d'un changement effectif.
   passwordChangedAt      DateTime?
