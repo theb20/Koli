@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'motion/react'
 import { ShoppingCart, Heart, ArrowRight, TrendingUp, Star, Loader2 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
-import { fetchProducts, mapApiProduct, toggleWishlist } from '../../lib/api'
+import { fetchProducts, mapApiProduct, toggleWishlist, API_BASE } from '../../lib/api'
 import { useCart } from '../../contexts/CartContext'
 import { useAuth } from '../../contexts/AuthContext'
 
@@ -190,6 +190,56 @@ function ProductCard({ product, rank }: { product: Product; rank: number }) {
 }
 
 /* ─────────────────────────────────────────
+   BANNIÈRE LATÉRALE — gérée depuis le backoffice (Bannières pub), image et
+   texte modifiables à tout moment sans redéploiement. Masquée en dessous de
+   xl (la grille de produits a besoin de toute la largeur sur petit écran),
+   et masquée entièrement si aucune bannière active n'existe pour ce slot.
+───────────────────────────────────────── */
+type PromoBanner = {
+  id: number
+  image: string
+  title: string
+  href: string
+  ctaLabel: string
+}
+
+function SidePromo({ slot }: { slot: string }) {
+  const { data } = useQuery({
+    queryKey: ['promo-banner', slot],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/api/promo-banners?slot=${encodeURIComponent(slot)}`)
+      return res.json()
+    },
+    staleTime: 60_000,
+  })
+
+  const banner: PromoBanner | undefined = data?.data?.[0]
+  if (!banner) return null
+
+  return (
+    <Link
+      to={banner.href}
+      className="hidden xl:flex relative w-60 shrink-0 flex-col justify-end overflow-hidden text-white shadow-sm transition-transform hover:-translate-y-1"
+    >
+      {banner.image ? (
+        <img src={banner.image} alt="" className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
+      ) : (
+        <div className="absolute inset-0 bg-gradient-to-b from-gray-700 to-gray-900" />
+      )}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+
+      <div className="relative p-5">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-white/70 mb-1.5">Publicité</p>
+        <p className="text-lg font-bold leading-snug mb-4">{banner.title}</p>
+        <span className="inline-flex items-center gap-1 text-xs font-semibold bg-white/15 rounded-full px-3 py-1.5">
+          {banner.ctaLabel} <ArrowRight size={12} />
+        </span>
+      </div>
+    </Link>
+  )
+}
+
+/* ─────────────────────────────────────────
    SECTION
 ───────────────────────────────────────── */
 export function BestSellersSection() {
@@ -209,48 +259,54 @@ export function BestSellersSection() {
 
   return (
     <section className="py-10 sm:py-14 bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[1600px] mx-auto px-3 sm:px-6 xl:px-0 flex justify-between gap-6">
+        <SidePromo slot="home-bestsellers-left" />
 
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs uppercase tracking-widest text-orange-500">Tendances du moment</span>
+        <div className="flex-1 min-w-0 max-w-9xl mx-auto">
+
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xs uppercase tracking-widest text-orange-500">Tendances du moment</span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight">Meilleures ventes</h2>
+              <p className="text-gray-500 text-sm mt-1">Produits les plus appréciés par notre communauté</p>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight">Meilleures ventes</h2>
-            <p className="text-gray-500 text-sm mt-1">Produits les plus appréciés par notre communauté</p>
+            <Link to="/catalogue" className="group inline-flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-700 shrink-0">
+              Voir tout le catalogue
+              <ArrowRight size={15} className="group-hover:translate-x-1 transition-transform" />
+            </Link>
           </div>
-          <Link to="/catalogue" className="group inline-flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-700 shrink-0">
-            Voir tout le catalogue
-            <ArrowRight size={15} className="group-hover:translate-x-1 transition-transform" />
-          </Link>
-        </div>
 
-        <div className="flex items-center gap-1.5 mb-8 overflow-x-auto pb-1">
-          {TABS.map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-                activeTab === tab.id ? 'bg-gray-900 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}>
-              {tab.icon}{tab.label}
-            </button>
-          ))}
-        </div>
-
-        {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 size={32} className="animate-spin text-gray-300" />
-          </div>
-        ) : products.length === 0 ? (
-          <div className="text-center py-16 text-gray-400">
-            <p>Aucun produit dans cette catégorie.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {products.map((product, i) => (
-              <ProductCard key={product.id} product={product} rank={i + 1} />
+          <div className="flex items-center gap-1.5 mb-8 overflow-x-auto pb-1">
+            {TABS.map(tab => (
+              <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+                  activeTab === tab.id ? 'bg-gray-900 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}>
+                {tab.icon}{tab.label}
+              </button>
             ))}
           </div>
-        )}
+
+          {isLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 size={32} className="animate-spin text-gray-300" />
+            </div>
+          ) : products.length === 0 ? (
+            <div className="text-center py-16 text-gray-400">
+              <p>Aucun produit dans cette catégorie.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              {products.map((product, i) => (
+                <ProductCard key={product.id} product={product} rank={i + 1} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <SidePromo slot="home-bestsellers-right" />
       </div>
     </section>
   )

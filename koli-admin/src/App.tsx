@@ -28,6 +28,7 @@ import StoreDetailPage    from './pages/stores/StoreDetailPage'
 import MerchantsPage       from './pages/merchants/MerchantsPage'
 import MerchantDetailPage2 from './pages/merchants/MerchantDetailPage'
 import CategoriesPage     from './pages/categories/CategoriesPage'
+import PromoBannersPage   from './pages/promo-banners/PromoBannersPage'
 import SubscriptionPlansPage from './pages/plans/SubscriptionPlansPage'
 import TaxPage            from './pages/TaxPage'
 import EmailTemplatesPage from './pages/EmailTemplatesPage'
@@ -55,6 +56,7 @@ export default function App() {
             <Route path="/products/:id"  element={<ProductFormPage />} />
             <Route path="/deals"         element={<DealsPage />} />
             <Route path="/categories"    element={<CategoriesPage />} />
+            <Route path="/promo-banners" element={<PromoBannersPage />} />
             <Route path="/stores"        element={<StoresPage />} />
             <Route path="/stores/:id"    element={<StoreDetailPage />} />
             <Route path="/merchants"     element={<MerchantsPage />} />

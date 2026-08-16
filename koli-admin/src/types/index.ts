@@ -298,6 +298,21 @@ export type Category = {
   updatedAt: string
 }
 
+/* Bannières publicitaires internes (ex: rectangles encadrant "Meilleures
+   ventes" sur l'accueil koili) — `slot` identifie l'emplacement d'affichage. */
+export type PromoBanner = {
+  id: number
+  slot: string
+  image: string
+  title: string
+  href: string
+  ctaLabel: string
+  position: number
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
 export type DashboardStats = {
   totalRevenue: number
   totalOrders: number

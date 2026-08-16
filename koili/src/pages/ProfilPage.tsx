@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'motion/react'
 import {
@@ -44,6 +44,7 @@ async function apiFetch<T = unknown>(
 
 /* Types*/
 type Tab = 'profil' | 'commandes' | 'adresses' | 'favoris' | 'notifications' | 'securite' | 'fidelite'
+const VALID_TABS = new Set<Tab>(['profil', 'commandes', 'adresses', 'favoris', 'notifications', 'securite', 'fidelite'])
 
 type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded'
 
@@ -1653,8 +1654,13 @@ export default function ProfilPage() {
   const navigate  = useNavigate()
   const { user, token, isAuthenticated, logout } = useAuth()
   const settings  = useSiteSettings()
+  const [searchParams] = useSearchParams()
 
-  const [activeTab,     setActiveTab]     = useState<Tab>('profil')
+  // Permet un lien profond vers un onglet précis (ex: bannière "Parrainage" → /profil?tab=fidelite)
+  const initialTab = searchParams.get('tab')
+  const [activeTab,     setActiveTab]     = useState<Tab>(
+    initialTab && VALID_TABS.has(initialTab as Tab) ? (initialTab as Tab) : 'profil'
+  )
   const [avatar,        setAvatar]        = useState('')
   const [logoutConfirm, setLogoutConfirm] = useState(false)
 
