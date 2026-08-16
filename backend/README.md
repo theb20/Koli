@@ -47,10 +47,16 @@ SMTP_PASS="votre-mot-de-passe-app"
 
 ## Comptes de test (après seed)
 
-| Rôle    | Email              | Mot de passe     |
-|---------|--------------------|------------------|
-| Admin   | admin@koli.cm      | Admin@Koli2026   |
-| Client  | test@koli.cm       | Test@1234        |
+`npm run db:seed` crée `admin@koli.cm` (rôle admin) et `test@koli.cm` (client) avec
+un mot de passe **généré aléatoirement à chaque exécution**, affiché une seule fois
+dans la sortie de la commande — jamais de mot de passe fixe dans le code ou ce
+fichier (ce repo est public, et ce script tourne parfois directement contre la
+base de production, faute de staging séparé).
+
+| Rôle    | Email              |
+|---------|--------------------|
+| Admin   | admin@koli.cm      |
+| Client  | test@koli.cm       |
 
 ## Codes promo disponibles
 

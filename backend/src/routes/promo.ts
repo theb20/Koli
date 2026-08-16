@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { requireAdmin } from '../middleware/auth'
 import { validate, validateParams, validateQuery, zIntIdParam, zCodeParam } from '../middleware/validate'
+import { logAdminAction } from '../lib/auditLog'
 
 const router = Router()
 
@@ -81,6 +82,7 @@ router.post('/', requireAdmin, validate(z.object({
         expiresAt: data.expiresAt ? new Date(data.expiresAt) : null,
       },
     })
+    logAdminAction(req, { action: 'promoCode.create', targetType: 'PromoCode', targetId: String(promo.id), metadata: data })
     res.status(201).json({ success: true, data: promo })
   } catch {
     res.status(500).json({ success: false, message: 'Erreur serveur' })
@@ -104,6 +106,7 @@ router.delete('/:id', requireAdmin, validateParams(zIntIdParam), async (req, res
       where: { id: Number(req.params['id']) },
       data:  { isActive: false },
     })
+    logAdminAction(req, { action: 'promoCode.delete', targetType: 'PromoCode', targetId: req.params['id'] as string })
     res.json({ success: true, message: 'Code promo désactivé' })
   } catch {
     res.status(500).json({ success: false, message: 'Erreur serveur' })
@@ -123,6 +126,7 @@ router.patch('/:id/toggle', requireAdmin, validateParams(zIntIdParam), async (re
   try {
     const { isActive } = req.body
     const promo = await prisma.promoCode.update({ where: { id: Number(req.params['id']) }, data: { isActive } })
+    logAdminAction(req, { action: 'promoCode.toggle', targetType: 'PromoCode', targetId: req.params['id'] as string, metadata: { isActive } })
     res.json({ success: true, data: { promo } })
   } catch { res.status(500).json({ success: false, message: 'Erreur serveur' }) }
 })

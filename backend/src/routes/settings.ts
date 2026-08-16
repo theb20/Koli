@@ -9,6 +9,7 @@ import { validate } from '../middleware/validate'
 import { cacheControl } from '../middleware/cache'
 import { memoryCache } from '../middleware/memoryCache'
 import { logger } from '../lib/logger'
+import { logAdminAction } from '../lib/auditLog'
 
 const router = Router()
 
@@ -87,6 +88,10 @@ router.put('/', requireAdmin, validate(settingsSchema.partial()), async (req, re
       update: data,
       create: { id: 1, ...data },
     })
+    // metadata = champs effectivement modifiés (ex: codEnabled — désactive le
+    // paiement à la livraison site entier) — assez pour un diff avant/après
+    // en croisant avec l'entrée précédente du journal.
+    logAdminAction(req, { action: 'settings.update', targetType: 'SiteSettings', targetId: '1', metadata: data })
     res.json({ success: true, data: { settings } })
   } catch {
     res.status(500).json({ success: false, message: 'Erreur serveur' })

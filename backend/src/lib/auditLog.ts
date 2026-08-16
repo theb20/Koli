@@ -25,6 +25,7 @@ export async function logAdminAction(req: Request, params: AuditParams): Promise
         targetId:   params.targetId,
         metadata:   params.metadata ? JSON.stringify(params.metadata) : null,
         ip:         req.ip ?? null,
+        userAgent:  req.headers['user-agent'] ?? null,
       },
     })
   } catch (err) {

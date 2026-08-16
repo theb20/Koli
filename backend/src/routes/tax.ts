@@ -5,6 +5,7 @@ import { requireAdmin } from '../middleware/auth'
 import { validate, validateParams, zCuidIdParam } from '../middleware/validate'
 import { cacheControl } from '../middleware/cache'
 import { memoryCache } from '../middleware/memoryCache'
+import { logAdminAction } from '../lib/auditLog'
 
 const router = Router()
 
@@ -59,6 +60,7 @@ router.post('/', requireAdmin, validate(taxSchema), async (req, res) => {
       await prisma.taxRate.updateMany({ data: { isDefault: false } })
     }
     const tax = await prisma.taxRate.create({ data })
+    logAdminAction(req, { action: 'taxRate.create', targetType: 'TaxRate', targetId: tax.id, metadata: data })
     res.status(201).json({ success: true, data: { tax } })
   } catch {
     res.status(500).json({ success: false, message: 'Erreur serveur' })
@@ -73,6 +75,7 @@ router.put('/:id', requireAdmin, validateParams(zCuidIdParam), async (req, res) 
       await prisma.taxRate.updateMany({ data: { isDefault: false } })
     }
     const tax = await prisma.taxRate.update({ where: { id: req.params['id']! }, data })
+    logAdminAction(req, { action: 'taxRate.update', targetType: 'TaxRate', targetId: req.params['id']!, metadata: data })
     res.json({ success: true, data: { tax } })
   } catch {
     res.status(500).json({ success: false, message: 'Erreur serveur' })
@@ -87,6 +90,7 @@ router.patch('/:id/default', requireAdmin, validateParams(zCuidIdParam), async (
       where: { id: req.params['id']! },
       data:  { isDefault: true, isActive: true },
     })
+    logAdminAction(req, { action: 'taxRate.setDefault', targetType: 'TaxRate', targetId: req.params['id']! })
     res.json({ success: true, data: { tax } })
   } catch {
     res.status(500).json({ success: false, message: 'Erreur serveur' })
@@ -102,6 +106,7 @@ router.patch('/:id/toggle', requireAdmin, validateParams(zCuidIdParam), async (r
       where: { id: req.params['id']! },
       data:  { isActive: !existing.isActive },
     })
+    logAdminAction(req, { action: 'taxRate.toggle', targetType: 'TaxRate', targetId: req.params['id']!, metadata: { isActive: tax.isActive } })
     res.json({ success: true, data: { tax } })
   } catch {
     res.status(500).json({ success: false, message: 'Erreur serveur' })
@@ -112,6 +117,7 @@ router.patch('/:id/toggle', requireAdmin, validateParams(zCuidIdParam), async (r
 router.delete('/:id', requireAdmin, validateParams(zCuidIdParam), async (req, res) => {
   try {
     await prisma.taxRate.delete({ where: { id: req.params['id']! } })
+    logAdminAction(req, { action: 'taxRate.delete', targetType: 'TaxRate', targetId: req.params['id']! })
     res.json({ success: true, message: 'Taux supprimé' })
   } catch {
     res.status(500).json({ success: false, message: 'Erreur serveur' })

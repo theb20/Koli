@@ -7,7 +7,7 @@ import { preloadRecaptcha } from '../lib/recaptcha'
 export default function LoginPage() {
   const { login, loading, error } = useAuth()
   const navigate = useNavigate()
-  const [email, setEmail] = useState('admin@koli.cm')
+  const [email, setEmail] = useState('')
   const [pass, setPass]   = useState('')
   const [show, setShow]   = useState(false)
 

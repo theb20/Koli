@@ -760,6 +760,7 @@ model AuditLog {
   targetId   String
   metadata   String?
   ip         String?
+  userAgent  String?
   createdAt  DateTime @default(now())
 
   @@index([actorId])

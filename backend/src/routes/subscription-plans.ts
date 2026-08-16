@@ -5,6 +5,7 @@ import {
   listSubscriptionPlans, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan,
   MerchantgoError, type SubscriptionPlanBody,
 } from '../lib/merchantgo'
+import { logAdminAction } from '../lib/auditLog'
 
 const router = Router()
 router.use(requireAdmin)
@@ -47,6 +48,7 @@ router.post('/', async (req, res) => {
   try {
     const body = planSchema.parse(req.body)
     const data = await createSubscriptionPlan(body)
+    logAdminAction(req, { action: 'subscriptionPlan.create', targetType: 'SubscriptionPlan', targetId: body.slug, metadata: body })
     res.status(201).json({ success: true, data })
   } catch (err) {
     forward(err, res)
@@ -58,6 +60,7 @@ router.put('/:id', async (req, res) => {
   try {
     const body = planSchema.parse(req.body)
     const data = await updateSubscriptionPlan(req.params.id, body)
+    logAdminAction(req, { action: 'subscriptionPlan.update', targetType: 'SubscriptionPlan', targetId: req.params.id, metadata: body })
     res.json({ success: true, data })
   } catch (err) {
     forward(err, res)
@@ -68,6 +71,7 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     await deleteSubscriptionPlan(req.params.id)
+    logAdminAction(req, { action: 'subscriptionPlan.delete', targetType: 'SubscriptionPlan', targetId: req.params.id })
     res.json({ success: true })
   } catch (err) {
     forward(err, res)

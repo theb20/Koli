@@ -8,6 +8,7 @@ import {
 import { isStockgoUrl, fetchStockgoFile } from '../lib/stockgo'
 import { logger } from '../lib/logger'
 import { prisma } from '../lib/prisma'
+import { logAdminAction } from '../lib/auditLog'
 
 const router = Router()
 router.use(requireAdmin)
@@ -136,6 +137,7 @@ router.post('/:id/approve', async (req, res) => {
     } catch (err) {
       logger.error('[merchant-applications] approuvée côté merchantgo mais échec de provisioning SellerStore', req.params.id, err)
     }
+    logAdminAction(req, { action: 'merchantApplication.approve', targetType: 'MerchantApplication', targetId: req.params.id, metadata: { note } })
     res.json({ success: true, data })
   } catch (err) {
     forward(err, res)
@@ -147,6 +149,7 @@ router.post('/:id/reject', async (req, res) => {
   try {
     const { reason } = z.object({ reason: z.string().min(1).max(1000) }).parse(req.body)
     const data = await rejectMerchantApplication(req.params.id, req.user!.userId, reason)
+    logAdminAction(req, { action: 'merchantApplication.reject', targetType: 'MerchantApplication', targetId: req.params.id, metadata: { reason } })
     res.json({ success: true, data })
   } catch (err) {
     forward(err, res)

@@ -4,10 +4,22 @@
  * Commande : npm run db:seed
  */
 import 'dotenv/config'
+import crypto from 'crypto'
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
+
+/**
+ * Mot de passe aléatoire, généré à chaque exécution — jamais fixe. Ce repo
+ * est public : un mot de passe codé en dur ici (même "d'exemple") reste lisible
+ * indéfiniment dans l'historique git, et ce script tourne parfois directement
+ * contre la base de production (pas de staging séparé) — un défaut connu de
+ * tous ne doit jamais pouvoir devenir un compte admin réel.
+ */
+function randomPassword(): string {
+  return crypto.randomBytes(18).toString('base64url')
+}
 
 /* ─── Produits (repris du frontend) ─────────────────────────── */
 const U = 'https://images.unsplash.com/photo-'
@@ -183,8 +195,12 @@ const PROMO_CODES = [
 async function main() {
   console.log('🌱 Démarrage du seed...')
 
-  // Admin user
-  const adminPassword = await bcrypt.hash('Admin@Koli2026', 12)
+  // Admin user — mot de passe généré à la volée, affiché une seule fois ci-dessous
+  // (jamais réécrit sur un compte déjà existant : `update: {}` ne touche pas au
+  // mot de passe si le compte a été créé — et donc potentiellement déjà changé — précédemment).
+  const adminAlreadyExists = !!(await prisma.user.findUnique({ where: { email: 'admin@koli.cm' } }))
+  const adminRawPassword   = randomPassword()
+  const adminPassword      = await bcrypt.hash(adminRawPassword, 12)
   const admin = await prisma.user.upsert({
     where:  { email: 'admin@koli.cm' },
     update: {},
@@ -199,8 +215,10 @@ async function main() {
   })
   console.log(`✅ Admin créé : ${admin.email}`)
 
-  // Client test
-  const clientPassword = await bcrypt.hash('Test@1234', 12)
+  // Client test — même principe
+  const clientAlreadyExists = !!(await prisma.user.findUnique({ where: { email: 'test@koli.cm' } }))
+  const clientRawPassword   = randomPassword()
+  const clientPassword      = await bcrypt.hash(clientRawPassword, 12)
   const client = await prisma.user.upsert({
     where:  { email: 'test@koli.cm' },
     update: {},
@@ -270,8 +288,17 @@ async function main() {
 
   console.log('\n🎉 Seed terminé avec succès !')
   console.log('──────────────────────────────')
-  console.log('Admin  : admin@koli.cm / Admin@Koli2026')
-  console.log('Client : test@koli.cm  / Test@1234')
+  if (adminAlreadyExists) {
+    console.log('Admin  : admin@koli.cm (compte déjà existant — mot de passe inchangé)')
+  } else {
+    console.log(`Admin  : admin@koli.cm / ${adminRawPassword}`)
+  }
+  if (clientAlreadyExists) {
+    console.log('Client : test@koli.cm (compte déjà existant — mot de passe inchangé)')
+  } else {
+    console.log(`Client : test@koli.cm  / ${clientRawPassword}`)
+  }
+  console.log('(mot de passe affiché une seule fois, à la création — non stocké nulle part ailleurs)')
   console.log('Promos : KOLI10, BIENVENUE, FLASH50, NOEL2026')
 }
 
