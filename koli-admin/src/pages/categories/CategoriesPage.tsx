@@ -181,11 +181,12 @@ function CategoryModal({
 
           {/* Description */}
           <div>
-            <label className="text-xs font-medium text-slate-600 mb-1 block">Description</label>
+            <label className="text-xs font-medium text-slate-600 mb-1 block">Description (300 caractères max)</label>
             <textarea
               value={form.description}
               onChange={e => set('description', e.target.value)}
               placeholder="Gadgets, audio & accessoires..."
+              maxLength={300}
               rows={2}
               className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none resize-none"
             />

@@ -222,7 +222,7 @@ function SidePromo({ slot }: { slot: string }) {
       className="hidden xl:flex relative w-60 shrink-0 flex-col justify-end overflow-hidden text-white shadow-sm transition-transform hover:-translate-y-1"
     >
       {banner.image ? (
-        <img src={banner.image} alt="" className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
+        <img src={banner.image} alt="image de publicité" className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
       ) : (
         <div className="absolute inset-0 bg-gradient-to-b from-gray-700 to-gray-900" />
       )}

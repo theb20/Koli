@@ -45,7 +45,7 @@ const TEAM = [
   {
     name: 'Frédérick Ahobaut',
     role: 'Co-fondateur & Responsable IT',
-    img: 'https://media.licdn.com/dms/image/v2/D4E35AQFCIdkWlRMLGA/profile-framedphoto-shrink_800_800/B4EZ347Q8ZGkAg-/0/1777997779570?e=1783911600&v=beta&t=Y_h8P7XEkgz5gTPBjrnoRNTMPR4_92qvi54GfGPDTXk',
+    img: '/wall/frederickA.webp',
     quote: 'Je veille à ce que chaque produit et chaque fonctionnalité de Skignas offrent une expérience simple, rapide et sécurisée.'
   }
 ]
@@ -98,94 +98,151 @@ export function AboutPage() {
       />
 
       {/* ── HERO ─────────────────────────────────────────────── */}
-      <section className="relative min-h-[88vh] flex items-center overflow-hidden bg-gray-950">
-        {/* Background image */}
-        <div className="absolute inset-0">
-          <img
-            src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?q=80&w=1600"
-            alt=""
-            className="w-full h-full object-cover opacity-20"
-          />
-          <div className="absolute inset-0 bg-gradient-to-br from-gray-950 via-gray-900/95 to-gray-950/90" />
-        </div>
+     <section className="relative min-h-[88vh] flex items-center overflow-hidden bg-gray-950">
+  {/* Background image */}
+  <div className="absolute inset-0">
+    <img
+      src="/wall/entrepot-logistique.webp"
+      alt="Entrepôt logistique Skignas"
+      className="w-full h-full object-cover opacity-40"
+    />
 
-        {/* Decorative grid */}
-        <div className="absolute inset-0 opacity-[0.03]"
-          style={{ backgroundImage: 'linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px)', backgroundSize: '60px 60px' }} />
+    {/* Dark overlay — garde l'image visible tout en assurant la lisibilité */}
+    <div className="absolute inset-0 bg-gradient-to-br from-gray-950/75 via-gray-950/45 to-gray-950/75" />
+  </div>
 
-        <div className="relative max-w-7xl mx-auto px-4 lg:px-8 py-24 grid lg:grid-cols-2 gap-16 items-center w-full">
-          {/* Left */}
-          <div>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
-              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 bg-white/5 text-white/70 text-xs font-semibold mb-6 backdrop-blur-sm"
-            >
-              Fondé en 2026 · Abidjan, Côte d'Ivoire
-            </motion.div>
+  {/* Decorative grid */}
+  <div
+    className="absolute inset-0 opacity-[0.03]"
+    style={{
+      backgroundImage:
+        "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)",
+      backgroundSize: "60px 60px",
+    }}
+  />
 
-            <motion.h1
-              initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.1 }}
-              className="text-5xl sm:text-6xl lg:text-7xl font-black text-white leading-[0.92] tracking-tight mb-6"
-            >
-              Commerce<br />
-              <span style={{ color: BLUE }}>sans</span><br />
-              frontières
-            </motion.h1>
+  {/* Main content */}
+  <div className="relative max-w-7xl mx-auto px-4 lg:px-8 py-24 grid lg:grid-cols-2 gap-16 items-center w-full">
 
-            <motion.p
-              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.25 }}
-              className="text-white/60 text-lg leading-relaxed max-w-xl mb-10"
-            >
-              Skignas est née d'une conviction simple : chaque Ivoirien mérite accès aux meilleurs produits mondiaux,
-              livrés rapidement et à des prix justes. Depuis 2026, nous transformons cette vision en réalité.
-            </motion.p>
+    {/* Left */}
+    <div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 bg-white/5 text-white/70 text-xs font-semibold mb-6 backdrop-blur-sm"
+      >
+        Fondé en 2026 · Abidjan, Côte d'Ivoire
+      </motion.div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.35 }}
-              className="flex flex-wrap gap-4"
-            >
-              <Link to="/catalogue"
-                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full text-sm font-bold text-white transition-opacity hover:opacity-90"
-                style={{ background: BLUE }}>
-                Découvrir le catalogue <ArrowRight size={16} />
-              </Link>
-              <Link to="/contact"
-                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full text-sm font-bold text-white border border-white/20 hover:bg-white/10 transition-colors">
-                Nous contacter
-              </Link>
-            </motion.div>
+      <motion.h1
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.7, delay: 0.1 }}
+        className="text-5xl sm:text-6xl lg:text-7xl font-black text-white leading-[0.92] tracking-tight mb-6"
+      >
+        Commerce
+        <br />
+        <span style={{ color: BLUE }}>sans</span>
+        <br />
+        frontières
+      </motion.h1>
+
+      <motion.p
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.25 }}
+        className="text-white/70 text-lg leading-relaxed max-w-xl mb-10"
+      >
+        Skignas est née d'une conviction simple : chaque Ivoirien mérite
+        accès aux meilleurs produits mondiaux, livrés rapidement et à des
+        prix justes. Depuis 2026, nous transformons cette vision en réalité.
+      </motion.p>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.35 }}
+        className="flex flex-wrap gap-4"
+      >
+        <Link
+          to="/catalogue"
+          className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full text-sm font-bold text-white transition-all hover:opacity-90 hover:scale-[1.02]"
+          style={{ background: BLUE }}
+        >
+          Découvrir le catalogue
+          <ArrowRight size={16} />
+        </Link>
+
+        <Link
+          to="/contact"
+          className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full text-sm font-bold text-white border border-white/20 bg-black/10 hover:bg-white/10 transition-colors backdrop-blur-sm"
+        >
+          Nous contacter
+        </Link>
+      </motion.div>
+    </div>
+
+    {/* Right — Stats */}
+    <motion.div
+      initial={{ opacity: 0, x: 40 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.8, delay: 0.2 }}
+      className="grid grid-cols-2 gap-4"
+    >
+      {STATS.map((s, i) => (
+        <motion.div
+          key={s.label}
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{
+            duration: 0.5,
+            delay: 0.3 + i * 0.08,
+          }}
+          className="p-6 rounded-2xl border border-white/10 bg-gray-950/40 backdrop-blur-md flex flex-col gap-3 shadow-xl"
+        >
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center"
+            style={{
+              background: `${BLUE}20`,
+              color: BLUE,
+            }}
+          >
+            {s.icon}
           </div>
 
-          {/* Right — Stats */}
-          <motion.div
-            initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8, delay: 0.2 }}
-            className="grid grid-cols-2 gap-4"
-          >
-            {STATS.map((s, i) => (
-              <motion.div
-                key={s.label}
-                initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5, delay: 0.3 + i * 0.08 }}
-                className="p-6 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm flex flex-col gap-3"
-              >
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${BLUE}20`, color: BLUE }}>
-                  {s.icon}
-                </div>
-                <p className="text-white text-base font-bold leading-tight">{s.label}</p>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-
-        {/* Scroll indicator */}
-        <motion.div
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.5, duration: 0.8 }}
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
-        >
-          <span className="text-white/30 text-[10px] tracking-[0.2em] uppercase">Découvrir</span>
-          <motion.div animate={{ y: [0, 6, 0] }} transition={{ repeat: Infinity, duration: 1.6 }} className="w-px h-8 bg-white/20" />
+          <p className="text-white text-base font-bold leading-tight">
+            {s.label}
+          </p>
         </motion.div>
-      </section>
+      ))}
+    </motion.div>
+  </div>
+
+  {/* Scroll indicator */}
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    transition={{
+      delay: 1.5,
+      duration: 0.8,
+    }}
+    className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
+  >
+    <span className="text-white/40 text-[10px] tracking-[0.2em] uppercase">
+      Découvrir
+    </span>
+
+    <motion.div
+      animate={{ y: [0, 6, 0] }}
+      transition={{
+        repeat: Infinity,
+        duration: 1.6,
+      }}
+      className="w-px h-8 bg-white/30"
+    />
+  </motion.div>
+</section>
 
       {/* ── GUARANTEES STRIP ─────────────────────────────────── */}
       <section className="border-b border-gray-100 bg-gray-50">

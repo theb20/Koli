@@ -1,26 +1,32 @@
-<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Audit sécurité Skignas — 2026-07-27T23-51-57</title>
-<style>
-  body{font-family:-apple-system,sans-serif;background:#14171d;color:#e7e9ee;margin:0;padding:40px}
-  h1{font-weight:500} .score{font-size:48px;font-weight:700;color:#e58080}
-  table{width:100%;border-collapse:collapse;font-size:13px;margin-top:24px}
-  th{text-align:left;color:#a2a9b5;text-transform:uppercase;font-size:11px;padding:8px;border-bottom:1px solid #2a2f39}
-  td{padding:8px;border-bottom:1px solid #2a2f39;vertical-align:top}
-  .mono{font-family:ui-monospace,monospace;color:#a2a9b5}
-  .sev{padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600}
-  .sev-critical{background:#331b1b;color:#e58080} .sev-high,.sev-error{background:#331b1b;color:#e58080}
-  .sev-medium,.sev-moderate,.sev-warning{background:#2e2410;color:#e0ac52} .sev-low{background:#1c2740;color:#7fa2f5}
-  .sev-info,.sev-unknown{background:#1f232b;color:#767d89}
-  .stats{display:flex;gap:24px;margin-top:16px} .stat{background:#1b1f27;border-radius:10px;padding:16px 20px}
-  .stat b{display:block;font-size:24px}
-</style></head><body>
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <title>Audit sécurité Skignas — 2026-07-27T23-14-00</title>
+    <style>
+      body{font-family:-apple-system,sans-serif;background:#14171d;color:#e7e9ee;margin:0;padding:40px}
+      h1{font-weight:500} .score{font-size:48px;font-weight:700;color:#e58080}
+      table{width:100%;border-collapse:collapse;font-size:13px;margin-top:24px}
+      th{text-align:left;color:#a2a9b5;text-transform:uppercase;font-size:11px;padding:8px;border-bottom:1px solid #2a2f39}
+      td{padding:8px;border-bottom:1px solid #2a2f39;vertical-align:top}
+      .mono{font-family:ui-monospace,monospace;color:#a2a9b5}
+      .sev{padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600}
+      .sev-critical{background:#331b1b;color:#e58080} .sev-high,.sev-error{background:#331b1b;color:#e58080}
+      .sev-medium,.sev-moderate,.sev-warning{background:#2e2410;color:#e0ac52} .sev-low{background:#1c2740;color:#7fa2f5}
+      .sev-info,.sev-unknown{background:#1f232b;color:#767d89}
+      .stats{display:flex;gap:24px;margin-top:16px} .stat{background:#1b1f27;border-radius:10px;padding:16px 20px}
+      .stat b{display:block;font-size:24px}
+    </style>
+</head>
+
+<body>
 <h1>Audit de sécurité — Skignas</h1>
-<p>2026-07-27T23-51-57</p>
-<p style="max-width:640px;color:#a2a9b5;font-size:13px;line-height:1.6">Score brut mécanique (avant triage humain) — compte aussi les faux positifs. Voir <code>SECURITY-REPORT.md</code>/<code>.html</code> pour le score réel après vérification manuelle.</p>
+<p>2026-07-27T23-14-00</p>
 <div class="score">0<span style="font-size:20px;color:#767d89">/100</span></div>
 <div class="stats">
   <div class="stat">Critique<b style="color:#e58080">0</b></div>
   <div class="stat">Élevée<b style="color:#e58080">21</b></div>
-  <div class="stat">Moyenne<b style="color:#e0ac52">36</b></div>
+  <div class="stat">Moyenne<b style="color:#e0ac52">38</b></div>
   <div class="stat">Faible<b style="color:#7fa2f5">180</b></div>
   <div class="stat">Info<b style="color:#767d89">6</b></div>
 </div>
@@ -150,6 +156,18 @@
     <td>Semgrep</td>
     <td>dockerfile.security.missing-user-entrypoint.missing-user-entrypoint</td>
     <td class="mono">stockgo/Dockerfile:36</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-medium">MEDIUM</span></td>
+    <td>Trivy</td>
+    <td>CVE-2026-40898 — github.com/quic-go/quic-go@v0.59.0</td>
+    <td class="mono">merchantgo/go.mod</td>
+  </tr>
+  <tr>
+    <td><span class="sev sev-medium">MEDIUM</span></td>
+    <td>Trivy</td>
+    <td>CVE-2026-40898 — github.com/quic-go/quic-go@v0.59.0</td>
+    <td class="mono">stockgo/go.mod</td>
   </tr>
   <tr>
     <td><span class="sev sev-medium">MEDIUM</span></td>
@@ -1212,17 +1230,5 @@
     <td>Bearer</td>
     <td>Leakage of information in logger message</td>
     <td class="mono">src/routes/product-requests.ts:299</td>
-  </tr>
-  <tr>
-    <td><span class="sev sev-low">LOW</span></td>
-    <td>Bearer</td>
-    <td>Leakage of information in logger message</td>
-    <td class="mono">src/routes/product-requests.ts:317</td>
-  </tr>
-  <tr>
-    <td><span class="sev sev-low">LOW</span></td>
-    <td>Bearer</td>
-    <td>Leakage of information in logger message</td>
-    <td class="mono">src/routes/products.ts:243</td>
   </tr></tbody></table>
 </body></html>
