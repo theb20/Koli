@@ -78,7 +78,12 @@ app.use(cors({
 app.use(compression())
 
 /* ── Sécurité ───────────────────────────────────────────────── */
-app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }))
+// hsts aligné sur les 4 frontends (firebase.json) — le défaut helmet est
+// 180 jours, trop court pour bénéficier du preload HSTS des navigateurs.
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  hsts: { maxAge: 63072000, includeSubDomains: true, preload: true },
+}))
 // Helmet ne définit pas Permissions-Policy par défaut — API pure, aucune
 // des fonctionnalités concernées n'est utilisée.
 app.use((_req, res, next) => {
