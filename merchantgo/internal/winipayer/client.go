@@ -127,7 +127,15 @@ func (c *Client) CreatePayment(ctx context.Context, in CreatePaymentInput) (*Cre
 		"callback_url": in.CallbackURL,
 	}
 	if in.CustomData != nil {
-		body["custom_data"] = in.CustomData
+		// L'API WiniPayer exige custom_data en chaîne de caractères, pas en
+		// objet JSON imbriqué (rejeté avec "The custom data field must be a
+		// string.") — on l'encode nous-mêmes, WiniPayer nous la renverra
+		// telle quelle (même chaîne) dans le détail de la transaction.
+		encoded, err := json.Marshal(in.CustomData)
+		if err != nil {
+			return nil, fmt.Errorf("winipayer: encodage custom_data: %w", err)
+		}
+		body["custom_data"] = string(encoded)
 	}
 
 	var result struct {
