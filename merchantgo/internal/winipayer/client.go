@@ -133,7 +133,9 @@ func (c *Client) CreatePayment(ctx context.Context, in CreatePaymentInput) (*Cre
 		// affiché sur la page de paiement inclut ces frais en plus de
 		// `amount`) — le marchand touche le plein montant de la commande.
 		// Explicite plutôt que de dépendre du défaut WiniPayer actuel.
-		"client_pay_fee": true,
+		// Comme custom_data, l'API veut une chaîne, pas un booléen JSON
+		// ("The client pay fee field must be a string.").
+		"client_pay_fee": "true",
 	}
 	if in.CustomData != nil {
 		// L'API WiniPayer exige custom_data en chaîne de caractères, pas en
