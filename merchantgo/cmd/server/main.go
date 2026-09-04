@@ -13,6 +13,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"merchantgo/internal/backendapi"
 	"merchantgo/internal/config"
 	"merchantgo/internal/database"
 	"merchantgo/internal/handlers"
@@ -75,7 +76,18 @@ func main() {
 	walletService := services.NewWalletService(walletRepo, billingService, logger)
 	walletHandler := handlers.NewWalletHandler(walletService, logger)
 
-	router := routes.Setup(cfg, appHandler, adminHandler, kycWebhookHandler, billingHandler, walletHandler, planHandler, logger)
+	if !cfg.WinipayerConfigured() {
+		logger.Warn("clés WiniPayer absentes pour l'environnement actif — paiement en ligne indisponible", zap.String("env", cfg.WinipayerEnv))
+	}
+	backendClient := backendapi.NewClient(cfg.BackendURL, cfg.MerchantgoCallbackSecret)
+	if !backendClient.Configured() {
+		logger.Warn("KOLI_BACKEND_URL ou MERCHANTGO_CALLBACK_SECRET absent — confirmation de commande vers backend/ désactivée")
+	}
+	paymentRepo := repository.NewPaymentRepository(db)
+	paymentService := services.NewPaymentService(paymentRepo, cfg, backendClient, logger)
+	paymentHandler := handlers.NewPaymentHandler(paymentService, cfg, logger)
+
+	router := routes.Setup(cfg, appHandler, adminHandler, kycWebhookHandler, billingHandler, walletHandler, planHandler, paymentHandler, logger)
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.Port,

@@ -21,6 +21,7 @@ func Setup(
 	billingHandler *handlers.BillingHandler,
 	walletHandler *handlers.WalletHandler,
 	planHandler *handlers.SubscriptionPlanHandler,
+	paymentHandler *handlers.PaymentHandler,
 	logger *zap.Logger,
 ) *gin.Engine {
 	if cfg.IsProduction() {
@@ -46,6 +47,10 @@ func Setup(
 		// RequireAuth/RequireAdmin — c'est Didit qui appelle cette route,
 		// pas un marchand ni koli-admin.
 		v1.POST("/webhooks/didit", kycWebhookHandler.Receive)
+
+		// Authentifié par hash (voir handlers.PaymentHandler.Webhook), pas
+		// par RequireAuth/RequireAdmin — c'est WiniPayer qui appelle.
+		v1.POST("/webhooks/winipayer", paymentHandler.Webhook)
 
 		applications := v1.Group("/applications")
 		applications.Use(middleware.RequireAuth(cfg, logger))
@@ -94,6 +99,7 @@ func Setup(
 		internal.Use(middleware.RequireAdmin(cfg, logger))
 		{
 			internal.POST("/orders/paid", walletHandler.RecordSale)
+			internal.POST("/payments/winipayer/create", paymentHandler.CreateWinipayerPayment)
 		}
 
 		adminBillingBulk := v1.Group("/admin/billing")

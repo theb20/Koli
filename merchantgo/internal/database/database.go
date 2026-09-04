@@ -48,5 +48,6 @@ func Migrate(db *gorm.DB) error {
 	return db.AutoMigrate(
 		&models.Application{}, &models.StatusEvent{}, &models.DiditWebhookEvent{},
 		&models.SubscriptionPlan{}, &models.MerchantBilling{}, &models.WalletTransaction{},
+		&models.PaymentIntent{},
 	)
 }

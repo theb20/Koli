@@ -229,10 +229,14 @@ model Order {
   shippingCost    Int
   paymentMethod   String
   paymentStatus   String          @default("pending")
-  /// Token de facture PayDunya — sert à retrouver la commande depuis l'IPN
-  /// et à revérifier le statut réel auprès de PayDunya (jamais de confiance
-  /// aveugle dans le contenu brut de l'IPN).
+  /// Token de facture PayDunya — désactivé (voir winipayerRef), conservé
+  /// uniquement pour permettre un retour en arrière si besoin.
   paydunyaToken   String?         @unique
+  /// Référence de transaction WiniPayer (uuid) — passerelle de paiement en
+  /// ligne active, remplace PayDunya. Sert à retrouver la commande depuis le
+  /// rappel merchantgo ("mark-paid") et confirme qu'un paiement en ligne est
+  /// suivi par la passerelle (voir gatewayTracked dans orders.ts).
+  winipayerRef    String?         @unique
   subtotal        Int
   discount        Int             @default(0)
   taxRate         Float           @default(0)

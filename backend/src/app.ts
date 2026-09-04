@@ -50,6 +50,7 @@ import merchantOnboardingRouter from './routes/merchant-onboarding'
 import merchantApplicationsRouter from './routes/merchant-applications'
 import subscriptionPlansRouter    from './routes/subscription-plans'
 import adminSellersRouter          from './routes/admin-sellers'
+import internalRouter              from './routes/internal'
 
 const app = express()
 
@@ -153,8 +154,9 @@ const publicDataLimiter = rateLimit({
   legacyHeaders: false,
   message: { success: false, message: 'Trop de requêtes, réessayez dans 15 minutes' },
   keyGenerator: (req) => req.ip ?? 'unknown',
-  // les écritures admin (POST/PUT/PATCH/DELETE) restent protégées par requireAdmin uniquement
-  skip: (req) => req.method !== 'GET' && req.method !== 'HEAD',
+  // les écritures admin (POST/PUT/PATCH/DELETE) restent protégées par requireAdmin uniquement ;
+  // désactivé hors production pour permettre les tests de charge en local sans fausser les résultats
+  skip: (req) => process.env.NODE_ENV !== 'production' || (req.method !== 'GET' && req.method !== 'HEAD'),
 })
 
 /* ── Parsers ────────────────────────────────────────────────── */
@@ -240,6 +242,7 @@ app.use('/api/email-templates', emailTemplatesRouter)
 app.use('/api/returns',       returnsRouter)
 app.use('/api/audit-log',     auditLogRouter)
 app.use('/api/payments',      paymentsRouter)
+app.use('/api/internal',      internalRouter)
 
 /* ── 404 ────────────────────────────────────────────────────── */
 app.use((_req, res) => {

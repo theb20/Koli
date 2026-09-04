@@ -10,8 +10,7 @@ import { logger } from '../lib/logger'
 import { logAdminAction } from '../lib/auditLog'
 import { notifyMerchantsOrderPaid } from '../lib/merchantWallet'
 import { getLoyaltySettings } from './loyalty'
-import { createInvoice, isPaydunyaConfigured } from '../lib/paydunya'
-import { getBackendUrl } from '../lib/backendUrl'
+import { createWinipayerPayment, isMerchantgoConfigured } from '../lib/merchantgo'
 
 const router = Router()
 
@@ -98,12 +97,14 @@ async function applyOrderStatusChange(orderId: string, status: OrderStatusValue)
       }
     }
 
-    // Une commande liée à une facture PayDunya (paydunyaToken posé) a son paiement
-    // suivi par la passerelle — seul l'IPN (voir payments.ts) fait foi. Faire
-    // progresser son statut manuellement ne doit jamais la faire passer "payée"
-    // par raccourci : un admin qui avance une commande par erreur avant que le
-    // client ait réellement payé ne doit pas la faire apparaître payée à tort.
-    const gatewayTracked = !!order.paydunyaToken
+    // Une commande liée à une transaction WiniPayer (winipayerRef posé, ou
+    // paydunyaToken pour d'anciennes commandes créées avant la migration) a
+    // son paiement suivi par la passerelle — seul le webhook merchantgo
+    // (voir routes/internal.ts) fait foi. Faire progresser son statut
+    // manuellement ne doit jamais la faire passer "payée" par raccourci : un
+    // admin qui avance une commande par erreur avant que le client ait
+    // réellement payé ne doit pas la faire apparaître payée à tort.
+    const gatewayTracked = !!order.winipayerRef || !!order.paydunyaToken
     const paymentStatus =
       status === 'refunded'                                                   ? 'refunded'
       : gatewayTracked                                                         ? order.paymentStatus
@@ -516,32 +517,32 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
       deliveryMethod: body.deliveryMethod,
     }).catch(() => {})
 
-    // 8. Paiement en ligne PayDunya (orange/mtn/wave) — crée la facture et
-    //    renvoie l'URL de paiement au client, qui y est redirigé. "cash"
-    //    reste inchangé (paiement à la livraison). Si PayDunya n'est pas
+    // 8. Paiement en ligne WiniPayer (orange/mtn/wave/carte), via merchantgo
+    //    (toute la logique de paiement y vit désormais — voir
+    //    order_payment_architecture) — crée le lien de paiement et renvoie
+    //    l'URL au client, qui y est redirigé. "cash" reste inchangé
+    //    (paiement à la livraison). Si merchantgo/WiniPayer n'est pas
     //    configuré ou échoue, la commande reste créée quand même (stock déjà
     //    réservé plus haut) — dégradation, pas d'échec de toute la commande
-    //    pour un incident côté prestataire de paiement.
+    //    pour un incident côté prestataire de paiement. PayDunya reste dans
+    //    le code (désactivé, isPaydunyaConfigured non appelé ici) comme
+    //    filet de secours en cas de bascule arrière.
     let paymentUrl: string | undefined
-    if (body.paymentMethod !== 'cash' && isPaydunyaConfigured()) {
+    if (body.paymentMethod !== 'cash' && isMerchantgoConfigured()) {
       try {
-        const backendUrl  = getBackendUrl()
         const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:5173'
-        const invoice = await createInvoice({
-          amount:        order.total,
-          description:   `Commande ${orderNumber} — Skignas`,
-          orderId:       order.id,
+        const payment = await createWinipayerPayment({
+          orderId:     order.id,
           orderNumber,
-          returnUrl:     `${frontendUrl}/commandes/${orderNumber}`,
-          cancelUrl:     `${frontendUrl}/commandes/${orderNumber}`,
-          callbackUrl:   `${backendUrl}/api/payments/paydunya/ipn`,
-          customerName:  `${body.clientPrenom} ${body.clientNom}`,
-          customerEmail: body.clientEmail,
+          amount:      order.total,
+          description: `Commande ${orderNumber} — Skignas`,
+          returnUrl:   `${frontendUrl}/commandes/${orderNumber}`,
+          cancelUrl:   `${frontendUrl}/commandes/${orderNumber}`,
         })
-        await prisma.order.update({ where: { id: order.id }, data: { paydunyaToken: invoice.token } })
-        paymentUrl = invoice.checkoutUrl
+        await prisma.order.update({ where: { id: order.id }, data: { winipayerRef: payment.data.providerRef } })
+        paymentUrl = payment.data.checkoutUrl
       } catch (err) {
-        logger.error('[orders] échec création facture PayDunya', orderNumber, err)
+        logger.error('[orders] échec création paiement WiniPayer', orderNumber, err)
       }
     }
 

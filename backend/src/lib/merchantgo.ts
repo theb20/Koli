@@ -78,6 +78,26 @@ export function recordMerchantSale(input: { userId: string; orderId: string; ord
 }
 
 /**
+ * Crée un lien de paiement WiniPayer via merchantgo — remplace PayDunya
+ * comme passerelle de paiement en ligne (voir order_payment_architecture) :
+ * toute la logique de paiement vit désormais dans merchantgo, backend/ ne
+ * fait que relayer la création et se faire notifier au retour.
+ */
+export function createWinipayerPayment(input: {
+  orderId: string
+  orderNumber: string
+  amount: number
+  description: string
+  returnUrl: string
+  cancelUrl: string
+}) {
+  return merchantgoRequest<{ success: boolean; data: { checkoutUrl: string; providerRef: string } }>(
+    `/api/v1/internal/payments/winipayer/create`,
+    { method: 'POST', body: input },
+  )
+}
+
+/**
  * Gestion admin des plans d'abonnement — CRUD relayé vers merchantgo
  * (koli-admin n'appelle jamais merchantgo directement, cf. en-tête).
  */
