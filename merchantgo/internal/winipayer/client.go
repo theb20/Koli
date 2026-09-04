@@ -63,11 +63,14 @@ type apiError struct {
 // createResponse suit exactement le schéma documenté par WiniPayer (voir
 // docs.winipayer.com/app/2.0-fr/checkout/standard) — "results" est un objet
 // en cas de succès, un tableau vide en cas d'échec, d'où `json.RawMessage`
-// pour ne décoder qu'après avoir vérifié `success`.
+// pour ne décoder qu'après avoir vérifié `success`. "errors" a la même
+// incohérence dans l'autre sens : tableau vide `[]` en cas de succès, objet
+// `{code,key,msg}` en cas d'échec — même traitement en RawMessage, décodé
+// uniquement dans la branche d'échec (voir doRequest).
 type apiEnvelope struct {
 	Success  bool            `json:"success"`
 	Results  json.RawMessage `json:"results"`
-	Errors   apiError        `json:"errors"`
+	Errors   json.RawMessage `json:"errors"`
 	Messages []string        `json:"messages"`
 }
 
@@ -102,8 +105,9 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body any, o
 		return fmt.Errorf("winipayer: réponse illisible (HTTP %d): %w", res.StatusCode, err)
 	}
 	if !envelope.Success {
-		if envelope.Errors.Msg != "" {
-			return fmt.Errorf("winipayer: %s (%s)", envelope.Errors.Msg, envelope.Errors.Key)
+		var apiErr apiError
+		if err := json.Unmarshal(envelope.Errors, &apiErr); err == nil && apiErr.Msg != "" {
+			return fmt.Errorf("winipayer: %s (%s)", apiErr.Msg, apiErr.Key)
 		}
 		return fmt.Errorf("winipayer: échec de la requête (HTTP %d)", res.StatusCode)
 	}
