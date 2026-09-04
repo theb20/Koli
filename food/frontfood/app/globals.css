@@ -7,17 +7,17 @@ html {
 }
 
 body {
-  background: #f7f1e8;
-  color: #1a1210;
+  background: #ffffff;
+  color: #0a0a0a;
 }
 
 ::selection {
-  background: #f2861d;
-  color: #1a1210;
+  background: #e23744;
+  color: #ffffff;
 }
 
 :focus-visible {
-  outline: 3px solid #f5c518;
+  outline: 3px solid #12a150;
   outline-offset: 3px;
 }
 

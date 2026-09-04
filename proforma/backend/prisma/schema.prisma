@@ -1,0 +1,483 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Tous les montants sont stockés en unités mineures (centimes) sous forme
+// d'entiers pour éviter les erreurs d'arrondi flottant (spec §10).
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  createdAt    DateTime @default(now())
+
+  companies     Company[]
+  notifications Notification[]
+  memberships   Membership[]
+}
+
+enum Role {
+  ADMIN
+  COMMERCIAL
+  COMPTABLE
+}
+
+// Rattache un utilisateur à une entreprise avec un rôle. Le créateur d'une
+// entreprise (Company.userId) reçoit automatiquement une Membership ADMIN à
+// la création — les vérifications d'accès passent toutes par cette table.
+model Membership {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  role      Role     @default(ADMIN)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, companyId])
+  @@index([companyId])
+}
+
+model Company {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name      String
+  address   String?
+  phone     String?
+  email     String?
+  website   String?
+  taxId     String?
+  rccm      String?
+  legalInfo String?
+  logoUrl   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clients   Client[]
+  products  Product[]
+  taxes     Tax[]
+  paymentTerms PaymentTerm[]
+  proformas Proforma[]
+  invoices  Invoice[]
+  settings  DocumentSettings?
+  memberships Membership[]
+  recurringPlans RecurringPlan[]
+  proformaTemplates ProformaTemplate[]
+
+  @@index([userId])
+}
+
+model Client {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  name        String
+  contactName String?
+  address     String?
+  phone       String?
+  email       String?
+  country     String?
+  taxId       String?
+  rccm        String?
+  notes       String?
+  tags        String[] @default([])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  proformas   Proforma[]
+  invoices    Invoice[]
+  recurringPlans RecurringPlan[]
+  proformaTemplates ProformaTemplate[]
+
+  @@index([companyId])
+}
+
+model Product {
+  id            String   @id @default(cuid())
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  reference     String?
+  name          String
+  description   String?
+  category      String?
+  unitPrice     Int      // centimes
+  unit          String   @default("unité")
+  defaultTaxId  String?
+  defaultTax    Tax?     @relation(fields: [defaultTaxId], references: [id])
+
+  trackStock        Boolean @default(false)
+  stockQuantity     Int     @default(0)
+  lowStockThreshold Int     @default(0)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([companyId])
+}
+
+model Tax {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  name      String
+  rate      Float    // pourcentage, ex: 18 pour 18%
+  isDefault Boolean  @default(false)
+
+  products      Product[]
+  proformaItems ProformaItem[]
+  invoiceItems  InvoiceItem[]
+
+  @@index([companyId])
+}
+
+model PaymentTerm {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  label       String
+  description String?
+
+  proformas   Proforma[]
+  invoices    Invoice[]
+
+  @@index([companyId])
+}
+
+model DocumentSettings {
+  id                 String   @id @default(cuid())
+  companyId          String   @unique
+  company            Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  proformaPrefix     String   @default("PF")
+  proformaNumberFmt  String   @default("{PREFIX}-{YEAR}-{NUMBER}")
+  proformaCounter    Int      @default(0)
+
+  invoicePrefix      String   @default("FAC")
+  invoiceNumberFmt   String   @default("{PREFIX}-{YEAR}-{NUMBER}")
+  invoiceCounter     Int      @default(0)
+
+  defaultCurrency    String   @default("XOF")
+  defaultTemplate    String   @default("classic")
+  primaryColor       String   @default("#0a5c36")
+  secondaryColor     String   @default("#111827")
+
+  defaultNotes       String?
+  defaultTerms       String?  @default("Cette facture proforma est valable 30 jours à compter de sa date d'émission.")
+  defaultFooter      String?
+
+  emailSenderName    String?
+  emailSignature     String?
+
+  updatedAt          DateTime @updatedAt
+}
+
+enum ProformaStatus {
+  DRAFT
+  PENDING
+  SENT
+  VIEWED
+  ACCEPTED
+  REFUSED
+  EXPIRED
+  CONVERTED
+}
+
+model Proforma {
+  id          String         @id @default(cuid())
+  companyId   String
+  company     Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  clientId    String
+  client      Client         @relation(fields: [clientId], references: [id])
+
+  number      String
+  reference   String?
+  object      String?
+  salesperson String?
+
+  issueDate   DateTime       @default(now())
+  expiryDate  DateTime?
+
+  paymentTermId String?
+  paymentTerm   PaymentTerm? @relation(fields: [paymentTermId], references: [id])
+  deliveryDelay String?
+
+  currency    String         @default("XOF")
+  status      ProformaStatus @default(DRAFT)
+
+  template       String      @default("classic")
+  customization  Json?       // couleurs, police, marges, position logo...
+
+  subtotal       Int         @default(0) // centimes, avant remise/taxe
+  discountType   String      @default("percent") // "percent" | "amount"
+  discountValue  Float       @default(0)
+  discountAmount Int         @default(0)
+  taxAmount      Int         @default(0)
+  shippingFee    Int         @default(0)
+  otherFees      Int         @default(0)
+  otherFeesLabel String?
+  deposit        Int         @default(0)
+  total          Int         @default(0)
+  balanceDue     Int         @default(0)
+
+  notes       String?
+  termsText   String?
+  footerText  String?
+  signatureUrl String?
+  stampUrl     String?
+
+  publicToken String   @unique @default(cuid())
+  sentAt      DateTime?
+  viewedAt    DateTime?
+  respondedAt DateTime?
+
+  // Relances automatiques (§ relances) — flags pour ne jamais renvoyer deux
+  // fois le même email, peu importe la fréquence du scheduler.
+  reminderJ7SentAt DateTime?
+  reminderJ3SentAt DateTime?
+  reminderJ0SentAt DateTime?
+  lastFollowUpAt   DateTime?
+  followUpCount    Int       @default(0)
+
+  // Signature électronique client (acceptation en ligne)
+  acceptedByName String?
+  acceptedIp     String?
+
+  // Paiement en ligne (CinetPay — agrège Wave/Orange Money/MTN/carte) et
+  // enregistrement manuel (espèces, virement, mobile money hors plateforme).
+  // Le suivi de l'acompte est distinct du solde : un document avec acompte
+  // > 0 peut être "acompte reçu" avant d'être intégralement "payée".
+  paymentProvider String?
+  paymentRef      String?
+  paymentStatus   String? // "pending" | "deposit_paid" | "paid" | "failed"
+  depositPaidAt   DateTime?
+  paidAt          DateTime?
+
+  // Facturation récurrente — présent si cette proforma a été générée par un plan
+  recurringPlanId String?
+  recurringPlan   RecurringPlan? @relation(fields: [recurringPlanId], references: [id])
+
+  convertedInvoiceId String?  @unique
+  convertedInvoice   Invoice? @relation("ProformaToInvoice", fields: [convertedInvoiceId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items       ProformaItem[]
+  activity    ActivityLog[]
+
+  @@index([companyId])
+  @@index([clientId])
+  @@index([status])
+  @@index([expiryDate])
+  @@index([recurringPlanId])
+}
+
+model ProformaItem {
+  id             String   @id @default(cuid())
+  proformaId     String
+  proforma       Proforma @relation(fields: [proformaId], references: [id], onDelete: Cascade)
+
+  productId      String?
+  reference      String?
+  name           String
+  description    String?
+  quantity       Float    @default(1)
+  unit           String   @default("unité")
+  unitPrice      Int      // centimes
+  discountPercent Float   @default(0)
+  discountAmount Int      @default(0)
+  taxId          String?
+  tax            Tax?     @relation(fields: [taxId], references: [id])
+  taxRate        Float    @default(0)
+  lineTotal      Int      @default(0) // centimes, après remise, avant taxe
+  position       Int      @default(0)
+
+  @@index([proformaId])
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  PARTIALLY_PAID
+  OVERDUE
+  CANCELLED
+}
+
+model Invoice {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id])
+
+  number      String
+  reference   String?
+  object      String?
+  salesperson String?
+
+  issueDate   DateTime @default(now())
+  dueDate     DateTime?
+
+  paymentTermId String?
+  paymentTerm   PaymentTerm? @relation(fields: [paymentTermId], references: [id])
+
+  currency    String   @default("XOF")
+  status      InvoiceStatus @default(DRAFT)
+
+  template       String @default("classic")
+  customization  Json?
+
+  subtotal       Int @default(0)
+  discountType   String @default("percent")
+  discountValue  Float  @default(0)
+  discountAmount Int @default(0)
+  taxAmount      Int @default(0)
+  shippingFee    Int @default(0)
+  otherFees      Int @default(0)
+  otherFeesLabel String?
+  deposit        Int @default(0)
+  total          Int @default(0)
+  balanceDue     Int @default(0)
+
+  notes       String?
+  termsText   String?
+  footerText  String?
+  signatureUrl String?
+  stampUrl     String?
+
+  paymentProvider String?
+  paymentRef      String?
+  paymentStatus   String? // "pending" | "deposit_paid" | "paid" | "failed"
+  depositPaidAt   DateTime?
+  paidAt          DateTime?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items       InvoiceItem[]
+  activity    ActivityLog[]
+  sourceProforma Proforma? @relation("ProformaToInvoice")
+
+  @@index([companyId])
+  @@index([clientId])
+  @@index([status])
+}
+
+// Plan de facturation récurrente : régénère automatiquement une proforma à
+// partir d'un contenu figé (items/remise/taxes/notes) à chaque échéance.
+model RecurringPlan {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id])
+
+  label     String
+  interval  String   // "monthly" | "quarterly" | "yearly"
+  nextRunAt DateTime
+  active    Boolean  @default(true)
+  currency  String   @default("XOF")
+
+  // Snapshot réutilisé pour générer chaque nouvelle proforma :
+  // { items: [...], discountType, discountValue, shippingFee, otherFees,
+  //   otherFeesLabel, deposit, template, customization, notes, termsText,
+  //   footerText, expiryDays, paymentTermId }
+  content   Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  generatedProformas Proforma[]
+
+  @@index([companyId])
+  @@index([nextRunAt])
+}
+
+// Modèle de contenu réutilisable pour démarrer rapidement une nouvelle
+// proforma (type de prestation ou client récurrent) — distinct d'un
+// RecurringPlan qui, lui, s'exécute automatiquement à échéance.
+model ProformaTemplate {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  clientId  String?
+  client    Client?  @relation(fields: [clientId], references: [id])
+
+  name      String
+  content   Json     // même structure que RecurringPlan.content
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+}
+
+model InvoiceItem {
+  id             String  @id @default(cuid())
+  invoiceId      String
+  invoice        Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  productId      String?
+  reference      String?
+  name           String
+  description    String?
+  quantity       Float   @default(1)
+  unit           String  @default("unité")
+  unitPrice      Int
+  discountPercent Float  @default(0)
+  discountAmount Int     @default(0)
+  taxId          String?
+  tax            Tax?    @relation(fields: [taxId], references: [id])
+  taxRate        Float   @default(0)
+  lineTotal      Int     @default(0)
+  position       Int     @default(0)
+
+  @@index([invoiceId])
+}
+
+model ActivityLog {
+  id         String    @id @default(cuid())
+  proformaId String?
+  proforma   Proforma? @relation(fields: [proformaId], references: [id], onDelete: Cascade)
+  invoiceId  String?
+  invoice    Invoice?  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  action     String
+  actor      String    // "user" | "client" | "system"
+  metadata   Json?
+  createdAt  DateTime  @default(now())
+
+  @@index([proformaId])
+  @@index([invoiceId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  companyId String?
+  type      String
+  message   String
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}

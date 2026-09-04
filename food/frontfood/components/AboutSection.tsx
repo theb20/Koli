@@ -15,13 +15,13 @@ export function AboutSection() {
       <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-14 px-5 sm:px-8 lg:grid-cols-2 lg:gap-20">
         <Reveal direction="right" className="relative mx-auto aspect-[4/5] w-full max-w-md lg:mx-0">
           <div
-            className="absolute -inset-4 -z-10 rounded-3xl bg-kraft-texture bg-maroon-700/10"
+            className="absolute -inset-4 -z-10 rounded-3xl bg-kraft-texture bg-ink-950/5"
             aria-hidden="true"
           />
           <div className="relative h-full w-full overflow-hidden rounded-3xl shadow-card">
             <Image
-              src={IMAGES.aboutBurger}
-              alt="Burger Ember et boissons servis sur planche en bois"
+              src={IMAGES.saladBowl}
+              alt="Plat frais préparé par un restaurant partenaire Régal Express"
               fill
               sizes="(min-width: 1024px) 40vw, 90vw"
               className="object-cover"
@@ -30,25 +30,24 @@ export function AboutSection() {
         </Reveal>
 
         <Reveal delay={100}>
-          <p className="font-heading text-sm font-bold tracking-[0.3em] text-maroon-600 uppercase">
-            À propos de nous
+          <p className="font-heading text-sm font-bold tracking-[0.3em] text-cta uppercase">
+            Pourquoi Régal Express
           </p>
           <h2 className="font-heading mt-3 text-3xl leading-tight font-extrabold text-ink-950 sm:text-4xl lg:text-5xl">
-            On fait le meilleur
+            Le meilleur du quartier,
             <br />
-            burger de la ville
+            livré comme il faut
           </h2>
           <p className="font-body mt-5 max-w-lg text-ink-950/65">
-            Depuis notre première grillade, une seule règle : rien ne quitte
-            la cuisine si ce n&rsquo;est pas fait dans les règles de l&rsquo;art.
-            Viande sélectionnée, pain boulangé sur place, sauces maison — le
-            fast-food comme il devrait toujours être.
+            Des dizaines de restaurants partenaires, sélectionnés pour leur
+            qualité. Suivez votre commande en direct, du restaurant jusqu&rsquo;à
+            votre porte.
           </p>
 
           <div className="mt-9 grid grid-cols-1 gap-5 sm:grid-cols-3">
             {POINTS.map(({ icon: Icon, title }) => (
               <div key={title} className="flex flex-col items-start gap-3">
-                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-orange/15 text-brand-orange">
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/15 text-accent">
                   <Icon size={22} />
                 </span>
                 <p className="font-heading text-sm font-bold text-ink-950">{title}</p>

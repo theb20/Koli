@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Flame, Send, MapPin, Phone, Mail } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { Send, MapPin, Phone, Mail, Globe } from "lucide-react";
+import { Logo } from "./Logo";
+import { useUiStore } from "@/lib/store/uiStore";
 
 // lucide-react n'inclut plus les icônes de marque — glifos simples dessinés à la main.
 function InstagramGlyph() {
@@ -34,20 +37,36 @@ function TwitterGlyph() {
   );
 }
 
-const COLUMNS = [
-  {
-    title: "Liens rapides",
-    links: ["Accueil", "Menu", "À propos", "Blog"],
-  },
-  {
-    title: "Nos services",
-    links: ["Livraison", "À emporter", "Réservation", "Événements privés"],
-  },
-];
+function AppleGlyph() {
+  return (
+    <svg width={16} height={16} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M16.5 1c.1 1.2-.4 2.4-1.1 3.3-.7.9-1.9 1.6-3 1.5-.1-1.2.4-2.4 1.1-3.2.8-.9 2-1.6 3-1.6zM20.6 17c-.6 1.3-.9 1.9-1.7 3-1.1 1.6-2.6 3.6-4.5 3.6-1.7 0-2.1-1.1-4.4-1.1-2.3 0-2.8 1.1-4.5 1.1-1.9 0-3.3-1.8-4.4-3.4C-1.5 16.8-.7 10 3.3 7.6c1.1-.7 2.5-1.1 3.9-.1.9.6 1.7 1 2.3 1 .6 0 1.6-.4 2.6-1 1.5-.7 2.9-.6 4.1.4-2.3 1.4-2.4 4.5-.1 5.9.4.3.9.5 1.3.6-.1.4-.3.9-.5 1.4z" />
+    </svg>
+  );
+}
+
+function PlayGlyph() {
+  return (
+    <svg width={16} height={16} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M3.6 2.3c-.4.3-.6.8-.6 1.4v16.6c0 .6.2 1.1.6 1.4l.1.1L13 12.5v-.1L3.7 2.2l-.1.1Z" />
+      <path d="m16 9.5-2.6-1.5L10.2 11l3.2 3 2.6-1.5c.9-.5.9-2 0-2.5Z" />
+      <path d="m13.4 12.9-9.7 9.5c.4.3.9.3 1.5 0l11-6.3-2.8-3.2Z" />
+      <path d="m13.4 11.1 2.8-3.2-11-6.3c-.5-.3-1.1-.2-1.5.1l9.7 9.4Z" />
+    </svg>
+  );
+}
+
+// Ces liens (aide/partenaires/appli mobile) ne mènent pas encore vers un vrai
+// espace dédié dans cette démo — on l'indique clairement plutôt que de
+// pointer vers une page qui n'existe pas.
+const HELP_LINKS = ["Centre d'aide", "Nous contacter", "Conditions", "Confidentialité"];
+const PARTNER_LINKS = ["Ajoutez votre restaurant", "Devenez coursier-partenaire", "Créez un compte professionnel"];
 
 export function Footer() {
+  const pathname = usePathname();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
+  const pushToast = useUiStore((s) => s.pushToast);
 
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -56,26 +75,34 @@ export function Footer() {
     setEmail("");
   }
 
+  function notifyComingSoon(label: string) {
+    pushToast(`${label} — à venir dans cette démo.`, "info");
+  }
+
+  if (pathname === "/connexion") return null;
+
   return (
     <footer id="contact" className="bg-ink-950 pt-16 pb-8">
       <div className="mx-auto max-w-7xl px-5 sm:px-8">
-        <div className="grid grid-cols-1 gap-12 sm:grid-cols-2 lg:grid-cols-[1.1fr_repeat(2,1fr)_1.2fr]">
-          <div>
-            <a href="#top" className="flex items-center gap-2 font-heading text-2xl font-extrabold text-cream-100">
-              <Flame className="text-brand-orange" size={24} />
-              Ember
+        <div className="grid grid-cols-2 gap-x-6 gap-y-12 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="col-span-2 lg:col-span-1">
+            <a href="#top" className="text-cream-100">
+              <Logo size={22} />
             </a>
-            <p className="font-body mt-4 max-w-[28ch] text-sm leading-relaxed text-cream-100/50">
-              Burgers grillés, poulet croustillant et pizzas — cuisinés au feu,
-              servis avec cœur.
+            <p className="font-body mt-4 max-w-[26ch] text-sm leading-relaxed text-cream-100/50">
+              Les plats de vos restaurants préférés, livrés chez vous.
             </p>
             <div className="mt-6 flex gap-3">
               {[InstagramGlyph, FacebookGlyph, TwitterGlyph].map((Icon, i) => (
                 <a
                   key={i}
                   href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    notifyComingSoon("Réseaux sociaux");
+                  }}
                   aria-label="Rejoindre sur les réseaux sociaux"
-                  className="flex h-10 w-10 items-center justify-center rounded-full border border-cream-100/15 text-cream-100/70 transition-colors hover:border-brand-orange hover:text-brand-orange"
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-cream-100/15 text-cream-100/70 transition-colors hover:border-cta hover:text-cta"
                 >
                   <Icon />
                 </a>
@@ -83,38 +110,75 @@ export function Footer() {
             </div>
           </div>
 
-          {COLUMNS.map((col) => (
-            <div key={col.title}>
-              <h4 className="font-heading text-sm font-bold tracking-wide text-cream-100">{col.title}</h4>
-              <ul className="mt-4 flex flex-col gap-2.5">
-                {col.links.map((link) => (
-                  <li key={link}>
-                    <a
-                      href="#"
-                      className="font-body text-sm text-cream-100/55 transition-colors hover:text-brand-orange"
-                    >
-                      {link}
-                    </a>
-                  </li>
-                ))}
-              </ul>
+          <div>
+            <h4 className="font-heading text-sm font-bold tracking-wide text-cream-100">Aide</h4>
+            <ul className="mt-4 flex flex-col gap-2.5">
+              {HELP_LINKS.map((link) => (
+                <li key={link}>
+                  <button
+                    onClick={() => notifyComingSoon(link)}
+                    className="font-body text-left text-sm text-cream-100/55 transition-colors hover:text-cta"
+                  >
+                    {link}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="font-heading text-sm font-bold tracking-wide text-cream-100">Partenaires</h4>
+            <ul className="mt-4 flex flex-col gap-2.5">
+              {PARTNER_LINKS.map((link) => (
+                <li key={link}>
+                  <button
+                    onClick={() => notifyComingSoon(link)}
+                    className="font-body text-left text-sm text-cream-100/55 transition-colors hover:text-cta"
+                  >
+                    {link}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="font-heading text-sm font-bold tracking-wide text-cream-100">Villes</h4>
+            <ul className="mt-4 flex flex-col gap-2.5">
+              <li className="font-body text-sm text-cream-100/55">Paris</li>
+            </ul>
+            <div className="mt-6 flex flex-col gap-2">
+              <button
+                onClick={() => notifyComingSoon("Application mobile")}
+                className="flex items-center gap-2 rounded-lg border border-cream-100/15 px-3 py-2 text-xs font-semibold text-cream-100/70 transition-colors hover:border-cta hover:text-cta"
+              >
+                <AppleGlyph />
+                App Store
+              </button>
+              <button
+                onClick={() => notifyComingSoon("Application mobile")}
+                className="flex items-center gap-2 rounded-lg border border-cream-100/15 px-3 py-2 text-xs font-semibold text-cream-100/70 transition-colors hover:border-cta hover:text-cta"
+              >
+                <PlayGlyph />
+                Google Play
+              </button>
             </div>
-          ))}
+          </div>
 
           <div>
             <h4 className="font-heading text-sm font-bold tracking-wide text-cream-100">Contact</h4>
             <ul className="font-body mt-4 flex flex-col gap-3 text-sm text-cream-100/55">
               <li className="flex items-center gap-2.5">
-                <MapPin size={16} className="shrink-0 text-brand-orange" />
+                <MapPin size={16} className="shrink-0 text-cta" />
                 12 rue de la Grillade, 75011 Paris
               </li>
               <li className="flex items-center gap-2.5">
-                <Phone size={16} className="shrink-0 text-brand-orange" />
+                <Phone size={16} className="shrink-0 text-cta" />
                 01 84 60 22 15
               </li>
               <li className="flex items-center gap-2.5">
-                <Mail size={16} className="shrink-0 text-brand-orange" />
-                bonjour@ember-burger.fr
+                <Mail size={16} className="shrink-0 text-cta" />
+                bonjour@regal-express.fr
               </li>
             </ul>
 
@@ -129,7 +193,7 @@ export function Footer() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Votre e-mail"
-                className="w-full rounded-full border border-cream-100/15 bg-white/5 px-4 py-2.5 text-sm text-cream-100 placeholder:text-cream-100/40 focus:border-brand-orange focus:outline-none"
+                className="w-full rounded-full border border-cream-100/15 bg-white/5 px-4 py-2.5 text-sm text-cream-100 placeholder:text-cream-100/40 focus:border-cta focus:outline-none"
               />
               <button
                 type="submit"
@@ -140,16 +204,27 @@ export function Footer() {
               </button>
             </form>
             {sent && (
-              <p className="font-body mt-2 text-xs text-brand-yellow" role="status">
+              <p className="font-body mt-2 text-xs text-cta" role="status">
                 Merci ! Vous êtes inscrit·e.
               </p>
             )}
           </div>
         </div>
 
-        <div className="font-body mt-14 flex flex-col items-center justify-between gap-3 border-t border-cream-100/10 pt-6 text-xs text-cream-100/40 sm:flex-row">
-          <p>© {new Date().getFullYear()} Ember. Tous droits réservés.</p>
-          <p>Fait avec le feu, servi avec le cœur.</p>
+        <div className="font-body mt-14 flex flex-col items-center justify-between gap-4 border-t border-cream-100/10 pt-6 text-xs text-cream-100/40 sm:flex-row">
+          <div className="flex items-center gap-4">
+            <span>© {new Date().getFullYear()} Régal Express.</span>
+            <button onClick={() => notifyComingSoon("Politique de confidentialité")} className="hover:text-cta">
+              Politique de confidentialité
+            </button>
+            <button onClick={() => notifyComingSoon("Conditions")} className="hover:text-cta">
+              Conditions
+            </button>
+          </div>
+          <span className="flex items-center gap-1.5">
+            <Globe size={13} />
+            Français
+          </span>
         </div>
       </div>
     </footer>

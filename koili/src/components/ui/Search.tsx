@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { Search, X, TrendingUp, ArrowRight, Loader2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { fetchProducts } from '../../lib/api'
+import { fetchProducts, type ApiCategory } from '../../lib/api'
 
 const TRENDING = ['Montre', 'Écouteurs', 'Skincare', 'Gaming', 'Sport']
 
@@ -21,14 +21,23 @@ function formatPrice(n: number) {
   return Math.round(n).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
 }
 
-export default function UltraSearchBar() {
+export default function UltraSearchBar({ categories = [] }: { categories?: ApiCategory[] }) {
   const [focused,     setFocused]     = useState(false)
   const [value,       setValue]       = useState('')
   const [query,       setQuery]       = useState('')   // debounced
   const [activeIndex, setActiveIndex] = useState(-1)
+  const [cat,         setCat]         = useState('')   // '' = "Toutes nos catégories"
   const inputRef = useRef<HTMLInputElement>(null)
   const wrapRef  = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
+
+  const submit = (q: string) => {
+    if (!q.trim()) return
+    const params = new URLSearchParams({ q: q.trim() })
+    if (cat) params.set('cat', cat)
+    navigate(`/catalogue?${params.toString()}`)
+    setValue(''); setFocused(false)
+  }
 
   const isOpen = focused || value.length > 0
 
@@ -75,44 +84,66 @@ export default function UltraSearchBar() {
       if (activeIndex >= 0 && results[activeIndex]) {
         navigate(`/catalogue/${results[activeIndex].id}`)
         setValue(''); setFocused(false)
-      } else if (value.trim()) {
-        navigate(`/catalogue?q=${encodeURIComponent(value.trim())}`)
-        setValue(''); setFocused(false)
+      } else {
+        submit(value)
       }
     }
   }
 
   return (
     <div ref={wrapRef} className="relative w-full">
-      <div className={`flex items-center gap-2 h-11 px-3 bg-white border rounded-xl transition-all duration-200 ${
-        isOpen ? 'border-gray-300 shadow-md ring-2 ring-gray-100' : 'border-gray-200 shadow-sm'
+      <div className={`flex items-center h-10 rounded-md overflow-hidden transition-shadow duration-200 ${
+        isOpen ? 'ring-2 ring-[#f3a847]' : ''
       }`}>
-        {isFetching
-          ? <Loader2 size={17} className="text-gray-400 shrink-0 animate-spin" />
-          : <Search size={17} className="text-gray-400 shrink-0" />}
+        {/* Sélecteur de catégorie — visuel façon Amazon, filtre la recherche */}
+        <select
+          value={cat}
+          onChange={e => setCat(e.target.value)}
+          aria-label="Choisir une catégorie"
+          className="hidden sm:block h-full bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium pl-3 pr-2 outline-none cursor-pointer border-r border-gray-300 shrink-0 max-w-[160px]"
+        >
+          <option value="">Toutes nos catégories</option>
+          {categories.map(c => (
+            <option key={c.slug} value={c.slug}>{c.name}</option>
+          ))}
+        </select>
 
-        <input
-          ref={inputRef}
-          type="text"
-          value={value}
-          onChange={e => { setValue(e.target.value); setActiveIndex(-1) }}
-          onFocus={() => setFocused(true)}
-          onKeyDown={handleKey}
-          placeholder="Rechercher un produit..."
-          className="flex-1 bg-transparent outline-none text-sm text-gray-800 placeholder:text-gray-400 min-w-0"
-        />
+        <div className="flex items-center gap-2 h-full px-3 bg-white flex-1 min-w-0">
+          {isFetching
+            ? <Loader2 size={17} className="text-gray-400 shrink-0 animate-spin" />
+            : <Search size={17} className="text-gray-400 shrink-0 sm:hidden" />}
 
-        <AnimatePresence>
-          {value && (
-            <motion.button
-              initial={{ opacity: 0, scale: 0.7 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.7 }}
-              transition={{ duration: 0.15 }}
-              onClick={() => { setValue(''); setQuery(''); inputRef.current?.focus() }}
-              className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors shrink-0">
-              <X size={12} className="text-gray-500" />
-            </motion.button>
-          )}
-        </AnimatePresence>
+          <input
+            ref={inputRef}
+            type="text"
+            value={value}
+            onChange={e => { setValue(e.target.value); setActiveIndex(-1) }}
+            onFocus={() => setFocused(true)}
+            onKeyDown={handleKey}
+            placeholder="Rechercher un produit, une marque..."
+            className="flex-1 bg-transparent outline-none text-sm text-gray-800 placeholder:text-gray-400 min-w-0"
+          />
+
+          <AnimatePresence>
+            {value && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.7 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.7 }}
+                transition={{ duration: 0.15 }}
+                onClick={() => { setValue(''); setQuery(''); inputRef.current?.focus() }}
+                className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors shrink-0">
+                <X size={12} className="text-gray-500" />
+              </motion.button>
+            )}
+          </AnimatePresence>
+        </div>
+
+        <button
+          onClick={() => submit(value)}
+          aria-label="Rechercher"
+          className="h-full w-12 shrink-0 flex items-center justify-center bg-[#febd69] hover:bg-[#f3a847] transition-colors"
+        >
+          <Search size={18} className="text-gray-900" />
+        </button>
       </div>
 
       <AnimatePresence>
@@ -194,7 +225,7 @@ export default function UltraSearchBar() {
               </span>
               <button
                 onMouseDown={e => e.preventDefault()}
-                onClick={() => { navigate(`/catalogue?q=${encodeURIComponent(value)}`); setValue(''); setFocused(false) }}
+                onClick={() => submit(value)}
                 className="flex items-center gap-1 text-[11px] font-semibold text-gray-600 hover:text-gray-900 transition-colors">
                 Voir tout le catalogue <ArrowRight size={11} />
               </button>

@@ -701,7 +701,7 @@ export default function CataloguePage() {
         </div>
 
         {/* ── Sticky search ── */}
-        <div className="bg-white border-b border-gray-100 sticky top-[60px] sm:top-[108px] md:top-[156px] z-30">
+        <div className="bg-white border-b border-gray-100 sticky top-[60px] sm:top-[62px] z-30">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-10 py-3">
             <div className="relative">
               <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"/>

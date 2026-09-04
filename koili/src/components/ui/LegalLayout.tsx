@@ -219,8 +219,9 @@ export function LegalLayout({
         </div>
       </div>
 
-      {/* ── Mobile TOC ── Offsets: mobile=60px header, sm=108px, md=156px (nav shown) ── */}
-      <div className="sticky top-[60px] sm:top-[108px] md:top-[156px] z-40 border-b border-gray-100 bg-white/95 backdrop-blur lg:hidden">
+      {/* ── Mobile TOC ── Header sticky à tous les breakpoints (nav bar catégories, elle,
+          défile normalement) : offset = hauteur header seule. ── */}
+      <div className="sticky top-[60px] sm:top-[62px] z-40 border-b border-gray-100 bg-white/95 backdrop-blur lg:hidden">
         <button
           onClick={() => setTocOpen((v) => !v)}
           className="flex w-full items-center justify-between px-4 py-3.5 text-sm font-semibold text-gray-700"
@@ -277,8 +278,8 @@ export function LegalLayout({
 
           {/* ── Sidebar TOC (desktop) ── */}
           <aside className="hidden lg:block">
-            {/* Offset = 156px header + 16px breathing room = 172px */}
-            <div className="sticky top-[172px] space-y-0.5">
+            {/* Offset = 62px header + 16px de respiration */}
+            <div className="sticky top-[78px] space-y-0.5">
               <p className="mb-4 text-[10px] font-bold uppercase tracking-[0.2em] text-gray-300">
                 Sommaire
               </p>

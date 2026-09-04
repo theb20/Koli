@@ -1,15 +1,10 @@
-import { ProductCard, type Product } from "./ProductCard";
-import { IMAGES } from "@/lib/images";
+import { ProductCard } from "./ProductCard";
 import { Reveal } from "./Reveal";
-
-const DISHES: Product[] = [
-  { name: "Beef Burger", price: "6,50 €", rating: 5, image: IMAGES.beefBurgerDark },
-  { name: "Poulet Croustillant", price: "7,90 €", rating: 4, image: IMAGES.chicken },
-  { name: "Pizza Fromage", price: "11,90 €", rating: 5, image: IMAGES.pizza },
-  { name: "Trio Tacos", price: "8,50 €", rating: 4, image: IMAGES.tacos },
-];
+import { getTopProducts } from "@/lib/data";
 
 export function BestSellingSection() {
+  const topProducts = getTopProducts(4);
+
   return (
     <section id="menu" className="bg-cream-100 py-20 sm:py-28">
       <div className="mx-auto max-w-7xl px-5 sm:px-8">
@@ -23,9 +18,9 @@ export function BestSellingSection() {
         </Reveal>
 
         <div className="mt-14 flex snap-x gap-6 overflow-x-auto pb-4 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 lg:grid-cols-4">
-          {DISHES.map((dish, i) => (
-            <Reveal key={dish.name} delay={i * 100} className="w-64 shrink-0 snap-start sm:w-auto">
-              <ProductCard product={dish} />
+          {topProducts.map(({ product, restaurant }, i) => (
+            <Reveal key={product.id} delay={i * 100} className="w-64 shrink-0 snap-start sm:w-auto">
+              <ProductCard product={product} restaurant={restaurant} />
             </Reveal>
           ))}
         </div>

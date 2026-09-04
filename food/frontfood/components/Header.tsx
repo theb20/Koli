@@ -1,106 +1,127 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Search, User, ShoppingBag, Menu, X, Flame } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Search, User, ShoppingBag, Menu, X } from "lucide-react";
+import { useCartStore, getItemCount } from "@/lib/store/cartStore";
+import { useUiStore } from "@/lib/store/uiStore";
+import { useProfileStore } from "@/lib/store/profileStore";
+import { Logo } from "./Logo";
 
-const LINKS = [
-  { label: "Accueil", href: "#top" },
-  { label: "Menu", href: "#menu" },
-  { label: "À propos", href: "#apropos" },
-  { label: "Blog", href: "#blog" },
-  { label: "Contact", href: "#contact" },
-];
+// Pages avec leur propre bandeau (connexion plein écran, feed avec sa barre dédiée) —
+// le header global y serait redondant.
+const NO_GLOBAL_HEADER = ["/connexion", "/recherche"];
 
 export function Header() {
-  const [scrolled, setScrolled] = useState(false);
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 24);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  const items = useCartStore((s) => s.items);
+  const openCartDrawer = useUiStore((s) => s.openCartDrawer);
+  const profile = useProfileStore();
 
-  const inkText = scrolled ? "text-ink-950" : "text-cream-100";
+  useEffect(() => setMounted(true), []);
+
+  const itemCount = mounted ? getItemCount(items) : 0;
+  const hasProfile = mounted && Boolean(profile.name || profile.email || profile.phone);
+
+  if (NO_GLOBAL_HEADER.includes(pathname)) return null;
 
   return (
-    <header
-      className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
-        scrolled ? "bg-cream-100/95 shadow-md shadow-ink-950/5 backdrop-blur-sm" : "bg-transparent"
-      }`}
-    >
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
-        <a href="#top" className={`flex items-center gap-2 font-heading text-2xl font-extrabold tracking-tight ${inkText}`}>
-          <Flame className="text-brand-orange" size={26} strokeWidth={2.4} />
-          Ember
-        </a>
+<header className="fixed flex items-center justify-between px-5 py-3 inset-x-0 top-0 z-50 w-full bg-ink-950">
+    <Link href="/" className="text-cream-100">
+      <Logo size={32} />
+    </Link>
 
-        <nav className="hidden items-center gap-8 lg:flex">
-          {LINKS.map((l) => (
-            <a
-              key={l.href}
-              href={l.href}
-              className={`font-heading text-sm font-semibold tracking-wide transition-colors hover:text-brand-orange ${inkText}`}
-            >
-              {l.label}
-            </a>
-          ))}
-        </nav>
+    <div className="flex items-center gap-5">
+      <div className="hidden items-center gap-5 text-cream-100 sm:flex">
+        <Link
+          href="/recherche"
+          aria-label="Rechercher"
+          className="transition-colors hover:text-cta"
+        >
+          <Search size={18} />
+        </Link>
 
-        <div className="flex items-center gap-4">
-          <div className={`hidden items-center gap-4 sm:flex ${inkText}`}>
-            <button type="button" aria-label="Rechercher" className="transition-colors hover:text-brand-orange">
-              <Search size={19} />
-            </button>
-            <button type="button" aria-label="Mon compte" className="transition-colors hover:text-brand-orange">
-              <User size={19} />
-            </button>
-            <button type="button" aria-label="Panier" className="transition-colors hover:text-brand-orange">
-              <ShoppingBag size={19} />
-            </button>
-          </div>
+        <button
+          type="button"
+          onClick={openCartDrawer}
+          aria-label="Panier"
+          className="relative transition-colors hover:text-cta"
+        >
+          <ShoppingBag size={18} />
 
-          <a
-            href="#menu"
-            className="hidden rounded-full bg-cta px-6 py-2.5 font-heading text-sm font-bold tracking-wide text-white uppercase shadow-button transition-colors hover:bg-cta-dark sm:inline-block"
+          {itemCount > 0 && (
+            <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-cta px-1 text-[10px] font-bold text-white">
+              {itemCount}
+            </span>
+          )}
+        </button>
+
+        {hasProfile ? (
+          <Link
+            href="/compte/profil"
+            aria-label="Mon compte"
+            className="transition-colors hover:text-cta"
           >
-            Commander
-          </a>
-
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            className={`lg:hidden ${inkText}`}
-            aria-label={open ? "Fermer le menu" : "Ouvrir le menu"}
-            aria-expanded={open}
+            <User size={18} />
+          </Link>
+        ) : (
+          <Link
+            href="/connexion"
+            className="text-sm font-semibold transition-colors hover:text-cta"
           >
-            {open ? <X size={26} /> : <Menu size={26} />}
-          </button>
-        </div>
+            Connexion
+          </Link>
+        )}
       </div>
 
-      {open && (
-        <nav className="flex flex-col gap-1 bg-ink-950 px-5 pb-5 lg:hidden">
-          {LINKS.map((l) => (
-            <a
-              key={l.href}
-              href={l.href}
-              onClick={() => setOpen(false)}
-              className="rounded-lg px-3 py-2.5 font-heading text-sm font-semibold text-cream-100/90 hover:bg-white/5"
-            >
-              {l.label}
-            </a>
-          ))}
-          <a
-            href="#menu"
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="text-cream-100 sm:hidden"
+        aria-label={open ? "Fermer le menu" : "Ouvrir le menu"}
+        aria-expanded={open}
+      >
+        {open ? <X size={24} /> : <Menu size={24} />}
+      </button>
+    </div>
+
+  {open && (
+    <nav className="w-full border-t border-cream-100/10 px-5 pb-5 pt-3 sm:hidden">
+      <div className="flex w-full flex-col gap-1">
+        <Link
+          href="/recherche"
+          onClick={() => setOpen(false)}
+          className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-semibold text-cream-100/90 hover:bg-white/5"
+        >
+          <Search size={16} />
+          Rechercher
+        </Link>
+
+        {hasProfile ? (
+          <Link
+            href="/compte/profil"
             onClick={() => setOpen(false)}
-            className="mt-2 rounded-full bg-cta px-6 py-2.5 text-center font-heading text-sm font-bold tracking-wide text-white uppercase"
+            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-semibold text-cream-100/90 hover:bg-white/5"
           >
-            Commander
-          </a>
-        </nav>
-      )}
-    </header>
+            <User size={16} />
+            Mon compte
+          </Link>
+        ) : (
+          <Link
+            href="/connexion"
+            onClick={() => setOpen(false)}
+            className="mt-1 rounded-full bg-cta px-6 py-2.5 text-center text-sm font-bold text-white"
+          >
+            Connexion
+          </Link>
+        )}
+      </div>
+    </nav>
+  )}
+</header>
   );
 }

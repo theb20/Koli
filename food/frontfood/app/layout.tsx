@@ -1,23 +1,25 @@
 import type { Metadata } from "next";
-import { Poppins, Sacramento } from "next/font/google";
+import { Archivo } from "next/font/google";
 import "./globals.css";
+import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
+import { CartDrawer } from "@/components/cart/CartDrawer";
+import { CartConflictDialog } from "@/components/cart/CartConflictDialog";
+import { CartSummaryBar } from "@/components/cart/CartSummaryBar";
+import { PromoOneBanner } from "@/components/PromoOneBanner";
+import { ToastPortal } from "@/components/ui/ToastPortal";
 
-const poppins = Poppins({
-  variable: "--font-poppins",
+const archivo = Archivo({
+  variable: "--font-archivo",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
 });
 
-const sacramento = Sacramento({
-  variable: "--font-sacramento",
-  subsets: ["latin"],
-  weight: "400",
-});
-
 export const metadata: Metadata = {
-  title: "Ember — Grilled Beef Burgers & Fast Food",
+  title: "Régal Express — Livraison de repas",
   description:
-    "Ember : burgers grillés, poulet croustillant, pizzas et tacos. Cuisiné avec du feu, servi avec du cœur.",
+    "Régal Express : les plats de vos restaurants préférés, livrés chez vous.",
 };
 
 export default function RootLayout({
@@ -26,9 +28,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fr" className={`${poppins.variable} ${sacramento.variable}`}>
-      <body className="min-h-screen bg-cream-100 font-body text-ink-950 antialiased">
+    <html lang="fr" className={archivo.variable}>
+      <body className="min-h-screen bg-cream-100 font-body text-ink-950 antialiased pb-16 sm:pb-0">
+        <Header />
         {children}
+        <Footer />
+        <MobileBottomNav />
+        <CartDrawer />
+        <CartConflictDialog />
+        <CartSummaryBar />
+        <PromoOneBanner />
+        <ToastPortal />
       </body>
     </html>
   );

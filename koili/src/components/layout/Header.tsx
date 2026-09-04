@@ -2,16 +2,15 @@ import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import {
-  Menu, X, ChevronDown, ChevronRight, ShoppingCart,
-  User, Package, Bell, Phone, Mail, 
+  Menu, X, ChevronRight, ShoppingCart,
+  User, Package, Bell,
   Zap, AlignJustify, HelpCircle, PackageOpen, MapPin, Search, LogOut,
 } from 'lucide-react'
 import SearchBar from '../ui/Search'
 import { useCart } from '../../contexts/CartContext'
 import { useAuth } from '../../contexts/AuthContext'
 import { useQuery } from '@tanstack/react-query'
-import { fetchCategories, type ApiCategory } from '../../lib/api'
-import { useSiteSettings, telLink } from '../../hooks/useSiteSettings'
+import { fetchCategories, fetchAddresses, type ApiCategory, type ApiAddress } from '../../lib/api'
 
 /* ─────────────────────────────────────────
    TYPES
@@ -48,51 +47,14 @@ const TRENDING_TAGS = ['Montres connectées', 'LED RGB', 'Skincare', 'Pistolet m
 
 const NAV_LINKS: NavItem[] = [
   { label: 'Accueil',    href: '/'          },
-  { label: 'Catalogue',  href: '/catalogue', mega: true },
+  { label: 'Catalogue',  href: '/catalogue' },
   { label: 'Blog', href: '/blog'        },
   { label: 'À propos',  href: '/about'   },
   { label: 'Contact',    href: '/contact'    },
+  { label: 'Faire une demande',    href: '/demande'    },
+  { label: 'Suivre ma commande',    href: '/commandes'    },
 ]
 
-/* ─────────────────────────────────────────
-   TOP INFO BAR (masquée sur mobile)
-───────────────────────────────────────── */
-function TopBar() {
-  const settings = useSiteSettings()
-  return (
-    <div className="bg-gray-900 text-white text-xs hidden sm:block">
-      <div className="max-w-7xl mx-auto px-4 lg:px-8 h-9 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3 shrink-0">
-          <a href={telLink(settings.supportPhone)} className="flex items-center gap-1.5 text-gray-300 hover:text-white transition-colors whitespace-nowrap">
-            <Phone size={12} /> {settings.supportPhone}
-          </a>
-          <span className="text-gray-600 hidden md:block">|</span>
-          <a href={`mailto:${settings.supportEmail}`} className="hidden md:flex items-center gap-1.5 text-gray-300 hover:text-white transition-colors">
-            <Mail size={12} /> {settings.supportEmail}
-          </a>
-          <span className="text-gray-600 hidden lg:block">|</span>
-          <span className="text-gray-400 hidden lg:block">Livraison partout en Côte d&apos;Ivoire</span>
-        </div>
-
-        <div className="flex items-center gap-3 shrink-0">
-          <Link to="/demande" className="hidden md:flex items-center gap-1 text-gray-300 hover:text-white transition-colors">
-            <PackageOpen size={12} /> Faire une demande
-          </Link>
-          <Link to="/commandes" className="hidden md:flex items-center gap-1 text-gray-300 hover:text-white transition-colors">
-            <MapPin size={12} /> Suivre ma commande
-          </Link>
-          <span className="text-gray-600 hidden md:block">|</span>
-          <Link to="/contact" className="hidden md:flex items-center gap-1 text-gray-300 hover:text-white transition-colors">
-            <HelpCircle size={12} /> Aide
-          </Link>
-          <span className="text-gray-600">|</span>
-          <span className="text-gray-300">FR · CFA</span>
-          
-        </div>
-      </div>
-    </div>
-  )
-}
 
 /* ─────────────────────────────────────────
    ACTION ICONS (desktop)
@@ -101,19 +63,46 @@ function ActionIcon({ icon, label, sublabel, badge, href }: {
   icon: React.ReactNode; label: string; sublabel: string; badge?: number; href: string
 }) {
   return (
-    <Link to={href} className="flex items-center gap-2.5 group shrink-0">
+    <Link to={href} className="flex items-center gap-2.5 group shrink-0 border border-transparent hover:border-white/70 rounded px-2 py-1 -mx-2 -my-1 transition-colors">
       <div className="relative">
-        <div className="text-gray-500 group-hover:text-gray-900 transition-colors">{icon}</div>
+        <div className="text-gray-200 group-hover:text-white transition-colors">{icon}</div>
         {badge !== undefined && (
-          <span style={{ background: GREEN }}
-            className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 rounded-full text-white text-[10px] font-bold flex items-center justify-center px-1">
+          <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 rounded-full bg-[#f08804] text-white text-[10px] font-bold flex items-center justify-center px-1">
             {badge}
           </span>
         )}
       </div>
       <div className="hidden lg:block">
-        <p className="text-[11px] text-gray-400 leading-none">{label}</p>
-        <p className="text-sm font-semibold text-gray-800 leading-tight">{sublabel}</p>
+        <p className="text-[11px] text-gray-300 leading-none">{label}</p>
+        <p className="text-sm font-semibold text-white leading-tight">{sublabel}</p>
+      </div>
+    </Link>
+  )
+}
+
+/* ─────────────────────────────────────────
+   DELIVER-TO — ville de l'adresse par défaut si connecté (pas de vraie
+   géoloc), sinon repli générique "Partout en Côte d'Ivoire".
+───────────────────────────────────────── */
+function DeliverTo() {
+  const { token, isAuthenticated } = useAuth()
+  const { data: addresses } = useQuery<ApiAddress[]>({
+    queryKey: ['addresses'],
+    queryFn:  () => fetchAddresses(token!),
+    enabled:  !!token,
+    staleTime: 60_000,
+  })
+
+  const defaultAddress = addresses?.find(a => a.isDefault) ?? addresses?.[0]
+  const city = isAuthenticated && defaultAddress ? defaultAddress.ville : null
+
+  return (
+    <Link to={isAuthenticated ? '/profil?tab=adresses' : '/commandes'}
+      className="hidden w-[150px] lg:flex items-start gap-1.5 shrink-0 border border-transparent hover:border-white/70 rounded px-2 py-1 -mx-2 -my-1 transition-colors">
+      <MapPin size={18} className="text-gray-200 mt-0.5" />
+      <div className="leading-tight">
+        <p className="text-[11px] text-gray-300">Livrer à</p>
+        <p className="text-[10px] font-semibold text-white">{city ?? "Abidjan, Côte d'Ivoire"}</p>
       </div>
     </Link>
   )
@@ -153,26 +142,26 @@ function AccountButton() {
         {/* Bouton principal */}
         <button
           onClick={() => setMenuOpen(v => !v)}
-          className="flex group items-center gap-2.5 "
+          className="flex group items-center gap-2.5 border border-transparent hover:border-white/70 rounded px-2 py-1 -mx-2 -my-1 transition-colors"
         >
           {/* Avatar */}
           <div className="relative shrink-0">
             {user.avatar
               ? <img src={user.avatar} alt={user.prenom}
-                  className="w-9 h-9 rounded-full object-cover ring-2 ring-offset-1 ring-transparent transition-all group-hover:ring-blue-500" />
-              : <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-xs font-bold ring-2 ring-offset-1 ring-transparent transition-all group-hover:ring-blue-500">
+                  className="w-9 h-9 rounded-full object-cover ring-2 ring-offset-1 ring-offset-[#131921] ring-transparent transition-all group-hover:ring-blue-400" />
+              : <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-xs font-bold ring-2 ring-offset-1 ring-offset-[#131921] ring-transparent transition-all group-hover:ring-blue-400">
                   {initials}
                 </div>
             }
             {/* Point vert "en ligne" */}
-            <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-400 border-2 border-white rounded-full" />
+            <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-400 border-2 border-[#131921] rounded-full" />
           </div>
           {/* Labels */}
           <div className="hidden lg:block text-left">
-            <p className="text-[11px] text-gray-400 leading-none">
-              Bonjour, <span className="font-semibold text-gray-700">{user.prenom}</span>
+            <p className="text-[11px] text-gray-300 leading-none">
+              Bonjour, <span className="font-semibold text-white">{user.prenom}</span>
             </p>
-            <p className="text-sm font-semibold text-gray-800 leading-tight">Mon Compte</p>
+            <p className="text-sm font-semibold text-white leading-tight">Mon Compte</p>
           </div>
         </button>
 
@@ -233,13 +222,13 @@ function AccountButton() {
 
   /* Non connecté */
   return (
-    <Link to="/login" className="flex items-center gap-2.5 group shrink-0">
-      <div className="text-gray-500 group-hover:text-gray-900 transition-colors">
+    <Link to="/login" className="flex items-center gap-2.5 group shrink-0 border border-transparent hover:border-white/70 rounded px-2 py-1 -mx-2 -my-1 transition-colors">
+      <div className="text-gray-200 group-hover:text-white transition-colors">
         <User size={22} />
       </div>
       <div className="hidden lg:block">
-        <p className="text-[11px] text-gray-400 leading-none">Bonjour, Identifiez-vous</p>
-        <p className="text-sm font-semibold text-gray-800 leading-tight">Mon Compte</p>
+        <p className="text-[11px] text-gray-300 leading-none">Bonjour, Identifiez-vous</p>
+        <p className="text-sm font-semibold text-white leading-tight">Compte et listes</p>
       </div>
     </Link>
   )
@@ -258,7 +247,7 @@ function FullMegaMenu({ open, onClose, categories }: { open: boolean; onClose: (
   return (
     <div
       className={`
-        absolute left-0 top-12 right-0 z-50
+        absolute left-0 top-11 right-0 z-50
         bg-white border-b border-gray-200
         transition-all duration-200 origin-top overflow-hidden
         ${open ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 -translate-y-1 pointer-events-none'}
@@ -391,8 +380,7 @@ function SimpleNavLink({ item }: { item: NavItem }) {
   return (
     <NavLink
       to={item.href}
-      className={({ isActive }) => `text-sm font-medium transition-colors ${isActive ? '' : 'text-gray-600 hover:text-black'}`}
-      style={({ isActive }) => isActive ? { color: GREEN } : {}}
+      className={({ isActive }) => `text-sm font-medium text-gray-100 hover:text-white border border-transparent hover:border-white/70 rounded px-2 py-1 -mx-2 -my-1 transition-colors ${isActive ? 'text-white font-semibold' : ''}`}
     >
       {item.label}
     </NavLink>
@@ -400,18 +388,19 @@ function SimpleNavLink({ item }: { item: NavItem }) {
 }
 
 /* ─────────────────────────────────────────
-   CATEGORIES BUTTON (desktop)
+   "TOUTES" — déclencheur du méga-menu, façon hamburger Amazon
 ───────────────────────────────────────── */
-function CategoriesBtn() {
+function CategoriesBtn({ open, onOpen }: { open: boolean; onOpen: () => void }) {
   return (
-    <Link
-      to="/catalogue"
-      className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold text-gray-800 hover:bg-gray-800 hover:text-white transition-all shrink-0"
+    <button
+      onMouseEnter={onOpen}
+      className={`flex items-center gap-2 text-sm font-semibold shrink-0 border rounded px-2 py-1 -mx-2 -my-1 transition-colors ${
+        open ? 'border-white/70 text-white' : 'border-transparent text-gray-100 hover:border-white/70 hover:text-white'
+      }`}
     >
-      <AlignJustify size={15} />
-      Explorer
-      <ChevronRight size={13} />
-    </Link>
+      <AlignJustify size={16} />
+      Toutes
+    </button>
   )
 }
 
@@ -680,44 +669,44 @@ export function Header() {
 
   return (
     <>
-    <header className="w-full z-50 fixed top-0 left-0 right-0">
+    {/* 1 · Header principal — sticky sur tous les écrans (toujours accessible : logo,
+        recherche, compte, panier). <header> est ici directement au niveau racine (sœur
+        de <main>) : position:sticky reste borné à la hauteur de son parent direct, qui
+        doit donc couvrir toute la page pour que l'élément reste collé sur tout le scroll. */}
+    <header className="bg-[#131921] sticky top-0 z-50">
+        <div className=" justify-between w-full px-4 lg:px-8 h-[60px] sm:h-[62px] flex items-center gap-3 sm:gap-4">
 
-      {/* 1 · TopBar (sm+) */}
-      <TopBar />
-
-      {/* 2 · Header principal */}
-      <div className="bg-white border-b border-gray-100 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 lg:px-8 h-[60px] sm:h-[72px] flex items-center gap-4 sm:gap-6">
-
-          {/* Logo */}
-          <Link to="/" className="shrink-0" onClick={() => setMobileOpen(false)}>
-            <img src="/imgs_dropship/logoSkignas.png" alt="Skignas" className="hidden sm:block h-10 sm:h-12 w-auto" />
-            <img src="/imgs_dropship/logoSkignas.png"  alt="Skignas" className="sm:hidden h-9 w-auto" />
+          {/* Logo — inversé en blanc (le fichier source est noir) */}
+          <Link to="/" className="shrink-0 border border-transparent hover:border-white/70 rounded px-2 py-1 -mx-2 -my-1 transition-colors" onClick={() => setMobileOpen(false)}>
+            <img src="/imgs_dropship/logoSkignas.png" alt="Skignas" style={{ filter: 'brightness(0) invert(1)' }} className="hidden sm:block h-8 sm:h-9 w-auto" />
+            <img src="/imgs_dropship/logoSkignas.png"  alt="Skignas" style={{ filter: 'brightness(0) invert(1)' }} className="sm:hidden h-7 w-auto" />
           </Link>
+
+          {/* Livrer à (lg+) */}
+          <DeliverTo />
 
           {/* Search (desktop) */}
           <div className="hidden md:flex flex-1">
-            <SearchBar />
+            <SearchBar categories={categories} />
           </div>
 
           {/* Icons (desktop) */}
-          <div className="hidden md:flex items-center gap-5 lg:gap-6 ml-2">
+          <div className="hidden md:flex items-center gap-4 lg:gap-5 ml-1">
             <AccountButton />
             <ActionIcon icon={<Package size={22}/>}      label="Mes"                      sublabel="Commandes"  href="/commandes"  />
             <ActionIcon icon={<Bell size={22}/>}         label="Nouveautés"               sublabel="Produits"   badge={5} href="/catalogue?sort=newest"/>
-            <button onClick={toggleCart} className="flex items-center gap-2.5 group shrink-0">
+            <button onClick={toggleCart} className="flex items-center gap-2.5 group shrink-0 border border-transparent hover:border-white/70 rounded px-2 py-1 -mx-2 -my-1 transition-colors">
               <div className="relative">
-                <ShoppingCart size={22} className="text-gray-500 group-hover:text-gray-900 transition-colors" />
+                <ShoppingCart size={26} className="text-gray-200 group-hover:text-white transition-colors" />
                 {totalItems > 0 && (
-                  <span style={{ background: GREEN }}
-                    className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 rounded-full text-white text-[10px] font-bold flex items-center justify-center px-1">
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 rounded-full bg-[#f08804] text-white text-[10px] font-bold flex items-center justify-center px-1">
                     {totalItems}
                   </span>
                 )}
               </div>
               <div className="hidden lg:block">
-                <p className="text-[11px] text-gray-400 leading-none">Mon Panier</p>
-                <p className="text-sm font-semibold text-gray-800 leading-tight">{cartLabel}</p>
+                <p className="text-[11px] text-gray-300 leading-none">Mon Panier</p>
+                <p className="text-sm font-semibold text-white leading-tight">{cartLabel}</p>
               </div>
             </button>
           </div>
@@ -728,10 +717,11 @@ export function Header() {
             <AnimatePresence>
               {!mobileOpen && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                  <button onClick={toggleCart} className="relative p-2.5 text-gray-600 hover:text-gray-900 transition-colors">
+                  <button onClick={toggleCart} className="relative p-2.5 text-gray-100 hover:text-white transition-colors">
                     <ShoppingCart size={22} />
-                    <span className="absolute top-1 right-0.5 min-w-[14px] h-[14px] rounded-full text-white text-[9px] font-bold flex items-center justify-center"
-                      style={{ background: GREEN }}>{totalItems}</span>
+                    <span className="absolute top-1 right-0.5 min-w-[14px] h-[14px] rounded-full bg-[#f08804] text-white text-[9px] font-bold flex items-center justify-center">
+                      {totalItems}
+                    </span>
                   </button>
                 </motion.div>
               )}
@@ -740,7 +730,7 @@ export function Header() {
             {/* Burger / X */}
             <button
               onClick={() => setMobileOpen(v => !v)}
-              className="relative w-11 h-11 flex items-center justify-center text-gray-700 hover:text-gray-900 transition-colors z-100"
+              className="relative w-11 h-11 flex items-center justify-center text-gray-100 hover:text-white transition-colors z-100"
               aria-label={mobileOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
             >
               <motion.span
@@ -751,49 +741,40 @@ export function Header() {
                 <Menu size={24} />
               </motion.span>
               <motion.span
-                className="absolute text-white"
+                className="absolute"
                 animate={{ rotate: mobileOpen ? 0 : -90, opacity: mobileOpen ? 1 : 0, scale: mobileOpen ? 1 : 0.6 }}
                 transition={{ duration: 0.22 }}
               >
-                <X size={24} color="black" />
+                <X size={24} className="text-gray-800" />
               </motion.span>
             </button>
           </div>
 
         </div>
-      </div>
-
-      {/* 3 · Nav bar (desktop) style={{ background: 'linear-gradient(to top, transparent 0%, #ffffffff 60%)' }} */}
-      <div
-        className="relative hidden md:block bg-white"
-        onMouseLeave={() => setMegaOpen(false)}
-      >
-        <div className="max-w-7xl mx-auto px-4 lg:px-8 h-12 flex items-center justify-between gap-6">
-          <CategoriesBtn />
-          <nav className="flex items-center gap-7 flex-1 justify-center">
-            {NAV_LINKS.map(item =>
-              item.mega ? (
-                <button key={item.href} onMouseEnter={() => setMegaOpen(true)}
-                  className="flex items-center gap-1 text-sm font-medium transition-colors"
-                  style={megaOpen ? { color: GREEN } : { color: '#4b5563' }}>
-                  {item.label}
-                  <ChevronDown size={13} className={`transition-transform duration-200 ${megaOpen ? 'rotate-180' : ''}`} />
-                </button>
-              ) : (
-                <SimpleNavLink key={item.href} item={item} />
-              )
-            )}
-          </nav>
-          <Link to="/catalogue?badges=sale"
-            className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold text-white shrink-0 hover:opacity-90 transition-opacity"
-            style={{ background: 'linear-gradient(135deg, #f59e0b, #ef4444)' }}>
-            <Zap size={14} className="fill-white" /> VENTES FLASH
-          </Link>
-        </div>
-        <FullMegaMenu open={megaOpen} onClose={() => setMegaOpen(false)} categories={categories} />
-      </div>
-
     </header>
+
+    {/* 2 · Nav bar (desktop) — sous-barre catégories façon Amazon. Défile normalement
+        avec la page ; seul le header principal ci-dessus reste collé en haut. */}
+    <div
+      role="navigation" aria-label="Catégories"
+      className="relative hidden md:block bg-[#232f3e]"
+      onMouseLeave={() => setMegaOpen(false)}
+    >
+      <div className=" px-4 lg:px-8 h-11 flex items-center justify-between gap-6">
+        <div className="flex items-center gap-6">
+          <CategoriesBtn open={megaOpen} onOpen={() => setMegaOpen(true)} />
+          <nav className="flex items-center gap-6">
+            {NAV_LINKS.map(item => <SimpleNavLink key={item.href} item={item} />)}
+          </nav>
+        </div>
+        <Link to="/catalogue?badges=sale"
+          className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-bold text-white shrink-0 hover:opacity-90 transition-opacity"
+          style={{ background: 'linear-gradient(135deg, #f59e0b, #ef4444)' }}>
+          <Zap size={14} className="fill-white" /> VENTES FLASH
+        </Link>
+      </div>
+      <FullMegaMenu open={megaOpen} onClose={() => setMegaOpen(false)} categories={categories} />
+    </div>
 
     {/* Full-screen overlay mobile */}
     <MobileOverlay open={mobileOpen} onClose={() => setMobileOpen(false)} onOpenCart={toggleCart} categories={categories} />

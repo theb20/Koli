@@ -29,9 +29,8 @@ export function TestimonialSection() {
           <span className="sr-only">Note moyenne : 5 sur 5</span>
 
           <blockquote className="font-heading mx-auto mt-6 max-w-2xl text-2xl leading-snug font-semibold text-ink-950 sm:text-3xl">
-            « Le meilleur burger que j&rsquo;ai mangé depuis longtemps. Croustillant,
-            généreux, servi brûlant — on sent que c&rsquo;est fait sur place, pas
-            réchauffé. »
+            « Commande passée en deux minutes, livrée encore chaude, et le
+            suivi en direct est bluffant. Devenu mon réflexe du soir. »
           </blockquote>
 
           <p className="font-heading mt-5 text-sm font-bold text-ink-950">Camille R.</p>
