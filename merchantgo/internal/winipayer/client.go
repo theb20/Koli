@@ -129,6 +129,11 @@ func (c *Client) CreatePayment(ctx context.Context, in CreatePaymentInput) (*Cre
 		"return_url":   in.ReturnURL,
 		"cancel_url":   in.CancelURL,
 		"callback_url": in.CallbackURL,
+		// Le client absorbe les frais de transaction WiniPayer (le montant
+		// affiché sur la page de paiement inclut ces frais en plus de
+		// `amount`) — le marchand touche le plein montant de la commande.
+		// Explicite plutôt que de dépendre du défaut WiniPayer actuel.
+		"client_pay_fee": true,
 	}
 	if in.CustomData != nil {
 		// L'API WiniPayer exige custom_data en chaîne de caractères, pas en
