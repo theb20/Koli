@@ -14,6 +14,7 @@ import { requireApiKey } from '../middleware/auth'
 import { validate, validateParams, zCuidIdParam } from '../middleware/validate'
 import { logger } from '../lib/logger'
 import { notifyMerchantsOrderPaid } from '../lib/merchantWallet'
+import { sendOrderConfirmationEmail } from '../lib/mailer'
 
 const router = Router()
 router.use(requireApiKey('MERCHANTGO_CALLBACK_SECRET'))
@@ -27,7 +28,7 @@ router.post('/orders/:id/mark-paid', validateParams(zCuidIdParam), validate(mark
   const { id } = req.params as unknown as { id: string }
   const { providerRef } = req.body as z.infer<typeof markPaidSchema>
 
-  const order = await prisma.order.findUnique({ where: { id } })
+  const order = await prisma.order.findUnique({ where: { id }, include: { items: true } })
   if (!order) {
     res.status(404).json({ success: false, message: 'Commande introuvable' })
     return
@@ -45,6 +46,21 @@ router.post('/orders/:id/mark-paid', validateParams(zCuidIdParam), validate(mark
   if (order.paymentStatus !== 'paid') {
     await prisma.order.update({ where: { id }, data: { paymentStatus: 'paid' } })
     notifyMerchantsOrderPaid(order.id, order.orderNumber).catch(() => {})
+
+    // Email "commande confirmée" envoyé ICI pour les commandes en ligne —
+    // jamais à la création (voir orders.ts step 7) : avant ce point, le
+    // client n'a encore rien payé, lui dire "confirmée" serait mensonger.
+    sendOrderConfirmationEmail(order.clientEmail, {
+      orderNumber:    order.orderNumber,
+      prenom:         order.clientPrenom,
+      items:          order.items.map(i => ({ name: i.name, qty: i.qty, price: i.price })),
+      subtotal:       order.subtotal,
+      shippingCost:   order.shippingCost,
+      promoDiscount:  order.promoDiscount,
+      total:          order.total,
+      paymentMethod:  order.paymentMethod,
+      deliveryMethod: order.deliveryMethod,
+    }).catch(() => {})
   }
 
   res.json({ success: true })

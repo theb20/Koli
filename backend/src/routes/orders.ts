@@ -504,18 +504,25 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
       }
     })()
 
-    // 7. Email de confirmation (sans bloquer)
-    sendOrderConfirmationEmail(body.clientEmail, {
-      orderNumber,
-      prenom:        body.clientPrenom,
-      items:         order.items.map(i => ({ name: i.name, qty: i.qty, price: i.price })),
-      subtotal,
-      shippingCost,
-      promoDiscount: order.promoDiscount,
-      total:         order.total,
-      paymentMethod: body.paymentMethod,
-      deliveryMethod: body.deliveryMethod,
-    }).catch(() => {})
+    // 7. Email de confirmation (sans bloquer) — uniquement pour "cash" :
+    //    rien à attendre, le paiement se fait à la livraison. Pour "online",
+    //    envoyer "commande confirmée" maintenant serait mensonger (le client
+    //    n'a encore rien payé, le lien WiniPayer n'est même pas créé) : cet
+    //    email part plutôt depuis routes/internal.ts, une fois le paiement
+    //    réellement confirmé par la passerelle.
+    if (body.paymentMethod === 'cash') {
+      sendOrderConfirmationEmail(body.clientEmail, {
+        orderNumber,
+        prenom:        body.clientPrenom,
+        items:         order.items.map(i => ({ name: i.name, qty: i.qty, price: i.price })),
+        subtotal,
+        shippingCost,
+        promoDiscount: order.promoDiscount,
+        total:         order.total,
+        paymentMethod: body.paymentMethod,
+        deliveryMethod: body.deliveryMethod,
+      }).catch(() => {})
+    }
 
     // 8. Paiement en ligne WiniPayer (orange/mtn/wave/carte), via merchantgo
     //    (toute la logique de paiement y vit désormais — voir
