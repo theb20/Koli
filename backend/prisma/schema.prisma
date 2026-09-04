@@ -61,6 +61,7 @@ model User {
   updatedAt              DateTime           @updatedAt
   addresses              Address[]
   browseHistory          BrowseHistory[]
+  cartItems              CartItem[]
   giftLists              GiftList[]
   notifications          Notification[]
   orders                 Order[]
@@ -171,6 +172,7 @@ model Product {
   merchantSyncStatus String?
   merchantSyncedAt   DateTime?
   browseHistory      BrowseHistory[]
+  cartItems          CartItem[]
   giftListItems      GiftListItem[]
   orderItems         OrderItem[]
   images             ProductImage[]
@@ -406,6 +408,28 @@ model Review {
   @@index([productId])
   @@index([userId])
   @@map("reviews")
+}
+
+/// Panier persistant côté serveur — un utilisateur connecté retrouve son
+/// panier à chaque reconnexion (n'importe quel appareil), plus seulement le
+/// localStorage du navigateur. Un utilisateur non connecté (achat invité)
+/// continue d'utiliser le localStorage seul, comme avant — voir
+/// koili/src/contexts/CartContext.tsx.
+model CartItem {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  productId Int
+  qty       Int      @default(1)
+  /// Couleur choisie (hex) — une seule ligne par produit, comme le
+  /// comportement actuel du panier local (pas de ligne séparée par couleur).
+  color     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@map("cart_items")
 }
 
 model WishlistItem {

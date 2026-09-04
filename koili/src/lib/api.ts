@@ -491,6 +491,48 @@ export async function fetchReferral(token: string) {
   )
 }
 
+/* ─── Panier (utilisateurs connectés uniquement) ──────────────
+   Un invité (pas de token) continue d'utiliser le localStorage seul — ces
+   endpoints ne sont jamais appelés dans ce cas (voir CartContext.tsx). */
+export type ApiCartItem = {
+  id: number
+  productId: number
+  qty: number
+  color?: string | null
+  product: ApiProduct
+}
+
+export async function fetchCart(token: string) {
+  return apiFetch<ApiResponse<ApiCartItem[]>>('/api/cart', token)
+}
+
+export async function addToCartApi(productId: number, qty: number, color: string | undefined, token: string) {
+  return apiFetch<ApiResponse<ApiCartItem>>(`/api/cart/${productId}`, token, {
+    method: 'POST', body: JSON.stringify({ qty, color }),
+  })
+}
+
+export async function updateCartQtyApi(productId: number, qty: number, token: string) {
+  return apiFetch<ApiResponse<unknown>>(`/api/cart/${productId}`, token, {
+    method: 'PUT', body: JSON.stringify({ qty }),
+  })
+}
+
+export async function removeFromCartApi(productId: number, token: string) {
+  return apiFetch<ApiResponse<unknown>>(`/api/cart/${productId}`, token, { method: 'DELETE' })
+}
+
+export async function clearCartApi(token: string) {
+  return apiFetch<ApiResponse<unknown>>('/api/cart', token, { method: 'DELETE' })
+}
+
+/** Fusionne le panier localStorage d'un invité dans son panier serveur, juste après connexion. */
+export async function mergeCartApi(items: { productId: number; qty: number; color?: string }[], token: string) {
+  return apiFetch<ApiResponse<ApiCartItem[]>>('/api/cart/merge', token, {
+    method: 'POST', body: JSON.stringify({ items }),
+  })
+}
+
 /* ─── Adresses ──────────────────────────────────────────────── */
 export type ApiAddress = {
   id: string; label: string; prenom: string; nom: string

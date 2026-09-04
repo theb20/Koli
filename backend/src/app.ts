@@ -19,6 +19,7 @@ import twoFactorRouter     from './routes/two-factor'
 import productsRouter      from './routes/products'
 import ordersRouter        from './routes/orders'
 import addressesRouter     from './routes/addresses'
+import cartRouter          from './routes/cart'
 import wishlistRouter      from './routes/wishlist'
 import reviewsRouter       from './routes/reviews'
 import contactRouter       from './routes/contact'
@@ -216,6 +217,7 @@ app.use('/api/admin/sellers', adminSellersRouter)
 app.use('/api/products',      publicDataLimiter, productsRouter)
 app.use('/api/orders',        ordersRouter)
 app.use('/api/addresses',     addressesRouter)
+app.use('/api/cart',          cartRouter)
 app.use('/api/wishlist',      wishlistRouter)
 app.use('/api/reviews',       reviewsRouter)
 app.use('/api/contact',       publicFormLimiter, contactRouter)
