@@ -159,7 +159,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
      de deux comptes différents sur le même navigateur. */
   useEffect(() => {
     if (token) return
-    localStorage.setItem('koli_cart', JSON.stringify(state.items))
+    // Panier vide → clé absente plutôt que "[]" : sinon cet effet réécrit la
+    // clé juste après que le purge handler l'ait supprimée au logout (il se
+    // redéclenche à chaque changement de state.items, y compris le dispatch
+    // CLEAR lui-même), laissant une valeur visible dans localStorage alors
+    // que le panier est bien vide.
+    if (state.items.length === 0) {
+      localStorage.removeItem('koli_cart')
+    } else {
+      localStorage.setItem('koli_cart', JSON.stringify(state.items))
+    }
   }, [state.items, token])
 
   /* Connexion / déconnexion — un utilisateur connecté retrouve son panier

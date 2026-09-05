@@ -135,6 +135,10 @@ async function run() {
   ok('koli_token supprimé immédiatement après logout', snap.koli_token === null)
   ok('koli_user supprimé immédiatement après logout', snap.koli_user === null)
   ok('koli_cart absent/vide immédiatement après logout', cartIsEmpty(snap.koli_cart))
+  // Pas juste "vide" : la CLÉ elle-même doit disparaître de localStorage —
+  // sinon DevTools montre encore "koli_cart" avec la valeur "[]", ce qui a
+  // l'air d'une fuite même quand le panier est fonctionnellement vide.
+  ok('koli_cart : clé absente de localStorage (pas juste "[]")', !snap.keys.includes('koli_cart'))
 
   console.log('\n=== Scénario 3 : hard refresh après logout ===')
   await page.reload()
