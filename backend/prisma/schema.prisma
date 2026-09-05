@@ -30,6 +30,21 @@ model User {
   naissance              DateTime?
   role                   String             @default("customer")
   isVerified             Boolean            @default(false)
+  /// Vérification du numéro par SMS (Zavu) — non bloquant à l'inscription,
+  /// simple statut consultable/déclenchable depuis le profil, comme
+  /// isVerified (email) qui n'est pas non plus une porte d'entrée obligée.
+  phoneVerified               Boolean   @default(false)
+  /// Hash SHA-256 du code à 6 chiffres en attente — même principe que
+  /// magicTokenHash/resetTokenHash (jamais le code en clair en base).
+  phoneVerificationCodeHash   String?
+  phoneVerificationExpiresAt  DateTime?
+  /// Verrouillage après échecs de saisie — un code à 6 chiffres n'a que 1M
+  /// de combinaisons, même logique que twoFactorFailedAttempts.
+  phoneVerificationAttempts    Int       @default(0)
+  phoneVerificationLockedUntil DateTime?
+  /// Horodatage du dernier envoi — throttle les demandes de renvoi (un SMS a
+  /// un coût réel via Zavu, contrairement à un email).
+  phoneVerificationSentAt     DateTime?
   isBanned               Boolean            @default(false)
   subscribedToNewsletter Boolean            @default(true)
   loyaltyPoints          Int                @default(0)

@@ -16,6 +16,12 @@ import { logger } from '../lib/logger'
 import { notifyMerchantsOrderPaid } from '../lib/merchantWallet'
 import { sendOrderConfirmationEmail } from '../lib/mailer'
 import { applyOrderStatusChange } from './orders'
+import { sendSms } from '../lib/sms/zavu'
+import { normalizePhoneCI } from '../lib/phone'
+
+function fmtFCFA(n: number): string {
+  return n.toLocaleString('fr-FR') + ' FCFA'
+}
 
 const router = Router()
 router.use(requireApiKey('MERCHANTGO_CALLBACK_SECRET'))
@@ -62,6 +68,11 @@ router.post('/orders/:id/mark-paid', validateParams(zCuidIdParam), validate(mark
       paymentMethod:  order.paymentMethod,
       deliveryMethod: order.deliveryMethod,
     }).catch(() => {})
+
+    sendSms(
+      normalizePhoneCI(order.clientTelephone),
+      `Skignas : votre paiement de ${fmtFCFA(order.total)} pour la commande ${order.orderNumber} est confirmé. Merci !`,
+    ).catch(err => logger.error('[internal] échec SMS confirmation paiement', order.orderNumber, err))
   }
 
   res.json({ success: true })
@@ -108,6 +119,12 @@ router.post('/orders/:id/mark-cancelled', validateParams(zCuidIdParam), validate
 
   await applyOrderStatusChange(order.id, 'cancelled')
   await prisma.order.update({ where: { id }, data: { paymentFailureReason: reason } })
+
+  const smsText = reason === 'failed'
+    ? `Skignas : le paiement de votre commande ${order.orderNumber} a échoué. La commande a été annulée.`
+    : `Skignas : le paiement de votre commande ${order.orderNumber} a été annulé. La commande a été annulée.`
+  sendSms(normalizePhoneCI(order.clientTelephone), smsText)
+    .catch(err => logger.error('[internal] échec SMS annulation paiement', order.orderNumber, err))
 
   res.json({ success: true })
 })

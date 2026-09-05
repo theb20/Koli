@@ -16,6 +16,7 @@ import { logger } from './lib/logger'
 // Routes
 import authRouter          from './routes/auth'
 import twoFactorRouter     from './routes/two-factor'
+import phoneVerificationRouter from './routes/phone-verification'
 import productsRouter      from './routes/products'
 import ordersRouter        from './routes/orders'
 import addressesRouter     from './routes/addresses'
@@ -207,8 +208,12 @@ app.use('/api/auth/password',       authActionSlowDown, authActionLimiter)
 // Code TOTP à 6 chiffres — brute-forçable sans limite (1M combinaisons,
 // triviales à tenter sur une fenêtre de 30s sans throttling).
 app.use('/api/auth/2fa/login-verify', authActionSlowDown, authActionLimiter)
+// SMS Zavu a un coût réel par envoi — même limiteur que les autres actions
+// sensibles, contre l'abus (spam de code vers un numéro arbitraire).
+app.use('/api/auth/phone',          authActionSlowDown, authActionLimiter)
 app.use('/api/auth',                authRouter)
 app.use('/api/auth/2fa',            twoFactorRouter)
+app.use('/api/auth/phone',          phoneVerificationRouter)
 app.use('/api/products/sync-merchant', merchantSyncRouter)
 app.use('/api/merchant-onboarding', merchantOnboardingRouter)
 app.use('/api/admin/merchant-applications', merchantApplicationsRouter)

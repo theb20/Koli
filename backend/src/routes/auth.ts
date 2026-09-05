@@ -325,7 +325,7 @@ router.get('/me', requireAuth, async (req, res) => {
       select: {
         id: true, prenom: true, nom: true, email: true,
         telephone: true, avatar: true, genre: true, naissance: true,
-        role: true, isVerified: true, createdAt: true,
+        role: true, isVerified: true, phoneVerified: true, createdAt: true,
         subscribedToNewsletter: true, twoFactorEnabled: true,
         _count: { select: { orders: true, wishlist: true, reviews: true } },
       },

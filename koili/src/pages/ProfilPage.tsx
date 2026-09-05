@@ -97,7 +97,7 @@ type FullProfile = {
   id: string; prenom: string; nom: string; email: string
   telephone?: string | null; avatar?: string | null
   genre?: string | null; naissance?: string | null
-  role: string; isVerified: boolean; createdAt: string
+  role: string; isVerified: boolean; phoneVerified?: boolean; createdAt: string
   subscribedToNewsletter: boolean
   _count: { orders: number; wishlist: number; reviews: number }
 }
@@ -1002,10 +1002,44 @@ function NewsletterToggle({ initialValue }: { initialValue: boolean }) {
 /* ═══════════════════════════════════════════════════════════════
    TAB — SÉCURITÉ  (100% API)
 ═══════════════════════════════════════════════════════════════ */
-function TabSecurite() {
+function TabSecurite({ profile }: { profile: FullProfile }) {
   const { token, logout } = useAuth()
   const navigate = useNavigate()
   const qc = useQueryClient()
+
+  /* ── Vérification du téléphone (SMS) ── */
+  const [phoneStep,    setPhoneStep]    = useState<'idle' | 'code'>('idle')
+  const [phoneCode,    setPhoneCode]    = useState('')
+  const [phoneLoading, setPhoneLoading] = useState(false)
+  const [phoneErr,     setPhoneErr]     = useState<string | null>(null)
+  const [phoneMsg,     setPhoneMsg]     = useState<string | null>(null)
+
+  const sendPhoneCode = async () => {
+    setPhoneLoading(true); setPhoneErr(null); setPhoneMsg(null)
+    try {
+      const res = await apiFetch<{ message: string }>('/api/auth/phone/send-code', token, { method: 'POST' })
+      setPhoneMsg(res.message)
+      setPhoneStep('code')
+    } catch (err) {
+      setPhoneErr(err instanceof Error ? err.message : 'Erreur')
+    } finally {
+      setPhoneLoading(false)
+    }
+  }
+
+  const confirmPhoneCode = async () => {
+    if (phoneCode.trim().length !== 6) return
+    setPhoneLoading(true); setPhoneErr(null)
+    try {
+      await apiFetch('/api/auth/phone/verify-code', token, { method: 'POST', body: JSON.stringify({ code: phoneCode.trim() }) })
+      qc.invalidateQueries({ queryKey: ['me'] })
+      setPhoneStep('idle'); setPhoneCode(''); setPhoneMsg(null)
+    } catch (err) {
+      setPhoneErr(err instanceof Error ? err.message : 'Erreur')
+    } finally {
+      setPhoneLoading(false)
+    }
+  }
 
   /* ── Mot de passe ── */
   const [showPwd,    setShowPwd]    = useState(false)
@@ -1205,6 +1239,55 @@ function TabSecurite() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Vérification du téléphone */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="font-bold text-gray-900 flex items-center gap-2">
+            <Phone size={15} className={profile.phoneVerified ? 'text-emerald-500' : 'text-gray-400'} />
+            Numéro de téléphone
+          </h3>
+          {profile.phoneVerified && (
+            <span className="text-xs text-emerald-600 font-semibold bg-emerald-50 px-2 py-1 rounded-full">Vérifié</span>
+          )}
+        </div>
+
+        {!profile.telephone ? (
+          <p className="text-xs text-gray-400 bg-gray-50 rounded-xl p-3 mt-3">
+            Ajoutez un numéro dans votre profil pour pouvoir le vérifier.
+          </p>
+        ) : profile.phoneVerified ? (
+          <p className="text-xs text-gray-400 mt-2">{profile.telephone} — confirmé par SMS.</p>
+        ) : phoneStep === 'idle' ? (
+          <>
+            <p className="text-xs text-gray-400 mb-4">Confirmez {profile.telephone} par SMS pour recevoir vos notifications de commande.</p>
+            {phoneErr && <p className="text-xs text-red-500 mb-3">{phoneErr}</p>}
+            <button onClick={sendPhoneCode} disabled={phoneLoading}
+              className="w-full py-3 rounded-xl bg-gray-900 text-white text-sm font-bold hover:bg-gray-800 transition-colors disabled:opacity-40 flex items-center justify-center gap-2">
+              {phoneLoading ? <Loader2 size={14} className="animate-spin" /> : <Phone size={14} />}
+              {phoneLoading ? 'Envoi…' : 'Vérifier mon numéro'}
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="text-xs text-gray-400 mb-3">{phoneMsg ?? `Code envoyé au ${profile.telephone}.`}</p>
+            {phoneErr && <p className="text-xs text-red-500 mb-3">{phoneErr}</p>}
+            <div className="flex gap-2">
+              <input value={phoneCode} onChange={e => setPhoneCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="000000" inputMode="numeric"
+                className="flex-1 h-11 px-4 rounded-xl border border-gray-200 text-sm font-mono tracking-widest text-center focus:outline-none focus:border-gray-400" />
+              <button onClick={confirmPhoneCode} disabled={phoneLoading || phoneCode.length !== 6}
+                className="px-5 h-11 rounded-xl bg-gray-900 text-white text-sm font-bold hover:bg-gray-800 transition-colors disabled:opacity-40">
+                {phoneLoading ? <Loader2 size={14} className="animate-spin" /> : 'Valider'}
+              </button>
+            </div>
+            <button onClick={() => { setPhoneStep('idle'); setPhoneCode(''); setPhoneErr(null) }}
+              className="mt-3 text-xs text-gray-400 hover:text-gray-600 underline underline-offset-2">
+              Annuler
+            </button>
+          </>
+        )}
       </div>
 
       {/* Authentification à deux facteurs */}
@@ -1719,7 +1802,7 @@ export default function ProfilPage() {
     adresses:      <TabAdresses />,
     favoris:       <TabFavoris />,
     notifications: <TabNotifications initialNewsletter={profile.subscribedToNewsletter ?? true} />,
-    securite:      <TabSecurite />,
+    securite:      <TabSecurite profile={profile} />,
     fidelite:      <TabFidelite />,
   }
 
