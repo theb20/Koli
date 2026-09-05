@@ -39,6 +39,10 @@ const DeliveryPage         = lazy(() => import('./pages/DeliveryPage'))
 const SellerPage           = lazy(() => import('./pages/SellerPage'))
 const RequestProductPage   = lazy(() => import('./pages/RequestProductPage'))
 const NotFoundPage         = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })))
+const PaymentVerificationPage = lazy(() => import('./pages/PaymentVerificationPage'))
+const PaymentSuccessPage      = lazy(() => import('./pages/PaymentSuccessPage'))
+const PaymentCancelledPage    = lazy(() => import('./pages/PaymentCancelledPage'))
+const PaymentFailedPage       = lazy(() => import('./pages/PaymentFailedPage'))
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -93,6 +97,15 @@ function App() {
                 <Route path="/commandes/:id/suivi" element={<DeliveryPage />} />
                 <Route path="/vendeur"             element={<SellerPage />} />
                 <Route path="/panier"      element={<PanierPage />} />
+
+                {/* ── Retour de paiement WiniPayer ──────────────────────
+                    returnUrl ET cancelUrl (backend) pointent toutes deux
+                    vers /paiement/verification — jamais de résultat déduit
+                    de l'URL, voir PaymentVerificationPage. */}
+                <Route path="/paiement/verification/:orderNumber" element={<PaymentVerificationPage />} />
+                <Route path="/paiement/succes/:orderNumber"       element={<PaymentSuccessPage />} />
+                <Route path="/paiement/annule/:orderNumber"       element={<PaymentCancelledPage />} />
+                <Route path="/paiement/echec/:orderNumber"        element={<PaymentFailedPage />} />
 
               </Route>
             </Route>

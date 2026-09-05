@@ -89,6 +89,11 @@ export type ApiOrder = {
   promoDiscount: number
   total: number
   status: string
+  /// "cancelled" (client a annulé sur WiniPayer) ou "failed" (paiement
+  /// refusé/expiré) — posé uniquement quand status="cancelled" ET que la
+  /// commande était suivie par la passerelle. Distingue les pages
+  /// /paiement/annule et /paiement/echec.
+  paymentFailureReason?: string | null
   notes?: string | null
   trackingNumber?: string | null
   estimatedDelivery?: string | null
@@ -388,6 +393,20 @@ export async function fetchOrder(id: string, token?: string | null) {
   return apiFetch<ApiResponse<ApiOrder>>(
     `/api/orders/${encodeURIComponent(id)}`,
     token,
+  )
+}
+
+/**
+ * Demande une vérification en direct du paiement WiniPayer d'une commande —
+ * appelé par la page de retour (returnUrl ET cancelUrl WiniPayer pointent
+ * toutes les deux ici, voir orders.ts backend) : ne déduit jamais le résultat
+ * de l'URL, seule cette vérification serveur fait foi.
+ */
+export async function verifyOrderPayment(id: string, token?: string | null) {
+  return apiFetch<ApiResponse<ApiOrder>>(
+    `/api/orders/${encodeURIComponent(id)}/verify-payment`,
+    token,
+    { method: 'POST' },
   )
 }
 
