@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom'
 import { Header } from './Header'
 import { Footer } from './Footer'
+import { Chatbox } from './Chatbox'
 import { CartDrawer } from '../ui/CartDrawer'
 
 export function MainLayout() {
@@ -15,6 +16,8 @@ export function MainLayout() {
       <Footer />
       {/* Drawer panier — rendu au niveau layout pour être au-dessus de tout */}
       <CartDrawer />
+      {/* Widget de contact flottant — design seul pour l'instant, pas de backend branché */}
+      <Chatbox />
     </div>
   )
 }
