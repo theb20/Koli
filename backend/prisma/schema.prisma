@@ -239,6 +239,12 @@ model Order {
   /// rappel merchantgo ("mark-paid") et confirme qu'un paiement en ligne est
   /// suivi par la passerelle (voir gatewayTracked dans orders.ts).
   winipayerRef    String?         @unique
+  /// Raison de l'échec du paiement en ligne — "cancelled" (client a annulé
+  /// sur la page WiniPayer) ou "failed" (paiement refusé/expiré). Posé
+  /// uniquement par POST /api/internal/orders/:id/mark-cancelled, jamais par
+  /// le client. Ne concerne que status="cancelled" : sert au frontend pour
+  /// distinguer "Paiement annulé" (neutre) de "Paiement échoué" (technique).
+  paymentFailureReason String?
   subtotal        Int
   discount        Int             @default(0)
   taxRate         Float           @default(0)

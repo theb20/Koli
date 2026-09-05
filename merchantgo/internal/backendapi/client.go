@@ -33,19 +33,13 @@ func (c *Client) Configured() bool {
 	return c.baseURL != "" && c.secret != ""
 }
 
-// MarkOrderPaid appelle POST {backend}/api/internal/orders/:id/mark-paid,
-// protégé côté backend par le middleware générique requireApiKey (déjà
-// existant, réutilisé tel quel — voir backend/src/middleware/auth.ts).
-func (c *Client) MarkOrderPaid(ctx context.Context, orderID, providerRef, operator string) error {
-	body, err := json.Marshal(map[string]string{
-		"providerRef": providerRef,
-		"operator":    operator,
-	})
+func (c *Client) postJSON(ctx context.Context, path string, payload any) error {
+	body, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("backendapi: encodage requête: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/api/internal/orders/%s/mark-paid", c.baseURL, orderID)
+	url := c.baseURL + path
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("backendapi: construction requête: %w", err)
@@ -63,4 +57,27 @@ func (c *Client) MarkOrderPaid(ctx context.Context, orderID, providerRef, operat
 		return fmt.Errorf("backendapi: réponse backend inattendue (HTTP %d)", res.StatusCode)
 	}
 	return nil
+}
+
+// MarkOrderPaid appelle POST {backend}/api/internal/orders/:id/mark-paid,
+// protégé côté backend par le middleware générique requireApiKey (déjà
+// existant, réutilisé tel quel — voir backend/src/middleware/auth.ts).
+func (c *Client) MarkOrderPaid(ctx context.Context, orderID, providerRef, operator string) error {
+	path := fmt.Sprintf("/api/internal/orders/%s/mark-paid", orderID)
+	return c.postJSON(ctx, path, map[string]string{
+		"providerRef": providerRef,
+		"operator":    operator,
+	})
+}
+
+// MarkOrderCancelled appelle POST {backend}/api/internal/orders/:id/mark-cancelled
+// — reason vaut "cancelled" (annulation volontaire) ou "failed" (paiement
+// refusé/expiré), jamais deviné : reflète l'état WiniPayer réellement observé
+// (voir services/payment_service.go, ConfirmPayment).
+func (c *Client) MarkOrderCancelled(ctx context.Context, orderID, providerRef, reason string) error {
+	path := fmt.Sprintf("/api/internal/orders/%s/mark-cancelled", orderID)
+	return c.postJSON(ctx, path, map[string]string{
+		"providerRef": providerRef,
+		"reason":      reason,
+	})
 }

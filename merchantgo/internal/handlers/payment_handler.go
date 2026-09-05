@@ -117,3 +117,29 @@ func (h *PaymentHandler) Webhook(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"success": true})
 }
+
+// RefreshWinipayerPayment — POST /api/v1/internal/payments/winipayer/:providerRef/refresh
+// Appelé par backend/ quand le client revient depuis WiniPayer (succès ou
+// annulation confondus — voir orders.ts POST /:id/verify-payment) : ne
+// déduit jamais le résultat de l'URL de retour, revérifie toujours
+// directement auprès de WiniPayer via la même logique que le webhook
+// (ConfirmPayment), ce qui déclenche aussi le rappel mark-paid/mark-cancelled
+// sur backend/ si l'état est terminal.
+func (h *PaymentHandler) RefreshWinipayerPayment(c *gin.Context) {
+	providerRef := c.Param("providerRef")
+	if providerRef == "" {
+		middleware.RespondError(c, h.logger, utils.ErrBadRequest("providerRef requis", nil))
+		return
+	}
+
+	intent, err := h.service.ConfirmPayment(c.Request.Context(), providerRef)
+	if err != nil {
+		middleware.RespondError(c, h.logger, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{
+		"state":       intent.State,
+		"operatorRef": intent.OperatorRef,
+	}})
+}

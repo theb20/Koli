@@ -98,6 +98,21 @@ export function createWinipayerPayment(input: {
 }
 
 /**
+ * Force une revérification en direct d'un paiement WiniPayer auprès de
+ * merchantgo (qui revérifie lui-même auprès de WiniPayer, jamais de
+ * confiance dans un statut local périmé) — utilisé par la page de retour
+ * client quand le webhook n'est peut-être pas encore arrivé. Si le paiement
+ * est dans un état terminal, merchantgo rappelle lui-même mark-paid /
+ * mark-cancelled sur ce backend avant de répondre ici.
+ */
+export function refreshWinipayerPayment(providerRef: string) {
+  return merchantgoRequest<{ success: boolean; data: { state: string; operatorRef?: string } }>(
+    `/api/v1/internal/payments/winipayer/${encodeURIComponent(providerRef)}/refresh`,
+    { method: 'POST' },
+  )
+}
+
+/**
  * Gestion admin des plans d'abonnement — CRUD relayé vers merchantgo
  * (koli-admin n'appelle jamais merchantgo directement, cf. en-tête).
  */

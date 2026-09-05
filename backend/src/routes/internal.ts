@@ -15,6 +15,7 @@ import { validate, validateParams, zCuidIdParam } from '../middleware/validate'
 import { logger } from '../lib/logger'
 import { notifyMerchantsOrderPaid } from '../lib/merchantWallet'
 import { sendOrderConfirmationEmail } from '../lib/mailer'
+import { applyOrderStatusChange } from './orders'
 
 const router = Router()
 router.use(requireApiKey('MERCHANTGO_CALLBACK_SECRET'))
@@ -62,6 +63,51 @@ router.post('/orders/:id/mark-paid', validateParams(zCuidIdParam), validate(mark
       deliveryMethod: order.deliveryMethod,
     }).catch(() => {})
   }
+
+  res.json({ success: true })
+})
+
+const markCancelledSchema = z.object({
+  providerRef: z.string().min(1),
+  reason:      z.enum(['cancelled', 'failed']),
+})
+
+/**
+ * Appelée par merchantgo quand WiniPayer confirme qu'un paiement est
+ * définitivement annulé (client) ou échoué (refusé/expiré) — jamais sur un
+ * simple statut "pending". Annule la commande associée (stock libéré via
+ * applyOrderStatusChange) et enregistre la raison pour que le frontend
+ * distingue "Paiement annulé" (neutre) de "Paiement échoué" (technique).
+ */
+router.post('/orders/:id/mark-cancelled', validateParams(zCuidIdParam), validate(markCancelledSchema), async (req, res) => {
+  const { id } = req.params as unknown as { id: string }
+  const { providerRef, reason } = req.body as z.infer<typeof markCancelledSchema>
+
+  const order = await prisma.order.findUnique({ where: { id } })
+  if (!order) {
+    res.status(404).json({ success: false, message: 'Commande introuvable' })
+    return
+  }
+
+  if (order.winipayerRef && order.winipayerRef !== providerRef) {
+    logger.error('[internal] mark-cancelled : providerRef ne correspond pas', id, providerRef)
+    res.status(409).json({ success: false, message: 'Référence de paiement incohérente' })
+    return
+  }
+
+  // Garde-fou impératif : un webhook d'annulation arrivé en retard (ou
+  // rejoué) ne doit JAMAIS faire régresser une commande déjà payée — sans ce
+  // contrôle, applyOrderStatusChange changerait quand même order.status vers
+  // "cancelled" sans toucher paymentStatus, laissant une commande payée mais
+  // marquée annulée. Idempotent aussi côté "déjà annulée" : un webhook rejoué
+  // trois fois ne doit produire qu'un seul effet réel.
+  if (order.paymentStatus === 'paid' || order.status === 'cancelled') {
+    res.json({ success: true, message: 'Aucun changement (commande déjà finalisée)' })
+    return
+  }
+
+  await applyOrderStatusChange(order.id, 'cancelled')
+  await prisma.order.update({ where: { id }, data: { paymentFailureReason: reason } })
 
   res.json({ success: true })
 })

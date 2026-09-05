@@ -100,6 +100,7 @@ func Setup(
 		{
 			internal.POST("/orders/paid", walletHandler.RecordSale)
 			internal.POST("/payments/winipayer/create", paymentHandler.CreateWinipayerPayment)
+			internal.POST("/payments/winipayer/:providerRef/refresh", paymentHandler.RefreshWinipayerPayment)
 		}
 
 		adminBillingBulk := v1.Group("/admin/billing")

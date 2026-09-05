@@ -99,9 +99,12 @@ func (s *paymentService) ConfirmPayment(ctx context.Context, providerRef string)
 		return nil, utils.ErrNotFound("Transaction inconnue")
 	}
 
-	// Déjà traité (webhook rejoué, ou double appel) — pas de nouvel effet de
-	// bord, on renvoie l'état déjà connu.
-	if intent.State == models.PaymentSuccess {
+	// Déjà dans un état terminal (webhook rejoué, double appel, ou l'appel de
+	// vérification en direct arrive après que le webhook a déjà tout réglé) —
+	// pas de nouvel effet de bord, on renvoie l'état déjà connu. C'est ce qui
+	// garantit qu'un webhook "cancelled" reçu 3 fois ne produit qu'une seule
+	// annulation réelle côté backend.
+	if intent.State == models.PaymentSuccess || intent.State == models.PaymentCancelled || intent.State == models.PaymentFailed {
 		return intent, nil
 	}
 
@@ -132,20 +135,26 @@ func (s *paymentService) ConfirmPayment(ctx context.Context, providerRef string)
 		return nil, utils.ErrInternal(fmt.Errorf("mise à jour intention de paiement: %w", err))
 	}
 
-	if intent.State != models.PaymentSuccess {
+	if !s.backend.Configured() {
+		s.logger.Warn("backend non configuré — la commande n'a pas pu être notifiée", zap.String("orderId", intent.OrderID), zap.String("state", string(intent.State)))
 		return intent, nil
 	}
 
-	if !s.backend.Configured() {
-		s.logger.Warn("backend non configuré — la commande n'a pas pu être marquée payée", zap.String("orderId", intent.OrderID))
-		return intent, nil
-	}
-	if err := s.backend.MarkOrderPaid(ctx, intent.OrderID, intent.ProviderRef, detail.Operator); err != nil {
-		// Le paiement est confirmé et l'intent l'enregistre déjà en base —
-		// une erreur ici doit remonter en 5xx pour que WiniPayer retente le
-		// webhook, ce qui redéclenchera ConfirmPayment jusqu'à ce que
-		// backend/ réponde (voir kyc_webhook_handler.go, même doctrine).
-		return nil, utils.NewAppError(502, "Confirmation de commande échouée côté backend", err)
+	switch intent.State {
+	case models.PaymentSuccess:
+		if err := s.backend.MarkOrderPaid(ctx, intent.OrderID, intent.ProviderRef, detail.Operator); err != nil {
+			// Le paiement est confirmé et l'intent l'enregistre déjà en base —
+			// une erreur ici doit remonter en 5xx pour que WiniPayer retente
+			// le webhook, ce qui redéclenchera ConfirmPayment jusqu'à ce que
+			// backend/ réponde (voir kyc_webhook_handler.go, même doctrine).
+			return nil, utils.NewAppError(502, "Confirmation de commande échouée côté backend", err)
+		}
+	case models.PaymentCancelled, models.PaymentFailed:
+		if err := s.backend.MarkOrderCancelled(ctx, intent.OrderID, intent.ProviderRef, string(intent.State)); err != nil {
+			return nil, utils.NewAppError(502, "Annulation de commande échouée côté backend", err)
+		}
+	default:
+		// pending — rien à notifier tant que WiniPayer n'a pas de statut terminal.
 	}
 
 	return intent, nil

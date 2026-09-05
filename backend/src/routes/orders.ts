@@ -10,7 +10,8 @@ import { logger } from '../lib/logger'
 import { logAdminAction } from '../lib/auditLog'
 import { notifyMerchantsOrderPaid } from '../lib/merchantWallet'
 import { getLoyaltySettings } from './loyalty'
-import { createWinipayerPayment, isMerchantgoConfigured } from '../lib/merchantgo'
+import { createWinipayerPayment, isMerchantgoConfigured, refreshWinipayerPayment } from '../lib/merchantgo'
+import type { Request } from 'express'
 
 const router = Router()
 
@@ -21,6 +22,26 @@ function generateOrderNumber(): string {
   const date = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`
   const rand = Math.floor(Math.random() * 9000 + 1000)
   return `KLI-${date}-${rand}`
+}
+
+/**
+ * Clause d'accès à une commande par id OU orderNumber — admin voit tout,
+ * client connecté voit la sienne ou une commande invité, non connecté ne
+ * voit que les commandes invité. Partagée par GET /:id, GET /:id/invoice et
+ * POST /:id/verify-payment pour ne pas dupliquer la règle trois fois.
+ */
+function orderOwnershipWhere(req: Request, paramId: string) {
+  const isAdmin = req.user?.role === 'admin'
+  return {
+    AND: [
+      { OR: [{ id: paramId }, { orderNumber: paramId }] },
+      ...(isAdmin
+        ? []
+        : req.user
+          ? [{ OR: [{ userId: req.user.userId }, { userId: null }] }]
+          : [{ userId: null }]),
+    ],
+  }
 }
 
 /* ── Schemas ─────────────────────────────────────────────────── */
@@ -80,7 +101,7 @@ type OrderStatusValue = typeof ORDER_STATUSES[number]
  *   de passerelle de paiement réelle ici : la progression du statut par un admin
  *   fait office de confirmation manuelle du paiement.
  */
-async function applyOrderStatusChange(orderId: string, status: OrderStatusValue) {
+export async function applyOrderStatusChange(orderId: string, status: OrderStatusValue) {
   const result = await prisma.$transaction(async (tx) => {
     const order = await tx.order.findUnique({ where: { id: orderId }, include: { items: true } })
     if (!order) return null
@@ -543,8 +564,12 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
           orderNumber,
           amount:      order.total,
           description: `Commande ${orderNumber} — Skignas`,
-          returnUrl:   `${frontendUrl}/commandes/${orderNumber}`,
-          cancelUrl:   `${frontendUrl}/commandes/${orderNumber}`,
+          // Les deux pointent vers la même page neutre de vérification —
+          // jamais vers la page de commande directement, et jamais de
+          // distinction basée sur laquelle des deux URLs WiniPayer a
+          // effectivement utilisée : seul POST /:id/verify-payment fait foi.
+          returnUrl:   `${frontendUrl}/paiement/verification/${orderNumber}`,
+          cancelUrl:   `${frontendUrl}/paiement/verification/${orderNumber}`,
         })
         await prisma.order.update({ where: { id: order.id }, data: { winipayerRef: payment.data.providerRef } })
         paymentUrl = payment.data.checkoutUrl
@@ -788,23 +813,9 @@ router.post('/admin/:id/restore', requireAdmin, validateParams(zCuidIdParam), as
 router.get('/:id', optionalAuth, validateParams(zCuidIdParam), async (req, res) => {
   try {
     const paramId = req.params['id'] ?? ''
-    const isAdmin = req.user?.role === 'admin'
 
     const order = await prisma.order.findFirst({
-      where: {
-        AND: [
-          // Cherche par id (CUID) OU par orderNumber (KLI-...)
-          { OR: [{ id: paramId }, { orderNumber: paramId }] },
-          // Admin → toutes les commandes
-          // Connecté non-admin → commande lui appartenant OU commande invité (userId null)
-          // Non connecté → commande invité seulement
-          ...(isAdmin
-            ? []
-            : req.user
-              ? [{ OR: [{ userId: req.user.userId }, { userId: null }] }]
-              : [{ userId: null }]),
-        ],
-      },
+      where: orderOwnershipWhere(req, paramId),
       include: { items: true },
     })
 
@@ -826,19 +837,9 @@ router.get('/:id', optionalAuth, validateParams(zCuidIdParam), async (req, res) 
 router.get('/:id/invoice', optionalAuth, validateParams(zCuidIdParam), async (req, res) => {
   try {
     const paramId = req.params['id'] ?? ''
-    const isAdmin = req.user?.role === 'admin'
 
     const order = await prisma.order.findFirst({
-      where: {
-        AND: [
-          { OR: [{ id: paramId }, { orderNumber: paramId }] },
-          ...(isAdmin
-            ? []
-            : req.user
-              ? [{ OR: [{ userId: req.user.userId }, { userId: null }] }]
-              : [{ userId: null }]),
-        ],
-      },
+      where: orderOwnershipWhere(req, paramId),
       include: { items: true },
     })
 
@@ -858,6 +859,50 @@ router.get('/:id/invoice', optionalAuth, validateParams(zCuidIdParam), async (re
   } catch (err) {
     logger.error('[INVOICE]', err)
     res.status(500).json({ success: false, message: 'Erreur lors de la génération de la facture' })
+  }
+})
+
+/* ─────────────────────────────────────────────────────────────
+   POST /api/orders/:id/verify-payment — Vérification en direct
+   Appelée par la page de retour WiniPayer (voir koili PaymentVerificationPage) :
+   returnUrl ET cancelUrl pointent tous les deux vers cette page neutre — on
+   ne déduit JAMAIS le résultat depuis l'URL de redirection, seul un aller-
+   retour vers merchantgo (qui revérifie lui-même auprès de WiniPayer) fait
+   foi. Même règle d'accès que GET /:id.
+───────────────────────────────────────────────────────────── */
+router.post('/:id/verify-payment', optionalAuth, validateParams(zCuidIdParam), async (req, res) => {
+  try {
+    const paramId = req.params['id'] ?? ''
+    const order = await prisma.order.findFirst({ where: orderOwnershipWhere(req, paramId) })
+
+    if (!order) {
+      res.status(404).json({ success: false, message: 'Commande introuvable' })
+      return
+    }
+
+    // Rien à vérifier : paiement à la livraison, jamais passé par la
+    // passerelle, ou déjà dans un état terminal (payée ou annulée).
+    const alreadyFinal = order.paymentStatus === 'paid' || order.status === 'cancelled'
+    if (order.paymentMethod === 'cash' || !order.winipayerRef || alreadyFinal) {
+      res.json({ success: true, data: order })
+      return
+    }
+
+    try {
+      // merchantgo revérifie l'état réel auprès de WiniPayer et, si le
+      // paiement est dans un état terminal, rappelle lui-même
+      // mark-paid/mark-cancelled sur ce même backend — par le temps que cet
+      // appel revienne, notre propre commande est donc déjà à jour.
+      await refreshWinipayerPayment(order.winipayerRef)
+    } catch (err) {
+      logger.error('[orders] échec vérification WiniPayer', order.orderNumber, err)
+      // Non bloquant : on renvoie l'état connu, le frontend pourra réessayer.
+    }
+
+    const refreshed = await prisma.order.findUnique({ where: { id: order.id } })
+    res.json({ success: true, data: refreshed })
+  } catch {
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
 })
 
