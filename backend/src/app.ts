@@ -17,6 +17,7 @@ import { logger } from './lib/logger'
 import authRouter          from './routes/auth'
 import twoFactorRouter     from './routes/two-factor'
 import phoneVerificationRouter from './routes/phone-verification'
+import chatRouter              from './routes/chat'
 import productsRouter      from './routes/products'
 import ordersRouter        from './routes/orders'
 import addressesRouter     from './routes/addresses'
@@ -226,6 +227,7 @@ app.use('/api/cart',          cartRouter)
 app.use('/api/wishlist',      wishlistRouter)
 app.use('/api/reviews',       reviewsRouter)
 app.use('/api/contact',       publicFormLimiter, contactRouter)
+app.use('/api/chat',          publicFormLimiter, chatRouter)
 app.use('/api/promo',         promoRouter)
 app.use('/api/notifications', notificationsRouter)
 app.use('/api/blog',          publicDataLimiter, blogRouter)

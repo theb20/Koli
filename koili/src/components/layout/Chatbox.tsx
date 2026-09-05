@@ -1,14 +1,19 @@
-import { useState, useRef, useEffect, type FormEvent } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { X } from 'lucide-react'
 import CurvedInput from '../ui/CurvedInput'
+import { useAuth } from '../../contexts/AuthContext'
+import { API_BASE } from '../../lib/api'
 
 /* ─────────────────────────────────────────────────────────────
    Widget de contact flottant — style Modernist : zéro rayon,
    filets 2px, Archivo, rouge #ec3013 en accent, libellés flush left.
-   Toujours purement local (aucun backend) : une réponse générique
-   s'affiche après un court délai. À brancher plus tard sans toucher
-   à ce shell visuel.
+   Branché sur un vrai assistant IA (POST /api/chat/message, Groq/Llama
+   3.3 — voir backend/src/routes/chat.ts) : statut de commande et
+   disponibilité produit toujours vérifiés en base côté serveur, jamais
+   inventés. Si l'assistant n'est pas configuré ou en échec, le backend
+   renvoie lui-même une réponse générique — le widget affiche toujours un
+   message, jamais une erreur visible.
 
    Prérequis : Archivo chargé (font-[Archivo] ci-dessous), tokens
    Modernist — bg #f3f2f2, surface #eae9e9, encre #201e1d,
@@ -31,9 +36,12 @@ const INITIAL_MESSAGE: Message = {
   time: now(),
 }
 
+const NETWORK_ERROR_REPLY = "Impossible de vous répondre pour le moment — vérifiez votre connexion et réessayez, ou contactez-nous directement."
+
 const QUICK_REPLIES = ['Suivre ma commande', 'Retour ou échange', 'Un conseiller']
 
 export function Chatbox() {
+  const { token } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([INITIAL_MESSAGE])
   const [input, setInput] = useState('')
@@ -44,25 +52,34 @@ export function Chatbox() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
   }, [messages, typing])
 
-  function send(text: string) {
-    if (!text) return
-    setMessages(m => [...m, { id: m.length, from: 'me', text, time: now() }])
+  async function send(text: string) {
+    const trimmed = text.trim()
+    if (!trimmed) return
+
+    // Historique envoyé à l'assistant — exclut le message d'accueil (copie
+    // d'interface statique, pas un vrai tour de conversation).
+    const priorHistory = messages
+      .filter(m => m.id !== INITIAL_MESSAGE.id)
+      .map(m => ({ role: (m.from === 'me' ? 'user' : 'assistant') as 'user' | 'assistant', content: m.text }))
+
+    setMessages(m => [...m, { id: m.length, from: 'me', text: trimmed, time: now() }])
     setInput('')
     setTyping(true)
-    setTimeout(() => {
-      setTyping(false)
-      setMessages(m => [...m, {
-        id: m.length,
-        from: 'team',
-        text: 'Message reçu. Notre équipe répond généralement sous quelques heures.',
-        time: now(),
-      }])
-    }, 1100)
-  }
 
-  function handleSend(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    send(input.trim())
+    try {
+      const res = await fetch(`${API_BASE}/api/chat/message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ message: trimmed, history: priorHistory }),
+      })
+      const json = await res.json().catch(() => null)
+      const reply = json?.data?.reply || NETWORK_ERROR_REPLY
+      setTyping(false)
+      setMessages(m => [...m, { id: m.length, from: 'team', text: reply, time: now() }])
+    } catch {
+      setTyping(false)
+      setMessages(m => [...m, { id: m.length, from: 'team', text: NETWORK_ERROR_REPLY, time: now() }])
+    }
   }
 
   return (
@@ -152,20 +169,19 @@ export function Chatbox() {
               )}
             </div>
 
-            {/* Saisie — une seule barre, divisée par des filets 2px */}
-            <form onSubmit={handleSend} className="shrink-0 flex items-stretch border-t-1 border-gray-300/50">
+            <div className="shrink-0 flex px-3 items-stretch border-t-1 border-gray-300/50">
                 <CurvedInput
                 value={input}
                 onChange={setInput}
                 onSubmit={send}
                 showButton
-                showIcon={true}
+                showIcon={false}
                 placeholder="Écrivez votre message…"
                 buttonText="Envoyer"
                 type="text"
                 bend={0}
-                cornerRadius={0}
-                borderWidth={2}
+                cornerRadius={12}
+                borderWidth={0}
                 fontSize={13}
                 backgroundColor="#f3f2f2"
                 textColor="#201e1d"
@@ -175,7 +191,7 @@ export function Chatbox() {
                 buttonTextColor="#f3f2f2"
                 shadowSize="sm"
                 />
-            </form>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

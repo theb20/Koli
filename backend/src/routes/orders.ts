@@ -30,7 +30,7 @@ function generateOrderNumber(): string {
  * voit que les commandes invité. Partagée par GET /:id, GET /:id/invoice et
  * POST /:id/verify-payment pour ne pas dupliquer la règle trois fois.
  */
-function orderOwnershipWhere(req: Request, paramId: string) {
+export function orderOwnershipWhere(req: Request, paramId: string) {
   const isAdmin = req.user?.role === 'admin'
   return {
     AND: [
