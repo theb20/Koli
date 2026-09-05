@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useCallback } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect } from 'react'
+import { registerPurgeHandler } from '../lib/sessionPurge'
 
 export type CompareProduct = {
   id: number
@@ -30,6 +31,12 @@ export function CompareProvider({ children }: { children: React.ReactNode }) {
   const toggle = useCallback((p: CompareProduct) => setList(l => l.find(x => x.id === p.id) ? l.filter(x => x.id !== p.id) : l.length < 4 ? [...l, p] : l), [])
   const has    = useCallback((id: number) => list.some(x => x.id === id), [list])
   const clear  = useCallback(() => setList([]), [])
+
+  // La liste de comparaison vit uniquement en mémoire (pas de localStorage),
+  // mais le provider reste monté pendant tout le changement de compte — sans
+  // ça, le compte B verrait la liste laissée par le compte A sur le même
+  // onglet. Purge synchrone au logout (voir lib/sessionPurge.ts).
+  useEffect(() => registerPurgeHandler(() => setList([])), [])
 
   return <Ctx.Provider value={{ list, add, remove, toggle, has, clear }}>{children}</Ctx.Provider>
 }

@@ -7,6 +7,7 @@ import {
   fetchCart, addToCartApi, updateCartQtyApi, removeFromCartApi, clearCartApi, mergeCartApi,
   type ApiCartItem,
 } from '../lib/api'
+import { registerPurgeHandler } from '../lib/sessionPurge'
 
 /* ═══════════════════════════════════════════════════════════════
    TYPES
@@ -197,6 +198,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem('koli_cart')
     }
   }, [token])
+
+  /* Purge synchrone et déterministe, appelée directement par logout()
+     (voir lib/sessionPurge.ts) — garantit qu'aucun article de l'ancien
+     compte ne reste visible, sans dépendre du prochain rendu de l'effet
+     ci-dessus. Ce dernier reste utile pour le cas d'une session expirée
+     silencieusement (refresh token invalide, sans clic explicite sur
+     "déconnexion") — les deux chemins convergent vers le même résultat. */
+  useEffect(() => registerPurgeHandler(() => {
+    dispatch({ type: 'CLEAR' })
+    localStorage.removeItem('koli_cart')
+  }), [])
 
   /* Dérivés */
   const totalItems = state.items.reduce((s, i) => s + i.qty, 0)

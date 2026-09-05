@@ -9,6 +9,7 @@
     "build": "tsc -b && vite build && node scripts/prerender.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
+    "test:e2e:logout": "node e2e/logout-purge.test.mjs",
     "deploy": "npm run build && firebase deploy"
   },
   "dependencies": {

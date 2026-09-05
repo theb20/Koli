@@ -2,10 +2,12 @@ import {
   createContext, useContext, useState, useEffect,
   useCallback, type ReactNode,
 } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { signInWithPopup } from 'firebase/auth'
 import { auth, googleProvider } from '../lib/firebase'
 import { setAuthRefreshHandlers } from '../lib/api'
 import { getRecaptchaToken } from '../lib/recaptcha'
+import { purgeAllSessionData } from '../lib/sessionPurge'
 
 /* ─── Types ──────────────────────────────────────────────────── */
 export type AuthUser = {
@@ -79,6 +81,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token,     setToken]     = useState<string | null>(() => localStorage.getItem(TOKEN_KEY))
   const [isLoading, setIsLoading] = useState(false)
   const [authError, setAuthError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
+
+  /* Purge complète de session — appelée par logout() ET par une expiration
+     silencieuse de session (refresh token invalide, voir onSessionExpired
+     ci-dessous) : dans les deux cas, aucune donnée du compte précédent ne
+     doit rester accessible. Synchrone et inconditionnelle, jamais derrière
+     un `await` réseau — c'est ce qui garantit qu'elle s'exécute même si
+     l'appel de déconnexion au backend échoue ou traîne. */
+  const purgeSession = useCallback(() => {
+    setUser(null)
+    setToken(null)
+    // Retrait synchrone en plus des effets [user]/[token] ci-dessous (qui
+    // s'exécuteraient de toute façon, mais seulement après le prochain
+    // rendu) — élimine tout délai, même d'une seule frame, avant qu'un
+    // rechargement de page ne puisse revoir le compte précédent.
+    localStorage.removeItem(USER_KEY)
+    localStorage.removeItem(TOKEN_KEY)
+    // Panier, comparateur, et tout futur store privé enregistré (voir
+    // lib/sessionPurge.ts) — évite que AuthContext ait à connaître chaque
+    // store un par un.
+    purgeAllSessionData()
+    // Historique de navigation local (recommandations "récemment vus") —
+    // clé simple, pas de state React associé à réinitialiser.
+    localStorage.removeItem('koli_history')
+    // Cache React Query : plusieurs clés (ex. ['loyalty'], ['my-orders',...])
+    // ne sont pas namespacées par utilisateur — sans ce clear, une
+    // reconnexion avec un autre compte pourrait afficher un instant les
+    // données en cache du compte précédent avant le refetch.
+    queryClient.clear()
+  }, [queryClient])
 
   useEffect(() => {
     if (user)  localStorage.setItem(USER_KEY, JSON.stringify(user))
@@ -96,9 +128,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setAuthRefreshHandlers({
       onTokenRefreshed: (newToken) => setToken(newToken),
-      onSessionExpired: () => { setUser(null); setToken(null) },
+      onSessionExpired: () => purgeSession(),
     })
-  }, [])
+  }, [purgeSession])
 
   /* ── Connexion email / mot de passe ─────────────────────── */
   const login = useCallback(async (email: string, password: string): Promise<LoginResult> => {
@@ -208,10 +240,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  /* ── Déconnexion ─────────────────────────────────────────── */
+  /* ── Déconnexion ─────────────────────────────────────────────
+     La révocation backend (supprime la session, invalide le refresh
+     token — voir POST /api/auth/logout) part en fire-and-forget : la purge
+     locale ci-dessous s'exécute immédiatement, sans attendre la réponse
+     réseau. C'est volontaire — si on attendait cet appel (même dans un
+     try/finally), un réseau lent laisserait les données du compte
+     affichées plus longtemps que nécessaire, et un échec réseau ne doit de
+     toute façon jamais empêcher la purge locale. */
   const logout = useCallback(() => {
-    setUser(null)
-    setToken(null)
     if (token) {
       fetch(`${API}/api/auth/logout`, {
         method: 'POST', credentials: 'include',
@@ -219,7 +256,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }).catch(() => {})
     }
     auth.signOut().catch(() => {})
-  }, [token])
+    purgeSession()
+  }, [token, purgeSession])
 
   /* ── Mise à jour locale ──────────────────────────────────── */
   const updateUser = useCallback((data: Partial<AuthUser>) => {
