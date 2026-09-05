@@ -19,6 +19,16 @@
 *, *::before, *::after { box-sizing: border-box;}
 html { scroll-behavior: smooth; }
 
+button {
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus,
+button:focus-visible {
+  outline: none;
+}
+
 body {
   margin: 0;
   font-family: "Google Sans Flex", sans-serif;
