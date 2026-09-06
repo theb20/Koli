@@ -142,7 +142,7 @@ function AccountButton() {
         {/* Bouton principal */}
         <button
           onClick={() => setMenuOpen(v => !v)}
-          className="flex group items-center gap-2.5 border border-transparent hover:border-white/70 rounded px-2 py-1 -mx-2 -my-1 transition-colors"
+          className="flex group items-center gap-2.5 border border-transparent hover:border-white/70 rounded px-2 py-1 -mx-2 -my-1 transition-colors outline-none focus:outline-none"
         >
           {/* Avatar */}
           <div className="relative shrink-0">
@@ -222,7 +222,7 @@ function AccountButton() {
 
   /* Non connecté */
   return (
-    <Link to="/login" className="flex items-center gap-2.5 group shrink-0 border border-transparent hover:border-white/70 rounded px-2 py-1 -mx-2 -my-1 transition-colors">
+    <Link to="/login" className="flex items-center gap-2.5 group shrink-0 border border-transparent hover:border-white/70 rounded px-2 py-1 -mx-2 -my-1 transition-colors ">
       <div className="text-gray-200 group-hover:text-white transition-colors">
         <User size={22} />
       </div>

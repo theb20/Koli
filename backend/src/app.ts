@@ -146,6 +146,22 @@ const publicFormLimiter = rateLimit({
   skip: (req) => req.method !== 'POST',
 })
 
+// Assistant du chatbox — contrairement à contact/product-requests (un envoi
+// ponctuel), une conversation normale échange plusieurs dizaines de messages
+// (recherche produit affinée, suivi de commande, questions de suivi) : le
+// plafond "formulaire public" (10/15min) coupait une conversation légitime
+// en quelques échanges. La protection anti-abus/coût réel est déjà assurée
+// en amont par le quota Groq quotidien (voir DAILY_QUOTA_CAP, routes/chat.ts).
+const chatLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Trop de demandes envoyées, réessayez dans 15 minutes' },
+  keyGenerator: (req) => req.ip ?? 'unknown',
+  skip: (req) => req.method !== 'POST',
+})
+
 // Lecture du catalogue public (produits, catégories, blog) — le limiteur global
 // exempte volontairement les GET (usage normal très fréquent), ce qui laissait
 // la voie libre à l'aspiration automatisée du catalogue. Plafond généreux pour
@@ -227,7 +243,7 @@ app.use('/api/cart',          cartRouter)
 app.use('/api/wishlist',      wishlistRouter)
 app.use('/api/reviews',       reviewsRouter)
 app.use('/api/contact',       publicFormLimiter, contactRouter)
-app.use('/api/chat',          publicFormLimiter, chatRouter)
+app.use('/api/chat',          chatLimiter, chatRouter)
 app.use('/api/promo',         promoRouter)
 app.use('/api/notifications', notificationsRouter)
 app.use('/api/blog',          publicDataLimiter, blogRouter)
