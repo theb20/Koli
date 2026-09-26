@@ -58,7 +58,7 @@ export default function ProductRequestDetailPage() {
 
   const replyMutation = useMutation({
     mutationFn: () => api.post(`/api/product-requests/${id}/reply`, {
-      message: replyMessage,
+      message: replyMessage.trim(),
       quotedPrice: quotedPrice ? Number(quotedPrice) : undefined,
     }),
     onSuccess: () => {
@@ -69,6 +69,22 @@ export default function ProductRequestDetailPage() {
       setTimeout(() => setReplySent(false), 4000)
     },
   })
+
+  // Mêmes règles que le serveur (replySchema) — bloquer l'envoi plutôt que
+  // de laisser partir une requête qui reviendra en 400.
+  const trimmedReply = replyMessage.trim()
+  const priceNumber  = quotedPrice === '' ? null : Number(quotedPrice)
+  const replyError =
+    trimmedReply.length > 0 && trimmedReply.length < 5 ? 'Le message doit contenir au moins 5 caractères.'
+    : trimmedReply.length > 3000                          ? 'Le message ne doit pas dépasser 3000 caractères.'
+    : priceNumber !== null && (!Number.isInteger(priceNumber) || priceNumber <= 0)
+      ? 'Le prix doit être un nombre entier positif, sans virgule ni espace (ex : 45000).'
+    : null
+  const replyServerError = (() => {
+    const data = (replyMutation.error as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } })?.response?.data
+    const fieldErrors = data?.errors ? Object.values(data.errors).flat().join(' ') : ''
+    return [data?.message, fieldErrors].filter(Boolean).join(' — ') || "Erreur lors de l'envoi"
+  })()
 
   const deleteMutation = useMutation({
     mutationFn: () => api.delete(`/api/product-requests/${id}`),
@@ -205,11 +221,12 @@ export default function ProductRequestDetailPage() {
               </p>
               <div className="flex justify-end items-center gap-3">
                 {replySent && <span className="text-green-600 text-sm font-medium">✓ Réponse envoyée par email</span>}
-                {replyMutation.isError && <span className="text-red-600 text-sm font-medium">Erreur lors de l'envoi</span>}
+                {replyError && <span className="text-amber-600 text-sm font-medium">{replyError}</span>}
+                {!replyError && replyMutation.isError && <span className="text-red-600 text-sm font-medium">{replyServerError}</span>}
                 <Button
                   onClick={() => replyMutation.mutate()}
                   loading={replyMutation.isPending}
-                  disabled={!replyMessage.trim()}
+                  disabled={!trimmedReply || !!replyError}
                   icon={<Send size={14} />}
                 >
                   Envoyer par email
