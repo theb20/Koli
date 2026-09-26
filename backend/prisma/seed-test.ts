@@ -3,20 +3,30 @@
  *
  * Commande : npm run db:test:seed   (charge .env.test, jamais .env)
  *
- * ⚠️ Contient des identifiants de test EN CLAIR, volontairement (dépôt
- * public) : le script REFUSE de tourner ailleurs que sur une base locale
- * dont le nom finit par "_test" — ce compte ne peut donc jamais exister en
- * production. Il VIDE entièrement la base cible avant d'insérer.
+ * Identifiants du compte admin de test : lus dans backend/.env.test
+ * (jamais commité — TEST_ADMIN_EMAIL / TEST_ADMIN_PASSWORD). Si le mot de
+ * passe est absent, un mot de passe aléatoire est généré et écrit dans
+ * .env.test. Aucun secret dans ce fichier (dépôt public, scanné).
+ * Le script REFUSE de tourner ailleurs que sur une base locale dont le nom
+ * finit par "_test", et il VIDE entièrement la base cible avant d'insérer.
  *
  * Données fictives mais réalistes : FCFA, communes d'Abidjan, 6 mois
  * d'historique de commandes, marchands, retours, avis, demandes de sourcing.
  */
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+import { randomBytes } from 'node:crypto'
+import { appendFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 
-/* ── Identifiants de test (base locale uniquement) ─────────── */
-export const TEST_ADMIN_EMAIL    = 'admin.test@skignas.local'
-export const TEST_ADMIN_PASSWORD = 'SkignasTest!2026'
+/* ── Identifiants de test : backend/.env.test (jamais commité) ─ */
+const ENV_TEST_PATH = resolve(__dirname, '../.env.test')
+const TEST_ADMIN_EMAIL = process.env.TEST_ADMIN_EMAIL || 'admin.test@skignas.local'
+let TEST_ADMIN_PASSWORD = process.env.TEST_ADMIN_PASSWORD ?? ''
+if (!TEST_ADMIN_PASSWORD) {
+  TEST_ADMIN_PASSWORD = randomBytes(18).toString('base64url')
+  appendFileSync(ENV_TEST_PATH, `\n# Compte admin de test (généré par seed-test)\nTEST_ADMIN_EMAIL=${TEST_ADMIN_EMAIL}\nTEST_ADMIN_PASSWORD=${TEST_ADMIN_PASSWORD}\n`)
+}
 
 /* ── Garde-fou : jamais hors d'une base locale *_test ──────── */
 const url = process.env.DATABASE_URL ?? ''
@@ -311,7 +321,7 @@ async function main() {
   })
 
   console.log(`✓ Seed OK : ${products.length} produits, ${customers.length} clients, ${orderIds.length} commandes, ${STORES.length} boutiques.`)
-  console.log(`  Admin de test : voir TEST_ADMIN_EMAIL / TEST_ADMIN_PASSWORD dans prisma/seed-test.ts`)
+  console.log(`  Admin de test : TEST_ADMIN_EMAIL / TEST_ADMIN_PASSWORD dans backend/.env.test (non commité)`)
 }
 
 main()
