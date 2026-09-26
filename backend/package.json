@@ -16,7 +16,10 @@
     "db:reset": "prisma migrate reset --force && tsx prisma/seed.ts",
     "lint": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "dev:test": "DOTENV_CONFIG_PATH=.env.test RECAPTCHA_SECRET_KEY= tsx watch src/index.ts",
+    "db:test:migrate": "sh -c 'set -a; . ./.env.test; set +a; prisma migrate deploy'",
+    "db:test:seed": "DOTENV_CONFIG_PATH=.env.test tsx -r dotenv/config prisma/seed-test.ts"
   },
   "dependencies": {
     "@appsignal/nodejs": "^3.8.1",

@@ -1,62 +1,42 @@
-type Props = { label: string; color?: string }
+import { cn } from '../../lib/cn'
 
-const colors: Record<string, string> = {
-  pending:    'bg-yellow-50 text-yellow-700 border-yellow-200',
-  confirmed:  'bg-blue-50 text-blue-700 border-blue-200',
-  processing: 'bg-purple-50 text-purple-700 border-purple-200',
-  shipped:    'bg-indigo-50 text-indigo-700 border-indigo-200',
-  delivered:  'bg-green-50 text-green-700 border-green-200',
-  cancelled:  'bg-red-50 text-red-600 border-red-200',
-  refunded:   'bg-slate-100 text-slate-600 border-slate-200',
-  paid:       'bg-green-50 text-green-700 border-green-200',
-  failed:     'bg-red-50 text-red-600 border-red-200',
-  hot:        'bg-orange-50 text-orange-700 border-orange-200',
-  new:        'bg-blue-50 text-blue-700 border-blue-200',
-  sale:       'bg-rose-50 text-rose-700 border-rose-200',
-  top:        'bg-amber-50 text-amber-700 border-amber-200',
-  admin:      'bg-indigo-50 text-indigo-700 border-indigo-200',
-  customer:   'bg-slate-100 text-slate-600 border-slate-200',
-  active:     'bg-green-50 text-green-700 border-green-200',
-  inactive:   'bg-slate-100 text-slate-500 border-slate-200',
-  published:  'bg-green-50 text-green-700 border-green-200',
-  draft:      'bg-slate-100 text-slate-500 border-slate-200',
-  quoted:     'bg-cyan-50 text-cyan-700 border-cyan-200',
-  accepted:   'bg-amber-50 text-amber-700 border-amber-200',
-  declined:   'bg-slate-100 text-slate-500 border-slate-200',
-  expired:    'bg-amber-50 text-amber-700 border-amber-200',
-  fulfilled:  'bg-green-50 text-green-700 border-green-200',
-  rejected:   'bg-red-50 text-red-600 border-red-200',
-  requested:  'bg-yellow-50 text-yellow-700 border-yellow-200',
-  approved:   'bg-blue-50 text-blue-700 border-blue-200',
-  received:   'bg-cyan-50 text-cyan-700 border-cyan-200',
-  success:    'bg-green-50 text-green-700 border-green-200',
-  running:    'bg-blue-50 text-blue-700 border-blue-200',
-  skipped:    'bg-slate-100 text-slate-500 border-slate-200',
-  submitted:      'bg-yellow-50 text-yellow-700 border-yellow-200',
-  pending_review: 'bg-orange-50 text-orange-700 border-orange-200',
-  default:    'bg-slate-100 text-slate-600 border-slate-200',
+export type PillTone = 'yellow' | 'lavender' | 'blue' | 'green' | 'pink' | 'gray'
+
+const tones: Record<PillTone, string> = {
+  yellow:   'bg-event-yellow',
+  lavender: 'bg-event-lavender',
+  blue:     'bg-event-blue',
+  green:    'bg-event-green',
+  pink:     'bg-event-pink',
+  gray:     'bg-event-gray',
 }
 
-const labels: Record<string, string> = {
-  pending: 'En attente', confirmed: 'Confirmée', processing: 'En cours',
-  shipped: 'Expédiée', delivered: 'Livrée', cancelled: 'Annulée', refunded: 'Remboursée',
-  paid: 'Payé', failed: 'Échoué', hot: 'Hot', new: 'Nouveau', sale: 'Promo', top: 'Top',
-  admin: 'Admin', customer: 'Client', active: 'Actif', inactive: 'Inactif',
-  published: 'Publié', draft: 'Brouillon',
-  quoted: 'Devis envoyé', fulfilled: 'Traitée', rejected: 'Refusée',
-  accepted: 'Acceptée · paiement en attente', declined: 'Refusée par le client', expired: 'Devis expiré',
-  requested: 'Demandé', approved: 'Approuvé', received: 'Reçu',
-  success: 'Synchronisé', running: 'En cours', skipped: 'Ignoré',
-  submitted: 'Soumis', pending_review: 'En revue',
-}
-
-export function Badge({ label, color }: Props) {
-  const key = color ?? label
-  const cls = colors[key] ?? colors.default
-  const display = labels[label] ?? label
+/** Pilule pastel de statut — texte toujours en encre (contraste AA). */
+export function StatusPill({ tone, children, className }: { tone: PillTone; children: React.ReactNode; className?: string }) {
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-md border text-xs font-medium ${cls}`}>
-      {display}
+    <span className={cn('inline-flex items-center h-6 px-2.5 rounded-full text-caption font-medium text-ink whitespace-nowrap', tones[tone], className)}>
+      {children}
     </span>
   )
+}
+
+/* ── Statuts métier → couleur + libellé (commandes, retours, sourcing…) ── */
+const STATUS: Record<string, [PillTone, string]> = {
+  pending: ['yellow', 'En attente'], confirmed: ['lavender', 'Confirmée'], processing: ['lavender', 'En préparation'],
+  shipped: ['blue', 'Expédiée'], delivered: ['green', 'Livrée'], cancelled: ['pink', 'Annulée'], refunded: ['gray', 'Remboursée'],
+  paid: ['green', 'Payé'], failed: ['pink', 'Échoué'],
+  hot: ['pink', 'Hot'], new: ['blue', 'Nouveau'], sale: ['pink', 'Promo'], top: ['yellow', 'Top'],
+  admin: ['lavender', 'Admin'], customer: ['gray', 'Client'], seller: ['blue', 'Marchand'],
+  active: ['green', 'Actif'], inactive: ['gray', 'Inactif'], published: ['green', 'Publié'], draft: ['gray', 'Brouillon'],
+  quoted: ['lavender', 'Devis envoyé'], fulfilled: ['green', 'Traitée'], rejected: ['pink', 'Refusée'],
+  accepted: ['yellow', 'Acceptée · paiement en attente'], declined: ['gray', 'Refusée par le client'], expired: ['yellow', 'Devis expiré'],
+  requested: ['yellow', 'Demandé'], approved: ['blue', 'Approuvé'], received: ['lavender', 'Reçu'],
+  success: ['green', 'Synchronisé'], running: ['blue', 'En cours'], skipped: ['gray', 'Ignoré'],
+  submitted: ['yellow', 'Soumis'], pending_review: ['lavender', 'En revue'],
+}
+
+/** Badge historique (pages existantes) — rendu désormais en pilule pastel. */
+export function Badge({ label, color }: { label: string; color?: string }) {
+  const [tone, text] = STATUS[color ?? label] ?? ['gray', label]
+  return <StatusPill tone={tone}>{STATUS[label]?.[1] ?? text}</StatusPill>
 }

@@ -1,52 +1,72 @@
 import type { ReactNode } from 'react'
+import { ArrowUpDown, ListFilter } from 'lucide-react'
+import { cn } from '../../lib/cn'
+import { Button } from './Button'
+import { KebabMenu, type MenuItem } from './Menu'
 
-type Props = { children: ReactNode; className?: string; onClick?: () => void }
+type CardProps = { children: ReactNode; className?: string; onClick?: () => void; padded?: boolean }
 
-export function Card({ children, className = '', onClick }: Props) {
+/** Carte : fond blanc, rayon 18px, bordure 1px, pas d'ombre, padding 22px. */
+export function Card({ children, className, onClick, padded = false }: CardProps) {
   return (
-    <div
-      onClick={onClick}
-      className={`bg-white border border-slate-200 rounded-2xl shadow-sm ${onClick ? 'cursor-pointer hover:border-slate-300 hover:shadow-md transition-all' : ''} ${className}`}
-    >
+    <div onClick={onClick}
+      className={cn(
+        'bg-card border border-line rounded-card',
+        padded && 'p-[22px]',
+        onClick && 'cursor-pointer hover:border-muted transition-colors',
+        className,
+      )}>
       {children}
     </div>
   )
 }
 
-type StatCardProps = {
-  title: string
-  value: string | number
-  sub?: string
-  icon: ReactNode
-  trend?: number
-  color?: string
+/** En-tête de carte : titre 20px, sous-titre (date) 13px, actions à droite. */
+export function CardHeader({ title, subtitle, actions, className }: {
+  title: ReactNode; subtitle?: ReactNode; actions?: ReactNode; className?: string
+}) {
+  return (
+    <div className={cn('flex items-start justify-between gap-3', className)}>
+      <div className="min-w-0">
+        <h2 className="text-card-title font-medium text-ink leading-tight">{title}</h2>
+        {subtitle && <p className="text-secondary text-muted mt-1">{subtitle}</p>}
+      </div>
+      {actions && <div className="flex items-center gap-1.5 shrink-0">{actions}</div>}
+    </div>
+  )
 }
 
-export function StatCard({ title, value, sub, icon, trend, color = 'indigo' }: StatCardProps) {
-  const colorMap: Record<string, string> = {
-    indigo: 'bg-indigo-50 text-indigo-600',
-    green:  'bg-green-50 text-green-600',
-    orange: 'bg-orange-50 text-orange-600',
-    rose:   'bg-rose-50 text-rose-600',
-    blue:   'bg-blue-50 text-blue-600',
-    purple: 'bg-purple-50 text-purple-600',
-  }
+/** « ⇅ Trier », « ≡ Filtrer », ⋮ — chacun optionnel. */
+export function CardHeaderActions({ onSort, onFilter, menu, sortLabel = 'Trier', filterLabel = 'Filtrer' }: {
+  onSort?: () => void; onFilter?: () => void; menu?: MenuItem[]; sortLabel?: string; filterLabel?: string
+}) {
   return (
-    <Card className="p-5">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{title}</p>
-          <p className="mt-1.5 text-2xl font-bold text-slate-900">{value}</p>
-          {sub && <p className="mt-1 text-xs text-slate-500">{sub}</p>}
+    <>
+      {onSort && <Button variant="subtle" size="xs" icon={<ArrowUpDown size={12} />} onClick={onSort}>{sortLabel}</Button>}
+      {onFilter && <Button variant="subtle" size="xs" icon={<ListFilter size={12} />} onClick={onFilter}>{filterLabel}</Button>}
+      {menu && menu.length > 0 && <KebabMenu items={menu} />}
+    </>
+  )
+}
+
+/* ── StatCard — conservé pour les pages existantes (avant refonte) ── */
+type StatCardProps = { title: string; value: string | number; sub?: string; icon: ReactNode; trend?: number; color?: string }
+
+export function StatCard({ title, value, sub, icon, trend }: StatCardProps) {
+  return (
+    <Card padded>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-body text-ink-2">{title}</p>
+          <p className="mt-1.5 text-kpi font-medium text-ink tabular leading-none">{value}</p>
+          {sub && <p className="mt-1.5 text-caption text-muted">{sub}</p>}
           {trend !== undefined && (
-            <p className={`mt-1.5 text-xs font-medium ${trend >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+            <p className={cn('mt-1.5 text-caption font-medium', trend >= 0 ? 'text-up' : 'text-down')}>
               {trend >= 0 ? '↑' : '↓'} {Math.abs(trend)}% vs hier
             </p>
           )}
         </div>
-        <div className={`p-3 rounded-xl ${colorMap[color] ?? colorMap.indigo}`}>
-          {icon}
-        </div>
+        <div className="w-9 h-9 rounded-nav bg-muted-fill text-ink-2 flex items-center justify-center shrink-0">{icon}</div>
       </div>
     </Card>
   )

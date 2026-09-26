@@ -1,187 +1,141 @@
-import { NavLink, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import {
-  LayoutDashboard, Package, ShoppingCart, Users, BookOpen,
-  Tag, Star, MessageSquare, Settings, LogOut,
-  Bell, BarChart2, Store, Layers, Percent, Zap, PackageSearch, Send, RotateCcw, X, Gift, Briefcase, Building2, CreditCard, Megaphone
-} from 'lucide-react'
+import { NavLink } from 'react-router-dom'
+import { ChevronDown, ChevronsUpDown, Lock, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react'
+import { cn } from '../../lib/cn'
+import { NAV_GROUPS } from '../../lib/navigation'
 import { useAuth } from '../../hooks/useAuth'
-import { api } from '../../lib/api'
+import { useAdminCounters } from '../../hooks/useAdminCounters'
+import { Avatar } from '../ui/Avatar'
+import { Menu } from '../ui/Menu'
+import { ROLE_LABEL, useProfileMenuItems, useWorkspaceMenuItems } from './profileMenu'
+import { PageHeader } from './PageHeader'
 
-const nav = [
-  { to: '/',         label: 'Dashboard',     icon: LayoutDashboard },
-  { to: '/products',   label: 'Produits',       icon: Package },
-  { to: '/deals',      label: 'Deals du jour',  icon: Zap },
-  { to: '/categories', label: 'Catégories',    icon: Layers },
-  { to: '/promo-banners', label: 'Bannières pub', icon: Megaphone },
-  { to: '/stores',     label: 'Magasins',      icon: Store },
-  { to: '/orders',   label: 'Commandes',      icon: ShoppingCart },
-  { to: '/merchant-applications', label: 'Candidatures marchand', icon: Briefcase },
-  { to: '/merchants', label: 'Marchands',      icon: Building2 },
-  { to: '/plans',     label: "Plans d'abonnement", icon: CreditCard },
-  { to: '/product-requests', label: 'Demandes de sourcing', icon: PackageSearch },
-  { to: '/returns',   label: 'Retours',        icon: RotateCcw },
-  { to: '/loyalty',  label: 'Fidélité',       icon: Gift },
-  { to: '/users',    label: 'Utilisateurs',   icon: Users },
-  { to: '/blog',     label: 'Blog',           icon: BookOpen },
-  { to: '/promo',    label: 'Codes promo',    icon: Tag },
-  { to: '/tax',      label: 'TVA & Taxes',    icon: Percent },
-  { to: '/reviews',  label: 'Avis',           icon: Star },
-  { to: '/contact',  label: 'Messages',       icon: MessageSquare },
-  { to: '/stats',    label: 'Statistiques',   icon: BarChart2 },
-  { to: '/emails',   label: 'Templates email', icon: Send },
-]
+type SidebarProps = {
+  collapsed: boolean            // mode icônes (72px)
+  canCollapse: boolean          // bouton de repli visible (≥ 1280px)
+  onToggleCollapse: () => void
+  drawer: boolean               // < 1024px : tiroir
+  open: boolean
+  onClose: () => void
+}
 
-type SidebarProps = { open: boolean; onClose: () => void }
-
-export function Sidebar({ open, onClose }: SidebarProps) {
-  const { user, logout } = useAuth()
-  const navigate = useNavigate()
-
-  const handleLogout = () => { logout(); navigate('/login') }
-
-  const { data: unreadCount = 0 } = useQuery({
-    queryKey: ['notifications-unread-count'],
-    queryFn:  async () => { const { data } = await api.get('/api/notifications?limit=1'); return data.data.unreadCount as number },
-    refetchInterval: 30_000,
-  })
-
-  const { data: newRequestsCount = 0 } = useQuery({
-    queryKey: ['product-requests-new-count'],
-    queryFn:  async () => { const { data } = await api.get('/api/product-requests/admin/all?status=new&limit=1'); return data.data.pagination.total as number },
-    refetchInterval: 30_000,
-  })
-
-  const { data: pendingReturnsCount = 0 } = useQuery({
-    queryKey: ['returns-pending-count'],
-    queryFn:  async () => { const { data } = await api.get('/api/returns/admin/all?status=requested'); return (data.data as unknown[]).length },
-    refetchInterval: 30_000,
-  })
-
-  const { data: pendingApplicationsCount = 0 } = useQuery({
-    queryKey: ['merchant-applications-pending-count'],
-    queryFn:  async () => { const { data } = await api.get('/api/admin/merchant-applications?status=submitted&limit=1'); return data.data.total as number },
-    refetchInterval: 30_000,
-  })
+export function Sidebar({ collapsed, canCollapse, onToggleCollapse, drawer, open, onClose }: SidebarProps) {
+  const { user } = useAuth()
+  const counters = useAdminCounters()
+  const profileItems = useProfileMenuItems()
+  const workspaceItems = useWorkspaceMenuItems()
+  const fullName = `${user?.prenom ?? ''} ${user?.nom ?? ''}`.trim() || 'Administrateur'
+  const icons = collapsed && !drawer
 
   return (
     <>
-      {/* Fond assombri — mobile/tablette uniquement, ferme le tiroir au clic */}
-      {open && (
-        <div
-          className="fixed inset-0 bg-slate-900/40 z-40 lg:hidden"
-          onClick={onClose}
-          aria-hidden="true"
-        />
-      )}
-
-      <aside
-        className={`fixed left-0 top-0 h-full w-72 sm:w-64 lg:w-60 bg-white border-r border-slate-200 flex flex-col z-50 shadow-sm
-          transition-transform duration-200 ease-out
-          ${open ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}
-      >
+      {drawer && open && <div className="fixed inset-0 z-40 bg-overlay" onClick={onClose} aria-hidden />}
+      <aside aria-label="Navigation principale"
+        className={cn(
+          'fixed left-0 top-0 h-full z-50 flex flex-col bg-app-bg border-r border-line transition-[transform,width] duration-200 ease-out',
+          icons ? 'w-[72px]' : 'w-[240px]',
+          drawer && !open && '-translate-x-full',
+        )}>
         {/* Logo */}
-        <div className="px-5 py-5 border-b border-slate-100 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl  flex items-center justify-center">
-              <span className="text-white font-bold text-sm">
-                <img src="/imgs_dropship/favicon-skignas.png" alt="logo Skignas" />
-              </span>
-            </div>
-            <div>
-              <p className="text-sm font-bold text-slate-900">Skignas</p>
-              <p className="text-[10px] text-slate-400">Backoffice v1.0</p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            aria-label="Fermer le menu"
-            className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
-          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest px-3 mb-3">Menu principal</p>
-          {nav.map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === '/'}
-              onClick={onClose}
-              className={({ isActive }) => `sidebar-item text-slate-500 ${isActive ? 'active' : ''}`}
-            >
-              <Icon size={16} />
-              <span>{label}</span>
-              {to === '/product-requests' && newRequestsCount > 0 && (
-                <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
-                  {newRequestsCount > 99 ? '99+' : newRequestsCount}
-                </span>
-              )}
-              {to === '/returns' && pendingReturnsCount > 0 && (
-                <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
-                  {pendingReturnsCount > 99 ? '99+' : pendingReturnsCount}
-                </span>
-              )}
-              {to === '/merchant-applications' && pendingApplicationsCount > 0 && (
-                <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
-                  {pendingApplicationsCount > 99 ? '99+' : pendingApplicationsCount}
-                </span>
-              )}
-            </NavLink>
-          ))}
-
-        <div className="pt-4">
-          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest px-3 mb-3">Compte</p>
-          <NavLink to="/settings" onClick={onClose} className={({ isActive }) => `sidebar-item text-slate-500 ${isActive ? 'active' : ''}`}>
-            <Settings size={16} />
-            <span>Paramètres</span>
-          </NavLink>
-          <NavLink to="/notifications" onClick={onClose} className={({ isActive }) => `sidebar-item text-slate-500 ${isActive ? 'active' : ''}`}>
-            <Bell size={16} />
-            <span>Notifications</span>
-            {unreadCount > 0 && (
-              <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
-                {unreadCount > 99 ? '99+' : unreadCount}
-              </span>
-            )}
-          </NavLink>
-        </div>
-      </nav>
-
-        {/* User */}
-        <div className="px-3 py-4 border-t border-slate-100">
-          <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-colors group">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-xs font-bold text-white shrink-0">
-              {user?.prenom?.[0]}{user?.nom?.[0]}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-900 truncate">{user?.prenom} {user?.nom}</p>
-              <p className="text-[10px] text-slate-400 truncate">{user?.email}</p>
-            </div>
-            {/* Toujours visible — le hover seul n'existe pas sur tactile (mobile/tablette) */}
-            <button onClick={handleLogout} title="Déconnexion" aria-label="Déconnexion"
-              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all shrink-0">
-              <LogOut size={14} />
+        <div className={cn('flex items-center h-[76px] shrink-0', icons ? 'justify-center' : 'justify-between px-6')}>
+          <span className={cn('font-bold tracking-tight text-primary select-none', icons ? 'text-[22px]' : 'text-[26px]')}>
+            {icons ? 's' : 'skignas'}
+          </span>
+          {drawer && (
+            <button type="button" onClick={onClose} aria-label="Fermer le menu"
+              className="w-8 h-8 inline-flex items-center justify-center rounded-full text-ink-2 hover:bg-hover-fill">
+              <X size={18} />
             </button>
-          </div>
+          )}
+        </div>
+
+        {/* Sélecteur d'espace */}
+        <div className={cn('shrink-0 pb-3', icons ? 'px-[18px]' : 'px-4')}>
+          <Menu align="left" width={220} label="Espace" items={workspaceItems} className="w-full" trigger={({ open: o, toggle }) => (
+            <button type="button" onClick={toggle} aria-haspopup="menu" aria-expanded={o} title="Skignas Admin"
+              className={cn('w-full flex items-center gap-3 rounded-nav hover:bg-hover-fill transition-colors', icons ? 'justify-center p-0' : 'p-1.5 -mx-1.5')}>
+              <span className="w-9 h-9 rounded-nav bg-hover-fill text-ink-2 flex items-center justify-center shrink-0"><Lock size={16} /></span>
+              {!icons && (
+                <>
+                  <span className="flex-1 min-w-0 text-left">
+                    <span className="block text-body font-semibold text-ink truncate">Skignas Admin</span>
+                    <span className="block text-caption text-muted truncate">{ROLE_LABEL[user?.role ?? ''] ?? user?.role}</span>
+                  </span>
+                  <ChevronDown size={16} className="text-ink-2 shrink-0" />
+                </>
+              )}
+            </button>
+          )} />
+        </div>
+
+        {/* Navigation groupée */}
+        <nav className={cn('flex-1 overflow-y-auto overflow-x-hidden pb-4', icons ? 'px-3' : 'px-4')}>
+          {NAV_GROUPS.map(group => (
+            <div key={group.title} className="mt-5 first:mt-2">
+              {icons
+                ? <div className="mx-auto mb-2 h-px w-6 bg-line" aria-hidden />
+                : <p className="px-3.5 mb-1.5 text-micro font-medium uppercase tracking-wider text-muted">{group.title}</p>}
+              <ul className="space-y-1">
+                {group.items.map(({ to, label, icon: Icon, counter }) => {
+                  const count = counter ? counters[counter] ?? 0 : 0
+                  return (
+                    <li key={to}>
+                      <NavLink to={to} end={to === '/'} onClick={drawer ? onClose : undefined}
+                        title={icons ? label : undefined} aria-label={icons ? label : undefined}
+                        className={({ isActive }) => cn(
+                          'relative flex items-center h-11 rounded-nav text-nav transition-colors',
+                          icons ? 'justify-center' : 'gap-3 px-3.5',
+                          isActive ? 'bg-lime text-on-lime font-medium' : 'text-ink-2 hover:bg-hover-fill hover:text-ink',
+                        )}>
+                        <Icon size={18} strokeWidth={1.5} className="shrink-0" />
+                        {!icons && <span className="flex-1 truncate">{label}</span>}
+                        {count > 0 && (icons
+                          ? <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-primary ring-2 ring-app-bg" aria-label={`${count} en attente`} />
+                          : <span className="min-w-5 h-5 px-1.5 rounded-full bg-primary text-on-primary text-micro font-medium flex items-center justify-center tabular">
+                              {count > 99 ? '99+' : count}
+                            </span>)}
+                      </NavLink>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          ))}
+        </nav>
+
+        {canCollapse && !drawer && (
+          <button type="button" onClick={onToggleCollapse}
+            aria-label={collapsed ? 'Déplier la navigation' : 'Replier la navigation'}
+            title={collapsed ? 'Déplier' : 'Replier'}
+            className={cn('mx-4 mb-2 h-9 flex items-center gap-3 rounded-nav text-secondary text-muted hover:bg-hover-fill hover:text-ink transition-colors', icons ? 'justify-center mx-3' : 'px-3.5')}>
+            {collapsed ? <PanelLeftOpen size={18} strokeWidth={1.5} /> : <PanelLeftClose size={18} strokeWidth={1.5} />}
+            {!icons && 'Replier'}
+          </button>
+        )}
+
+        {/* Carte profil */}
+        <div className="border-t border-line p-4 shrink-0">
+          <Menu align="left" side="top" width={220} label="Profil" items={profileItems} className="w-full" trigger={({ open: o, toggle }) => (
+            <button type="button" onClick={toggle} aria-haspopup="menu" aria-expanded={o} title={icons ? fullName : undefined}
+              className={cn('w-full flex items-center gap-3 rounded-nav hover:bg-hover-fill transition-colors', icons ? 'justify-center' : 'p-1.5 -m-1.5')}>
+              <Avatar name={fullName} src={user?.avatar} size={32} online />
+              {!icons && (
+                <>
+                  <span className="flex-1 min-w-0 text-left">
+                    <span className="block text-secondary font-medium text-ink truncate">{fullName}</span>
+                    <span className="block text-caption text-muted truncate">{user?.email}</span>
+                  </span>
+                  <ChevronsUpDown size={16} className="text-ink-2 shrink-0" />
+                </>
+              )}
+            </button>
+          )} />
         </div>
       </aside>
     </>
   )
 }
 
-// Mini breadcrumb component
+/** Compatibilité — les pages existantes importent PageTitle depuis ce fichier. */
 export function PageTitle({ title, sub, action }: { title: string; sub?: string; action?: React.ReactNode }) {
-  return (
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-      <div className="min-w-0">
-        <h1 className="text-xl font-bold text-slate-900 break-words">{title}</h1>
-        {sub && <p className="text-sm text-slate-500 mt-0.5">{sub}</p>}
-      </div>
-      {action && <div className="shrink-0">{action}</div>}
-    </div>
-  )
+  return <PageHeader title={title} subtitle={sub} actions={action} />
 }

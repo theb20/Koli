@@ -47,6 +47,7 @@ import productRequestsRouter   from './routes/product-requests'
 import emailTemplatesRouter    from './routes/email-templates'
 import returnsRouter           from './routes/returns'
 import auditLogRouter          from './routes/audit-log'
+import adminOverviewRouter from './routes/admin-overview'
 import paymentsRouter          from './routes/payments'
 import merchantSyncRouter      from './routes/merchant-sync'
 import merchantOnboardingRouter from './routes/merchant-onboarding'
@@ -266,6 +267,7 @@ app.use('/api/product-requests', publicFormLimiter, productRequestsRouter)
 app.use('/api/email-templates', emailTemplatesRouter)
 app.use('/api/returns',       returnsRouter)
 app.use('/api/audit-log',     auditLogRouter)
+app.use('/api/admin/overview', adminOverviewRouter)
 app.use('/api/payments',      paymentsRouter)
 app.use('/api/internal',      internalRouter)
 

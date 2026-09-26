@@ -1,41 +1,43 @@
+import { lazy } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { Toaster } from 'sonner'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AdminLayout } from './components/layout/AdminLayout'
 import LoginPage           from './pages/LoginPage'
 import ForgotPasswordPage  from './pages/ForgotPasswordPage'
 import ResetPasswordPage   from './pages/ResetPasswordPage'
-import DashboardPage    from './pages/DashboardPage'
-import ProductsPage     from './pages/products/ProductsPage'
-import ProductFormPage  from './pages/products/ProductFormPage'
-import DealsPage        from './pages/products/DealsPage'
-import OrdersPage       from './pages/orders/OrdersPage'
-import OrderDetailPage  from './pages/orders/OrderDetailPage'
-import UsersPage        from './pages/users/UsersPage'
-import BlogPage         from './pages/blog/BlogPage'
-import BlogFormPage     from './pages/blog/BlogFormPage'
-import PromoPage        from './pages/PromoPage'
-import ReviewsPage      from './pages/ReviewsPage'
-import ContactPage      from './pages/ContactPage'
-import ProductRequestsPage      from './pages/ProductRequestsPage'
-import ProductRequestDetailPage from './pages/ProductRequestDetailPage'
-import MerchantApplicationsPage      from './pages/MerchantApplicationsPage'
-import MerchantApplicationDetailPage from './pages/MerchantApplicationDetailPage'
-import StatsPage        from './pages/StatsPage'
-import SettingsPage       from './pages/SettingsPage'
-import NotificationsPage  from './pages/NotificationsPage'
-import StoresPage         from './pages/stores/StoresPage'
-import StoreDetailPage    from './pages/stores/StoreDetailPage'
-import MerchantsPage       from './pages/merchants/MerchantsPage'
-import MerchantDetailPage2 from './pages/merchants/MerchantDetailPage'
-import CategoriesPage     from './pages/categories/CategoriesPage'
-import PromoBannersPage   from './pages/promo-banners/PromoBannersPage'
-import SubscriptionPlansPage from './pages/plans/SubscriptionPlansPage'
-import TaxPage            from './pages/TaxPage'
-import EmailTemplatesPage from './pages/EmailTemplatesPage'
-import ReturnsPage        from './pages/ReturnsPage'
-import ReturnDetailPage   from './pages/ReturnDetailPage'
-import LoyaltyPage        from './pages/LoyaltyPage'
-import LoyaltyDetailPage  from './pages/LoyaltyDetailPage'
+const DashboardPage = lazy(() => import('./pages/DashboardPage'))
+const ProductsPage = lazy(() => import('./pages/products/ProductsPage'))
+const ProductFormPage = lazy(() => import('./pages/products/ProductFormPage'))
+const DealsPage = lazy(() => import('./pages/products/DealsPage'))
+const OrdersPage = lazy(() => import('./pages/orders/OrdersPage'))
+const OrderDetailPage = lazy(() => import('./pages/orders/OrderDetailPage'))
+const UsersPage = lazy(() => import('./pages/users/UsersPage'))
+const BlogPage = lazy(() => import('./pages/blog/BlogPage'))
+const BlogFormPage = lazy(() => import('./pages/blog/BlogFormPage'))
+const PromoPage = lazy(() => import('./pages/PromoPage'))
+const ReviewsPage = lazy(() => import('./pages/ReviewsPage'))
+const ContactPage = lazy(() => import('./pages/ContactPage'))
+const ProductRequestsPage = lazy(() => import('./pages/ProductRequestsPage'))
+const ProductRequestDetailPage = lazy(() => import('./pages/ProductRequestDetailPage'))
+const MerchantApplicationsPage = lazy(() => import('./pages/MerchantApplicationsPage'))
+const MerchantApplicationDetailPage = lazy(() => import('./pages/MerchantApplicationDetailPage'))
+const StatsPage = lazy(() => import('./pages/StatsPage'))
+const SettingsPage = lazy(() => import('./pages/SettingsPage'))
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage'))
+const StoresPage = lazy(() => import('./pages/stores/StoresPage'))
+const StoreDetailPage = lazy(() => import('./pages/stores/StoreDetailPage'))
+const MerchantsPage = lazy(() => import('./pages/merchants/MerchantsPage'))
+const MerchantDetailPage2 = lazy(() => import('./pages/merchants/MerchantDetailPage'))
+const CategoriesPage = lazy(() => import('./pages/categories/CategoriesPage'))
+const PromoBannersPage = lazy(() => import('./pages/promo-banners/PromoBannersPage'))
+const SubscriptionPlansPage = lazy(() => import('./pages/plans/SubscriptionPlansPage'))
+const TaxPage = lazy(() => import('./pages/TaxPage'))
+const EmailTemplatesPage = lazy(() => import('./pages/EmailTemplatesPage'))
+const ReturnsPage = lazy(() => import('./pages/ReturnsPage'))
+const ReturnDetailPage = lazy(() => import('./pages/ReturnDetailPage'))
+const LoyaltyPage = lazy(() => import('./pages/LoyaltyPage'))
+const LoyaltyDetailPage = lazy(() => import('./pages/LoyaltyDetailPage'))
 
 const qc = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
@@ -44,6 +46,8 @@ const qc = new QueryClient({
 export default function App() {
   return (
     <QueryClientProvider client={qc}>
+      <Toaster position="bottom-right" closeButton
+        toastOptions={{ classNames: { toast: '!bg-card !border-line !text-ink !rounded-cta !font-sans', description: '!text-ink-2' } }} />
       <BrowserRouter>
         <Routes>
           <Route path="/login"                    element={<LoginPage />} />

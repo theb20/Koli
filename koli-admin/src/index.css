@@ -1,30 +1,43 @@
 @import "tailwindcss";
+@import "./styles/tokens.css";
 
-@theme {
-  --color-skignas-50: #eef2ff;
-  --color-skignas-100: #e0e7ff;
-  --color-skignas-600: #6366f1;
-  --color-skignas-700: #4f46e5;
+html, body {
+  background: var(--app-bg);
+  color: var(--text);
 }
-
 body {
-  background: #f8fafc;
-  color: #0f172a;
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: var(--font-sans);
+  font-feature-settings: 'cv11', 'ss01';
   -webkit-font-smoothing: antialiased;
 }
 
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #f1f5f9; }
-::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #6366f1; }
+/* Chiffres alignés (montants, KPI, tableaux) */
+.tabular { font-variant-numeric: tabular-nums; }
 
-.sidebar-item {
-  @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150;
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* Focus clavier visible partout (WCAG 2.4.7) — en couche base pour que les
+   utilitaires (focus-visible:outline-none…) puissent le surcharger. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
 }
-.sidebar-item:hover { @apply bg-slate-100 text-slate-900; }
-.sidebar-item.active { @apply bg-indigo-50 text-indigo-700 font-semibold; }
 
 input, select, textarea {
   @apply outline-none;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Badge reCAPTCHA : visible sur /login (où il sert), masqué dans l'admin */
+.admin-shell .grecaptcha-badge { visibility: hidden; }
