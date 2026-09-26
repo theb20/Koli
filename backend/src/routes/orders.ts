@@ -985,6 +985,34 @@ router.put('/:id/status', requireAdmin, validateParams(zCuidIdParam), async (req
   }
 })
 
+/* ─────────────────────────────────────────────────────────────
+   POST /api/orders/:id/review-request  [ADMIN]
+   (Re)envoie au client le lien "Laisser un avis" d'une commande livrée —
+   pour les commandes livrées avant l'envoi automatique, ou un lien perdu.
+───────────────────────────────────────────────────────────── */
+router.post('/:id/review-request', requireAdmin, validateParams(zCuidIdParam), async (req, res) => {
+  try {
+    const order = await prisma.order.findUnique({ where: { id: req.params['id']! }, select: { status: true } })
+    if (!order) {
+      res.status(404).json({ success: false, message: 'Commande introuvable' })
+      return
+    }
+    if (order.status !== 'delivered') {
+      res.status(400).json({ success: false, message: 'Le lien d\'avis ne peut être envoyé que pour une commande livrée.' })
+      return
+    }
+    const sent = await requestOrderReview(req.params['id']!, true)
+    if (!sent) {
+      res.status(500).json({ success: false, message: 'Échec de l\'envoi du lien d\'avis' })
+      return
+    }
+    logAdminAction(req, { action: 'order.review_request', targetType: 'Order', targetId: req.params['id']! })
+    res.json({ success: true, message: 'Lien d\'avis envoyé au client' })
+  } catch {
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
 /* ── PATCH /api/orders/:id/status  [ADMIN] — alias PATCH ─── */
 router.patch('/:id/status', requireAdmin, validateParams(zCuidIdParam), async (req, res) => {
   try {

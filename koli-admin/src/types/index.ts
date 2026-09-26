@@ -119,6 +119,8 @@ export type Order = {
   paymentMethod: string
   deliveryMethod: string
   subtotal: number
+  /** Lien d'avis envoyé au client à la livraison (null = jamais envoyé) */
+  reviewRequestedAt?: string | null
   /** Options "Assistance technique" — revenu plateforme, hors subtotal */
   assistanceTotal?: number
   shippingCost: number   // matches backend Prisma field

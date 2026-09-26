@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, MapPin, Phone, Mail, Package, CreditCard, Lock, AlertTriangle, Download, Loader2 } from 'lucide-react'
+import { ArrowLeft, MapPin, Phone, Mail, Package, CreditCard, Lock, AlertTriangle, Download, Loader2, Star } from 'lucide-react'
 import { useState } from 'react'
 import { api, fmt, fmtDateTime } from '../../lib/api'
 import { Badge } from '../../components/ui/Badge'
@@ -43,6 +43,12 @@ export default function OrderDetailPage() {
     mutationFn: (status: string) => api.patch(`/api/orders/${id}/status`, { status }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['order', id] }),
   })
+
+  const reviewRequest = useMutation({
+    mutationFn: () => api.post(`/api/orders/${id}/review-request`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['order', id] }),
+  })
+  const reviewRequestError = (reviewRequest.error as { response?: { data?: { message?: string } } })?.response?.data?.message
 
   const [downloadingInvoice, setDownloadingInvoice] = useState(false)
   const handleDownloadInvoice = async () => {
@@ -232,6 +238,26 @@ export default function OrderDetailPage() {
 
         {/* Side info */}
         <div className="space-y-4">
+          {/* Avis client — lien envoyé automatiquement à la livraison */}
+          {order.status === 'delivered' && (
+            <Card className="p-5">
+              <h3 className="text-sm font-semibold text-slate-900 mb-2 flex items-center gap-2">
+                <Star size={14} className="text-amber-400" /> Avis client
+              </h3>
+              <p className="text-xs text-slate-500 mb-3">
+                {order.reviewRequestedAt
+                  ? `Lien d'avis envoyé le ${fmtDateTime(order.reviewRequestedAt)}.`
+                  : "Aucun lien d'avis envoyé (commande livrée avant l'envoi automatique)."}
+              </p>
+              <Button size="xs" variant="secondary" loading={reviewRequest.isPending}
+                onClick={() => reviewRequest.mutate()} icon={<Mail size={12} />}>
+                {order.reviewRequestedAt ? 'Renvoyer le lien' : "Envoyer le lien d'avis"}
+              </Button>
+              {reviewRequest.isSuccess && <p className="text-xs text-green-600 mt-2">✓ Lien envoyé (e-mail, SMS, notification)</p>}
+              {reviewRequest.isError && <p className="text-xs text-red-600 mt-2">{reviewRequestError ?? "Échec de l'envoi"}</p>}
+            </Card>
+          )}
+
           {/* Client */}
           <Card className="p-5">
             <h3 className="text-sm font-semibold text-slate-900 mb-4 flex items-center gap-2">

@@ -15,23 +15,37 @@ import { normalizePhoneCI } from './phone'
 export const reviewUrl = (token: string) =>
   `${process.env.FRONTEND_URL ?? 'https://skignas.com'}/avis/${token}`
 
-export async function requestOrderReview(orderId: string): Promise<void> {
+/**
+ * @param resend  true = envoi manuel depuis le backoffice : renvoie le lien
+ *                (même token s'il existe déjà) même si la demande a déjà été
+ *                faite — pour les commandes livrées avant la fonctionnalité
+ *                ou un client qui a perdu le lien.
+ * @returns true si un envoi a eu lieu
+ */
+export async function requestOrderReview(orderId: string, resend = false): Promise<boolean> {
   try {
-    const token = randomBytes(24).toString('hex')
+    let token = randomBytes(24).toString('hex')
 
-    // Réservation atomique : seule la première livraison envoie la demande,
-    // même si deux transitions "delivered" arrivent en même temps.
-    const claimed = await prisma.order.updateMany({
-      where: { id: orderId, reviewRequestedAt: null, status: 'delivered' },
-      data:  { reviewToken: token, reviewRequestedAt: new Date() },
-    })
-    if (claimed.count === 0) return
+    if (resend) {
+      const current = await prisma.order.findUnique({ where: { id: orderId }, select: { status: true, reviewToken: true } })
+      if (!current || current.status !== 'delivered') return false
+      token = current.reviewToken ?? token
+      await prisma.order.update({ where: { id: orderId }, data: { reviewToken: token, reviewRequestedAt: new Date() } })
+    } else {
+      // Réservation atomique : seule la première livraison envoie la demande,
+      // même si deux transitions "delivered" arrivent en même temps.
+      const claimed = await prisma.order.updateMany({
+        where: { id: orderId, reviewRequestedAt: null, status: 'delivered' },
+        data:  { reviewToken: token, reviewRequestedAt: new Date() },
+      })
+      if (claimed.count === 0) return false
+    }
 
     const order = await prisma.order.findUnique({
       where:  { id: orderId },
       select: { orderNumber: true, clientPrenom: true, clientEmail: true, clientTelephone: true, userId: true },
     })
-    if (!order) return
+    if (!order) return false
     const link = reviewUrl(token)
 
     await Promise.allSettled([
@@ -52,7 +66,9 @@ export async function requestOrderReview(orderId: string): Promise<void> {
           })
         : Promise.resolve(),
     ])
+    return true
   } catch (err) {
     logger.error('[orderReview] échec demande d\'avis', orderId, err)
+    return false
   }
 }
