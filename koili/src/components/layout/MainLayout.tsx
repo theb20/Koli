@@ -3,6 +3,8 @@ import { Header } from './Header'
 import { Footer } from './Footer'
 import { Chatbox } from './Chatbox'
 import { CartDrawer } from '../ui/CartDrawer'
+import  SkignasAIBetaPopup  from './SkignasAIBetaPopup'
+
 
 export function MainLayout() {
   return (
@@ -18,6 +20,7 @@ export function MainLayout() {
       <CartDrawer />
       {/* Widget de contact flottant — design seul pour l'instant, pas de backend branché */}
       <Chatbox />
+      <SkignasAIBetaPopup />
     </div>
   )
 }

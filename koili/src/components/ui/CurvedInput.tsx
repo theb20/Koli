@@ -31,13 +31,14 @@ const hexToRgba = (hex: string, alpha: number): string => {
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
 };
 
-type ShadowSize = 'sm' | 'md' | 'lg';
+type ShadowSize = 'sm' | 'md' | 'lg' | 'none';
 type Theme = 'dark' | 'light';
 
 const SHADOWS: Record<ShadowSize, [number, number, number]> = {
   sm: [5, 12, 0.3],
   md: [10, 24, 0.4],
-  lg: [16, 40, 0.52]
+  lg: [16, 40, 0.52],
+  none: [0, 0, 0]
 };
 
 interface ThemePalette {
@@ -232,7 +233,7 @@ const CurvedInput = ({
   buttonColor,
   buttonTextColor,
   iconColor,
-  shadowSize = 'md',
+  shadowSize = 'sm',
   shadowColor,
   showButton = true,
   showIcon = true,
