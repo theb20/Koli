@@ -44,6 +44,9 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>
 
+/** Prix par défaut de l'option "Assistance technique" (même valeur que le défaut en base) */
+const DEFAULT_ASSISTANCE_PRICE = 10_000
+
 const BADGES = [
   { value: '', label: 'Aucun badge' }, { value: 'hot', label: 'Hot 🔥' },
   { value: 'new', label: 'Nouveau ✨' }, { value: 'sale', label: 'Promo 💰' },
@@ -76,9 +79,9 @@ export default function ProductFormPage() {
     enabled: isEdit,
   })
 
-  const { register, control, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<FormData>({
+  const { register, control, handleSubmit, reset, watch, setValue, getValues, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema) as import('react-hook-form').Resolver<FormData>,
-    defaultValues: { images: [{ url: '' }], specs: [], isNew: false, stock: 100, category: '', assistanceEnabled: false, assistancePrice: '' },
+    defaultValues: { images: [{ url: '' }], specs: [], isNew: false, stock: 100, category: '', assistanceEnabled: false, assistancePrice: DEFAULT_ASSISTANCE_PRICE },
   })
 
   const { fields: imgFields, append: appendImg, remove: removeImg } = useFieldArray({ control, name: 'images' })
@@ -102,7 +105,7 @@ export default function ProductFormPage() {
         saleStartsAt: toDatetimeLocal(existing.saleStartsAt),
         saleEndsAt:   toDatetimeLocal(existing.saleEndsAt),
         assistanceEnabled: existing.assistanceEnabled ?? false,
-        assistancePrice:   existing.assistancePrice ?? '',
+        assistancePrice:   existing.assistancePrice ?? DEFAULT_ASSISTANCE_PRICE,
       })
     }
   }, [existing, reset])
@@ -143,6 +146,11 @@ export default function ProductFormPage() {
   const watchSaleEnds   = watch('saleEndsAt')
   const saleState = getSaleState(watchSaleStarts, watchSaleEnds)
   const watchAssistance = watch('assistanceEnabled')
+  // Activation avec un prix vidé → on remet le prix par défaut (seulement au
+  // moment où l'on coche, pour ne pas gêner la saisie d'un autre montant)
+  useEffect(() => {
+    if (watchAssistance && !getValues('assistancePrice')) setValue('assistancePrice', DEFAULT_ASSISTANCE_PRICE)
+  }, [watchAssistance, getValues, setValue])
   const watchPrice    = watch('price')
   const watchOldPrice = watch('oldPrice')
 
@@ -318,7 +326,7 @@ export default function ProductFormPage() {
               step={1}
               {...register('assistancePrice')}
               error={errors.assistancePrice?.message}
-              placeholder="5500"
+              placeholder={String(DEFAULT_ASSISTANCE_PRICE)}
             />
           </div>
         </div>

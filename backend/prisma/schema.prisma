@@ -188,7 +188,8 @@ model Product {
   /// le ressaisir. Revenu plateforme : jamais crédité au marchand (voir
   /// lib/merchantWallet.ts, qui ne compte que price × qty).
   assistanceEnabled  Boolean         @default(false)
-  assistancePrice    Int?
+  /// 10 000 FCFA par défaut — modifiable produit par produit par l'admin.
+  assistancePrice    Int?            @default(10000)
   /// Dernier résultat connu d'une synchronisation Merchant (tous providers
   /// confondus) — "success" | "failed" | "skipped" | null si jamais synchronisé.
   merchantSyncStatus String?
