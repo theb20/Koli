@@ -8,7 +8,7 @@ import { writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 
-const API_URL  = 'https://skignas.up.railway.app'
+const API_URL  = process.env.VITE_API_URL ?? 'https://api.skignas.com'
 const SITE_URL = 'https://skignas.com'
 const today    = new Date().toISOString().slice(0, 10)
 

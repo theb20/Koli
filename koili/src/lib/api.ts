@@ -50,6 +50,9 @@ export type ApiProduct = {
   isActive: boolean
   description?: string | null
   colors?: string | null          // JSON string stocké en base
+  /** Option payante "Assistance technique" — prix fixe par ligne de commande */
+  assistanceEnabled?: boolean
+  assistancePrice?: number | null
   createdAt: string
   images?: ApiProductImage[]
   specs?: ApiProductSpec[]
@@ -66,6 +69,8 @@ export type ApiOrderItem = {
   qty: number
   image: string
   color?: string | null
+  assistance?: boolean
+  assistancePrice?: number
 }
 
 export type ApiOrder = {
@@ -82,6 +87,8 @@ export type ApiOrder = {
   paymentMethod: string
   paymentStatus: string
   subtotal: number
+  /** Somme des options "Assistance technique" — hors subtotal, incluse dans total */
+  assistanceTotal?: number
   discount: number
   taxRate: number
   taxAmount: number
@@ -254,6 +261,8 @@ export function mapApiProduct(p: ApiProduct) {
     specs,
     images: imgUrls as [string, string, string, string],
     thumbnails: thumbUrls as [string, string, string, string],
+    /** Prix de l'option "Assistance technique" — null si non proposée */
+    assistancePrice: p.assistanceEnabled && p.assistancePrice ? p.assistancePrice : null,
   }
 }
 
@@ -371,7 +380,7 @@ export async function createOrder(
     deliveryMethod: 'standard' | 'express'
     shippingAddress: { ville: string; quartier?: string; adresse: string; instructions?: string }
     paymentMethod: 'online' | 'cash'
-    items: { productId: number; qty: number; color?: string }[]
+    items: { productId: number; qty: number; color?: string; assistance?: boolean }[]
     promoCode?: string
     notes?: string
     clientRequestId?: string
@@ -518,6 +527,7 @@ export type ApiCartItem = {
   productId: number
   qty: number
   color?: string | null
+  assistance?: boolean
   product: ApiProduct
 }
 
@@ -525,15 +535,21 @@ export async function fetchCart(token: string) {
   return apiFetch<ApiResponse<ApiCartItem[]>>('/api/cart', token)
 }
 
-export async function addToCartApi(productId: number, qty: number, color: string | undefined, token: string) {
+export async function addToCartApi(productId: number, qty: number, color: string | undefined, token: string, assistance?: boolean) {
   return apiFetch<ApiResponse<ApiCartItem>>(`/api/cart/${productId}`, token, {
-    method: 'POST', body: JSON.stringify({ qty, color }),
+    method: 'POST', body: JSON.stringify({ qty, color, assistance }),
   })
 }
 
 export async function updateCartQtyApi(productId: number, qty: number, token: string) {
   return apiFetch<ApiResponse<unknown>>(`/api/cart/${productId}`, token, {
     method: 'PUT', body: JSON.stringify({ qty }),
+  })
+}
+
+export async function setCartAssistanceApi(productId: number, assistance: boolean, token: string) {
+  return apiFetch<ApiResponse<unknown>>(`/api/cart/${productId}/assistance`, token, {
+    method: 'PATCH', body: JSON.stringify({ assistance }),
   })
 }
 
@@ -546,7 +562,7 @@ export async function clearCartApi(token: string) {
 }
 
 /** Fusionne le panier localStorage d'un invité dans son panier serveur, juste après connexion. */
-export async function mergeCartApi(items: { productId: number; qty: number; color?: string }[], token: string) {
+export async function mergeCartApi(items: { productId: number; qty: number; color?: string; assistance?: boolean }[], token: string) {
   return apiFetch<ApiResponse<ApiCartItem[]>>('/api/cart/merge', token, {
     method: 'POST', body: JSON.stringify({ items }),
   })

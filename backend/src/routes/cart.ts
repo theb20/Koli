@@ -38,6 +38,7 @@ const mergeSchema = z.object({
     productId: z.number().int().positive(),
     qty:       z.number().int().positive(),
     color:     z.string().optional(),
+    assistance: z.boolean().optional(),
   })).max(200),
 })
 
@@ -55,7 +56,7 @@ router.post('/merge', validate(mergeSchema), async (req, res) => {
     const { items } = req.body as z.infer<typeof mergeSchema>
     const userId = req.user!.userId
 
-    for (const { productId, qty, color } of items) {
+    for (const { productId, qty, color, assistance } of items) {
       const product = await prisma.product.findFirst({ where: { id: productId, isActive: true } })
       if (!product) continue
 
@@ -66,8 +67,8 @@ router.post('/merge', validate(mergeSchema), async (req, res) => {
 
       await prisma.cartItem.upsert({
         where:  { userId_productId: { userId, productId } },
-        create: { userId, productId, qty: Math.min(qty, product.stock), color },
-        update: { qty: nextQty },
+        create: { userId, productId, qty: Math.min(qty, product.stock), color, assistance: !!assistance },
+        update: { qty: nextQty, ...(assistance ? { assistance: true } : {}) },
       })
     }
 
@@ -85,13 +86,14 @@ router.post('/merge', validate(mergeSchema), async (req, res) => {
 const addSchema = z.object({
   qty:   z.number().int().positive().default(1),
   color: z.string().optional(),
+  assistance: z.boolean().optional(),
 })
 
 /* ── POST /api/cart/:productId — Ajouter (incrémente si présent) ─ */
 router.post('/:productId', validateParams(zProductIdParam), validate(addSchema), async (req, res) => {
   try {
     const productId = Number(req.params['productId'])
-    const { qty, color } = req.body as z.infer<typeof addSchema>
+    const { qty, color, assistance } = req.body as z.infer<typeof addSchema>
 
     const product = await prisma.product.findFirst({ where: { id: productId, isActive: true } })
     if (!product) {
@@ -106,8 +108,8 @@ router.post('/:productId', validateParams(zProductIdParam), validate(addSchema),
 
     const item = await prisma.cartItem.upsert({
       where:  { userId_productId: { userId: req.user!.userId, productId } },
-      create: { userId: req.user!.userId, productId, qty: Math.min(qty, product.stock), color },
-      update: { qty: nextQty, ...(color ? { color } : {}) },
+      create: { userId: req.user!.userId, productId, qty: Math.min(qty, product.stock), color, assistance: !!assistance },
+      update: { qty: nextQty, ...(color ? { color } : {}), ...(assistance ? { assistance: true } : {}) },
       include: cartItemInclude,
     })
 
@@ -140,6 +142,33 @@ router.put('/:productId', validateParams(zProductIdParam), validate(qtySchema), 
     const item = await prisma.cartItem.update({
       where: { userId_productId: { userId: req.user!.userId, productId } },
       data:  { qty: Math.min(qty, product.stock) },
+      include: cartItemInclude,
+    }).catch(() => null)
+
+    if (!item) {
+      res.status(404).json({ success: false, message: 'Article absent du panier' })
+      return
+    }
+
+    res.json({ success: true, data: item })
+  } catch {
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+const assistanceSchema = z.object({ assistance: z.boolean() })
+
+/* ── PATCH /api/cart/:productId/assistance — Cocher/décocher l'option ─
+   Simple intention : le prix est relu sur Product à la commande, et une
+   option désactivée par l'admin y est refusée (voir orders.ts). */
+router.patch('/:productId/assistance', validateParams(zProductIdParam), validate(assistanceSchema), async (req, res) => {
+  try {
+    const productId = Number(req.params['productId'])
+    const { assistance } = req.body as z.infer<typeof assistanceSchema>
+
+    const item = await prisma.cartItem.update({
+      where: { userId_productId: { userId: req.user!.userId, productId } },
+      data:  { assistance },
       include: cartItemInclude,
     }).catch(() => null)
 

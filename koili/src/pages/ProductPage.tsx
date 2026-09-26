@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'motion/react'
 import {
   ChevronLeft, ChevronRight, Heart, ShoppingCart, Star,
   Shield, Truck, RotateCcw, Zap, Share2, Check,
-  ChevronDown, ArrowLeft, Package, ThumbsUp, Loader2,
+  ChevronDown, ArrowLeft, Package, ThumbsUp, Loader2, Wrench,
 } from 'lucide-react'
 import { PageMeta } from '../components/seo/PageMeta'
 import { useCart } from '../contexts/CartContext'
@@ -567,6 +567,7 @@ export default function ProductPage() {
 
   /* ── Local state ── */
   const [qty, setQty]             = useState(1)
+  const [withAssistance, setWithAssistance] = useState(false)
   const [wished, setWished]       = useState(inWishlist)
   const [addedCart, setAddedCart] = useState(false)
   const [activeTab, setActiveTab] = useState<Tab>('Description')
@@ -625,6 +626,8 @@ export default function ProductPage() {
       image: product.thumbnails[0],
       color: product.colors?.[color],
       stock: product.stock ?? undefined,
+      assistance:      withAssistance && product.assistancePrice != null,
+      assistancePrice: product.assistancePrice,
     }, qty)
     setAddedCart(true)
     setTimeout(() => setAddedCart(false), 2200)
@@ -856,6 +859,24 @@ export default function ProductPage() {
                   </div>
                 </div>
 
+                {/* Option payante "Assistance technique" — prix fixe, une fois par commande de ce produit */}
+                {product.assistancePrice != null && (
+                  <label className="mb-4 flex items-start gap-3 p-3 rounded-xl border border-gray-200 cursor-pointer hover:border-gray-300 transition-colors">
+                    <input type="checkbox" checked={withAssistance}
+                      onChange={e => setWithAssistance(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 accent-blue-600 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="flex items-center gap-1.5 text-sm font-semibold text-gray-900">
+                        <Wrench size={14} className="text-blue-600" /> Assistance technique
+                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5">Service d'assistance technique pour ce produit</p>
+                    </div>
+                    <span className="text-sm font-bold text-gray-900 shrink-0">
+                      +{product.assistancePrice.toLocaleString('fr-FR')} FCFA
+                    </span>
+                  </label>
+                )}
+
                 {/* CTA */}
                 <div className="space-y-2 mb-4">
                   <motion.button
@@ -901,6 +922,8 @@ export default function ProductPage() {
                           image:     product.thumbnails[0],
                           color:     product.colors?.[color],
                           stock:     product.stock ?? undefined,
+                          assistance:      withAssistance && product.assistancePrice != null,
+                          assistancePrice: product.assistancePrice,
                         }, qty)
                         navigate('/panier')
                       }}

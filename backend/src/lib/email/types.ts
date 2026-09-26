@@ -14,6 +14,8 @@ export interface OrderConfirmationPayload {
   shippingCost?:   number
   promoDiscount?:  number
   subtotal?:       number
+  /** Option "Assistance technique" — somme des lignes où elle a été choisie */
+  assistanceTotal?: number
   paymentMethod:   string
   deliveryMethod:  string
 }

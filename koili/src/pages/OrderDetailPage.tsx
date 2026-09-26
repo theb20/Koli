@@ -37,6 +37,7 @@ type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'deliver
 type OrderItem = {
   productId: number; name: string; brand: string; image: string
   price: number; oldPrice?: number; qty: number; color?: string
+  assistancePrice: number   // 0 si l'option n'a pas été choisie
 }
 
 type Order = {
@@ -44,7 +45,7 @@ type Order = {
   items: OrderItem[]
   shipping: { name: string; address: string; city: string; phone: string }
   payment: { method: string; ref: string; status: string; isOnline: boolean }
-  shippingCost: number; subtotal: number; promoDiscount: number
+  shippingCost: number; subtotal: number; assistanceTotal: number; promoDiscount: number
   taxRate: number; taxAmount: number
   total: number
   trackingNumber?: string; estimatedDelivery?: string
@@ -71,6 +72,7 @@ function mapOrder(o: ApiOrder): Order {
     items: o.items.map(i => ({
       productId: i.productId, name: i.name, brand: i.brand,
       image: i.image, price: i.price, qty: i.qty, color: i.color ?? undefined,
+      assistancePrice: i.assistance ? i.assistancePrice ?? 0 : 0,
     })),
     shipping: {
       name:    `${o.clientPrenom} ${o.clientNom}`,
@@ -86,6 +88,7 @@ function mapOrder(o: ApiOrder): Order {
     },
     shippingCost: o.shippingCost,
     subtotal:     o.subtotal,
+    assistanceTotal: o.assistanceTotal ?? 0,
     promoDiscount: o.promoDiscount,
     taxRate:      o.taxRate ?? 0,
     taxAmount:    o.taxAmount ?? 0,
@@ -236,6 +239,9 @@ function OrderItemRow({ item }: { item: OrderItem }) {
             <div className="w-3 h-3 rounded-full border border-gray-200" style={{ background: item.color }} />
             <span className="text-[11px] text-gray-400">Couleur</span>
           </div>
+        )}
+        {item.assistancePrice > 0 && (
+          <p className="text-[11px] text-gray-500 mt-1">+ Assistance technique · {fmt(item.assistancePrice)}</p>
         )}
         <div className="flex items-center gap-2 mt-1.5">
           <span className="text-xs text-gray-500">Qté : <strong className="text-gray-800">{item.qty}</strong></span>
@@ -697,6 +703,12 @@ export default function OrderDetailPage() {
                     <span className="text-gray-500">Sous-total HT</span>
                     <span className="font-medium text-gray-800">{fmt(order.subtotal)}</span>
                   </div>
+                  {order.assistanceTotal > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Assistance technique</span>
+                      <span className="font-medium text-gray-800">{fmt(order.assistanceTotal)}</span>
+                    </div>
+                  )}
                   {order.promoDiscount > 0 && (
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">Code promo</span>

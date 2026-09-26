@@ -62,6 +62,7 @@ router.post('/orders/:id/mark-paid', validateParams(zCuidIdParam), validate(mark
       prenom:         order.clientPrenom,
       items:          order.items.map(i => ({ name: i.name, qty: i.qty, price: i.price })),
       subtotal:       order.subtotal,
+      assistanceTotal: order.assistanceTotal,
       shippingCost:   order.shippingCost,
       promoDiscount:  order.promoDiscount,
       total:          order.total,

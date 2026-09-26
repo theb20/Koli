@@ -45,6 +45,8 @@ export type Product = {
   createdAt: string
   updatedAt: string
   salePrice?: number | null
+  assistanceEnabled?: boolean
+  assistancePrice?: number | null
   saleStartsAt?: string | null
   saleEndsAt?: string | null
   images: { id: number; url: string; position: number }[]
@@ -117,6 +119,8 @@ export type Order = {
   paymentMethod: string
   deliveryMethod: string
   subtotal: number
+  /** Options "Assistance technique" — revenu plateforme, hors subtotal */
+  assistanceTotal?: number
   shippingCost: number   // matches backend Prisma field
   promoDiscount: number  // matches backend Prisma field
   taxRate: number        // taux TVA appliqué (ex: 18)
@@ -144,6 +148,8 @@ export type OrderItem = {
   qty: number
   color?: string
   image?: string   // matches backend Prisma field
+  assistance?: boolean
+  assistancePrice?: number
 }
 
 export type User = {

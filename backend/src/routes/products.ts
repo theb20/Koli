@@ -68,7 +68,16 @@ const createProductSchema = z.object({
   salePrice:    z.number().int().positive().nullable().optional(),
   saleStartsAt: z.coerce.date().nullable().optional(),
   saleEndsAt:   z.coerce.date().nullable().optional(),
+  /* Option payante "Assistance technique" (fixée par l'admin, par ligne de commande) */
+  assistanceEnabled: z.boolean().optional(),
+  assistancePrice:   z.number().int().positive().nullable().optional(),
 })
+
+/** Une option activée doit avoir un prix — appliqué à la création ET à l'édition */
+function assistanceError(d: { assistanceEnabled?: boolean | null; assistancePrice?: number | null }): string | null {
+  if (d.assistanceEnabled && d.assistancePrice == null) return "Un prix est requis pour activer l'assistance technique"
+  return null
+}
 
 /** Cohérence de la promo — appliquée à la création ET à l'édition */
 function saleWindowError(d: { salePrice?: number | null; saleStartsAt?: Date | null; saleEndsAt?: Date | null }): string | null {
@@ -80,6 +89,8 @@ function saleWindowError(d: { salePrice?: number | null; saleStartsAt?: Date | n
 const createProductSchemaChecked = createProductSchema.superRefine((d, ctx) => {
   const err = saleWindowError(d)
   if (err) ctx.addIssue({ code: z.ZodIssueCode.custom, message: err, path: ['saleEndsAt'] })
+  const assistErr = assistanceError(d)
+  if (assistErr) ctx.addIssue({ code: z.ZodIssueCode.custom, message: assistErr, path: ['assistancePrice'] })
 })
 
 /* ─────────────────────────────────────────────────────────────
@@ -760,6 +771,20 @@ router.put('/:id', requireAdmin, validateParams(zIntIdParam), validate(createPro
         saleEndsAt:   'saleEndsAt'   in data ? data.saleEndsAt   : current?.saleEndsAt,
       }
       const err = saleWindowError(merged)
+      if (err) {
+        res.status(400).json({ success: false, message: err })
+        return
+      }
+    }
+
+    if ('assistanceEnabled' in data || 'assistancePrice' in data) {
+      const current = await prisma.product.findUnique({
+        where: { id }, select: { assistanceEnabled: true, assistancePrice: true },
+      })
+      const err = assistanceError({
+        assistanceEnabled: 'assistanceEnabled' in data ? data.assistanceEnabled : current?.assistanceEnabled,
+        assistancePrice:   'assistancePrice'   in data ? data.assistancePrice   : current?.assistancePrice,
+      })
       if (err) {
         res.status(400).json({ success: false, message: err })
         return

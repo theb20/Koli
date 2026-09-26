@@ -189,6 +189,9 @@ export default function OrderDetailPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-slate-900">{item.name}</p>
                     {item.color && <p className="text-xs text-slate-500">Couleur: {item.color}</p>}
+                    {item.assistance && (
+                      <p className="text-xs text-indigo-600">+ Assistance technique · {fmt(item.assistancePrice ?? 0)}</p>
+                    )}
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-semibold text-slate-900">{fmt(item.price * item.qty)}</p>
@@ -203,6 +206,12 @@ export default function OrderDetailPage() {
                 <span>Sous-total</span>
                 <span>{fmt(order.subtotal)}</span>
               </div>
+              {(order.assistanceTotal ?? 0) > 0 && (
+                <div className="flex justify-between text-sm text-slate-500">
+                  <span>Assistance technique (plateforme)</span>
+                  <span>{fmt(order.assistanceTotal ?? 0)}</span>
+                </div>
+              )}
               {order.promoDiscount > 0 && (
                 <div className="flex justify-between text-sm text-green-600">
                   <span>Réduction {order.promoCode && `(${order.promoCode})`}</span>

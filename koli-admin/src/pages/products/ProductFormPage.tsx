@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { ArrowLeft, Plus, Trash2, Save, Zap, X } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, Save, Zap, X, Wrench } from 'lucide-react'
 import { api } from '../../lib/api'
 import { Button } from '../../components/ui/Button'
 import { Input, Textarea, Select } from '../../components/ui/Input'
@@ -28,7 +28,13 @@ const schema = z.object({
   salePrice:    z.coerce.number().int().positive().optional().or(z.literal('')),
   saleStartsAt: z.string().optional(),
   saleEndsAt:   z.string().optional(),
+  /* Option payante "Assistance technique" — prix fixe par ligne de commande */
+  assistanceEnabled: z.boolean(),
+  assistancePrice:   z.coerce.number().int('Entier requis').positive('Prix invalide').optional().or(z.literal('')),
 }).refine(
+  d => !(d.assistanceEnabled && !d.assistancePrice),
+  { message: "Un prix est requis pour activer l'assistance technique", path: ['assistancePrice'] },
+).refine(
   d => !(d.salePrice && !d.saleEndsAt),
   { message: 'Une date de fin est requise pour programmer un prix promo', path: ['saleEndsAt'] },
 ).refine(
@@ -72,7 +78,7 @@ export default function ProductFormPage() {
 
   const { register, control, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema) as import('react-hook-form').Resolver<FormData>,
-    defaultValues: { images: [{ url: '' }], specs: [], isNew: false, stock: 100, category: '' },
+    defaultValues: { images: [{ url: '' }], specs: [], isNew: false, stock: 100, category: '', assistanceEnabled: false, assistancePrice: '' },
   })
 
   const { fields: imgFields, append: appendImg, remove: removeImg } = useFieldArray({ control, name: 'images' })
@@ -95,6 +101,8 @@ export default function ProductFormPage() {
         salePrice:    existing.salePrice ?? '',
         saleStartsAt: toDatetimeLocal(existing.saleStartsAt),
         saleEndsAt:   toDatetimeLocal(existing.saleEndsAt),
+        assistanceEnabled: existing.assistanceEnabled ?? false,
+        assistancePrice:   existing.assistancePrice ?? '',
       })
     }
   }, [existing, reset])
@@ -117,6 +125,9 @@ export default function ProductFormPage() {
       salePrice:    data.salePrice ? Number(data.salePrice) : null,
       saleStartsAt: fromDatetimeLocal(data.saleStartsAt),
       saleEndsAt:   fromDatetimeLocal(data.saleEndsAt),
+      assistanceEnabled: data.assistanceEnabled,
+      // Prix conservé même désactivé, pour pouvoir réactiver sans le ressaisir
+      assistancePrice:   data.assistancePrice ? Number(data.assistancePrice) : null,
     })
   }
 
@@ -131,6 +142,7 @@ export default function ProductFormPage() {
   const watchSaleStarts = watch('saleStartsAt')
   const watchSaleEnds   = watch('saleEndsAt')
   const saleState = getSaleState(watchSaleStarts, watchSaleEnds)
+  const watchAssistance = watch('assistanceEnabled')
   const watchPrice    = watch('price')
   const watchOldPrice = watch('oldPrice')
 
@@ -278,6 +290,35 @@ export default function ProductFormPage() {
               type="datetime-local"
               {...register('saleEndsAt')}
               error={errors.saleEndsAt?.message}
+            />
+          </div>
+        </div>
+
+        {/* Option payante : Assistance technique */}
+        <div className={cardCls}>
+          <div className="flex items-center justify-between gap-3 mb-1">
+            <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+              <Wrench size={15} className="text-indigo-500" /> Assistance technique
+            </h3>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" {...register('assistanceEnabled')} className="w-4 h-4 rounded accent-indigo-600" />
+              <span className={`text-xs font-semibold ${watchAssistance ? 'text-emerald-600' : 'text-slate-400'}`}>
+                {watchAssistance ? 'Activée' : 'Désactivée'}
+              </span>
+            </label>
+          </div>
+          <p className="text-xs text-slate-500 mb-3">
+            Option payante proposée au client sur la fiche produit et dans le panier. Facturée une fois par commande de ce produit (quelle que soit la quantité), encaissée par la plateforme — jamais reversée au marchand.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Input
+              label="Prix de l'assistance (FCFA)"
+              type="number"
+              min={1}
+              step={1}
+              {...register('assistancePrice')}
+              error={errors.assistancePrice?.message}
+              placeholder="5500"
             />
           </div>
         </div>

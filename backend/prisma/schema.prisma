@@ -182,6 +182,13 @@ model Product {
   saleStartsAt       DateTime?
   saleEndsAt         DateTime?
   salePrice          Int?
+  /// Option payante "Assistance technique" — fixée par l'admin uniquement,
+  /// facturée une fois par ligne de commande (pas par unité). Le prix reste
+  /// conservé quand l'option est désactivée, pour pouvoir la réactiver sans
+  /// le ressaisir. Revenu plateforme : jamais crédité au marchand (voir
+  /// lib/merchantWallet.ts, qui ne compte que price × qty).
+  assistanceEnabled  Boolean         @default(false)
+  assistancePrice    Int?
   /// Dernier résultat connu d'une synchronisation Merchant (tous providers
   /// confondus) — "success" | "failed" | "skipped" | null si jamais synchronisé.
   merchantSyncStatus String?
@@ -261,6 +268,11 @@ model Order {
   /// distinguer "Paiement annulé" (neutre) de "Paiement échoué" (technique).
   paymentFailureReason String?
   subtotal        Int
+  /// Somme des options "Assistance technique" de la commande — hors
+  /// subtotal (qui reste le total des produits seuls : base du seuil de
+  /// livraison gratuite et du code promo), mais soumis à la TVA et inclus
+  /// dans total. Revenu plateforme, jamais reversé au marchand.
+  assistanceTotal Int             @default(0)
   discount        Int             @default(0)
   taxRate         Float           @default(0)
   taxAmount       Int             @default(0)
@@ -307,6 +319,10 @@ model OrderItem {
   qty         Int
   image       String
   color       String?
+  /// Option "Assistance technique" choisie sur cette ligne — prix figé au
+  /// moment de la commande (0 si non choisie), comme price.
+  assistance      Boolean       @default(false)
+  assistancePrice Int           @default(0)
   product     Product           @relation(fields: [productId], references: [id])
   order       Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
   returnItems OrderReturnItem[]
@@ -444,6 +460,9 @@ model CartItem {
   /// Couleur choisie (hex) — une seule ligne par produit, comme le
   /// comportement actuel du panier local (pas de ligne séparée par couleur).
   color     String?
+  /// Option "Assistance technique" cochée — simple intention du client, le
+  /// prix est toujours relu sur Product au moment de la commande.
+  assistance Boolean @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)

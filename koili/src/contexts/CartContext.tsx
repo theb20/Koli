@@ -5,7 +5,7 @@ import {
 import { useAuth } from './AuthContext'
 import {
   fetchCart, addToCartApi, updateCartQtyApi, removeFromCartApi, clearCartApi, mergeCartApi,
-  type ApiCartItem,
+  setCartAssistanceApi, type ApiCartItem,
 } from '../lib/api'
 import { registerPurgeHandler } from '../lib/sessionPurge'
 
@@ -22,7 +22,17 @@ export type CartItem = {
   qty: number
   color?: string  // hex couleur choisie
   stock?: number  // stock disponible au moment de l'ajout
+  /** Option "Assistance technique" cochée sur cette ligne */
+  assistance?: boolean
+  /** Prix de l'option (fixe par ligne) — null/absent si le produit ne la
+   *  propose pas. Rafraîchi depuis le serveur sur la page panier ; le
+   *  backend relit de toute façon le vrai prix à la commande. */
+  assistancePrice?: number | null
 }
+
+/** Montant réellement facturé pour l'assistance sur une ligne (0 si non choisie/indisponible). */
+export const lineAssistance = (i: CartItem) =>
+  i.assistance && i.assistancePrice ? i.assistancePrice : 0
 
 type CartState = {
   items: CartItem[]
@@ -33,6 +43,8 @@ type CartAction =
   | { type: 'ADD';        item: Omit<CartItem, 'qty'>; qty?: number }
   | { type: 'REMOVE';     productId: number }
   | { type: 'UPDATE_QTY'; productId: number; qty: number }
+  | { type: 'SET_ASSISTANCE';   productId: number; assistance: boolean }
+  | { type: 'SYNC_ASSISTANCE';  productId: number; price: number | null }
   | { type: 'CLEAR' }
   | { type: 'HYDRATE';    items: CartItem[] }
   | { type: 'OPEN' }
@@ -52,6 +64,8 @@ function fromApiCartItem(i: ApiCartItem): CartItem {
     qty:       i.qty,
     color:     i.color ?? undefined,
     stock:     p.stock,
+    assistance:      !!i.assistance,
+    assistancePrice: p.assistanceEnabled ? p.assistancePrice ?? null : null,
   }
 }
 
@@ -69,7 +83,11 @@ function cartReducer(state: CartState, action: CartAction): CartState {
       const items = exists
         ? state.items.map(i =>
             i.productId === action.item.productId
-              ? { ...i, qty: clamp(i.qty + qty), stock: action.item.stock ?? i.stock }
+              ? {
+                  ...i, qty: clamp(i.qty + qty), stock: action.item.stock ?? i.stock,
+                  assistance:      action.item.assistance || i.assistance,
+                  assistancePrice: action.item.assistancePrice !== undefined ? action.item.assistancePrice : i.assistancePrice,
+                }
               : i
           )
         : [...state.items, { ...action.item, qty: clamp(qty) }]
@@ -87,6 +105,26 @@ function cartReducer(state: CartState, action: CartAction): CartState {
         ...state,
         items: state.items.map(i =>
           i.productId === action.productId ? { ...i, qty: action.qty } : i
+        ),
+      }
+
+    case 'SET_ASSISTANCE':
+      return {
+        ...state,
+        items: state.items.map(i =>
+          i.productId === action.productId ? { ...i, assistance: action.assistance } : i
+        ),
+      }
+
+    // Offre désactivée par l'admin entre-temps → on décoche aussi, pour ne
+    // pas afficher un montant que le serveur refusera à la commande.
+    case 'SYNC_ASSISTANCE':
+      return {
+        ...state,
+        items: state.items.map(i =>
+          i.productId === action.productId
+            ? { ...i, assistancePrice: action.price, assistance: action.price == null ? false : i.assistance }
+            : i
         ),
       }
 
@@ -135,7 +173,11 @@ type CartContextValue = {
   isOpen: boolean
   totalItems: number
   totalPrice: number
+  /** Somme des options "Assistance technique" — hors totalPrice (produits seuls) */
+  totalAssistance: number
   addItem: (item: Omit<CartItem, 'qty'>, qty?: number) => void
+  setAssistance: (productId: number, assistance: boolean) => void
+  syncAssistanceOffer: (productId: number, price: number | null) => void
   removeItem: (productId: number) => void
   updateQty: (productId: number, qty: number) => void
   clearCart: () => void
@@ -190,7 +232,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         try {
           const guestItems = loadCart()
           const res = guestItems.length > 0
-            ? await mergeCartApi(guestItems.map(i => ({ productId: i.productId, qty: i.qty, color: i.color })), token)
+            ? await mergeCartApi(guestItems.map(i => ({ productId: i.productId, qty: i.qty, color: i.color, assistance: i.assistance })), token)
             : await fetchCart(token)
           localStorage.removeItem('koli_cart')
           dispatch({ type: 'HYDRATE', items: res.data.map(fromApiCartItem) })
@@ -222,6 +264,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   /* Dérivés */
   const totalItems = state.items.reduce((s, i) => s + i.qty, 0)
   const totalPrice = state.items.reduce((s, i) => s + i.price * i.qty, 0)
+  const totalAssistance = state.items.reduce((s, i) => s + lineAssistance(i), 0)
 
   /* Actions mémoïsées — mise à jour locale immédiate (réactivité UI), puis
      miroir vers le serveur si connecté (non bloquant : un échec réseau ne
@@ -229,7 +272,22 @@ export function CartProvider({ children }: { children: ReactNode }) {
      prochaine connexion/hydratation resynchronisera). */
   const addItem = useCallback((item: Omit<CartItem, 'qty'>, qty?: number) => {
     dispatch({ type: 'ADD', item, qty })
-    if (token) addToCartApi(item.productId, qty ?? 1, item.color, token).catch(() => {})
+    if (token) addToCartApi(item.productId, qty ?? 1, item.color, token, item.assistance).catch(() => {})
+  }, [token])
+
+  const setAssistance = useCallback((productId: number, assistance: boolean) => {
+    dispatch({ type: 'SET_ASSISTANCE', productId, assistance })
+    if (token) setCartAssistanceApi(productId, assistance, token).catch(() => {})
+  }, [token])
+
+  // Ref pour lire l'état courant sans recréer le callback à chaque changement du panier
+  const itemsRef = useRef(state.items)
+  itemsRef.current = state.items
+  const syncAssistanceOffer = useCallback((productId: number, price: number | null) => {
+    const current = itemsRef.current.find(i => i.productId === productId)
+    if (!current || (current.assistancePrice ?? null) === price) return
+    dispatch({ type: 'SYNC_ASSISTANCE', productId, price })
+    if (token && price == null && current.assistance) setCartAssistanceApi(productId, false, token).catch(() => {})
   }, [token])
 
   const removeItem = useCallback((productId: number) => {
@@ -254,8 +312,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   return (
     <CartContext.Provider value={{
       items: state.items, isOpen: state.isOpen,
-      totalItems, totalPrice,
-      addItem, removeItem, updateQty, clearCart,
+      totalItems, totalPrice, totalAssistance,
+      addItem, removeItem, updateQty, clearCart, setAssistance, syncAssistanceOffer,
       openCart, closeCart, toggleCart,
     }}>
       {children}

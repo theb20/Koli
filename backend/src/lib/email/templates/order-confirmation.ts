@@ -21,9 +21,11 @@ export async function sendOrderConfirmationEmail(to: string, order: OrderConfirm
   const sub           = order.subtotal      ?? order.items.reduce((s, i) => s + i.price * i.qty, 0)
   const shipping      = order.shippingCost  ?? 0
   const promo         = order.promoDiscount ?? 0
+  const assistance    = order.assistanceTotal ?? 0
 
   const summaryRows: Array<[string, string]> = [
     ['Sous-total', fmt(sub)],
+    ...(assistance > 0 ? [['Assistance technique', fmt(assistance)] as [string, string]] : []),
     ...(promo > 0 ? [['Promo', `<span style="color:#059669">−${fmt(promo)}</span>`] as [string, string]] : []),
     ['Livraison', shipping === 0 ? '<span style="color:#059669">Gratuite</span>' : fmt(shipping)],
   ]

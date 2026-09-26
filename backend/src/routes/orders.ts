@@ -73,6 +73,8 @@ const createOrderSchema = z.object({
     productId: z.number().int().positive(),
     qty:       z.number().int().positive(),
     color:     z.string().optional(),
+    /** Option "Assistance technique" cochée — le prix n'est jamais pris du client */
+    assistance: z.boolean().optional(),
   })).min(1, 'Le panier est vide'),
 
   // Promo
@@ -247,10 +249,29 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
       }
     }
 
+    // 1bis. Option "Assistance technique" — refusée si l'admin l'a désactivée
+    //       entre-temps (panier ancien) plutôt que facturée ou ignorée en silence.
+    for (const item of body.items) {
+      if (!item.assistance) continue
+      const p = products.find(p => p.id === item.productId)!
+      if (!p.assistanceEnabled || p.assistancePrice == null) {
+        res.status(400).json({ success: false, message: `L'assistance technique n'est plus disponible pour "${p.name}". Décochez-la dans votre panier.` })
+        return
+      }
+    }
+
     // 2. Calculer les totaux
     const subtotal = body.items.reduce((sum, item) => {
       const p = products.find(p => p.id === item.productId)!
       return sum + p.price * item.qty
+    }, 0)
+
+    // Assistance : un prix fixe par ligne (pas par unité), relu en base.
+    // Hors subtotal — la livraison gratuite et le code promo ne portent que
+    // sur les produits — mais soumis à la TVA et inclus dans le total payé.
+    const assistanceTotal = body.items.reduce((sum, item) => {
+      const p = products.find(p => p.id === item.productId)!
+      return sum + (item.assistance ? p.assistancePrice ?? 0 : 0)
     }, 0)
 
     const shippingCost = (() => {
@@ -263,7 +284,7 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
       where: { isDefault: true, isActive: true },
     })
     const taxRatePercent = defaultTax?.rate ?? 0
-    const taxAmount      = Math.round(subtotal * taxRatePercent / 100)
+    const taxAmount      = Math.round((subtotal + assistanceTotal) * taxRatePercent / 100)
 
     const { loyaltyEnabled } = await getLoyaltySettings()
 
@@ -332,7 +353,7 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
         }
       }
 
-      const finalTotal        = subtotal + taxAmount - finalPromoDiscount + shippingCost
+      const finalTotal        = subtotal + assistanceTotal + taxAmount - finalPromoDiscount + shippingCost
       const finalPointsEarned = (req.user?.userId && loyaltyEnabled) ? Math.floor(finalTotal / 100) : 0
 
       return tx.order.create({
@@ -349,6 +370,7 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
           shippingCost,
           paymentMethod:   body.paymentMethod,
           subtotal,
+          assistanceTotal,
           taxRate:         taxRatePercent,
           taxAmount,
           promoCode:       finalPromoCode,
@@ -367,6 +389,8 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
                 qty:       item.qty,
                 image:     p.images[0]?.url ?? '',
                 color:     item.color,
+                assistance:      !!item.assistance,
+                assistancePrice: item.assistance ? p.assistancePrice ?? 0 : 0,
               }
             }),
           },
@@ -537,6 +561,7 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
         prenom:        body.clientPrenom,
         items:         order.items.map(i => ({ name: i.name, qty: i.qty, price: i.price })),
         subtotal,
+        assistanceTotal,
         shippingCost,
         promoDiscount: order.promoDiscount,
         total:         order.total,

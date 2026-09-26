@@ -7,9 +7,9 @@ import {
   MapPin, Phone, User, Tag, CreditCard, Smartphone, Banknote,
   CheckCircle2, Package, Shield, Truck, Clock, Copy, Check,
   ArrowLeft, AlertCircle, Edit2, Star, Zap, Gift, Info,
-  MessageCircle, RotateCcw, Mail, Loader2, Undo2, Lock, Van,
+  MessageCircle, RotateCcw, Mail, Loader2, Undo2, Lock, Van, Wrench,
 } from 'lucide-react'
-import { useCart, fmtCart, type CartItem } from '../contexts/CartContext'
+import { useCart, fmtCart, lineAssistance, type CartItem } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
 import { createOrder, fetchPromo, fetchProducts, fetchProduct, mapApiProduct, fetchDefaultTax, fetchAddresses, type ApiAddress } from '../lib/api'
 import { useSiteSettings, waLink, telLink } from '../hooks/useSiteSettings'
@@ -119,11 +119,12 @@ function SummarySidebar({
     queryFn:  fetchDefaultTax,
     staleTime: 300_000,
   })
+  const { totalAssistance } = useCart()
   const taxRate    = taxData?.data?.tax?.rate ?? 0
-  const taxAmount  = Math.round(totalPrice * taxRate / 100)
+  const taxAmount  = Math.round((totalPrice + totalAssistance) * taxRate / 100)
 
   const totalSaved = items.reduce((s, i) => i.oldPrice ? s + (i.oldPrice - i.price) * i.qty : s, 0)
-  const total      = totalPrice + taxAmount - promoDiscount + shipping
+  const total      = totalPrice + totalAssistance + taxAmount - promoDiscount + shipping
 
   const applyPromo = async () => {
     const code = input.trim().toUpperCase()
@@ -168,6 +169,11 @@ function SummarySidebar({
                   <div className="w-3 h-3 rounded-full border border-gray-200" style={{ background: item.color }} />
                   <span className="text-[10px] text-gray-400">couleur</span>
                 </div>
+              )}
+              {lineAssistance(item) > 0 && (
+                <p className="flex items-center gap-1 mt-1 text-[10px] text-gray-500">
+                  <Wrench size={10} /> Assistance technique · {fmtCart(lineAssistance(item))}
+                </p>
               )}
             </div>
             <p className="text-xs font-bold text-gray-900 shrink-0">{fmtCart(item.price * item.qty)}</p>
@@ -219,6 +225,13 @@ function SummarySidebar({
           </span>
           <span className="font-medium text-gray-700">{fmtCart(totalPrice)}</span>
         </div>
+
+        {totalAssistance > 0 && (
+          <div className="flex justify-between text-sm text-gray-500">
+            <span className="flex items-center gap-1"><Wrench size={11} /> Assistance technique</span>
+            <span className="font-medium text-gray-700">{fmtCart(totalAssistance)}</span>
+          </div>
+        )}
 
         {/* Économies sur prix barrés */}
         {totalSaved > 0 && (
@@ -306,7 +319,7 @@ function StepCart({ items, totalPrice, onNext, promoCode, promoDiscount, onPromo
   promoCode: string; promoDiscount: number; onPromoApply: (c: string) => void; shipping: number
   outOfStockIds: Set<number>
 }) {
-  const { removeItem, updateQty } = useCart()
+  const { removeItem, updateQty, setAssistance, totalAssistance } = useCart()
   const [promoInput,   setPromoInput]   = useState('')
   const [promoError,   setPromoError]   = useState('')
   const [promoLoading, setPromoLoading] = useState(false)
@@ -330,11 +343,11 @@ function StepCart({ items, totalPrice, onNext, promoCode, promoDiscount, onPromo
   // TVA (cache partagé avec SummarySidebar)
   const { data: taxData } = useQuery({ queryKey: ['default-tax'], queryFn: fetchDefaultTax, staleTime: 300_000 })
   const taxRate   = taxData?.data?.tax?.rate ?? 0
-  const taxAmount = Math.round(totalPrice * taxRate / 100)
+  const taxAmount = Math.round((totalPrice + totalAssistance) * taxRate / 100)
 
   const progressPct = Math.min((totalPrice / SHIPPING_FREE) * 100, 100)
   const totalSaved  = items.reduce((s, i) => i.oldPrice ? s + (i.oldPrice - i.price) * i.qty : s, 0)
-  const total       = totalPrice + taxAmount - promoDiscount + shipping
+  const total       = totalPrice + totalAssistance + taxAmount - promoDiscount + shipping
 
   if (items.length === 0) {
     return (
@@ -485,6 +498,18 @@ function StepCart({ items, totalPrice, onNext, promoCode, promoDiscount, onPromo
                         </button>
                       </div>
                     </div>
+
+                    {/* Option payante "Assistance technique" — seulement si l'admin l'a activée */}
+                    {item.assistancePrice != null && item.assistancePrice > 0 && (
+                      <label className="mt-3 flex items-center gap-2.5 px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 cursor-pointer hover:border-gray-300 transition-colors">
+                        <input type="checkbox" checked={!!item.assistance}
+                          onChange={e => setAssistance(item.productId, e.target.checked)}
+                          className="w-4 h-4 accent-blue-600 shrink-0" />
+                        <Wrench size={13} className="text-blue-600 shrink-0" />
+                        <span className="text-xs font-semibold text-gray-800 flex-1">Assistance technique</span>
+                        <span className="text-xs font-bold text-gray-900">+{fmtCart(item.assistancePrice)}</span>
+                      </label>
+                    )}
                   </div>
                 </div>
               </motion.div>
@@ -528,6 +553,12 @@ function StepCart({ items, totalPrice, onNext, promoCode, promoDiscount, onPromo
           <span>Sous-total HT</span>
           <span className="font-medium text-gray-700">{fmtCart(totalPrice)}</span>
         </div>
+        {totalAssistance > 0 && (
+          <div className="flex justify-between text-sm text-gray-500">
+            <span>Assistance technique</span>
+            <span className="font-medium text-gray-700">{fmtCart(totalAssistance)}</span>
+          </div>
+        )}
         {totalSaved > 0 && (
           <div className="flex justify-between text-sm text-blue-600">
             <span>Réductions articles</span>
@@ -1035,8 +1066,9 @@ function StepConfirmation({ items, delivery, paymentMethod, totalPrice, promoDis
     : totalPrice >= SHIPPING_FREE ? 0 : SHIPPING_STD
   const { data: taxDataConf } = useQuery({ queryKey: ['default-tax'], queryFn: fetchDefaultTax, staleTime: 300_000 })
   const taxRateConf   = taxDataConf?.data?.tax?.rate ?? 0
-  const taxAmountConf = Math.round(totalPrice * taxRateConf / 100)
-  const total = totalPrice + taxAmountConf - promoDiscount + shipping
+  const { totalAssistance } = useCart()
+  const taxAmountConf = Math.round((totalPrice + totalAssistance) * taxRateConf / 100)
+  const total = totalPrice + totalAssistance + taxAmountConf - promoDiscount + shipping
   const pm    = PAYMENT_OPTIONS.find(p => p.id === paymentMethod)!
 
   return (
@@ -1113,6 +1145,11 @@ function StepConfirmation({ items, delivery, paymentMethod, totalPrice, promoDis
                 <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">{item.brand}</p>
                 <p className="text-sm font-semibold text-gray-800 line-clamp-1">{item.name}</p>
                 <p className="text-xs text-gray-400 mt-0.5">Quantité : {item.qty}</p>
+                {lineAssistance(item) > 0 && (
+                  <p className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
+                    <Wrench size={11} /> Assistance technique · {fmtCart(lineAssistance(item))}
+                  </p>
+                )}
               </div>
               <p className="text-sm font-bold text-gray-900 shrink-0">{fmtCart(item.price * item.qty)}</p>
             </div>
@@ -1125,6 +1162,12 @@ function StepConfirmation({ items, delivery, paymentMethod, totalPrice, promoDis
             <span>Sous-total HT</span>
             <span className="font-medium text-gray-700">{fmtCart(totalPrice)}</span>
           </div>
+          {totalAssistance > 0 && (
+            <div className="flex justify-between text-sm text-gray-500">
+              <span>Assistance technique</span>
+              <span className="font-medium text-gray-700">{fmtCart(totalAssistance)}</span>
+            </div>
+          )}
           {promoDiscount > 0 && (
             <div className="flex justify-between text-sm text-emerald-600">
               <span>Code promo</span>
@@ -1346,7 +1389,7 @@ function NavButtons({ onBack, onNext, nextLabel }: { onBack: () => void; onNext:
    PAGE PRINCIPALE
 ═══════════════════════════════════════════════════════════════ */
 export default function PanierPage() {
-  const { items, totalPrice, clearCart } = useCart()
+  const { items, totalPrice, clearCart, syncAssistanceOffer } = useCart()
   const { user, token } = useAuth()
   const [step,          setStep]          = useState<Step>('cart')
   const [delivery,      setDelivery]      = useState<DeliveryInfo>(EMPTY_DELIVERY)
@@ -1415,6 +1458,20 @@ export default function PanierPage() {
       enabled:  step === 'cart',
     })),
   })
+  // Offre d'assistance à jour (activée/désactivée ou prix modifié par l'admin
+  // depuis l'ajout au panier) — même requête que la vérification de stock.
+  const freshOffers = stockQueries.map((q, i) => {
+    const p = q.data?.data?.product
+    return p ? `${items[i]?.productId}:${p.assistanceEnabled ? p.assistancePrice ?? '' : ''}` : ''
+  }).join('|')
+  useEffect(() => {
+    for (const entry of freshOffers.split('|')) {
+      if (!entry) continue
+      const [id, price] = entry.split(':')
+      syncAssistanceOffer(Number(id), price ? Number(price) : null)
+    }
+  }, [freshOffers, syncAssistanceOffer])
+
   const outOfStockIds = new Set<number>(
     stockQueries
       .map((q, i) => ({ productId: items[i]?.productId, stock: q.data?.data?.product?.stock }))
@@ -1468,6 +1525,7 @@ export default function PanierPage() {
             productId: i.productId,
             qty:       i.qty,
             color:     i.color,
+            assistance: lineAssistance(i) > 0 || undefined,
           })),
           promoCode: promoCode || undefined,
           notes:     delivery.notes || undefined,
