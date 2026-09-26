@@ -10,10 +10,10 @@ import {
   Award, TrendingUp, ShoppingBag, Gift,
   Lock, RefreshCw, Loader2,
   MessageCircle, ExternalLink, X,
-  QrCode, Copy, ShieldCheck, ShieldOff, KeyRound,
+  QrCode, Copy, ShieldCheck, ShieldOff, KeyRound, PackageSearch,
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import { fetchLoyalty, fetchReferral, fetchMyGiftLists, createGiftList, fetchAddresses } from '../lib/api'
+import { fetchLoyalty, fetchReferral, fetchMyGiftLists, createGiftList, fetchAddresses, fetchMyProductRequests, type ApiMyProductRequest } from '../lib/api'
 import { useSiteSettings, waLink } from '../hooks/useSiteSettings'
 import { VILLES_CI } from '../constants/villesCI'
 import { PageMeta } from '../components/seo/PageMeta'
@@ -43,8 +43,8 @@ async function apiFetch<T = unknown>(
 }
 
 /* Types*/
-type Tab = 'profil' | 'commandes' | 'adresses' | 'favoris' | 'notifications' | 'securite' | 'fidelite'
-const VALID_TABS = new Set<Tab>(['profil', 'commandes', 'adresses', 'favoris', 'notifications', 'securite', 'fidelite'])
+type Tab = 'profil' | 'commandes' | 'sourcing' | 'adresses' | 'favoris' | 'notifications' | 'securite' | 'fidelite'
+const VALID_TABS = new Set<Tab>(['profil', 'commandes', 'sourcing', 'adresses', 'favoris', 'notifications', 'securite', 'fidelite'])
 
 type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded'
 
@@ -121,6 +121,7 @@ const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bg: str
 const SIDEBAR_ITEMS: { tab: Tab; icon: React.ReactNode; label: string }[] = [
   { tab: 'profil',        icon: <User size={17} />,    label: 'Mon profil'         },
   { tab: 'commandes',     icon: <Package size={17} />, label: 'Mes commandes'      },
+  { tab: 'sourcing',      icon: <PackageSearch size={17} />, label: 'Mes demandes de sourcing' },
   { tab: 'adresses',      icon: <MapPin size={17} />,  label: 'Mes adresses'       },
   { tab: 'favoris',       icon: <Heart size={17} />,   label: 'Mes favoris'        },
   { tab: 'notifications', icon: <Bell size={17} />,    label: 'Notifications'      },
@@ -571,6 +572,107 @@ function TabCommandes({ orders }: { orders: MappedOrder[] }) {
           ))}
         </AnimatePresence>
       </div>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TAB — DEMANDES DE SOURCING  (historique + accès au devis)
+═══════════════════════════════════════════════════════════════ */
+const SOURCING_BADGE: Record<string, { label: string; cls: string }> = {
+  new:        { label: 'Envoyée',            cls: 'bg-gray-100 text-gray-600' },
+  processing: { label: 'En recherche',       cls: 'bg-blue-50 text-blue-700' },
+  quoted:     { label: 'Devis reçu',         cls: 'bg-indigo-50 text-indigo-700' },
+  expired:    { label: 'Devis expiré',       cls: 'bg-amber-50 text-amber-700' },
+  accepted:   { label: 'Paiement en attente', cls: 'bg-amber-50 text-amber-700' },
+  paid:       { label: 'Payée · achat en cours', cls: 'bg-emerald-50 text-emerald-700' },
+  fulfilled:  { label: 'Livrée',             cls: 'bg-emerald-50 text-emerald-700' },
+  declined:   { label: 'Devis refusé',       cls: 'bg-gray-100 text-gray-500' },
+  rejected:   { label: 'Non trouvée',        cls: 'bg-red-50 text-red-600' },
+  cancelled:  { label: 'Annulée',            cls: 'bg-red-50 text-red-600' },
+}
+
+function TabSourcing() {
+  const { token } = useAuth()
+  const { data, isLoading } = useQuery({
+    queryKey: ['my-product-requests'],
+    queryFn:  () => fetchMyProductRequests(token!),
+    enabled:  !!token,
+  })
+  const requests: ApiMyProductRequest[] = data?.data?.requests ?? []
+
+  if (isLoading) {
+    return <div className="flex justify-center py-16"><Loader2 size={26} className="animate-spin text-gray-300" /></div>
+  }
+
+  if (requests.length === 0) {
+    return (
+      <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
+        <PackageSearch size={40} className="text-gray-200 mx-auto mb-3" />
+        <p className="text-gray-700 font-medium">Aucune demande de sourcing</p>
+        <p className="text-sm text-gray-400 mt-1">Vous ne trouvez pas un produit ? Nous le cherchons pour vous.</p>
+        <Link to="/demande" className="inline-flex mt-4 px-4 py-2.5 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-800 transition-colors">
+          Faire une demande
+        </Link>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      {requests.map(r => {
+        const key   = r.status === 'quoted' && r.expired ? 'expired' : r.status
+        const badge = SOURCING_BADGE[key] ?? SOURCING_BADGE.new
+        const actionable = (r.status === 'quoted' && !r.expired) || r.status === 'accepted'
+        return (
+          <div key={r.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between gap-3 px-5 py-3 bg-gray-50 border-b border-gray-100">
+              <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${badge.cls}`}>{badge.label}</span>
+              <span className="text-xs text-gray-400">
+                {new Date(r.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+              </span>
+            </div>
+            <div className="flex items-center gap-4 p-5">
+              <div className="w-16 h-16 rounded-xl bg-gray-50 shrink-0 overflow-hidden flex items-center justify-center">
+                {r.images[0]
+                  ? <img src={r.images[0]} alt={r.productName} className="w-16 h-16 object-cover" />
+                  : <PackageSearch size={22} className="text-gray-300" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-800 line-clamp-2">{r.productName}</p>
+                <p className="text-xs text-gray-400 mt-0.5">Quantité : {r.quantity ?? 1}</p>
+                {r.quotedPrice != null ? (
+                  <p className="text-base font-bold text-gray-900 mt-1">
+                    {fmt(r.order?.total ?? r.quotedPrice * (r.quantity ?? 1))}
+                  </p>
+                ) : (
+                  <p className="text-xs text-gray-500 mt-1">En attente de notre devis</p>
+                )}
+                {r.status === 'declined' && r.declineReason && (
+                  <p className="text-xs text-gray-400 mt-1 line-clamp-1">Motif : {r.declineReason}</p>
+                )}
+              </div>
+              <div className="flex flex-col gap-2 shrink-0">
+                {r.quoteToken && (
+                  <Link to={`/devis/${r.quoteToken}`}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                      actionable ? 'bg-gray-900 text-white hover:bg-gray-800' : 'border border-gray-200 text-gray-600 hover:border-gray-300'
+                    }`}>
+                    {r.status === 'quoted' && !r.expired ? 'Voir et payer' : r.status === 'accepted' ? 'Payer' : 'Voir le devis'}
+                    <ExternalLink size={11} />
+                  </Link>
+                )}
+                {r.order && ['paid', 'fulfilled'].includes(r.status) && (
+                  <Link to={`/commandes/${r.order.orderNumber}`}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600 hover:border-gray-300 transition-colors">
+                    Commande <ExternalLink size={11} />
+                  </Link>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -1799,6 +1901,7 @@ export default function ProfilPage() {
   const TAB_CONTENT: Record<Tab, React.ReactNode> = {
     profil:        <TabProfil avatar={avatar} setAvatar={setAvatar} orders={orders} profile={profile} />,
     commandes:     <TabCommandes orders={orders} />,
+    sourcing:      <TabSourcing />,
     adresses:      <TabAdresses />,
     favoris:       <TabFavoris />,
     notifications: <TabNotifications initialNewsletter={profile.subscribedToNewsletter ?? true} />,

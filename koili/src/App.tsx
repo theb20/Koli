@@ -38,6 +38,7 @@ const GiftListPublicPage   = lazy(() => import('./pages/GiftListPublicPage'))
 const DeliveryPage         = lazy(() => import('./pages/DeliveryPage'))
 const SellerPage           = lazy(() => import('./pages/SellerPage'))
 const RequestProductPage   = lazy(() => import('./pages/RequestProductPage'))
+const QuotePage            = lazy(() => import('./pages/QuotePage'))
 const NotFoundPage         = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })))
 const PaymentVerificationPage = lazy(() => import('./pages/PaymentVerificationPage'))
 const PaymentSuccessPage      = lazy(() => import('./pages/PaymentSuccessPage'))
@@ -89,6 +90,8 @@ function App() {
               <Route path="/comparer"      element={<ComparePage />} />
               <Route path="/liste/:slug"   element={<GiftListPublicPage />} />
               <Route path="/demande"   element={<RequestProductPage />} />
+              {/* Devis de sourcing — lien personnel, accessible sans compte */}
+              <Route path="/devis/:token" element={<QuotePage />} />
 
               {/* ── Routes protégées (nécessitent une connexion) ── */}
               <Route element={<PrivateRoute />}>

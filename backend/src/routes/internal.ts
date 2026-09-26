@@ -54,6 +54,23 @@ router.post('/orders/:id/mark-paid', validateParams(zCuidIdParam), validate(mark
     await prisma.order.update({ where: { id }, data: { paymentStatus: 'paid' } })
     notifyMerchantsOrderPaid(order.id, order.orderNumber).catch(() => {})
 
+    // Commande issue d'un devis de sourcing → la demande passe "payée" et
+    // l'équipe est prévenue qu'elle peut lancer l'achat.
+    const sourcing = await prisma.productRequest.findUnique({ where: { orderId: order.id }, select: { id: true, productName: true } })
+    if (sourcing) {
+      await prisma.productRequest.update({ where: { id: sourcing.id }, data: { status: 'paid' } })
+      const admins = await prisma.user.findMany({ where: { role: 'admin' }, select: { id: true } })
+      await prisma.notification.createMany({
+        data: admins.map(a => ({
+          userId: a.id,
+          type:   'order',
+          title:  'Devis de sourcing payé',
+          body:   `« ${sourcing.productName} » payé (${fmtFCFA(order.total)}) — commande ${order.orderNumber}, achat à lancer.`,
+          link:   `/product-requests/${sourcing.id}`,
+        })),
+      }).catch(err => logger.error('[internal] échec notification devis payé', err))
+    }
+
     // Email "commande confirmée" envoyé ICI pour les commandes en ligne —
     // jamais à la création (voir orders.ts step 7) : avant ce point, le
     // client n'a encore rien payé, lui dire "confirmée" serait mensonger.

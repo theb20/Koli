@@ -568,6 +568,75 @@ export async function mergeCartApi(items: { productId: number; qty: number; colo
   })
 }
 
+/* ─── Devis de sourcing (lien personnel /devis/:token, sans compte) ─── */
+export type SourcingStatus =
+  | 'new' | 'processing' | 'quoted' | 'accepted' | 'paid'
+  | 'fulfilled' | 'declined' | 'rejected' | 'cancelled'
+
+export type ApiQuote = {
+  id: string
+  productName: string
+  description: string
+  images: string[]
+  clientPrenom: string
+  deliveryAddress: string
+  adminReply?: string | null
+  status: SourcingStatus
+  expired: boolean
+  quoteExpiresAt?: string | null
+  declineReason?: string | null
+  decidedAt?: string | null
+  createdAt: string
+  unitPrice: number; quantity: number; subtotal: number
+  taxRate: number; taxAmount: number; total: number
+  order: { orderNumber: string; status: string; paymentStatus: string; total: number } | null
+}
+
+export async function fetchQuote(quoteToken: string) {
+  return apiFetch<ApiResponse<ApiQuote>>(`/api/product-requests/quote/${quoteToken}`)
+}
+
+/** Accepte le devis → renvoie l'URL de paiement WiniPayer vers laquelle rediriger. */
+export async function acceptQuote(quoteToken: string) {
+  return apiFetch<ApiResponse<{ paymentUrl: string; orderNumber: string }>>(
+    `/api/product-requests/quote/${quoteToken}/accept`, null, { method: 'POST' },
+  )
+}
+
+/** Retour de WiniPayer — revérification réelle du paiement, devis à jour. */
+export async function verifyQuotePayment(quoteToken: string) {
+  return apiFetch<ApiResponse<ApiQuote>>(`/api/product-requests/quote/${quoteToken}/verify`, null, { method: 'POST' })
+}
+
+export async function declineQuote(quoteToken: string, reason?: string) {
+  return apiFetch<ApiResponse<ApiQuote>>(`/api/product-requests/quote/${quoteToken}/decline`, null, {
+    method: 'POST', body: JSON.stringify({ reason }),
+  })
+}
+
+/** Historique des demandes de sourcing du client connecté. */
+export type ApiMyProductRequest = {
+  id: string
+  productName: string
+  description: string
+  images: string[]
+  quantity?: number | null
+  budget?: number | null
+  quotedPrice?: number | null
+  status: SourcingStatus
+  expired: boolean
+  quoteToken?: string | null
+  quoteExpiresAt?: string | null
+  declineReason?: string | null
+  createdAt: string
+  repliedAt?: string | null
+  order?: { orderNumber: string; status: string; paymentStatus: string; total: number } | null
+}
+
+export async function fetchMyProductRequests(token: string) {
+  return apiFetch<ApiResponse<{ requests: ApiMyProductRequest[] }>>('/api/product-requests/mine', token)
+}
+
 /* ─── Adresses ──────────────────────────────────────────────── */
 export type ApiAddress = {
   id: string; label: string; prenom: string; nom: string

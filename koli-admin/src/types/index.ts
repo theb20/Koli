@@ -229,7 +229,8 @@ export type ContactMessage = {
   createdAt: string
 }
 
-export type ProductRequestStatus = 'new' | 'processing' | 'quoted' | 'fulfilled' | 'rejected' | 'cancelled'
+/** accepted/paid/declined sont posés par le client (devis en ligne) ou la passerelle de paiement, jamais à la main */
+export type ProductRequestStatus = 'new' | 'processing' | 'quoted' | 'accepted' | 'paid' | 'fulfilled' | 'declined' | 'rejected' | 'cancelled'
 
 export type ProductRequest = {
   id: string
@@ -250,8 +251,27 @@ export type ProductRequest = {
   quotedPrice?: number | null
   repliedAt?: string | null
   orderId?: string | null
+  quoteExpiresAt?: string | null
+  declineReason?: string | null
+  decidedAt?: string | null
+  expired?: boolean
+  quoteUrl?: string | null
+  order?: { orderNumber: string; status: string; paymentStatus: string; total: number } | null
   createdAt: string
   updatedAt: string
+}
+
+/** Autre demande du même client (historique sourcing, page détail admin) */
+export type ProductRequestHistoryItem = {
+  id: string
+  productName: string
+  status: ProductRequestStatus
+  quotedPrice?: number | null
+  quantity?: number | null
+  quoteExpiresAt?: string | null
+  expired: boolean
+  createdAt: string
+  order?: { orderNumber: string; paymentStatus: string; total: number } | null
 }
 
 export type OrderReturnStatus = 'requested' | 'approved' | 'rejected' | 'received' | 'refunded' | 'cancelled'

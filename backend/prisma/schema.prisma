@@ -559,13 +559,27 @@ model ProductRequest {
   budget          Int?
   deliveryAddress String
   desiredDate     DateTime?
-  status          String    @default("new") // new | processing | quoted | fulfilled | rejected | cancelled
+  /// new | processing | quoted | accepted (commande créée, paiement en
+  /// attente) | paid | fulfilled (livrée) | declined (refusé par le client)
+  /// | rejected (refusé par l'admin) | cancelled. "Expiré" n'est pas stocké :
+  /// déduit de quoteExpiresAt sur un devis encore "quoted".
+  status          String    @default("new")
   adminReply      String?
+  /// Prix unitaire proposé (FCFA) — total = quotedPrice × quantity (+ TVA)
   quotedPrice     Int?
   repliedAt       DateTime?
-  /// Commande générée automatiquement au passage en statut "fulfilled" — voir
-  /// routes/product-requests.ts. Un produit masqué du catalogue est créé pour
-  /// porter la ligne de commande, puisque OrderItem exige toujours un produit réel.
+  /// Lien personnel du devis (/devis/:quoteToken) — permet à un client sans
+  /// compte de consulter, accepter/payer ou refuser. Aléatoire, non devinable.
+  quoteToken      String?   @unique
+  /// Validité du devis (7 jours après chaque envoi de prix par l'admin)
+  quoteExpiresAt  DateTime?
+  /// Réponse du client : motif de refus (facultatif) et date de décision
+  declineReason   String?
+  decidedAt       DateTime?
+  /// Commande créée quand le client ACCEPTE le devis — en attente de
+  /// paiement en ligne (WiniPayer via merchantgo), jamais marquée payée
+  /// autrement que par la passerelle. Un produit masqué du catalogue porte la
+  /// ligne de commande, puisque OrderItem exige toujours un produit réel.
   orderId         String?   @unique
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt

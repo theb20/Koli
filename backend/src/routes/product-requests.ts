@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import type { Request, Response, NextFunction } from 'express'
+import { randomBytes } from 'node:crypto'
 import { z } from 'zod'
 import multer from 'multer'
 import { prisma } from '../lib/prisma'
@@ -10,6 +11,11 @@ import { uploadToStockgo } from '../lib/stockgo'
 import { toWebp } from '../lib/imageProcessing'
 import { logger } from '../lib/logger'
 import { scanFiles } from '../lib/virusScan'
+import { isMerchantgoConfigured, createWinipayerPayment, refreshWinipayerPayment } from '../lib/merchantgo'
+import { applyOrderStatusChange } from './orders'
+import { sendSms } from '../lib/sms/zavu'
+import { normalizePhoneCI } from '../lib/phone'
+import type { Prisma, ProductRequest } from '@prisma/client'
 
 const router = Router()
 
@@ -20,6 +26,97 @@ function generateOrderNumber(): string {
   const date = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`
   const rand = Math.floor(Math.random() * 9000 + 1000)
   return `KLI-${date}-${rand}`
+}
+
+/** Durée de validité d'un devis envoyé au client */
+const QUOTE_VALIDITY_DAYS = 7
+
+const frontendUrl = () => process.env.FRONTEND_URL ?? 'https://skignas.com'
+const quoteUrl    = (token: string) => `${frontendUrl()}/devis/${token}`
+
+/** Devis encore "quoted" dont la date de validité est passée. */
+function isQuoteExpired(r: Pick<ProductRequest, 'status' | 'quoteExpiresAt'>): boolean {
+  return r.status === 'quoted' && !!r.quoteExpiresAt && r.quoteExpiresAt.getTime() < Date.now()
+}
+
+/** Totaux d'un devis — même calcul (TVA par défaut) que la commande qui en découlera. */
+async function quoteTotals(r: Pick<ProductRequest, 'quotedPrice' | 'quantity'>) {
+  const unitPrice = r.quotedPrice ?? 0
+  const quantity  = r.quantity ?? 1
+  const subtotal  = unitPrice * quantity
+  const defaultTax = await prisma.taxRate.findFirst({ where: { isDefault: true, isActive: true } })
+  const taxRate   = defaultTax?.rate ?? 0
+  const taxAmount = Math.round(subtotal * taxRate / 100)
+  return { unitPrice, quantity, subtotal, taxRate, taxAmount, total: subtotal + taxAmount }
+}
+
+/** Notification in-app à tous les administrateurs (non bloquant). */
+async function notifyAdmins(title: string, body: string, link: string) {
+  try {
+    const admins = await prisma.user.findMany({ where: { role: 'admin' }, select: { id: true } })
+    if (admins.length > 0) {
+      await prisma.notification.createMany({
+        data: admins.map(a => ({ userId: a.id, type: 'order', title, body, link })),
+      })
+    }
+  } catch (err) {
+    logger.error('[product-requests] échec notification admin', err)
+  }
+}
+
+/**
+ * Crée la commande d'un devis accepté — en attente de paiement en ligne,
+ * jamais "payée" ici : seul le rappel merchantgo (mark-paid) le fait. Un
+ * produit masqué du catalogue porte la ligne (OrderItem exige un produit).
+ */
+async function createSourcingOrder(tx: Prisma.TransactionClient, r: ProductRequest) {
+  const { unitPrice, quantity, subtotal, taxRate, taxAmount, total } = await quoteTotals(r)
+  const images = r.images ? (JSON.parse(r.images) as string[]) : []
+
+  const sourcedProduct = await tx.product.create({
+    data: {
+      name:        r.productName,
+      brand:       'Sourcing Skignas',
+      category:    'sourcing',
+      price:       unitPrice,
+      stock:       0,
+      isActive:    false,
+      description: r.description,
+      images: images.length ? { create: images.map((url, i) => ({ url, position: i })) } : undefined,
+    },
+  })
+
+  return tx.order.create({
+    data: {
+      orderNumber:     generateOrderNumber(),
+      userId:          r.userId,
+      clientPrenom:    r.clientPrenom,
+      clientNom:       r.clientNom,
+      clientEmail:     r.clientEmail,
+      clientTelephone: r.clientTelephone ?? '',
+      deliveryMethod:  'standard',
+      shippingAddress: JSON.stringify({ ville: r.deliveryAddress, adresse: '' }),
+      shippingCost:    0,
+      paymentMethod:   'online',
+      paymentStatus:   'pending',
+      status:          'pending',
+      subtotal,
+      taxRate,
+      taxAmount,
+      total,
+      notes:           `Devis de sourcing accepté par le client (demande ${r.id})`,
+      items: {
+        create: [{
+          productId: sourcedProduct.id,
+          name:      r.productName,
+          brand:     'Sourcing Skignas',
+          price:     unitPrice,
+          qty:       quantity,
+          image:     images[0] ?? '',
+        }],
+      },
+    },
+  })
 }
 
 /* ── Multer — buffer en mémoire, converti en WebP puis envoyé à stockgo ── */
@@ -187,9 +284,222 @@ router.get('/mine', optionalAuth, async (req, res) => {
     const requests = await prisma.productRequest.findMany({
       where: { userId: req.user.userId },
       orderBy: { createdAt: 'desc' },
+      include: { order: { select: { orderNumber: true, status: true, paymentStatus: true, total: true } } },
     })
-    res.json({ success: true, data: { requests: requests.map(r => ({ ...r, images: r.images ? JSON.parse(r.images) : [] })) } })
+    res.json({ success: true, data: { requests: requests.map(r => ({
+      ...r,
+      images:  r.images ? JSON.parse(r.images) : [],
+      expired: isQuoteExpired(r),
+    })) } })
   } catch {
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/* ─────────────────────────────────────────────────────────────
+   DEVIS CLIENT — accès par lien personnel (/devis/:token), sans compte
+   requis : le token (48 caractères aléatoires) fait office d'autorisation,
+   comme un lien de réinitialisation de mot de passe.
+───────────────────────────────────────────────────────────── */
+const zQuoteToken = z.object({ token: z.string().regex(/^[a-f0-9]{48}$/) })
+
+async function findByToken(token: string) {
+  return prisma.productRequest.findUnique({
+    where: { quoteToken: token },
+    include: { order: { select: { id: true, orderNumber: true, status: true, paymentStatus: true, total: true, winipayerRef: true } } },
+  })
+}
+
+/** Vue publique du devis — jamais le token d'autres demandes ni de données admin internes. */
+async function publicQuote(r: NonNullable<Awaited<ReturnType<typeof findByToken>>>) {
+  const totals = await quoteTotals(r)
+  return {
+    id:              r.id,
+    productName:     r.productName,
+    description:     r.description,
+    images:          r.images ? (JSON.parse(r.images) as string[]) : [],
+    clientPrenom:    r.clientPrenom,
+    deliveryAddress: r.deliveryAddress,
+    adminReply:      r.adminReply,
+    status:          r.status,
+    expired:         isQuoteExpired(r),
+    quoteExpiresAt:  r.quoteExpiresAt,
+    declineReason:   r.declineReason,
+    decidedAt:       r.decidedAt,
+    createdAt:       r.createdAt,
+    ...totals,
+    order: r.order ? {
+      orderNumber:   r.order.orderNumber,
+      status:        r.order.status,
+      paymentStatus: r.order.paymentStatus,
+      total:         r.order.total,
+    } : null,
+  }
+}
+
+/* ── GET /api/product-requests/quote/:token — consulter son devis ── */
+router.get('/quote/:token', validateParams(zQuoteToken), async (req, res) => {
+  try {
+    const r = await findByToken(req.params['token']!)
+    if (!r || r.quotedPrice == null) {
+      res.status(404).json({ success: false, message: 'Devis introuvable' })
+      return
+    }
+    res.json({ success: true, data: await publicQuote(r) })
+  } catch (err) {
+    logger.error('[GET quote]', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/**
+ * POST /api/product-requests/quote/:token/accept — accepter et payer.
+ * Crée la commande (en attente) puis le lien de paiement WiniPayer via
+ * merchantgo. Rappelable : si la commande existe déjà et n'est pas payée,
+ * un nouveau lien de paiement est simplement généré (paiement abandonné,
+ * lien expiré…). 100 % en ligne — pas de paiement à la livraison.
+ */
+router.post('/quote/:token/accept', validateParams(zQuoteToken), async (req, res) => {
+  try {
+    let r = await findByToken(req.params['token']!)
+    if (!r || r.quotedPrice == null) {
+      res.status(404).json({ success: false, message: 'Devis introuvable' })
+      return
+    }
+    if (['declined', 'rejected', 'cancelled', 'fulfilled'].includes(r.status)) {
+      res.status(400).json({ success: false, message: "Ce devis n'est plus disponible." })
+      return
+    }
+    if (r.order?.paymentStatus === 'paid' || r.status === 'paid') {
+      res.status(409).json({ success: false, message: 'Ce devis a déjà été payé.', data: { orderNumber: r.order?.orderNumber } })
+      return
+    }
+    if (!isMerchantgoConfigured()) {
+      res.status(503).json({ success: false, message: 'Le paiement en ligne est momentanément indisponible. Réessayez plus tard.' })
+      return
+    }
+
+    let order = r.order && r.order.status !== 'cancelled' ? r.order : null
+
+    // Une tentative précédente a peut-être abouti sans que le webhook soit
+    // encore arrivé : on revérifie AVANT de générer un nouveau lien, pour ne
+    // jamais faire payer deux fois ni orpheliner un paiement réussi.
+    if (order?.winipayerRef) {
+      await refreshWinipayerPayment(order.winipayerRef).catch(() => {})
+      r = (await findByToken(req.params['token']!))!
+      if (r.order?.paymentStatus === 'paid') {
+        res.status(409).json({ success: false, message: 'Ce devis a déjà été payé.', data: { orderNumber: r.order.orderNumber } })
+        return
+      }
+      order = r.order && r.order.status !== 'cancelled' ? r.order : null
+    }
+
+    if (!order) {
+      // Première acceptation (ou nouvelle après un paiement annulé/échoué) :
+      // soumise à la validité du devis.
+      if (isQuoteExpired(r)) {
+        res.status(400).json({ success: false, message: 'Ce devis a expiré. Contactez-nous pour obtenir un nouveau prix.' })
+        return
+      }
+      const current = r
+      const created = await prisma.$transaction(async (tx) => {
+        const o = await createSourcingOrder(tx, current)
+        await tx.productRequest.update({
+          where: { id: current.id },
+          data:  { status: 'accepted', orderId: o.id, decidedAt: new Date(), declineReason: null },
+        })
+        return o
+      })
+      order = { ...created }
+      notifyAdmins(
+        'Devis de sourcing accepté',
+        `${r.clientPrenom} ${r.clientNom} a accepté le devis « ${r.productName} » — paiement en cours (${created.orderNumber})`,
+        `/product-requests/${r.id}`,
+      )
+    }
+
+    try {
+      const payment = await createWinipayerPayment({
+        orderId:     order.id,
+        orderNumber: order.orderNumber,
+        amount:      order.total,
+        description: `Devis sourcing ${order.orderNumber} — Skignas`,
+        // Retour sur la page du devis, qui revérifie le statut réel (jamais
+        // déduit de l'URL utilisée par WiniPayer) — accessible sans compte.
+        returnUrl:   `${quoteUrl(req.params['token']!)}?retour=1`,
+        cancelUrl:   `${quoteUrl(req.params['token']!)}?retour=1`,
+      })
+      await prisma.order.update({ where: { id: order.id }, data: { winipayerRef: payment.data.providerRef } })
+      res.json({ success: true, data: { paymentUrl: payment.data.checkoutUrl, orderNumber: order.orderNumber } })
+    } catch (err) {
+      logger.error('[quote accept] échec création paiement WiniPayer', order.orderNumber, err)
+      res.status(502).json({ success: false, message: "Le paiement n'a pas pu être initié. Réessayez dans un instant." })
+    }
+  } catch (err) {
+    logger.error('[POST quote accept]', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/**
+ * POST /api/product-requests/quote/:token/verify — appelé au retour de
+ * WiniPayer : force une revérification réelle du paiement (merchantgo
+ * rappelle mark-paid/mark-cancelled si l'état est terminal), puis renvoie
+ * le devis à jour.
+ */
+router.post('/quote/:token/verify', validateParams(zQuoteToken), async (req, res) => {
+  try {
+    const r = await findByToken(req.params['token']!)
+    if (!r || r.quotedPrice == null) {
+      res.status(404).json({ success: false, message: 'Devis introuvable' })
+      return
+    }
+    if (r.order?.winipayerRef && r.order.paymentStatus !== 'paid' && isMerchantgoConfigured()) {
+      await refreshWinipayerPayment(r.order.winipayerRef).catch(err =>
+        logger.error('[quote verify] échec revérification', r.order?.orderNumber, err))
+    }
+    const fresh = (await findByToken(req.params['token']!))!
+    res.json({ success: true, data: await publicQuote(fresh) })
+  } catch (err) {
+    logger.error('[POST quote verify]', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+const declineSchema = z.object({ reason: z.string().trim().max(500).optional() })
+
+/* ── POST /api/product-requests/quote/:token/decline — refuser le devis ── */
+router.post('/quote/:token/decline', validateParams(zQuoteToken), validate(declineSchema), async (req, res) => {
+  try {
+    const r = await findByToken(req.params['token']!)
+    if (!r || r.quotedPrice == null) {
+      res.status(404).json({ success: false, message: 'Devis introuvable' })
+      return
+    }
+    if (r.order?.paymentStatus === 'paid' || !['quoted', 'accepted'].includes(r.status)) {
+      res.status(400).json({ success: false, message: 'Ce devis ne peut plus être refusé.' })
+      return
+    }
+    const { reason } = req.body as z.infer<typeof declineSchema>
+
+    // Accepté mais jamais payé → la commande en attente est annulée.
+    if (r.order && r.order.status !== 'cancelled') {
+      await applyOrderStatusChange(r.order.id, 'cancelled')
+    }
+    await prisma.productRequest.update({
+      where: { id: r.id },
+      data:  { status: 'declined', declineReason: reason || null, decidedAt: new Date() },
+    })
+    notifyAdmins(
+      'Devis de sourcing refusé',
+      `${r.clientPrenom} ${r.clientNom} a refusé le devis « ${r.productName} »${reason ? ` : ${reason}` : ''}`,
+      `/product-requests/${r.id}`,
+    )
+
+    const fresh = (await findByToken(req.params['token']!))!
+    res.json({ success: true, data: await publicQuote(fresh) })
+  } catch (err) {
+    logger.error('[POST quote decline]', err)
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
 })
@@ -229,12 +539,43 @@ router.get('/admin/all', requireAdmin, validateQuery(reqListQuerySchema), async 
 ───────────────────────────────────────────────────────────── */
 router.get('/:id', requireAdmin, validateParams(zCuidIdParam), async (req, res) => {
   try {
-    const request = await prisma.productRequest.findUnique({ where: { id: req.params['id']! } })
+    const request = await prisma.productRequest.findUnique({
+      where: { id: req.params['id']! },
+      include: { order: { select: { orderNumber: true, status: true, paymentStatus: true, total: true } } },
+    })
     if (!request) {
       res.status(404).json({ success: false, message: 'Demande introuvable' })
       return
     }
-    res.json({ success: true, data: { request: { ...request, images: request.images ? JSON.parse(request.images) : [] } } })
+
+    // Historique sourcing du même client — par compte, sinon par e-mail
+    // (demandes faites en invité avant/sans création de compte).
+    const history = await prisma.productRequest.findMany({
+      where: {
+        id: { not: request.id },
+        OR: [
+          ...(request.userId ? [{ userId: request.userId }] : []),
+          { clientEmail: { equals: request.clientEmail, mode: 'insensitive' as const } },
+        ],
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      select: {
+        id: true, productName: true, status: true, quotedPrice: true, quantity: true,
+        quoteExpiresAt: true, createdAt: true,
+        order: { select: { orderNumber: true, paymentStatus: true, total: true } },
+      },
+    })
+
+    res.json({ success: true, data: {
+      request: {
+        ...request,
+        images:  request.images ? JSON.parse(request.images) : [],
+        expired: isQuoteExpired(request),
+        quoteUrl: request.quoteToken ? quoteUrl(request.quoteToken) : null,
+      },
+      history: history.map(h => ({ ...h, expired: isQuoteExpired(h) })),
+    } })
   } catch {
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
@@ -243,12 +584,11 @@ router.get('/:id', requireAdmin, validateParams(zCuidIdParam), async (req, res) 
 /* ─────────────────────────────────────────────────────────────
    PATCH /api/product-requests/:id/status  [ADMIN]
 
-   Passage à "fulfilled" : génère une vraie commande (Order + OrderItem)
-   à partir de la demande, pour qu'elle soit trackable au même titre qu'un
-   achat classique (« Mes commandes » du client, liste admin, retours...).
-   OrderItem exige toujours un produit réel — un Product masqué du catalogue
-   (isActive: false) est donc créé pour porter la ligne. Idempotent : si la
-   demande a déjà une commande liée (orderId), on ne recrée rien.
+   La commande n'est plus créée ici : elle naît de l'acceptation du devis
+   par le client (POST /quote/:token/accept) et n'est payée que via
+   WiniPayer. "fulfilled" = livrée — refusé tant que le devis n'est pas
+   payé ; "rejected"/"cancelled" annulent une commande encore impayée.
+   accepted/paid/declined ne sont posés que par le client ou la passerelle.
 ───────────────────────────────────────────────────────────── */
 router.patch('/:id/status', requireAdmin, validateParams(zCuidIdParam), async (req, res) => {
   try {
@@ -262,91 +602,24 @@ router.patch('/:id/status', requireAdmin, validateParams(zCuidIdParam), async (r
       return
     }
 
-    if (status === 'fulfilled' && !existing.orderId) {
-      const unitPrice = existing.quotedPrice ?? existing.budget
-      if (!unitPrice) {
-        res.status(400).json({
-          success: false,
-          message: "Aucun prix n'a été communiqué au client — envoyez un devis (prix) avant de marquer la demande comme traitée.",
-        })
-        return
-      }
+    // La commande n'est plus jamais créée ici (autrefois "payée + livrée"
+    // sans paiement réel) : elle naît de l'acceptation du devis par le client
+    // et n'est payée que via WiniPayer. "fulfilled" = livrée.
+    const order = existing.orderId
+      ? await prisma.order.findUnique({ where: { id: existing.orderId }, select: { id: true, paymentStatus: true, status: true } })
+      : null
 
-      const quantity = existing.quantity ?? 1
-      const subtotal = unitPrice * quantity
-      const defaultTax = await prisma.taxRate.findFirst({ where: { isDefault: true, isActive: true } })
-      const taxRatePercent = defaultTax?.rate ?? 0
-      const taxAmount = Math.round(subtotal * taxRatePercent / 100)
-      const images = existing.images ? (JSON.parse(existing.images) as string[]) : []
-      const orderNumber = generateOrderNumber()
-
-      const order = await prisma.$transaction(async (tx) => {
-        // Produit masqué — n'apparaît jamais dans le catalogue public, existe
-        // uniquement pour satisfaire la contrainte OrderItem.productId.
-        const sourcedProduct = await tx.product.create({
-          data: {
-            name:        existing.productName,
-            brand:       'Sourcing Skignas',
-            category:    'sourcing',
-            price:       unitPrice,
-            stock:       0,
-            isActive:    false,
-            description: existing.description,
-            images: images.length ? { create: images.map((url, i) => ({ url, position: i })) } : undefined,
-          },
-        })
-
-        const created = await tx.order.create({
-          data: {
-            orderNumber,
-            userId:          existing.userId,
-            clientPrenom:    existing.clientPrenom,
-            clientNom:       existing.clientNom,
-            clientEmail:     existing.clientEmail,
-            clientTelephone: existing.clientTelephone ?? '',
-            deliveryMethod:  'standard',
-            shippingAddress: JSON.stringify({ ville: existing.deliveryAddress, adresse: '' }),
-            shippingCost:    0,
-            paymentMethod:   'cash',
-            paymentStatus:   'paid',
-            subtotal,
-            taxRate:         taxRatePercent,
-            taxAmount,
-            total:           subtotal + taxAmount,
-            status:          'delivered',
-            deliveredAt:     new Date(),
-            notes:           `Générée depuis la demande de sourcing ${existing.id}`,
-            items: {
-              create: [{
-                productId: sourcedProduct.id,
-                name:      existing.productName,
-                brand:     'Sourcing Skignas',
-                price:     unitPrice,
-                qty:       quantity,
-                image:     images[0] ?? '',
-              }],
-            },
-          },
-        })
-
-        await tx.productRequest.update({ where: { id: existing.id }, data: { status, orderId: created.id } })
-        return created
-      })
-
-      if (existing.userId) {
-        await prisma.notification.create({
-          data: {
-            userId: existing.userId,
-            type:   'order',
-            title:  'Votre demande de sourcing est devenue une commande',
-            body:   `« ${existing.productName} » a été trouvé — commande ${order.orderNumber} en cours de livraison.`,
-            link:   `/commandes/${order.orderNumber}`,
-          },
-        }).catch(() => {})
-      }
-
-      res.json({ success: true, data: { request: { ...existing, status, orderId: order.id }, order } })
+    if (status === 'fulfilled' && order && order.paymentStatus !== 'paid') {
+      res.status(400).json({ success: false, message: "Le client n'a pas encore payé ce devis — impossible de marquer la demande comme livrée." })
       return
+    }
+    if (status === 'fulfilled' && order && order.status !== 'delivered') {
+      await applyOrderStatusChange(order.id, 'delivered')
+    }
+    // Demande annulée/refusée par l'admin alors qu'une commande attend encore
+    // son paiement → on annule aussi la commande (libère le lien de paiement).
+    if ((status === 'rejected' || status === 'cancelled') && order && order.paymentStatus !== 'paid' && order.status !== 'cancelled') {
+      await applyOrderStatusChange(order.id, 'cancelled')
     }
 
     const request = await prisma.productRequest.update({ where: { id: req.params['id']! }, data: { status } })
@@ -379,17 +652,39 @@ router.post('/:id/reply', requireAdmin, validateParams(zCuidIdParam), validate(r
       return
     }
 
-    await sendProductRequestReplyEmail(request.clientEmail, request.clientPrenom, request.productName, message, quotedPrice)
+    // Un prix (nouveau ou déjà envoyé) fait de la réponse un devis que le
+    // client peut accepter/payer ou refuser en ligne, valable 7 jours.
+    const effectivePrice = quotedPrice ?? request.quotedPrice
+    const hasOpenOrder   = !!request.orderId && request.status !== 'declined'
+    const isQuote        = effectivePrice != null && !hasOpenOrder
+      && ['new', 'processing', 'quoted', 'declined'].includes(request.status)
+    const token          = request.quoteToken ?? randomBytes(24).toString('hex')
+    const link           = isQuote ? quoteUrl(token) : undefined
 
     const updated = await prisma.productRequest.update({
       where: { id: request.id },
       data: {
         adminReply:  message,
-        quotedPrice: quotedPrice ?? request.quotedPrice,
-        status:      request.status === 'new' ? 'quoted' : request.status,
+        quotedPrice: effectivePrice,
         repliedAt:   new Date(),
+        ...(isQuote ? {
+          status:         'quoted',
+          quoteToken:     token,
+          quoteExpiresAt: new Date(Date.now() + QUOTE_VALIDITY_DAYS * 24 * 3600 * 1000),
+          declineReason:  null,
+          decidedAt:      null,
+        } : {}),
       },
     })
+
+    await sendProductRequestReplyEmail(request.clientEmail, request.clientPrenom, request.productName, message, effectivePrice, link, QUOTE_VALIDITY_DAYS)
+
+    if (link && request.clientTelephone) {
+      sendSms(
+        normalizePhoneCI(request.clientTelephone),
+        `Skignas : votre devis pour "${request.productName}" est prêt. Consultez-le et payez en ligne : ${link}`,
+      ).catch(err => logger.error('[product-requests] échec SMS devis', request.id, err))
+    }
 
     // Notification in-app si le client a un compte
     if (request.userId) {
@@ -397,8 +692,11 @@ router.post('/:id/reply', requireAdmin, validateParams(zCuidIdParam), validate(r
         data: {
           userId: request.userId,
           type:   'info',
-          title:  'Réponse à votre demande de sourcing',
-          body:   `Nous avons répondu à votre demande concernant "${request.productName}"`,
+          title:  link ? 'Votre devis de sourcing est prêt' : 'Réponse à votre demande de sourcing',
+          body:   link
+            ? `Devis pour "${request.productName}" — acceptez-le et payez en ligne sous ${QUOTE_VALIDITY_DAYS} jours.`
+            : `Nous avons répondu à votre demande concernant "${request.productName}"`,
+          ...(link ? { link: `/devis/${token}` } : {}),
         },
       }).catch(() => {})
     }

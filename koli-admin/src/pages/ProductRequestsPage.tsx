@@ -16,7 +16,10 @@ const STATUS_TABS: { value: StatusFilter; label: string }[] = [
   { value: 'new',        label: 'Nouvelles' },
   { value: 'processing', label: 'En cours' },
   { value: 'quoted',     label: 'Devis envoyé' },
+  { value: 'accepted',   label: 'Paiement en attente' },
+  { value: 'paid',       label: 'Payées' },
   { value: 'fulfilled',  label: 'Traitées' },
+  { value: 'declined',   label: 'Refusées (client)' },
   { value: 'rejected',   label: 'Refusées' },
   { value: 'cancelled',  label: 'Annulées' },
 ]

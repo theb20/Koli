@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft, Mail, Phone, MapPin, Package, Calendar, BadgeCent,
   Box, Send, CheckCircle2, Trash2, Image as ImageIcon, ShoppingBag,
+  Link2, Copy, Check, Clock, XCircle, History,
 } from 'lucide-react'
 import { api, fmt, fmtDateTime } from '../lib/api'
 import { Badge } from '../components/ui/Badge'
@@ -11,7 +12,7 @@ import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Input, Textarea, Select } from '../components/ui/Input'
 import { Confirm } from '../components/ui/Modal'
-import type { ProductRequest, ProductRequestStatus } from '../types'
+import type { ProductRequest, ProductRequestStatus, ProductRequestHistoryItem } from '../types'
 
 const STATUS_OPTIONS: { value: ProductRequestStatus; label: string }[] = [
   { value: 'new',        label: 'Nouvelle' },
@@ -22,6 +23,13 @@ const STATUS_OPTIONS: { value: ProductRequestStatus; label: string }[] = [
   { value: 'cancelled',  label: 'Annulée' },
 ]
 
+/** Statuts posés par le client ou la passerelle — affichés, jamais choisis à la main */
+const CLIENT_STATUS_LABELS: Partial<Record<ProductRequestStatus, string>> = {
+  accepted: 'Acceptée · paiement en attente',
+  paid:     'Payée par le client',
+  declined: 'Refusée par le client',
+}
+
 export default function ProductRequestDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -30,11 +38,17 @@ export default function ProductRequestDetailPage() {
   const [quotedPrice, setQuotedPrice]   = useState('')
   const [replySent, setReplySent]       = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [copied, setCopied]             = useState(false)
 
-  const { data: request, isLoading } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['product-request', id],
-    queryFn:  async () => { const { data } = await api.get(`/api/product-requests/${id}`); return data.data.request as ProductRequest },
+    queryFn:  async () => {
+      const { data } = await api.get(`/api/product-requests/${id}`)
+      return data.data as { request: ProductRequest; history: ProductRequestHistoryItem[] }
+    },
   })
+  const request = data?.request
+  const history = data?.history ?? []
 
   const statusMutation = useMutation({
     mutationFn: (status: ProductRequestStatus) => api.patch(`/api/product-requests/${id}/status`, { status }),
@@ -72,6 +86,17 @@ export default function ProductRequestDetailPage() {
     return <div className="h-64 bg-slate-50 rounded-2xl animate-pulse" />
   }
 
+  const statusOptions = CLIENT_STATUS_LABELS[request.status]
+    ? [{ value: request.status, label: CLIENT_STATUS_LABELS[request.status]! }, ...STATUS_OPTIONS]
+    : STATUS_OPTIONS
+  const copyQuoteLink = () => {
+    if (!request.quoteUrl) return
+    navigator.clipboard.writeText(request.quoteUrl).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }).catch(() => {})
+  }
+
   return (
     <div className="space-y-5 max-w-5xl">
       <div className="flex items-center gap-4 flex-wrap">
@@ -82,7 +107,7 @@ export default function ProductRequestDetailPage() {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-xl font-bold text-slate-900">{request.productName}</h1>
-            <Badge label={request.status} />
+            <Badge label={request.expired ? 'expired' : request.status} />
           </div>
           <p className="text-sm text-slate-500 mt-0.5">Demande de {request.clientPrenom} {request.clientNom} · {fmtDateTime(request.createdAt)}</p>
         </div>
@@ -142,7 +167,10 @@ export default function ProductRequestDetailPage() {
               </h3>
               <p className="text-sm text-slate-700 whitespace-pre-line">{request.adminReply}</p>
               {request.quotedPrice && (
-                <p className="text-sm font-bold text-indigo-600 mt-2">Prix proposé : {fmt(request.quotedPrice)}</p>
+                <p className="text-sm font-bold text-indigo-600 mt-2">
+                  Prix proposé : {fmt(request.quotedPrice)} / unité
+                  {(request.quantity ?? 1) > 1 && <span className="font-normal text-slate-500"> × {request.quantity}</span>}
+                </p>
               )}
             </Card>
           )}
@@ -164,13 +192,17 @@ export default function ProductRequestDetailPage() {
                 placeholder="Bonjour, nous avons trouvé votre produit auprès d'un fournisseur fiable..."
               />
               <Input
-                label="Prix proposé (FCFA) — optionnel"
+                label="Prix unitaire proposé (FCFA, livraison incluse) — optionnel"
                 type="number"
                 min={1}
                 value={quotedPrice}
                 onChange={e => setQuotedPrice(e.target.value)}
                 placeholder="45000"
               />
+              <p className="text-xs text-slate-500 -mt-1">
+                Avec un prix, le client reçoit un <strong>devis en ligne valable 7 jours</strong> (e-mail + SMS) qu'il peut accepter
+                et payer en ligne, ou refuser. Le total facturé = prix × quantité ({request.quantity ?? 1}) + TVA — la livraison n'est pas ajoutée.
+              </p>
               <div className="flex justify-end items-center gap-3">
                 {replySent && <span className="text-green-600 text-sm font-medium">✓ Réponse envoyée par email</span>}
                 {replyMutation.isError && <span className="text-red-600 text-sm font-medium">Erreur lors de l'envoi</span>}
@@ -194,19 +226,58 @@ export default function ProductRequestDetailPage() {
             <Select
               value={request.status}
               onChange={e => statusMutation.mutate(e.target.value as ProductRequestStatus)}
-              options={STATUS_OPTIONS}
+              options={statusOptions}
             />
             {statusMutation.isError && (
               <p className="text-xs text-red-600 mt-2">{statusErrorMessage ?? 'Erreur lors du changement de statut'}</p>
             )}
           </Card>
 
-          {request.orderId && (
-            <Card className="p-5 border-green-200 bg-green-50/30">
-              <h3 className="text-sm font-semibold text-slate-900 mb-2 flex items-center gap-2">
-                <ShoppingBag size={15} className="text-green-600" /> Commande générée
+          {/* Suivi du devis en ligne */}
+          {request.quoteUrl && (
+            <Card className="p-5">
+              <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                <Link2 size={15} className="text-indigo-500" /> Devis en ligne
               </h3>
-              <p className="text-xs text-slate-500 mb-3">Cette demande a été convertie en commande trackable.</p>
+              <div className="space-y-2 text-xs text-slate-600">
+                {request.quoteExpiresAt && (
+                  <p className="flex items-center gap-1.5">
+                    <Clock size={12} className={request.expired ? 'text-amber-500' : 'text-slate-400'} />
+                    {request.expired ? 'Expiré le ' : "Valable jusqu'au "}{fmtDateTime(request.quoteExpiresAt)}
+                  </p>
+                )}
+                {request.status === 'declined' && (
+                  <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+                    <p className="flex items-center gap-1.5 font-semibold text-slate-700">
+                      <XCircle size={12} /> Refusé par le client {request.decidedAt && `· ${fmtDateTime(request.decidedAt)}`}
+                    </p>
+                    <p className="mt-1 text-slate-500">{request.declineReason || 'Aucun motif indiqué'}</p>
+                  </div>
+                )}
+                {request.expired && (
+                  <p className="text-amber-700">Renvoyez une réponse avec un prix pour prolonger le devis de 7 jours.</p>
+                )}
+              </div>
+              <button onClick={copyQuoteLink}
+                className="mt-3 w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:border-slate-300 transition-colors">
+                {copied ? <><Check size={12} /> Lien copié</> : <><Copy size={12} /> Copier le lien du devis</>}
+              </button>
+            </Card>
+          )}
+
+          {request.order && request.orderId && (
+            <Card className={`p-5 ${request.order.paymentStatus === 'paid' ? 'border-green-200 bg-green-50/30' : 'border-amber-200 bg-amber-50/30'}`}>
+              <h3 className="text-sm font-semibold text-slate-900 mb-2 flex items-center gap-2">
+                <ShoppingBag size={15} className={request.order.paymentStatus === 'paid' ? 'text-green-600' : 'text-amber-600'} />
+                Commande {request.order.orderNumber}
+              </h3>
+              <p className="text-xs text-slate-600 mb-3">
+                {request.order.paymentStatus === 'paid'
+                  ? `Payée en ligne (${fmt(request.order.total)}) — vous pouvez lancer l'achat.`
+                  : request.order.status === 'cancelled'
+                    ? 'Paiement annulé ou échoué — le client peut réessayer depuis son devis.'
+                    : `Devis accepté, en attente du paiement (${fmt(request.order.total)}).`}
+              </p>
               <Button onClick={() => navigate(`/orders/${request.orderId}`)} icon={<ShoppingBag size={14} />}>
                 Voir la commande
               </Button>
@@ -226,6 +297,33 @@ export default function ProductRequestDetailPage() {
                 </a>
               )}
             </div>
+          </Card>
+
+          {/* Historique sourcing du client */}
+          <Card className="p-5">
+            <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
+              <History size={15} className="text-indigo-500" /> Historique du client
+              <span className="ml-auto text-xs font-normal text-slate-400">{history.length + 1} demande{history.length > 0 ? 's' : ''}</span>
+            </h3>
+            {history.length === 0 ? (
+              <p className="text-xs text-slate-400">Première demande de sourcing de ce client.</p>
+            ) : (
+              <div className="space-y-2">
+                {history.map(h => (
+                  <button key={h.id} onClick={() => navigate(`/product-requests/${h.id}`)}
+                    className="w-full text-left p-2.5 rounded-xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50 transition-colors">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-medium text-slate-800 line-clamp-1">{h.productName}</p>
+                      <Badge label={h.expired ? 'expired' : h.status} />
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      {fmtDateTime(h.createdAt).split(' ')[0]}
+                      {h.order ? ` · ${fmt(h.order.total)}` : h.quotedPrice ? ` · ${fmt(h.quotedPrice * (h.quantity ?? 1))}` : ''}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            )}
           </Card>
 
           {request.images.length === 0 && (
