@@ -205,7 +205,7 @@ router.get('/insights', async (_req, res) => {
       FROM orders o WHERE ${PAID} AND o."createdAt" >= ${since30} GROUP BY 1`
 
     const cities = await prisma.$queryRaw<{ city: string; orders: bigint; revenue: bigint }[]>`
-      SELECT COALESCE(NULLIF(TRIM(o."shippingAddress"::jsonb ->> 'ville'), ''), 'Non renseignée') AS city,
+      SELECT COALESCE(NULLIF(TRIM(CASE WHEN o."shippingAddress" ~ '^\s*\{.*\}\s*$' THEN o."shippingAddress"::jsonb ->> 'ville' END), ''), 'Non renseignée') AS city,
              COUNT(*) AS orders, COALESCE(SUM(o.total), 0) AS revenue
       FROM orders o WHERE ${PAID} AND o."createdAt" >= ${since30}
       GROUP BY 1 ORDER BY revenue DESC LIMIT 6`
