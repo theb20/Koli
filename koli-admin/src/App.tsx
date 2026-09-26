@@ -6,7 +6,7 @@ import { AdminLayout } from './components/layout/AdminLayout'
 import LoginPage           from './pages/LoginPage'
 import ForgotPasswordPage  from './pages/ForgotPasswordPage'
 import ResetPasswordPage   from './pages/ResetPasswordPage'
-const DashboardPage = lazy(() => import('./pages/DashboardPage'))
+const DashboardPage = lazy(() => import('./features/overview/OverviewPage'))
 const ProductsPage = lazy(() => import('./pages/products/ProductsPage'))
 const ProductFormPage = lazy(() => import('./pages/products/ProductFormPage'))
 const DealsPage = lazy(() => import('./pages/products/DealsPage'))

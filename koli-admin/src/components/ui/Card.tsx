@@ -26,12 +26,12 @@ export function CardHeader({ title, subtitle, actions, className }: {
   title: ReactNode; subtitle?: ReactNode; actions?: ReactNode; className?: string
 }) {
   return (
-    <div className={cn('flex items-start justify-between gap-3', className)}>
-      <div className="min-w-0">
+    <div className={cn('flex flex-wrap items-start justify-between gap-x-3 gap-y-2', className)}>
+      <div className="min-w-0 flex-1 basis-[180px]">
         <h2 className="text-card-title font-medium text-ink leading-tight">{title}</h2>
         {subtitle && <p className="text-secondary text-muted mt-1">{subtitle}</p>}
       </div>
-      {actions && <div className="flex items-center gap-1.5 shrink-0">{actions}</div>}
+      {actions && <div className="flex flex-wrap items-center gap-1.5 shrink-0">{actions}</div>}
     </div>
   )
 }

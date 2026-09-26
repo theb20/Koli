@@ -50,7 +50,7 @@ export function StatRow({ items, className }: { items: StatItem[]; className?: s
           )}>
           <p className="text-body text-ink-2">{it.label}</p>
           <div className="mt-2 flex items-center gap-2.5 flex-wrap">
-            <span className={cn('text-kpi font-medium leading-none tabular', it.highlight ? 'text-primary' : 'text-ink')}>{it.value}</span>
+            <span className={cn('text-kpi font-medium leading-none tabular whitespace-nowrap', it.highlight ? 'text-primary' : 'text-ink')}>{it.value}</span>
             <DeltaBadge value={it.delta ?? null} />
           </div>
         </div>
