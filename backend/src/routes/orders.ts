@@ -9,6 +9,7 @@ import { sendNewOrderWhatsAppNotification } from '../lib/whatsapp/newOrderNotifi
 import { logger } from '../lib/logger'
 import { logAdminAction } from '../lib/auditLog'
 import { notifyMerchantsOrderPaid } from '../lib/merchantWallet'
+import { requestOrderReview } from '../lib/orderReview'
 import { getLoyaltySettings } from './loyalty'
 import { createWinipayerPayment, isMerchantgoConfigured, refreshWinipayerPayment } from '../lib/merchantgo'
 import type { Request } from 'express'
@@ -149,6 +150,11 @@ export async function applyOrderStatusChange(orderId: string, status: OrderStatu
   // la transition de statut elle-même.
   if (result.becamePaid) {
     notifyMerchantsOrderPaid(result.updated.id, result.updated.orderNumber).catch(() => {})
+  }
+
+  // Première livraison → lien "Laisser un avis" (une seule fois par commande)
+  if (result.changed && status === 'delivered') {
+    requestOrderReview(result.updated.id).catch(() => {})
   }
 
   // Email + notification client à chaque changement réel de statut — non bloquant, ne doit

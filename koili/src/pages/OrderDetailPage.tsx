@@ -49,6 +49,7 @@ type Order = {
   taxRate: number; taxAmount: number
   total: number
   trackingNumber?: string; estimatedDelivery?: string
+  reviewToken?: string
 }
 
 // orange/mtn/wave : anciennes valeurs, conservées pour l'affichage des commandes
@@ -66,6 +67,7 @@ function mapOrder(o: ApiOrder): Order {
     date:         new Date(o.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }),
     status:       (o.status as OrderStatus) ?? 'pending',
     trackingNumber:    o.trackingNumber ?? undefined,
+    reviewToken:       o.reviewToken ?? undefined,
     estimatedDelivery: o.estimatedDelivery
       ? new Date(o.estimatedDelivery).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
       : undefined,
@@ -598,8 +600,20 @@ export default function OrderDetailPage() {
                   ))}
                 </div>
 
-                {/* Laisser un avis — si livré */}
-                {canReturn && (
+                {/* Laisser un avis — page dédiée (un avis par produit + un sur la commande) */}
+                {canReturn && order.reviewToken && (
+                  <div className="mt-4 pt-4 border-t border-gray-100">
+                    <Link to={`/avis/${order.reviewToken}`}
+                      className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-blue-600 transition-colors w-full">
+                      <Star size={15} className="text-amber-400 fill-amber-400" />
+                      Donner mon avis sur les produits et la commande
+                      <ChevronRight size={14} className="ml-auto text-gray-400" />
+                    </Link>
+                  </div>
+                )}
+
+                {/* Ancien formulaire — commandes livrées avant l'envoi automatique du lien d'avis */}
+                {canReturn && !order.reviewToken && (
                   <div className="mt-4 pt-4 border-t border-gray-100">
                     <button
                       onClick={() => setRatingOpen(r => !r)}

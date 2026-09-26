@@ -103,6 +103,8 @@ export type ApiOrder = {
   paymentFailureReason?: string | null
   notes?: string | null
   trackingNumber?: string | null
+  /** Lien d'avis (/avis/:reviewToken) — posé à la première livraison */
+  reviewToken?: string | null
   estimatedDelivery?: string | null
   createdAt: string
   items: ApiOrderItem[]
@@ -125,7 +127,7 @@ export type ApiCategory = {
 export type ApiReview = {
   id: string            // CUID côté backend
   productId: number
-  userId: string
+  userId: string | null   // null : avis d'un client invité (lien de commande)
   rating: number
   title?: string | null
   body?: string | null
@@ -565,6 +567,33 @@ export async function clearCartApi(token: string) {
 export async function mergeCartApi(items: { productId: number; qty: number; color?: string; assistance?: boolean }[], token: string) {
   return apiFetch<ApiResponse<ApiCartItem[]>>('/api/cart/merge', token, {
     method: 'POST', body: JSON.stringify({ items }),
+  })
+}
+
+/* ─── Avis via le lien envoyé à la livraison (/avis/:token, sans compte) ─── */
+export type ApiOrderReviewForm = {
+  orderNumber: string
+  clientPrenom: string
+  deliveredAt: string
+  items: {
+    productId: number
+    name: string
+    image: string
+    review: { rating: number; body: string } | null
+  }[]
+  orderReview: { rating: number; body: string } | null
+}
+
+export async function fetchOrderReviewForm(reviewToken: string) {
+  return apiFetch<ApiResponse<ApiOrderReviewForm>>(`/api/reviews/order/${reviewToken}`)
+}
+
+export async function submitOrderReviews(
+  reviewToken: string,
+  body: { products: { productId: number; rating: number; body: string }[]; order?: { rating: number; body: string } },
+) {
+  return apiFetch<ApiResponse<unknown>>(`/api/reviews/order/${reviewToken}`, null, {
+    method: 'POST', body: JSON.stringify(body),
   })
 }
 

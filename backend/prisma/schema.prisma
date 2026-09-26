@@ -289,6 +289,11 @@ model Order {
   /// Verrouillé à la première transition vers "delivered" — base du calcul
   /// de la fenêtre d'éligibilité au retour (SiteSettings.returnWindowDays).
   deliveredAt     DateTime?
+  /// Lien personnel "Laisser un avis" (/avis/:reviewToken) — généré et
+  /// envoyé au client (e-mail, SMS, notification) à la PREMIÈRE livraison.
+  /// Fonctionne sans compte (commandes invité). Un seul envoi par commande.
+  reviewToken       String?   @unique
+  reviewRequestedAt DateTime?
   /// Suppression douce (sélection multiple + validation côté koli-admin) —
   /// la ligne reste en base pour l'historique/comptabilité, juste exclue des
   /// listings admin par défaut. Restaurable. Voir logAdminAction pour la
@@ -411,7 +416,14 @@ model Address {
 /// aux comptes connectés, publié directement.
 model SiteReview {
   id        String   @id @default(cuid())
-  userId    String
+  /// Null pour un avis laissé via le lien de commande par un client invité
+  /// (voir authorName) — sinon l'auteur est le compte.
+  userId    String?
+  /// Nom affiché pour un invité ("Awa K.") — ignoré si userId est présent.
+  authorName String?
+  /// Avis sur une commande livrée (livraison, service) — un seul par commande.
+  /// Null pour un avis plateforme spontané (un seul par compte).
+  orderId   String?  @unique
   rating    Int
   body      String
   /// JSON: string[] — voir Review.images
@@ -419,7 +431,7 @@ model SiteReview {
   /// Compteur « Utile », comme Review.helpful
   helpful   Int      @default(0)
   createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([createdAt])
@@ -428,7 +440,12 @@ model SiteReview {
 
 model Review {
   id        String   @id @default(cuid())
-  userId    String
+  /// Null pour un avis laissé via le lien de commande par un invité (authorName)
+  userId    String?
+  authorName String?
+  /// Commande d'origine quand l'avis vient du lien "Laisser un avis" envoyé à
+  /// la livraison — un avis par produit et par commande (modifiable).
+  orderId   String?
   productId Int
   rating    Int
   title     String?
@@ -441,8 +458,9 @@ model Review {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([orderId, productId])
   @@index([productId])
   @@index([userId])
   @@map("reviews")

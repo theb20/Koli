@@ -15,6 +15,7 @@ export {
   sendNewOrderMerchantEmail,
   sendNewProductRequestAdminEmail,
   sendProductRequestReplyEmail,
+  sendReviewRequestEmail,
   sendReturnStatusEmail,
   sendNewReturnAdminEmail,
   sendVerificationCodeEmail,

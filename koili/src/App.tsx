@@ -39,6 +39,7 @@ const DeliveryPage         = lazy(() => import('./pages/DeliveryPage'))
 const SellerPage           = lazy(() => import('./pages/SellerPage'))
 const RequestProductPage   = lazy(() => import('./pages/RequestProductPage'))
 const QuotePage            = lazy(() => import('./pages/QuotePage'))
+const OrderReviewPage      = lazy(() => import('./pages/OrderReviewPage'))
 const NotFoundPage         = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })))
 const PaymentVerificationPage = lazy(() => import('./pages/PaymentVerificationPage'))
 const PaymentSuccessPage      = lazy(() => import('./pages/PaymentSuccessPage'))
@@ -92,6 +93,8 @@ function App() {
               <Route path="/demande"   element={<RequestProductPage />} />
               {/* Devis de sourcing — lien personnel, accessible sans compte */}
               <Route path="/devis/:token" element={<QuotePage />} />
+              {/* Avis après livraison — lien personnel envoyé au client, sans compte */}
+              <Route path="/avis/:token"  element={<OrderReviewPage />} />
 
               {/* ── Routes protégées (nécessitent une connexion) ── */}
               <Route element={<PrivateRoute />}>

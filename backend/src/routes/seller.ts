@@ -17,6 +17,7 @@ import { verifySpreadsheetSignature } from '../security/fileSignature'
 import { deleteProductAtomic } from '../lib/productDeletion'
 import { searchProductIds, normalizeSearchQuery } from '../lib/search'
 import { buildMerchantOrderPdf } from '../lib/invoicePdf'
+import { requestOrderReview } from '../lib/orderReview'
 import type { Prisma, Order, OrderItem } from '@prisma/client'
 
 const router = Router()
@@ -1119,6 +1120,10 @@ router.patch('/orders/:id/status', requireSeller, async (req, res) => {
         deliveredAt: status === 'delivered' && items[0].order.status !== 'delivered' ? new Date() : undefined,
       },
     })
+    // Première livraison → lien "Laisser un avis" au client (une seule fois)
+    if (status === 'delivered' && items[0].order.status !== 'delivered') {
+      requestOrderReview(updated.id).catch(() => {})
+    }
     res.json({ success: true, data: shapeOrder(updated, items) })
   } catch (err) {
     if (err instanceof z.ZodError) { res.status(400).json({ success: false, message: 'Statut invalide' }); return }

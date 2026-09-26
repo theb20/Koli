@@ -18,11 +18,27 @@ const router = Router()
 const MAX_REVIEW_IMAGES = 4
 const zReviewImages = z.array(z.string().url()).max(MAX_REVIEW_IMAGES).optional()
 
-/** `images` est stocké en JSON : renvoyé au client sous forme de tableau. */
-function withParsedImages<T extends { images: string | null }>(review: T) {
+/** `images` est stocké en JSON : renvoyé au client sous forme de tableau.
+ *  Un avis d'invité (lien de commande, sans compte) n'a pas de `user` : on
+ *  expose alors authorName sous la même forme, pour que l'affichage reste
+ *  identique partout (fiche produit, page d'accueil, backoffice). */
+function withParsedImages<T extends { images: string | null; authorName?: string | null; user?: unknown }>(review: T) {
   let images: string[] = []
   try { if (review.images) images = JSON.parse(review.images) as string[] } catch { /* ignore */ }
-  return { ...review, images }
+  const user = review.user ?? (review.authorName ? { prenom: review.authorName, nom: '', avatar: null, email: '' } : null)
+  return { ...review, images, user }
+}
+
+/** Recalcule note moyenne + nombre d'avis d'un produit (après ajout/modif/suppression). */
+async function refreshProductRating(productId: number) {
+  const agg = await prisma.review.aggregate({
+    where: { productId },
+    _avg: { rating: true }, _count: { rating: true },
+  })
+  await prisma.product.update({
+    where: { id: productId },
+    data: { rating: Math.round((agg._avg.rating ?? 0) * 10) / 10, reviews: agg._count.rating },
+  })
 }
 
 const reviewSchema = z.object({
@@ -144,7 +160,7 @@ router.post('/site', requireAuth, validate(siteReviewSchema), async (req, res) =
 
     // Un seul avis plateforme par compte : le second remplace le premier
     // (plutôt que d'empiler des doublons, la table n'ayant pas de contrainte).
-    const existing = await prisma.siteReview.findFirst({ where: { userId } })
+    const existing = await prisma.siteReview.findFirst({ where: { userId, orderId: null } })
     const review = existing
       ? await prisma.siteReview.update({
           where: { id: existing.id },
@@ -174,6 +190,122 @@ router.post('/site/:id/helpful', validateParams(zCuidIdParam), async (req, res) 
     res.json({ success: true, data: { helpful: updated.helpful } })
   } catch {
     res.status(404).json({ success: false, message: 'Avis introuvable' })
+  }
+})
+
+/* ─────────────────────────────────────────────────────────────
+   AVIS VIA LE LIEN DE COMMANDE (/avis/:token) — envoyé à la livraison
+   (voir lib/orderReview.ts). Sans compte requis : le token de la commande
+   fait office d'autorisation. Un avis par produit + un avis sur la
+   commande (livraison/service → page d'accueil), tous modifiables.
+───────────────────────────────────────────────────────────── */
+const zReviewToken = z.object({ token: z.string().regex(/^[a-f0-9]{48}$/) })
+
+async function findOrderByReviewToken(token: string) {
+  return prisma.order.findUnique({
+    where: { reviewToken: token },
+    select: {
+      id: true, orderNumber: true, userId: true, clientPrenom: true, clientNom: true,
+      deliveredAt: true, status: true,
+      items: { select: { productId: true, name: true, image: true, product: { select: { isActive: true } } } },
+    },
+  })
+}
+
+/** Nom public d'un invité : "Awa K." */
+const guestName = (prenom: string, nom: string) => `${prenom.trim()} ${nom.trim().charAt(0).toUpperCase()}${nom.trim() ? '.' : ''}`.trim()
+
+/* ── GET /api/reviews/order/:token — produits à noter + avis déjà laissés ── */
+router.get('/order/:token', validateParams(zReviewToken), async (req, res) => {
+  try {
+    const order = await findOrderByReviewToken(req.params['token']!)
+    if (!order || !order.deliveredAt) {
+      res.status(404).json({ success: false, message: 'Lien d\'avis introuvable' })
+      return
+    }
+    const [productReviews, orderReview] = await Promise.all([
+      prisma.review.findMany({ where: { orderId: order.id }, select: { productId: true, rating: true, body: true } }),
+      prisma.siteReview.findUnique({ where: { orderId: order.id }, select: { rating: true, body: true } }),
+    ])
+
+    // Un produit apparaissant sur plusieurs lignes (couleurs) n'est noté qu'une fois ;
+    // les produits retirés du catalogue (dont le sourcing) n'ont pas de fiche où afficher l'avis.
+    const seen = new Set<number>()
+    const items = order.items
+      .filter(i => i.product.isActive && !seen.has(i.productId) && seen.add(i.productId))
+      .map(i => ({
+        productId: i.productId, name: i.name, image: i.image,
+        review: productReviews.find(r => r.productId === i.productId) ?? null,
+      }))
+
+    res.json({ success: true, data: {
+      orderNumber: order.orderNumber,
+      clientPrenom: order.clientPrenom,
+      deliveredAt: order.deliveredAt,
+      items,
+      orderReview,
+    } })
+  } catch (err) {
+    logger.error('[GET reviews/order]', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+const orderReviewSchema = z.object({
+  products: z.array(z.object({
+    productId: z.number().int().positive(),
+    rating:    z.number().int().min(1).max(5),
+    body:      z.string().trim().min(10, 'Minimum 10 caractères').max(2000),
+  })).max(50).default([]),
+  order: z.object({
+    rating: z.number().int().min(1).max(5),
+    body:   z.string().trim().min(10, 'Minimum 10 caractères').max(2000),
+  }).optional(),
+}).refine(d => d.products.length > 0 || !!d.order, { message: 'Notez au moins un produit ou la commande' })
+
+/* ── POST /api/reviews/order/:token — publier / modifier ses avis ── */
+router.post('/order/:token', validateParams(zReviewToken), validate(orderReviewSchema), async (req, res) => {
+  try {
+    const order = await findOrderByReviewToken(req.params['token']!)
+    if (!order || !order.deliveredAt) {
+      res.status(404).json({ success: false, message: 'Lien d\'avis introuvable' })
+      return
+    }
+    const { products, order: orderInput } = req.body as z.infer<typeof orderReviewSchema>
+
+    const reviewable = new Set(order.items.filter(i => i.product.isActive).map(i => i.productId))
+    const invalid = products.find(p => !reviewable.has(p.productId))
+    if (invalid) {
+      res.status(400).json({ success: false, message: 'Ce produit ne fait pas partie de la commande' })
+      return
+    }
+
+    // Auteur : le compte si la commande en a un, sinon le nom de l'invité
+    const author = order.userId
+      ? { userId: order.userId, authorName: null }
+      : { userId: null, authorName: guestName(order.clientPrenom, order.clientNom) }
+
+    for (const p of products) {
+      await prisma.review.upsert({
+        where:  { orderId_productId: { orderId: order.id, productId: p.productId } },
+        create: { ...author, orderId: order.id, productId: p.productId, rating: p.rating, body: p.body, verified: true },
+        update: { rating: p.rating, body: p.body },
+      })
+      await refreshProductRating(p.productId)
+    }
+
+    if (orderInput) {
+      await prisma.siteReview.upsert({
+        where:  { orderId: order.id },
+        create: { ...author, orderId: order.id, rating: orderInput.rating, body: orderInput.body },
+        update: { rating: orderInput.rating, body: orderInput.body },
+      })
+    }
+
+    res.json({ success: true, message: 'Merci pour votre avis !' })
+  } catch (err) {
+    logger.error('[POST reviews/order]', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
 })
 
@@ -207,14 +339,15 @@ router.get('/product/:id', validateParams(zIntIdParam), validateQuery(zPaginatio
       count: stats.find(s => s.rating === r)?._count.rating ?? 0,
     }))
 
+    // Moyenne sur l'ensemble des avis (pas seulement la page courante)
     const avgRating = total > 0
-      ? reviews.reduce((s, r) => s + r.rating, 0) / total
+      ? stats.reduce((s, r) => s + r.rating * r._count.rating, 0) / total
       : 0
 
     res.json({
       success: true,
       data: {
-        reviews,
+        reviews: reviews.map(withParsedImages),
         stats: { total, avgRating: Math.round(avgRating * 10) / 10, ratingDistribution },
         pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
       },
@@ -413,7 +546,7 @@ router.get('/admin/all', requireAdmin, validateQuery(zPaginationQuery), async (r
         },
       }),
     ])
-    res.json({ success: true, data: { reviews, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } } })
+    res.json({ success: true, data: { reviews: reviews.map(withParsedImages), pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } } })
   } catch { res.status(500).json({ success: false, message: 'Erreur serveur' }) }
 })
 

@@ -26,6 +26,7 @@ import {
   sendOrderConfirmationEmail, sendOrderStatusEmail, sendContactReply, sendBroadcastEmail,
   sendNewOrderAdminEmail, sendNewProductRequestAdminEmail, sendProductRequestReplyEmail,
   sendReturnStatusEmail, sendNewReturnAdminEmail, sendSecurityUpdateEmail,
+  sendReviewRequestEmail,
 } from '../lib/email'
 import { sendFlashDealEmail } from '../lib/email/templates/flash-deal'
 import { logger } from '../lib/logger'
@@ -52,6 +53,7 @@ const TEMPLATES: Record<string, () => Promise<void>> = {
   'order-status-shipped':   () => sendOrderStatusEmail('preview@example.com', 'Awa', 'SKG-00042', 'shipped'),
   'order-status-delivered': () => sendOrderStatusEmail('preview@example.com', 'Awa', 'SKG-00042', 'delivered'),
   'order-status-cancelled': () => sendOrderStatusEmail('preview@example.com', 'Awa', 'SKG-00042', 'cancelled'),
+  'review-request': () => sendReviewRequestEmail('preview@example.com', 'Awa', 'SKG-00042', 'https://skignas.com/avis/exemple'),
   'contact-reply': () => sendContactReply('preview@example.com', 'Awa', 'Question sur ma commande'),
   broadcast: () => sendBroadcastEmail('preview@example.com', 'Awa', 'Nouvelle collection disponible', 'Découvrez nos derniers arrivages tech à prix imbattables cette semaine seulement.'),
   'security-update': () => sendSecurityUpdateEmail('preview@example.com', 'Awa'),
