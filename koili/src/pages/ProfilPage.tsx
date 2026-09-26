@@ -78,6 +78,7 @@ type WishlistItem = {
 type ApiNotif = {
   id: string; title: string; body: string
   type: string; isRead: boolean; createdAt: string
+  link?: string | null   // page cible (devis, commande…) — ouverte au clic
 }
 
 type Session = {
@@ -953,6 +954,7 @@ const NOTIF_ICON: Record<string, string> = {
 function TabNotifications({ initialNewsletter }: { initialNewsletter: boolean }) {
   const { token } = useAuth()
   const qc = useQueryClient()
+  const navigate = useNavigate()
 
   const { data, isLoading } = useQuery<{ notifications: ApiNotif[]; unreadCount: number }>({
     queryKey: ['notifications'],
@@ -1005,7 +1007,10 @@ function TabNotifications({ initialNewsletter }: { initialNewsletter: boolean })
           <div className="space-y-2">
             {notifs.map(n => (
               <div key={n.id}
-                onClick={() => !n.isRead && markRead(n.id)}
+                onClick={() => {
+                  if (!n.isRead) markRead(n.id)
+                  if (n.link) navigate(n.link)
+                }}
                 className={`flex items-start gap-3 p-3.5 rounded-xl transition-colors cursor-pointer ${n.isRead ? 'bg-gray-50' : 'bg-blue-50 border border-blue-100'}`}>
                 <span className="text-lg shrink-0 mt-0.5">{NOTIF_ICON[n.type] ?? '🔔'}</span>
                 <div className="flex-1 min-w-0">

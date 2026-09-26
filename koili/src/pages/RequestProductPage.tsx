@@ -17,6 +17,7 @@ import {
   Loader2,
   AlertCircle,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { PageMeta } from "../components/seo/PageMeta";
 import { useAuth } from "../contexts/AuthContext";
 import { API_BASE } from "../lib/api";
@@ -258,8 +259,18 @@ export default function RequestProductPage() {
                 </div>
                 <h2 className="text-2xl font-semibold text-slate-900">Demande envoyée !</h2>
                 <p className="mt-2 max-w-sm text-slate-500">
-                  Notre équipe étudie votre demande et vous répondra par email sous 24 à 48h.
+                  Notre équipe étudie votre demande et vous répondra sous 24 à 48h.
                 </p>
+                <p className="mt-2 max-w-sm text-sm text-slate-500">
+                  Vous recevrez votre <strong>devis par email{form.clientTelephone ? " et SMS" : ""}</strong>, avec un lien pour
+                  l'accepter et payer en ligne, ou le refuser.
+                </p>
+                {user && (
+                  <Link to="/profil?tab=sourcing"
+                    className="mt-6 inline-flex items-center rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">
+                    Suivre mes demandes
+                  </Link>
+                )}
                 <button
                   onClick={() => { setSent(false); setForm(EMPTY_FORM); setImages([]); }}
                   className="mt-6 text-sm font-medium text-blue-600 hover:text-blue-700"

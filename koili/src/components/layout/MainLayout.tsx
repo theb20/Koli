@@ -4,11 +4,14 @@ import { Footer } from './Footer'
 import { Chatbox } from './Chatbox'
 import { CartDrawer } from '../ui/CartDrawer'
 import  SkignasAIBetaPopup  from './SkignasAIBetaPopup'
+import { PendingQuoteBanner } from './PendingQuoteBanner'
 
 
 export function MainLayout() {
   return (
     <div className="min-h-screen flex flex-col bg-white">
+      {/* Devis de sourcing en attente — ramène le client vers sa page devis */}
+      <PendingQuoteBanner />
       <Header />
       {/* Header en sticky (plus fixed) — reste dans le flux normal, aucun padding
           de compensation nécessaire, le contenu s'enchaîne naturellement dessous. */}
