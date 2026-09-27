@@ -34,7 +34,8 @@ const schema = z.object({
   assistancePrice:   z.coerce.number().int('Entier requis').positive('Prix invalide').optional().or(z.literal('')),
   /* Approvisionnement (admin uniquement) — '' = aucun fournisseur / prix non renseigné */
   supplierId:    z.string(),
-  supplierPrice: z.coerce.number().int('Entier requis').nonnegative('Prix invalide').optional().or(z.literal('')),
+  // '' testé EN PREMIER : z.coerce.number() transformerait un champ vide en 0 (« gratuit »)
+  supplierPrice: z.union([z.literal(''), z.coerce.number().int('Entier requis').nonnegative('Prix invalide')]),
 }).refine(
   d => !(d.assistanceEnabled && !d.assistancePrice),
   { message: "Un prix est requis pour activer l'assistance technique", path: ['assistancePrice'] },
@@ -151,22 +152,24 @@ export default function ProductFormPage() {
     },
   })
 
-  const onSubmit = (data: FormData) => {
-    const supplierMode = suppliers.find(s => String(s.id) === data.supplierId)?.mode ?? 'MARGIN'
+  const onSubmit = ({ supplierId, supplierPrice, ...data }: FormData) => {
+    const supplierMode = suppliers.find(s => String(s.id) === supplierId)?.mode ?? 'MARGIN'
     // Prix d'achat exigé à la création (mode marge) ; en édition, seulement si
     // l'approvisionnement est modifié — un produit en attente de backfill reste
     // éditable pour le reste.
     const sourcingTouched = !isEdit || !!dirtyFields.supplierId || !!dirtyFields.supplierPrice
-    if (!isMerchantProduct && sourcingTouched && supplierMode === 'MARGIN' && data.supplierPrice === '') {
+    if (!isMerchantProduct && sourcingTouched && supplierMode === 'MARGIN' && supplierPrice === '') {
       setError('supplierPrice', { message: "Prix d'achat requis (fournisseur en mode marge)" })
       return
     }
+    // Champs d'approvisionnement retirés de `data` (valeurs brutes du
+    // formulaire) et envoyés convertis, seulement s'ils ont changé.
     mutation.mutate({
-      ...(!isMerchantProduct && sourcingTouched ? {
-        supplierId:    data.supplierId ? Number(data.supplierId) : null,
-        supplierPrice: data.supplierPrice === '' ? null : Number(data.supplierPrice),
-      } : {}),
       ...data,
+      ...(!isMerchantProduct && sourcingTouched ? {
+        supplierId:    supplierId ? Number(supplierId) : null,
+        supplierPrice: supplierPrice === '' ? null : Number(supplierPrice),
+      } : {}),
       price:    Number(data.price),
       oldPrice: data.oldPrice ? Number(data.oldPrice) : undefined,
       badge:    data.badge || undefined,
