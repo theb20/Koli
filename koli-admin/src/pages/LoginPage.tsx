@@ -36,7 +36,7 @@ export default function LoginPage() {
 
       <main className="relative z-[2] w-full max-w-[400px] rounded-cta border border-login-card-border bg-login-card p-8 shadow-[0_10px_40px_rgba(0,0,0,0.8)] flex flex-col items-center text-center">
         <div className="w-11 h-11 mb-3 rounded-full border border-login-field-border bg-login-logo-bg flex items-center justify-center text-[20px] font-bold leading-none" aria-hidden>
-          s
+          <img src="/imgs_dropship/sk_black.png" alt="logo admin skignas" />
         </div>
         <h1 className="text-[1.35rem] font-semibold tracking-[-0.025em] mb-1">Administration Skignas</h1>
         <p className="text-[0.85rem] text-login-muted mb-4 leading-relaxed">Connectez-vous à votre espace.</p>
@@ -83,9 +83,10 @@ export default function LoginPage() {
         </p>
 
         <p className="mt-4 text-[0.72rem] text-login-faint leading-relaxed">
-          Ce site est protégé par reCAPTCHA : les{' '}
-          <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="text-login-muted underline-offset-2 hover:underline">règles de confidentialité</a> et les{' '}
-          <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer" className="text-login-muted underline-offset-2 hover:underline">conditions d'utilisation</a> de Google s'appliquent.
+          En vous connectant, vous acceptez les{' '}
+          <a href="https://skignas.com/cgu" target="_blank" rel="noopener noreferrer" className="text-login-muted underline-offset-2 hover:underline">conditions générales</a>, la{' '}
+          <a href="https://skignas.com/privacy" target="_blank" rel="noopener noreferrer" className="text-login-muted underline-offset-2 hover:underline">politique de confidentialité</a> et les{' '}
+          <a href="https://skignas.com/legal" target="_blank" rel="noopener noreferrer" className="text-login-muted underline-offset-2 hover:underline">mentions légales</a> de Skignas.
         </p>
       </main>
     </div>
