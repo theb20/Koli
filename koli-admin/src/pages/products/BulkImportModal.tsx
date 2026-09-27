@@ -4,6 +4,7 @@ import { Upload, FileText, CheckCircle2, XCircle, ArrowLeft, Download, Loader2 }
 import { api } from '../../lib/api'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
+import { formatFCFA } from '../../lib/format'
 
 type BulkRow = {
   name: string
@@ -176,7 +177,7 @@ export function BulkImportModal({ open, onClose }: { open: boolean; onClose: () 
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-slate-800 truncate">{v.data.name}</p>
                     <p className="text-xs text-slate-400">
-                      {v.data.brand} · {v.data.category} · {v.data.price.toLocaleString('fr-FR')} FCFA · {v.data.images.length} image(s)
+                      {v.data.brand} · {v.data.category} · {formatFCFA(v.data.price)} · {v.data.images.length} image(s)
                       {v.data.specs && v.data.specs.length > 0 && ` · ${v.data.specs.length} spec(s)`}
                     </p>
                   </div>

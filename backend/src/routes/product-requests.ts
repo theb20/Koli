@@ -13,6 +13,7 @@ import { logger } from '../lib/logger'
 import { scanFiles } from '../lib/virusScan'
 import { isMerchantgoConfigured, createWinipayerPayment, refreshWinipayerPayment } from '../lib/merchantgo'
 import { applyOrderStatusChange } from './orders'
+import { getVatRatePercent } from '../lib/finance/vat'
 import { sendSms } from '../lib/sms/zavu'
 import { normalizePhoneCI } from '../lib/phone'
 import type { Prisma, ProductRequest } from '@prisma/client'
@@ -44,8 +45,7 @@ async function quoteTotals(r: Pick<ProductRequest, 'quotedPrice' | 'quantity'>) 
   const unitPrice = r.quotedPrice ?? 0
   const quantity  = r.quantity ?? 1
   const subtotal  = unitPrice * quantity
-  const defaultTax = await prisma.taxRate.findFirst({ where: { isDefault: true, isActive: true } })
-  const taxRate   = defaultTax?.rate ?? 0
+  const taxRate   = await getVatRatePercent()
   const taxAmount = Math.round(subtotal * taxRate / 100)
   return { unitPrice, quantity, subtotal, taxRate, taxAmount, total: subtotal + taxAmount }
 }

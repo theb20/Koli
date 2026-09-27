@@ -2,15 +2,6 @@
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { api } from '../../lib/api'
 
-export type Period = '7d' | '30d' | 'month' | 'lastMonth'
-export type Origin = 'all' | 'skignas' | 'merchants'
-
-export type Kpis = { delivered: number; orders: number; avgBasket: number; newCustomers: number }
-export type Performance = { period: Period; origin: Origin; from: string; to: string; current: Kpis; previous: Kpis }
-
-export type SalesMonth = { month: string; revenue: number; orders: number }
-export type Sales = { months: SalesMonth[]; average: number; current: number; previousSamePeriod: number }
-
 export type AgendaType = 'deal' | 'email' | 'blog' | 'store'
 export type AgendaEvent = { id: string; type: AgendaType; title: string; start: string; end: string | null; link: string }
 
@@ -25,14 +16,6 @@ export type Insights = {
 }
 
 const get = async <T,>(url: string) => (await api.get(url)).data.data as T
-
-export const usePerformance = (period: Period, origin: Origin) => useQuery({
-  queryKey: ['overview', 'performance', period, origin],
-  queryFn: () => get<Performance>(`/api/admin/overview/performance?period=${period}&origin=${origin}`),
-  placeholderData: keepPreviousData,
-})
-
-export const useSales = () => useQuery({ queryKey: ['overview', 'sales'], queryFn: () => get<Sales>('/api/admin/overview/sales') })
 
 export const useAgenda = (from: Date, to: Date) => useQuery({
   queryKey: ['overview', 'agenda', from.toISOString(), to.toISOString()],

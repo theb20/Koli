@@ -43,7 +43,7 @@ function EditTargets({ open, onClose, data }: { open: boolean; onClose: () => vo
       <p className="text-secondary text-ink-2 mb-4">Objectifs appliqués à chaque mois. Laissez vide pour ne pas suivre un indicateur.</p>
       <div className="space-y-3">
         {TARGETS.map(t => (
-          <Input key={t.key} label={`${t.label}${t.money ? ' (FCFA)' : ''}`} inputMode="numeric" placeholder="Aucun objectif"
+          <Input key={t.key} label={`${t.label}${t.money ? ' (F CFA)' : ''}`} inputMode="numeric" placeholder="Aucun objectif"
             value={values[t.key]} onChange={e => setValues(v => ({ ...v, [t.key]: e.target.value }))} />
         ))}
       </div>

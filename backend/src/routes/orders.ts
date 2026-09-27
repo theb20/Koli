@@ -9,6 +9,8 @@ import { sendNewOrderWhatsAppNotification } from '../lib/whatsapp/newOrderNotifi
 import { logger } from '../lib/logger'
 import { logAdminAction } from '../lib/auditLog'
 import { notifyMerchantsOrderPaid } from '../lib/merchantWallet'
+import { snapshotOrderFinancialsSafe } from '../lib/finance/snapshot'
+import { getVatRatePercent } from '../lib/finance/vat'
 import { requestOrderReview } from '../lib/orderReview'
 import { getLoyaltySettings } from './loyalty'
 import { createWinipayerPayment, isMerchantgoConfigured, refreshWinipayerPayment } from '../lib/merchantgo'
@@ -138,8 +140,9 @@ export async function applyOrderStatusChange(orderId: string, status: OrderStatu
     // Verrouillé à la première livraison — base du calcul d'éligibilité au retour.
     const deliveredAt = status === 'delivered' && order.status !== 'delivered' ? new Date() : undefined
 
-    const updated = await tx.order.update({ where: { id: orderId }, data: { status, paymentStatus, deliveredAt } })
     const becamePaid = order.paymentStatus !== 'paid' && paymentStatus === 'paid'
+    const paidAt = becamePaid ? new Date() : undefined
+    const updated = await tx.order.update({ where: { id: orderId }, data: { status, paymentStatus, deliveredAt, paidAt } })
     return { updated, changed: order.status !== status, becamePaid }
   })
   if (!result) return null
@@ -150,6 +153,7 @@ export async function applyOrderStatusChange(orderId: string, status: OrderStatu
   // la transition de statut elle-même.
   if (result.becamePaid) {
     notifyMerchantsOrderPaid(result.updated.id, result.updated.orderNumber).catch(() => {})
+    snapshotOrderFinancialsSafe(result.updated.id)
   }
 
   // Première livraison → lien "Laisser un avis" (une seule fois par commande)
@@ -289,11 +293,8 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
       return subtotal >= 25_000 ? 0 : 1_500
     })()
 
-    // 3. Récupérer le taux de TVA par défaut
-    const defaultTax = await prisma.taxRate.findFirst({
-      where: { isDefault: true, isActive: true },
-    })
-    const taxRatePercent = defaultTax?.rate ?? 0
+    // 3. Taux de TVA par défaut (source unique : lib/finance/vat.ts)
+    const taxRatePercent = await getVatRatePercent()
     const taxAmount      = Math.round((subtotal + assistanceTotal) * taxRatePercent / 100)
 
     const { loyaltyEnabled } = await getLoyaltySettings()

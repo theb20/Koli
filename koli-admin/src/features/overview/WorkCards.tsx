@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Clock, Truck, RotateCcw, Briefcase, PackageSearch, MessageSquare, ChevronRight, Package, Store, CheckCircle2 } from 'lucide-react'
+import { Clock, Truck, RotateCcw, Briefcase, PackageSearch, MessageSquare, ChevronRight, Package, CheckCircle2 } from 'lucide-react'
 import { Card, CardHeader } from '../../components/ui/Card'
 import { CardSkeleton, EmptyState, ErrorState } from '../../components/ui/States'
 import { Sparkline } from '../../components/charts/Sparkline'
@@ -56,7 +56,7 @@ export function TopProductsCard({ data, isLoading, isError, onRetry, className }
   if (isError || !data) return <Card padded className={className}><ErrorState onRetry={onRetry} /></Card>
   return (
     <Card padded className={className}>
-      <CardHeader title="Top produits" subtitle="Chiffre d'affaires sur 30 jours" />
+      <CardHeader title="Meilleures ventes" subtitle="Montant vendu HT sur 30 jours (volume, pas la marge)" />
       {data.topProducts.length === 0
         ? <EmptyState icon={<Package size={22} />} title="Aucune vente payée sur 30 jours" className="py-8" />
         : (
@@ -80,41 +80,6 @@ export function TopProductsCard({ data, isLoading, isError, onRetry, className }
           </ol>
         )}
       <p className="sr-only">Les courbes montrent les ventes hebdomadaires des 6 dernières semaines.</p>
-    </Card>
-  )
-}
-
-/* ── Top 5 boutiques (30 jours) ───────────────────────────── */
-export function TopStoresCard({ data, isLoading, isError, onRetry, className }: CardProps) {
-  if (isLoading) return <CardSkeleton lines={5} className={className} />
-  if (isError || !data) return <Card padded className={className}><ErrorState onRetry={onRetry} /></Card>
-  const max = Math.max(1, ...data.topStores.map(s => s.revenue))
-  return (
-    <Card padded className={className}>
-      <CardHeader title="Top boutiques" subtitle="Ventes marchandes sur 30 jours" />
-      {data.topStores.length === 0
-        ? <EmptyState icon={<Store size={22} />} title="Aucune vente marchande sur 30 jours" className="py-8" />
-        : (
-          <ol className="mt-4 space-y-3">
-            {data.topStores.map(s => (
-              <li key={s.id}>
-                <Link to={`/stores/${s.id}`} className="block group">
-                  <div className="flex items-center gap-3">
-                    <span className="w-8 h-8 rounded-full bg-muted-fill overflow-hidden shrink-0">
-                      {s.logo && <img src={s.logo} alt="" className="w-full h-full object-cover" loading="lazy" />}
-                    </span>
-                    <span className="flex-1 min-w-0 text-secondary font-medium text-ink truncate group-hover:underline">{s.name}</span>
-                    <span className="text-caption text-muted tabular">{formatNumber(s.orders)} cmd</span>
-                    <span className="w-28 text-right text-secondary font-medium text-ink tabular">{formatFCFA(s.revenue)}</span>
-                  </div>
-                  <div className="mt-2 ml-11 h-1.5 rounded-full bg-muted-fill overflow-hidden">
-                    <div className="h-full rounded-full bg-primary" style={{ width: `${(s.revenue / max) * 100}%` }} />
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ol>
-        )}
     </Card>
   )
 }

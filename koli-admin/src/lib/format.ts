@@ -17,9 +17,9 @@ export function formatNumber(n: number): string {
   return nbsp(intFormatter.format(Math.round(n)))
 }
 
-/** 1250000 → "1 250 000 FCFA" (sans décimales, arrondi) */
+/** 1250000 → "1 250 000 F CFA" (franc CFA XOF, sans décimales, arrondi) */
 export function formatFCFA(n: number): string {
-  return `${formatNumber(n)}${NBSP}FCFA`
+  return `${formatNumber(n)}${NBSP}F${NBSP}CFA`
 }
 
 /** 150000 → "150k", 2400000 → "2,4 M" — pour les étiquettes de graphique */

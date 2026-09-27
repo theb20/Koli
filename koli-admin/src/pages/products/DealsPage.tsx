@@ -297,7 +297,7 @@ export default function DealsPage() {
 
           {sameSettings ? (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <Input label="Prix promo (FCFA)" type="number" min={1} step={1}
+              <Input label="Prix promo (F CFA)" type="number" min={1} step={1}
                 value={sharedSale.salePrice} onChange={e => setSharedSale(s => ({ ...s, salePrice: e.target.value }))} placeholder="4500" />
               <Input label="Début (optionnel — immédiat si vide)" type="datetime-local"
                 value={sharedSale.saleStartsAt} onChange={e => setSharedSale(s => ({ ...s, saleStartsAt: e.target.value }))} />

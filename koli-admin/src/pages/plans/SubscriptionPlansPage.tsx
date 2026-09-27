@@ -141,8 +141,8 @@ function PlanModal({ plan, onClose, onSave, saving }: { plan: SubscriptionPlan |
 
           <div className="grid grid-cols-3 gap-3">
             {numField('Commission (%)', 'commissionRate')}
-            {numField('Prix mensuel (FCFA)', 'priceMonthly')}
-            {numField('Prix annuel (FCFA)', 'priceYearly')}
+            {numField('Prix mensuel (F CFA)', 'priceMonthly')}
+            {numField('Prix annuel (F CFA)', 'priceYearly')}
           </div>
 
           <div>

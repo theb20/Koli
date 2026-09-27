@@ -4,19 +4,20 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { ArrowLeft, Plus, Trash2, Save, Zap, X, Wrench } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, Save, Zap, X, Wrench, Truck, AlertTriangle } from 'lucide-react'
 import { api } from '../../lib/api'
 import { Button } from '../../components/ui/Button'
 import { Input, Textarea, Select } from '../../components/ui/Input'
 import { toDatetimeLocal, fromDatetimeLocal, getSaleState, SALE_STATE_BADGE } from '../../lib/saleWindow'
 import type { Category } from '../../types'
+import { formatFCFA } from '../../lib/format'
 
-/* ── Schéma — les prix sont en FCFA (entiers), on ×100 avant envoi ── */
+/* ── Schéma — les prix sont en F CFA (entiers), on ×100 avant envoi ── */
 const schema = z.object({
   name:        z.string().min(3, 'Minimum 3 caractères'),
   brand:       z.string().min(1, 'Requis'),
   category:    z.string().min(1, 'Catégorie requise'),
-  price:       z.coerce.number().int('Entier requis').positive('Prix requis').min(1, 'Min 1 FCFA'),
+  price:       z.coerce.number().int('Entier requis').positive('Prix requis').min(1, 'Min 1 F CFA'),
   oldPrice:    z.coerce.number().int().positive().optional().or(z.literal('')),
   badge:       z.enum(['hot', 'new', 'sale', 'top', '']).optional(),
   stock:       z.coerce.number().int().nonnegative(),
@@ -31,6 +32,9 @@ const schema = z.object({
   /* Option payante "Assistance technique" — prix fixe par ligne de commande */
   assistanceEnabled: z.boolean(),
   assistancePrice:   z.coerce.number().int('Entier requis').positive('Prix invalide').optional().or(z.literal('')),
+  /* Approvisionnement (admin uniquement) — '' = aucun fournisseur / prix non renseigné */
+  supplierId:    z.string(),
+  supplierPrice: z.coerce.number().int('Entier requis').nonnegative('Prix invalide').optional().or(z.literal('')),
 }).refine(
   d => !(d.assistanceEnabled && !d.assistancePrice),
   { message: "Un prix est requis pour activer l'assistance technique", path: ['assistancePrice'] },
@@ -44,6 +48,16 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>
 
+type SupplierOption = { id: number; name: string; mode: 'MARGIN' | 'COMMISSION'; commissionRate: number | null; isActive: boolean }
+type ProductSourcing = {
+  supplierId: number | null
+  supplierPrice: number | null
+  merchantStore: { id: number; name: string } | null
+  mode: 'MARGIN' | 'COMMISSION'
+  /** Calculé par l'API (backend/src/lib/finance) — aucune formule ici */
+  pricing: { sellingPriceHt: number; sellingPrice: number; vat: number; margin: number | null; marginRate: number | null }
+}
+
 /** Prix par défaut de l'option "Assistance technique" (même valeur que le défaut en base) */
 const DEFAULT_ASSISTANCE_PRICE = 10_000
 
@@ -56,7 +70,7 @@ const BADGES = [
 function fmtPreview(raw: string | number) {
   const n = Number(raw)
   if (!n || n <= 0) return null
-  return n.toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
+  return formatFCFA(n)
 }
 
 export default function ProductFormPage() {
@@ -79,9 +93,22 @@ export default function ProductFormPage() {
     enabled: isEdit,
   })
 
-  const { register, control, handleSubmit, reset, watch, setValue, getValues, formState: { errors } } = useForm<FormData>({
+  /* Fournisseur + prix d'achat + marge actuelle — route admin séparée (jamais dans GET /api/products/:id, public) */
+  const { data: sourcing } = useQuery({
+    queryKey: ['product-sourcing', id],
+    queryFn: async () => (await api.get(`/api/products/${id}/sourcing`)).data.data as ProductSourcing,
+    enabled: isEdit,
+  })
+  const { data: suppliers = [] } = useQuery({
+    queryKey: ['suppliers'],
+    queryFn: async () => (await api.get('/api/admin/suppliers')).data.data.suppliers as SupplierOption[],
+    staleTime: 60_000,
+  })
+  const isMerchantProduct = !!sourcing?.merchantStore
+
+  const { register, control, handleSubmit, reset, watch, setValue, getValues, setError, formState: { errors, dirtyFields } } = useForm<FormData>({
     resolver: zodResolver(schema) as import('react-hook-form').Resolver<FormData>,
-    defaultValues: { images: [{ url: '' }], specs: [], isNew: false, stock: 100, category: '', assistanceEnabled: false, assistancePrice: DEFAULT_ASSISTANCE_PRICE },
+    defaultValues: { images: [{ url: '' }], specs: [], isNew: false, stock: 100, category: '', assistanceEnabled: false, assistancePrice: DEFAULT_ASSISTANCE_PRICE, supplierId: '', supplierPrice: '' },
   })
 
   const { fields: imgFields, append: appendImg, remove: removeImg } = useFieldArray({ control, name: 'images' })
@@ -106,19 +133,39 @@ export default function ProductFormPage() {
         saleEndsAt:   toDatetimeLocal(existing.saleEndsAt),
         assistanceEnabled: existing.assistanceEnabled ?? false,
         assistancePrice:   existing.assistancePrice ?? DEFAULT_ASSISTANCE_PRICE,
+        supplierId:    sourcing?.supplierId != null ? String(sourcing.supplierId) : '',
+        supplierPrice: sourcing?.supplierPrice ?? '',
       })
     }
-  }, [existing, reset])
+  }, [existing, sourcing, reset])
 
   const mutation = useMutation({
     mutationFn: (body: object) => isEdit
       ? api.put(`/api/products/${id}`, body)
       : api.post('/api/products', body),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['products'] }); navigate('/products') },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['products'] })
+      qc.invalidateQueries({ queryKey: ['product-sourcing', id] })
+      qc.invalidateQueries({ queryKey: ['suppliers'] })
+      navigate('/products')
+    },
   })
 
   const onSubmit = (data: FormData) => {
+    const supplierMode = suppliers.find(s => String(s.id) === data.supplierId)?.mode ?? 'MARGIN'
+    // Prix d'achat exigé à la création (mode marge) ; en édition, seulement si
+    // l'approvisionnement est modifié — un produit en attente de backfill reste
+    // éditable pour le reste.
+    const sourcingTouched = !isEdit || !!dirtyFields.supplierId || !!dirtyFields.supplierPrice
+    if (!isMerchantProduct && sourcingTouched && supplierMode === 'MARGIN' && data.supplierPrice === '') {
+      setError('supplierPrice', { message: "Prix d'achat requis (fournisseur en mode marge)" })
+      return
+    }
     mutation.mutate({
+      ...(!isMerchantProduct && sourcingTouched ? {
+        supplierId:    data.supplierId ? Number(data.supplierId) : null,
+        supplierPrice: data.supplierPrice === '' ? null : Number(data.supplierPrice),
+      } : {}),
       ...data,
       price:    Number(data.price),
       oldPrice: data.oldPrice ? Number(data.oldPrice) : undefined,
@@ -209,7 +256,7 @@ export default function ProductFormPage() {
             {/* Prix */}
             <div className="space-y-1">
               <Input
-                label="Prix de vente (FCFA)"
+                label="Prix de vente HT (F CFA)"
                 type="number"
                 min={1}
                 step={1}
@@ -254,6 +301,50 @@ export default function ProductFormPage() {
           </div>
         </div>
 
+        {/* Approvisionnement — fournisseur et prix d'achat (base du calcul des marges) */}
+        <div className={cardCls}>
+          <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+            <Truck size={15} className="text-slate-500" /> Approvisionnement
+          </h3>
+          {isMerchantProduct ? (
+            <p className="text-sm text-slate-500">
+              Produit de la boutique marchande <strong className="text-slate-700">{sourcing!.merchantStore!.name}</strong> : Skignas perçoit la commission
+              du marchand (menu Marchands), aucun prix d'achat à saisir.
+            </p>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Select label="Fournisseur" {...register('supplierId')}
+                  options={[{ value: '', label: 'Aucun (stock Skignas, mode marge)' },
+                    ...suppliers.filter(s => s.isActive || String(s.id) === String(sourcing?.supplierId ?? ''))
+                      .map(s => ({ value: String(s.id), label: `${s.name} — ${s.mode === 'COMMISSION' ? `commission ${s.commissionRate ?? '?'} %` : 'marge'}` }))]} />
+                <div className="space-y-1">
+                  <Input label="Prix d'achat fournisseur HT (F CFA)" type="number" min={0} step={1}
+                    {...register('supplierPrice')} error={errors.supplierPrice?.message} placeholder="12000" />
+                  {fmtPreview(watch('supplierPrice') as string | number) && (
+                    <p className="text-xs text-slate-500 font-medium pl-1">→ {fmtPreview(watch('supplierPrice') as string | number)}</p>
+                  )}
+                </div>
+              </div>
+              {isEdit && sourcing && (
+                sourcing.pricing.margin == null && sourcing.mode === 'MARGIN' ? (
+                  <p className="flex items-start gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                    <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+                    Prix d'achat non renseigné : les ventes de ce produit sont exclues des calculs de marge.
+                  </p>
+                ) : (
+                  <p className="text-xs text-slate-500">
+                    Au prix enregistré : prix public TTC {formatFCFA(sourcing.pricing.sellingPrice)}
+                    {sourcing.pricing.margin != null && <> · marge HT {formatFCFA(sourcing.pricing.margin)} ({sourcing.pricing.marginRate} %)</>}
+                    {sourcing.mode === 'COMMISSION' && ' · rémunération à la commission'}.
+                    {' '}Les commandes déjà payées gardent les valeurs figées au paiement.
+                  </p>
+                )
+              )}
+            </>
+          )}
+        </div>
+
         {/* Vente flash / Deal du jour */}
         <div className={cardCls}>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-1">
@@ -279,7 +370,7 @@ export default function ProductFormPage() {
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Input
-              label="Prix promo (FCFA)"
+              label="Prix promo (F CFA)"
               type="number"
               min={1}
               step={1}
@@ -320,7 +411,7 @@ export default function ProductFormPage() {
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Input
-              label="Prix de l'assistance (FCFA)"
+              label="Prix de l'assistance (F CFA)"
               type="number"
               min={1}
               step={1}

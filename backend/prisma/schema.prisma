@@ -204,6 +204,10 @@ model Product {
   store              SellerStore?    @relation(fields: [storeId], references: [id])
   reviewItems        Review[]
   sellerProducts     SellerProduct[]
+  /// Fournisseur + prix d'achat — table séparée pour que les routes
+  /// publiques (qui renvoient la ligne produit entière) n'exposent jamais le
+  /// prix d'achat. Voir lib/finance.
+  sourcing           ProductSourcing?
   stockAlerts        StockAlert[]
   wishlistItems      WishlistItem[]
 
@@ -216,6 +220,103 @@ model Product {
   /// pour le tri "newest".
   @@index([isActive, sold])
   @@map("products")
+}
+
+/// Fournisseur tiers du catalogue Skignas. Les boutiques marchandes
+/// (SellerStore) ne sont PAS des Supplier : leur commission est gérée par
+/// merchantgo et lue au moment du paiement (voir lib/finance/snapshot.ts).
+model Supplier {
+  id             Int                   @id @default(autoincrement())
+  name           String
+  contactName    String?
+  phone          String?
+  email          String?
+  /// "MARGIN" : on achète au prix fournisseur et on revend (marge = vente HT
+  /// − prix d'achat HT) ; "COMMISSION" : on prélève commissionRate % du prix
+  /// de vente HT et on reverse le reste.
+  mode           String                @default("MARGIN")
+  /// En %, utilisé seulement en mode COMMISSION.
+  commissionRate Float?
+  isActive       Boolean               @default(true)
+  notes          String?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  products       ProductSourcing[]
+  orderItems     OrderItemFinancials[]
+
+  @@map("suppliers")
+}
+
+model ProductSourcing {
+  productId     Int       @id
+  supplierId    Int?
+  /// Prix d'achat fournisseur HT, en F CFA entiers. Nullable le temps du
+  /// backfill des produits existants (scripts/backfill-supplier-prices.ts) ;
+  /// exigé à la création d'un produit en mode MARGIN.
+  supplierPrice Int?
+  updatedAt     DateTime  @updatedAt
+  product       Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  supplier      Supplier? @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+
+  @@index([supplierId])
+  @@map("product_sourcing")
+}
+
+model OrderFinancials {
+  orderId            String    @id
+  /// Coût réel de livraison supporté par la plateforme — null tant qu'il
+  /// n'est pas renseigné. Les frais FACTURÉS au client restent dans
+  /// Order.shippingCost.
+  shippingActualCost Int?
+  /// false = au moins une ligne sans coût fournisseur connu (commande
+  /// antérieure au suivi, produit pas encore renseigné, merchantgo
+  /// injoignable) → commande exclue des calculs de marge, pas du CA.
+  costKnown          Boolean   @default(false)
+  /// Figement des lignes (paiement confirmé). Null = pas encore figée.
+  snapshotAt         DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  order              Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("order_financials")
+}
+
+/// Valeurs financières d'une ligne, figées au paiement et JAMAIS
+/// recalculées ensuite, même si le produit ou le fournisseur change.
+/// Montants en F CFA entiers.
+model OrderItemFinancials {
+  orderItemId         Int       @id
+  orderId             String
+  /// Fournisseur (catalogue Skignas) OU boutique marchande, jamais les deux.
+  supplierId          Int?
+  sellerStoreId       Int?
+  /// "MARGIN" | "COMMISSION" au moment du paiement
+  supplierMode        String
+  commissionRate      Float?
+  /// Prix d'achat HT unitaire — null si inconnu (mode MARGIN seulement)
+  unitSupplierPrice   Int?
+  unitSellingPriceHt  Int
+  unitSellingPriceTtc Int
+  quantity            Int
+  /// Quote-part HT du code promo portée par la ligne
+  discountAmount      Int       @default(0)
+  /// Quote-part de la TVA facturée (Order.taxAmount) portée par la ligne
+  vatAmount           Int
+  /// Option « Assistance technique » HT — revenu plateforme, coût nul
+  assistanceHt        Int       @default(0)
+  commissionAmount    Int       @default(0)
+  /// Reversé au fournisseur : prix d'achat × qté (MARGIN) ou vente HT −
+  /// commission (COMMISSION). Null si coût inconnu.
+  supplierPayout      Int?
+  /// Marge produit HT (hors assistance) — null si coût inconnu
+  margin              Int?
+  createdAt           DateTime  @default(now())
+  orderItem           OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  supplier            Supplier? @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([supplierId])
+  @@map("order_item_financials")
 }
 
 model ProductImage {
@@ -308,10 +409,17 @@ model Order {
   returns         OrderReturn[]
   user            User?           @relation(fields: [userId], references: [id])
   productRequest  ProductRequest?
+  /// Moment où le paiement a été confirmé (WiniPayer ou validation manuelle)
+  /// — date de référence des statistiques financières. Null = jamais payée.
+  paidAt          DateTime?
+  /// Données financières internes (coût de livraison réel, figement des
+  /// marges) — table séparée : GET /api/orders/:id est lu par le client.
+  financials      OrderFinancials?
 
   @@index([userId])
   @@index([status])
   @@index([deletedAt])
+  @@index([paidAt])
   @@map("orders")
 }
 
@@ -332,6 +440,7 @@ model OrderItem {
   product     Product           @relation(fields: [productId], references: [id])
   order       Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
   returnItems OrderReturnItem[]
+  financials  OrderItemFinancials?
 
   @@index([orderId])
   @@index([productId])

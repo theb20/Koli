@@ -6,6 +6,7 @@ import { api, fmt, fmtDateTime } from '../../lib/api'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
+import { OrderFinanceCard } from './OrderFinanceCard'
 import type { Order, OrderStatus } from '../../types'
 
 const ALL_STATUSES: { value: OrderStatus; label: string }[] = [
@@ -307,6 +308,8 @@ export default function OrderDetailPage() {
               </div>
             </div>
           </Card>
+
+          <OrderFinanceCard orderId={order.id} />
 
           {order.notes && (
             <Card className="p-5">

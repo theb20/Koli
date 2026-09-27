@@ -5,9 +5,9 @@ const NBSP = '\u00A0'
 
 describe('formatFCFA', () => {
   it('sépare les milliers par une espace insécable, sans décimales', () => {
-    expect(formatFCFA(1250000)).toBe(`1${NBSP}250${NBSP}000${NBSP}FCFA`)
-    expect(formatFCFA(24747010.6)).toBe(`24${NBSP}747${NBSP}011${NBSP}FCFA`)
-    expect(formatFCFA(0)).toBe(`0${NBSP}FCFA`)
+    expect(formatFCFA(1250000)).toBe(`1${NBSP}250${NBSP}000${NBSP}F${NBSP}CFA`)
+    expect(formatFCFA(24747010.6)).toBe(`24${NBSP}747${NBSP}011${NBSP}F${NBSP}CFA`)
+    expect(formatFCFA(0)).toBe(`0${NBSP}F${NBSP}CFA`)
   })
   it('gère les montants négatifs', () => {
     expect(formatNumber(-5000)).toMatch(/5\u00A0000$/)

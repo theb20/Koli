@@ -46,12 +46,12 @@ export default function StatsPage() {
       [],
       ['Indicateur', 'Période', ...(k.previous ? ['Comparaison'] : [])],
       ...METRICS.map(m => [
-        m.label + (m.kind === 'percent' ? ' (%)' : m.kind === 'money' ? ' (FCFA)' : m.kind === 'days' ? ' (jours)' : ''),
+        m.label + (m.kind === 'percent' ? ' (%)' : m.kind === 'money' ? ' (F CFA)' : m.kind === 'days' ? ' (jours)' : ''),
         csvValue(m.kind, valueOf(k.current, m.key)),
         ...(k.previous ? [csvValue(m.kind, valueOf(k.previous, m.key))] : []),
       ]),
       [],
-      ['Date', 'Commandes', 'Commandes payées', 'CA (FCFA)', 'Livrées', 'Annulées', 'Assistance (FCFA)', 'Nouveaux clients'],
+      ['Date', 'Commandes', 'Commandes payées', 'CA (F CFA)', 'Livrées', 'Annulées', 'Assistance (F CFA)', 'Nouveaux clients'],
       ...k.series.map(p => [p.date, p.orders, p.paidOrders, p.revenue, p.delivered, p.cancelled, p.assistance, p.newCustomers]),
     ]
     downloadCsv(`statistiques-skignas_${period.from}_${period.to}.csv`, rows)

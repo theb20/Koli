@@ -208,7 +208,7 @@ export default function ProductRequestDetailPage() {
                 placeholder="Bonjour, nous avons trouvé votre produit auprès d'un fournisseur fiable..."
               />
               <Input
-                label="Prix unitaire proposé (FCFA, livraison incluse) — optionnel"
+                label="Prix unitaire proposé (F CFA, livraison incluse) — optionnel"
                 type="number"
                 min={1}
                 value={quotedPrice}

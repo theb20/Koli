@@ -169,12 +169,12 @@ export default function PromoPage() {
             <Input label="Code" {...register('code')} error={errors.code?.message} placeholder="SKIGNAS20" className="uppercase" />
             <Select label="Type" {...register('type')} options={[
               { value: 'percent', label: 'Pourcentage (%)' },
-              { value: 'fixed',   label: 'Montant fixe (FCFA)' },
+              { value: 'fixed',   label: 'Montant fixe (F CFA)' },
             ]} />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label="Valeur (entrez % ou FCFA)" type="number" min={1} step={1} {...register('value')} error={errors.value?.message} placeholder="20 ou 5000" />
-            <Input label="Commande min. (FCFA, 0 = aucune)" type="number" min={0} step={1} {...register('minOrder')} placeholder="0" />
+            <Input label="Valeur (entrez % ou F CFA)" type="number" min={1} step={1} {...register('value')} error={errors.value?.message} placeholder="20 ou 5000" />
+            <Input label="Commande min. (F CFA, 0 = aucune)" type="number" min={0} step={1} {...register('minOrder')} placeholder="0" />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Nb max d'utilisations" type="number" {...register('maxUses')} placeholder="Illimité" />

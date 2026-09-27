@@ -178,7 +178,7 @@ function ScrapedProductCard({
             <input type="number" value={item.price || ''} onChange={e => upd({ price: parseFloat(e.target.value) || 0 })}
               placeholder="Prix"
               className="w-full text-sm font-bold text-slate-900 bg-slate-50 border border-slate-200 rounded-lg pl-3 pr-12 py-1.5 focus:border-indigo-400 focus:outline-none focus:bg-white transition-colors" />
-            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">FCFA</span>
+            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">F CFA</span>
           </div>
           <div className="relative">
             <input type="number" value={item.oldPrice || ''} onChange={e => upd({ oldPrice: parseFloat(e.target.value) || undefined })}
@@ -571,7 +571,7 @@ export default function StoreDetailPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-sm text-slate-500 capitalize">{p.category}</td>
-                    <td className="px-4 py-3 text-sm font-medium text-slate-900">{fmt(p.price)} FCFA</td>
+                    <td className="px-4 py-3 text-sm font-medium text-slate-900">{fmt(p.price)}</td>
                     <td className="px-4 py-3 text-sm text-slate-500">{p.stock}</td>
                     <td className="px-4 py-3"><Badge label={p.isActive ? 'active' : 'inactive'} /></td>
                     <td className="px-4 py-3 text-xs text-slate-400">{fmtDate(p.createdAt)}</td>

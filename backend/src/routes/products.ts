@@ -21,6 +21,8 @@ import { deleteProductAtomic } from '../lib/productDeletion'
 import { logger } from '../lib/logger'
 import { logAdminAction } from '../lib/auditLog'
 import { scanBuffer } from '../lib/virusScan'
+import { DEFAULT_SUPPLIER_MODE, productPricing } from '../lib/finance/formulas'
+import { getVatRatePercent } from '../lib/finance/vat'
 
 const router = Router()
 
@@ -71,7 +73,25 @@ const createProductSchema = z.object({
   /* Option payante "Assistance technique" (fixée par l'admin, par ligne de commande) */
   assistanceEnabled: z.boolean().optional(),
   assistancePrice:   z.number().int().positive().nullable().optional(),
+  /* Approvisionnement — stocké dans ProductSourcing, jamais renvoyé par les routes publiques */
+  supplierId:    z.number().int().positive().nullable().optional(),
+  /** Prix d'achat fournisseur HT, F CFA entiers */
+  supplierPrice: z.number().int().nonnegative().nullable().optional(),
 })
+
+/**
+ * Vérifie le fournisseur et exige un prix d'achat en mode MARGIN (mode par
+ * défaut sans fournisseur) — sans lui, toutes les ventes du produit seraient
+ * exclues des calculs de marge. Renvoie un message d'erreur ou null.
+ */
+async function sourcingError(d: { supplierId?: number | null; supplierPrice?: number | null }): Promise<string | null> {
+  const supplier = d.supplierId != null
+    ? await prisma.supplier.findUnique({ where: { id: d.supplierId }, select: { mode: true } })
+    : null
+  if (d.supplierId != null && !supplier) return 'Fournisseur introuvable'
+  if ((supplier?.mode ?? DEFAULT_SUPPLIER_MODE) === 'MARGIN' && d.supplierPrice == null) return "Le prix d'achat fournisseur est requis"
+  return null
+}
 
 /** Une option activée doit avoir un prix — appliqué à la création ET à l'édition */
 function assistanceError(d: { assistanceEnabled?: boolean | null; assistancePrice?: number | null }): string | null {
@@ -709,7 +729,13 @@ router.post('/bulk-import/commit', requireAdmin, validate(bulkImportCommitSchema
 ───────────────────────────────────────────────────────────── */
 router.post('/', requireAdmin, validate(createProductSchemaChecked), async (req, res) => {
   try {
-    const { images, specs, colors, ...data } = req.body as z.infer<typeof createProductSchema>
+    const { images, specs, colors, supplierId, supplierPrice, ...data } = req.body as z.infer<typeof createProductSchema>
+
+    const sourcingErr = await sourcingError({ supplierId, supplierPrice })
+    if (sourcingErr) {
+      res.status(400).json({ success: false, message: sourcingErr })
+      return
+    }
 
     // Résoudre categoryId depuis le slug
     const catRow = await prisma.category.findUnique({ where: { slug: data.category } })
@@ -732,6 +758,7 @@ router.post('/', requireAdmin, validate(createProductSchemaChecked), async (req,
         specs: specs ? {
           create: specs.map((s, i) => ({ ...s, position: i })),
         } : undefined,
+        sourcing: { create: { supplierId: supplierId ?? null, supplierPrice: supplierPrice ?? null } },
       },
       include: {
         images: true,
@@ -751,7 +778,9 @@ router.post('/', requireAdmin, validate(createProductSchemaChecked), async (req,
 router.put('/:id', requireAdmin, validateParams(zIntIdParam), validate(createProductSchema.partial()), async (req, res) => {
   try {
     const id = Number(req.params['id'])
-    const { images, specs, colors, ...data } = req.body as Partial<z.infer<typeof createProductSchema>>
+    const { images, specs, colors, supplierId, supplierPrice, ...data } = req.body as Partial<z.infer<typeof createProductSchema>>
+    const body = req.body as Record<string, unknown>
+    const sourcingChanged = 'supplierId' in body || 'supplierPrice' in body
 
     // Résoudre categoryId si le slug est fourni
     const catRow = data.category ? await prisma.category.findUnique({ where: { slug: data.category } }) : undefined
@@ -791,6 +820,23 @@ router.put('/:id', requireAdmin, validateParams(zIntIdParam), validate(createPro
       }
     }
 
+    // Approvisionnement : fusion avec l'existant (mise à jour partielle). Le
+    // prix d'achat ne peut pas être effacé en mode MARGIN, mais un produit
+    // encore sans prix (backfill en cours) reste modifiable pour le reste.
+    let sourcingData: { supplierId: number | null; supplierPrice: number | null } | undefined
+    if (sourcingChanged) {
+      const current = await prisma.productSourcing.findUnique({ where: { productId: id } })
+      sourcingData = {
+        supplierId:    'supplierId'    in body ? supplierId ?? null    : current?.supplierId ?? null,
+        supplierPrice: 'supplierPrice' in body ? supplierPrice ?? null : current?.supplierPrice ?? null,
+      }
+      const err = await sourcingError(sourcingData)
+      if (err) {
+        res.status(400).json({ success: false, message: err })
+        return
+      }
+    }
+
     const BASE_URL = getBackendUrl()
     const rehostedImages = images ? await rehostImages(images, BASE_URL) : undefined
 
@@ -818,6 +864,7 @@ router.put('/:id', requireAdmin, validateParams(zIntIdParam), validate(createPro
             create: specs.map((s, i) => ({ ...s, position: i })),
           },
         } : {}),
+        ...(sourcingData ? { sourcing: { upsert: { create: sourcingData, update: sourcingData } } } : {}),
       },
       include: { images: true, specs: true },
     })
@@ -830,6 +877,46 @@ router.put('/:id', requireAdmin, validateParams(zIntIdParam), validate(createPro
     }
 
     res.json({ success: true, data: product })
+  } catch {
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/* ─────────────────────────────────────────────────────────────
+   GET /api/products/:id/sourcing  [ADMIN]
+   Fournisseur, prix d'achat et marge ACTUELLE (prix et TVA du jour) —
+   indicatif : les statistiques utilisent les valeurs figées des commandes.
+───────────────────────────────────────────────────────────── */
+router.get('/:id/sourcing', requireAdmin, validateParams(zIntIdParam), async (req, res) => {
+  try {
+    const id = Number(req.params['id'])
+    const product = await prisma.product.findUnique({
+      where:  { id },
+      select: {
+        price: true, storeId: true,
+        store:    { select: { id: true, name: true } },
+        sourcing: { select: { supplierPrice: true, supplier: { select: { id: true, name: true, mode: true, commissionRate: true } } } },
+      },
+    })
+    if (!product) {
+      res.status(404).json({ success: false, message: 'Produit introuvable' })
+      return
+    }
+    const supplier = product.sourcing?.supplier ?? null
+    const mode = product.storeId != null ? 'COMMISSION' : supplier?.mode ?? DEFAULT_SUPPLIER_MODE
+    const pricing = productPricing({
+      priceHt:       product.price,
+      supplierPrice: mode === 'MARGIN' ? product.sourcing?.supplierPrice ?? null : null,
+      vatRatePct:    await getVatRatePercent(),
+    })
+    res.json({ success: true, data: {
+      supplierId:    supplier?.id ?? null,
+      supplierPrice: product.sourcing?.supplierPrice ?? null,
+      supplier,
+      merchantStore: product.store,
+      mode,
+      pricing,
+    } })
   } catch {
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }

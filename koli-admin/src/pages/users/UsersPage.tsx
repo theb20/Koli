@@ -11,6 +11,7 @@ import { Input, Textarea } from '../../components/ui/Input'
 import { Button } from '../../components/ui/Button'
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import type { User, Order } from '../../types'
+import { formatFCFA } from '../../lib/format'
 
 /* ── helpers ──────────────────────────────────────────────── */
 async function fetchUsers(params: Record<string, string | number>) {
@@ -380,7 +381,7 @@ export default function UsersPage() {
                           <p className="text-xs text-slate-400">{fmtDate(o.createdAt)}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm font-bold text-slate-900">{o.total.toLocaleString('fr-FR')} FCFA</p>
+                          <p className="text-sm font-bold text-slate-900">{formatFCFA(o.total)}</p>
                           <Badge label={o.status} />
                         </div>
                       </div>

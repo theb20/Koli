@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma'
 import { logger } from '../lib/logger'
 import { confirmInvoice } from '../lib/paydunya'
 import { notifyMerchantsOrderPaid } from '../lib/merchantWallet'
+import { snapshotOrderFinancialsSafe } from '../lib/finance/snapshot'
 import { optionalAuth } from '../middleware/auth'
 import { validateParams, zCuidIdParam } from '../middleware/validate'
 
@@ -68,12 +69,14 @@ router.post('/paydunya/ipn', async (req, res) => {
         where: { id: orderId },
         data: {
           paymentStatus: 'paid',
+          paidAt:        new Date(),
           paydunyaToken: token,
           status:        order.status === 'pending' ? 'confirmed' : order.status,
         },
       })
       logger.info('[paydunya-ipn] commande marquée payée', order.orderNumber)
       notifyMerchantsOrderPaid(order.id, order.orderNumber).catch(() => {})
+      snapshotOrderFinancialsSafe(order.id)
     }
 
     res.status(200).send('ok')

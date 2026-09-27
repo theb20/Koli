@@ -14,6 +14,7 @@ import { requireApiKey } from '../middleware/auth'
 import { validate, validateParams, zCuidIdParam } from '../middleware/validate'
 import { logger } from '../lib/logger'
 import { notifyMerchantsOrderPaid } from '../lib/merchantWallet'
+import { snapshotOrderFinancialsSafe } from '../lib/finance/snapshot'
 import { sendOrderConfirmationEmail } from '../lib/mailer'
 import { applyOrderStatusChange } from './orders'
 import { sendSms } from '../lib/sms/zavu'
@@ -51,8 +52,9 @@ router.post('/orders/:id/mark-paid', validateParams(zCuidIdParam), validate(mark
   }
 
   if (order.paymentStatus !== 'paid') {
-    await prisma.order.update({ where: { id }, data: { paymentStatus: 'paid' } })
+    await prisma.order.update({ where: { id }, data: { paymentStatus: 'paid', paidAt: new Date() } })
     notifyMerchantsOrderPaid(order.id, order.orderNumber).catch(() => {})
+    snapshotOrderFinancialsSafe(order.id)
 
     // Commande issue d'un devis de sourcing → la demande passe "payée" et
     // l'équipe est prévenue qu'elle peut lancer l'achat.

@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { formatFCFA } from './format'
 
 export const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:4000'
 
@@ -62,8 +63,8 @@ api.interceptors.response.use(
 )
 
 /* ── Helpers formatage ───────────────────────────────────── */
-export const fmt = (n: number) =>
-  Math.round(n).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
+/** Alias historique — un seul format monétaire dans l'admin : formatFCFA (lib/format.ts). */
+export const fmt = (n: number) => formatFCFA(n)
 
 export const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })

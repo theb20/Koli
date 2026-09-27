@@ -62,6 +62,7 @@ describe('POST /api/payments/paydunya/ipn', () => {
       where: { id: FAKE_ORDER.id },
       data: {
         paymentStatus: 'paid',
+        paidAt: expect.any(Date),
         paydunyaToken: 'tok_2',
         status: 'confirmed', // pending -> confirmed
       },

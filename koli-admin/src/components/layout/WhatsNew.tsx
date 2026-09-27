@@ -10,7 +10,7 @@ const RELEASES: { date: string; title: string; text: string }[] = [
   { date: 'Sept. 2026', title: 'Nouveau design du backoffice', text: 'Navigation groupée, palette ⌘K, mode sombre.' },
   { date: 'Sept. 2026', title: 'Avis après livraison', text: 'Lien « Laisser un avis » envoyé automatiquement à chaque commande livrée.' },
   { date: 'Sept. 2026', title: 'Devis de sourcing en ligne', text: 'Le client accepte et paie son devis, ou le refuse, depuis un lien.' },
-  { date: 'Sept. 2026', title: 'Assistance technique payante', text: 'Option activable par produit, 10 000 FCFA par défaut.' },
+  { date: 'Sept. 2026', title: 'Assistance technique payante', text: 'Option activable par produit, 10 000 F CFA par défaut.' },
 ]
 
 export function WhatsNew() {
