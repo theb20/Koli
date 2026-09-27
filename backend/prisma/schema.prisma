@@ -844,6 +844,9 @@ model SiteSettings {
   /// Autorise "cash" (paiement à la livraison) comme mode de paiement à la
   /// commande — quand false, seul le paiement en ligne (PayDunya) est proposé.
   codEnabled              Boolean  @default(true)
+  /// Objectifs mensuels des KPI (page Statistiques de l'admin) :
+  /// { revenue?, orders?, newCustomers?, avgBasket? } en FCFA / unités.
+  kpiTargets              Json?
   updatedAt               DateTime @updatedAt
 
   @@map("site_settings")
