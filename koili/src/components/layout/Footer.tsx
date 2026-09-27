@@ -7,6 +7,10 @@ import {
   Truck, Headphones, TrendingUp, Send,
 } from 'lucide-react'
 import { useSiteSettings, telLink } from '../../hooks/useSiteSettings'
+import { openCookieSettings } from '../../lib/consent'
+
+/** Lien spécial : rouvre le bandeau cookies au lieu de naviguer. */
+const COOKIE_SETTINGS_HREF = '#gerer-cookies'
 
 /* ─────────────────────────────────────────
    TOKENS
@@ -47,8 +51,8 @@ const COLUMNS = [
     title: 'Support',
     links: [
       { label: 'FAQ',               href: '/contact#faq'         },
-      { label: 'Livraison',         href: '/cgu#commandes'       },
-      { label: 'Retours & remboursements', href: '/cgu#commandes' },
+      { label: 'Livraison',         href: '/cgv#livraison'       },
+      { label: 'Retours & remboursements', href: '/cgv#retours' },
       { label: 'Suivi commande',    href: '/commandes'           },
       { label: 'Nous contacter',    href: '/contact'             },
     ],
@@ -58,9 +62,11 @@ const COLUMNS = [
     links: [
       { label: 'Confidentialité',   href: '/privacy'           },
       { label: 'CGU',               href: '/cgu'               },
+      { label: 'CGV',               href: '/cgv'               },
       { label: 'Mentions légales',  href: '/legal'             },
       { label: 'Vos droits sur vos données', href: '/privacy#droits' },
       { label: 'Cookies',           href: '/privacy#cookies'   },
+      { label: 'Gérer les cookies', href: COOKIE_SETTINGS_HREF },
     ],
   },
 ]
@@ -119,9 +125,9 @@ const SOCIALS = [
 ]
 
 const BADGES = [
-  { label: 'Livraison sécurisée',    icon: Truck,        href: '/cgu#commandes' },
-  { label: 'Paiement 100% sécurisé', icon: CheckCircle2, href: '/cgu#commandes' },
-  { label: 'Retour 14 jours',        icon: ArrowRight,   href: '/cgu#commandes' },
+  { label: 'Livraison sécurisée',    icon: Truck,        href: '/cgv#livraison' },
+  { label: 'Paiement 100% sécurisé', icon: CheckCircle2, href: '/cgv#paiement' },
+  { label: 'Retour 14 jours',        icon: ArrowRight,   href: '/cgv#retours' },
 ]
 
 /* ─────────────────────────────────────────
@@ -445,15 +451,25 @@ export function Footer() {
                   <ul className="flex flex-col gap-3">
                     {col.links.map(({ label, href }) => (
                       <li key={label}>
-                        <Link
-                          to={href}
-                          className="group flex items-center gap-1.5 text-gray-400 text-sm hover:text-gray-900 transition-colors"
-                        >
-                          <span className="w-0 group-hover:w-2.5 overflow-hidden transition-all duration-200">
-                            <ArrowRight size={10} style={{ color: GREEN }} />
-                          </span>
-                          {label}
-                        </Link>
+                        {href === COOKIE_SETTINGS_HREF ? (
+                          <button type="button" onClick={openCookieSettings}
+                            className="group flex items-center gap-1.5 text-gray-400 text-sm hover:text-gray-900 transition-colors">
+                            <span className="w-0 group-hover:w-2.5 overflow-hidden transition-all duration-200">
+                              <ArrowRight size={10} style={{ color: GREEN }} />
+                            </span>
+                            {label}
+                          </button>
+                        ) : (
+                          <Link
+                            to={href}
+                            className="group flex items-center gap-1.5 text-gray-400 text-sm hover:text-gray-900 transition-colors"
+                          >
+                            <span className="w-0 group-hover:w-2.5 overflow-hidden transition-all duration-200">
+                              <ArrowRight size={10} style={{ color: GREEN }} />
+                            </span>
+                            {label}
+                          </Link>
+                        )}
                       </li>
                     ))}
                   </ul>

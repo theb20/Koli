@@ -78,6 +78,26 @@ export function InfoBox({
   );
 }
 
+/** Tableau simple pour les documents légaux (prestataires, cookies, durées…). */
+export function Table({ head, rows }: { head: string[]; rows: string[][] }) {
+  return (
+    <div className="mb-4 overflow-x-auto rounded-xl border border-gray-100">
+      <table className="w-full text-sm">
+        <thead className="bg-gray-50">
+          <tr>{head.map(h => <th key={h} className="px-4 py-3 text-left font-semibold text-gray-600">{h}</th>)}</tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={i} className="border-t border-gray-100 align-top">
+              {r.map((c, j) => <td key={j} className={`px-4 py-3 ${j === 0 ? "font-medium text-gray-800" : "text-gray-600"}`}>{c}</td>)}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export function SubTitle({ children }: { children: React.ReactNode }) {
   return (
     <h3 className="mb-2 mt-6 text-base font-semibold text-gray-800">

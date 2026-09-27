@@ -21,7 +21,7 @@ const DIST = join(__dirname, '../dist')
 
 const ROUTES = [
   '/', '/about', '/blog', '/contact', '/catalogue',
-  '/cgu', '/legal', '/privacy', '/comparer', '/demande',
+  '/cgu', '/cgv', '/legal', '/privacy', '/comparer', '/demande',
 ]
 
 /**

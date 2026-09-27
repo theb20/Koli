@@ -68,6 +68,7 @@ async function main() {
     { loc: `${SITE_URL}/contact`, changefreq: 'monthly', priority: '0.5' },
     { loc: `${SITE_URL}/demande`, changefreq: 'monthly', priority: '0.5' },
     { loc: `${SITE_URL}/cgu`, changefreq: 'yearly', priority: '0.3' },
+    { loc: `${SITE_URL}/cgv`, changefreq: 'yearly', priority: '0.3' },
     { loc: `${SITE_URL}/legal`, changefreq: 'yearly', priority: '0.3' },
     { loc: `${SITE_URL}/privacy`, changefreq: 'yearly', priority: '0.3' },
   ].map(p => urlEntry({ ...p, lastmod: today }))

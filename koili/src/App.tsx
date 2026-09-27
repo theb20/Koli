@@ -20,6 +20,7 @@ const ContactPage         = lazy(() => import('./pages/ContactPage').then(m => (
 const Login                = lazy(() => import('./pages/Login'))
 const Register             = lazy(() => import('./pages/Signup'))
 const CguPage              = lazy(() => import('./pages/CguPage'))
+const CgvPage              = lazy(() => import('./pages/CgvPage'))
 const LegalPage            = lazy(() => import('./pages/LegalPage'))
 const PrivacyPage          = lazy(() => import('./pages/PrivacyPage'))
 const CataloguePage        = lazy(() => import('./pages/CataloguePage'))
@@ -84,6 +85,7 @@ function App() {
               <Route path="/catalogue/:id" element={<ProductPage />} />
 
               <Route path="/cgu"     element={<CguPage />} />
+              <Route path="/cgv"     element={<CgvPage />} />
               <Route path="/legal"   element={<LegalPage />} />
               <Route path="/privacy" element={<PrivacyPage />} />
 

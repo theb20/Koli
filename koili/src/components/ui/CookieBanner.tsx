@@ -2,18 +2,12 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { Globe, Lock, ShieldCheck, BarChart2, Megaphone, Settings2, ChevronRight, ChevronLeft } from 'lucide-react'
 import { enableAnalytics, disableAnalytics } from '../../lib/firebase'
+import { OPEN_COOKIE_SETTINGS_EVENT, readConsent, saveConsent, type CookiePrefs } from '../../lib/consent'
 
 /* ─────────────────────────────────────────
    TYPES & CONSTANTS
 ───────────────────────────────────────── */
-export type CookiePrefs = {
-  necessary:   true
-  analytics:   boolean
-  marketing:   boolean
-  preferences: boolean
-}
-
-const STORAGE_KEY = 'koli_cookie_consent'
+export type { CookiePrefs }
 const TEAL = '#0800ffff'
 const TEAL_DARK = '#3d9e94'
 
@@ -33,7 +27,7 @@ const CATEGORIES = [
     key:    'analytics' as const,
     icon:   BarChart2,
     label:  'Cookies analytiques',
-    desc:   'Ces cookies nous aident à comprendre comment vous utilisez notre site (Google Analytics 4).',
+    desc:   'Mesure d\'audience via Google Analytics 4 (Google Tag Manager). Aucun de ces outils n\'est chargé sans votre accord.',
     detail: '_ga, _gid, _gat · Durée : 13 mois max',
     locked: false,
   },
@@ -41,7 +35,7 @@ const CATEGORIES = [
     key:    'marketing' as const,
     icon:   Megaphone,
     label:  'Cookies marketing',
-    desc:   'Ces cookies permettent de vous proposer des publicités personnalisées sur d\'autres sites.',
+    desc:   'Aucun cookie publicitaire n\'est utilisé à ce jour. Cette catégorie ne serait activée qu\'avec votre accord.',
     detail: 'fbp, _fbclid, gads · Durée : 6 mois',
     locked: false,
   },
@@ -94,19 +88,34 @@ export function CookieBanner() {
     preferences: false,
   })
 
+  // Le consentement Google (GTM) est déjà appliqué au démarrage (main.tsx) ;
+  // ici : Firebase Analytics + affichage du bandeau tant qu'aucun choix.
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (!stored) {
+    const saved = readConsent()
+    if (!saved) {
       const t = setTimeout(() => setVisible(true), 2800)
       return () => clearTimeout(t)
     }
-    const saved: CookiePrefs = JSON.parse(stored)
     if (saved.analytics) enableAnalytics()
     else disableAnalytics()
   }, [])
 
+  // « Gérer les cookies » (pied de page, politique) : rouvre les réglages
+  // avec les choix actuels — retirer son consentement doit être aussi simple
+  // que le donner.
+  useEffect(() => {
+    const open = () => {
+      const saved = readConsent()
+      if (saved) setPrefs(saved)
+      setView('settings')
+      setVisible(true)
+    }
+    window.addEventListener(OPEN_COOKIE_SETTINGS_EVENT, open)
+    return () => window.removeEventListener(OPEN_COOKIE_SETTINGS_EVENT, open)
+  }, [])
+
   function saveAndClose(accepted: CookiePrefs) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(accepted))
+    saveConsent(accepted)
     if (accepted.analytics) enableAnalytics()
     else disableAnalytics()
     setVisible(false)

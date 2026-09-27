@@ -280,9 +280,13 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
       return sum + (item.assistance ? p.assistancePrice ?? 0 : 0)
     }, 0)
 
+    // Aligné sur les CGU/CGV et le panier : seule la livraison STANDARD
+    // devient gratuite dès 25 000 FCFA ; l'express reste à 3 500 FCFA.
+    // (Auparavant l'express devenait aussi gratuite côté serveur, alors que
+    // le panier affichait 3 500 FCFA.)
     const shippingCost = (() => {
-      if (subtotal >= 25_000) return 0        // livraison gratuite
-      return body.deliveryMethod === 'express' ? 3_500 : 1_500
+      if (body.deliveryMethod === 'express') return 3_500
+      return subtotal >= 25_000 ? 0 : 1_500
     })()
 
     // 3. Récupérer le taux de TVA par défaut

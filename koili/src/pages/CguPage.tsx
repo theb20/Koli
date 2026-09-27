@@ -16,8 +16,10 @@ function getSections(settings: SiteSettings) {
           Toute utilisation de la plateforme implique l'acceptation pleine et entière des présentes CGU.
         </P>
         <InfoBox variant="blue">
-          Version 1.0 — en vigueur depuis le 9 juillet 2026. La version actuelle est toujours
-          consultable à l'adresse skignas.com/cgu.
+          Version 2.0 — en vigueur depuis le 27 septembre 2026. La version actuelle est toujours
+          consultable à l'adresse skignas.com/cgu. Les conditions de vente (prix, paiement,
+          livraison, retours, garanties) figurent dans les{" "}
+          <a href="/cgv" className="underline underline-offset-2">Conditions Générales de Vente</a>.
         </InfoBox>
         <SubTitle>Définitions</SubTitle>
         <Ul
@@ -26,7 +28,7 @@ function getSections(settings: SiteSettings) {
             "Exploitant / Skignas : la société assurant l'administration de la plateforme",
             "Utilisateur : toute personne accédant à la plateforme, visiteur ou compte enregistré",
             "Acheteur : utilisateur effectuant une commande",
-            "Magasin / Fournisseur : entité dont les produits sont référencés sur la plateforme",
+            "Marchand : vendeur professionnel disposant d'une boutique sur la plateforme (Skignas fonctionne comme une marketplace : certains produits sont vendus par Skignas, d'autres par des marchands)",
             "Compte utilisateur : espace personnel créé sur la plateforme (commandes, adresses, favoris, points fidélité)",
             "Produit : tout bien proposé à la vente sur la plateforme",
             "Commande : engagement d'achat validé par un utilisateur au terme du parcours panier → livraison → paiement → confirmation",
@@ -89,7 +91,9 @@ function getSections(settings: SiteSettings) {
             "un programme de fidélité : des points sont crédités sur chaque commande confirmée et cumulables sur le compte",
             "une liste de souhaits et des listes cadeaux partageables",
             "un carnet d'adresses de livraison, réutilisable et complété automatiquement lors des commandes",
-            "les avis et évaluations sur les produits",
+            "les avis et évaluations sur les produits et sur le service",
+            "une option payante « Assistance technique » sur certains produits (voir CGV)",
+            "des demandes de sourcing avec devis en ligne (voir ci-dessous)",
           ]}
         />
         <SubTitle>Demande de sourcing (« Trouver un produit »)</SubTitle>
@@ -98,9 +102,12 @@ function getSections(settings: SiteSettings) {
           <a href="/demande" className="text-blue-600 underline underline-offset-2">skignas.com/demande</a>,
           une demande décrivant un produit qu'il souhaite se procurer (nom, description, photos,
           quantité, budget indicatif, adresse de livraison). Skignas étudie chaque demande et
-          répond par e-mail à l'adresse communiquée, généralement sous 24 à 48 heures, avec une
-          proposition de prix le cas échéant. La soumission d'une demande n'emporte aucune
-          obligation d'achat ni de fourniture du produit recherché.
+          peut y répondre par un <Strong>devis en ligne</Strong>, envoyé par e-mail et SMS, consultable
+          via un lien personnel. Le devis est valable 7 jours ; le client peut l'accepter et le payer
+          en ligne, ou le refuser. Les conditions d'un devis accepté (paiement intégral à la commande,
+          livraison) sont précisées dans les{" "}
+          <a href="/cgv#sourcing" className="text-blue-600 underline underline-offset-2">CGV</a>. La soumission d'une demande n'emporte
+          aucune obligation d'achat ni de fourniture du produit recherché.
         </P>
         <SubTitle>Disponibilité</SubTitle>
         <P>
@@ -127,8 +134,8 @@ function getSections(settings: SiteSettings) {
             "utiliser la plateforme de bonne foi, sans tenter de contourner ses mesures de sécurité",
           ]}
         />
-        <SubTitle>Obligations des magasins et fournisseurs partenaires</SubTitle>
-        <P>Les produits référencés sur la plateforme proviennent de magasins et fournisseurs partenaires, qui s'engagent à :</P>
+        <SubTitle>Obligations des marchands</SubTitle>
+        <P>Les marchands vendant sur la plateforme, dont l'identité est vérifiée avant l'ouverture de leur boutique, s'engagent à :</P>
         <Ul
           items={[
             "proposer uniquement des produits licites et conformes à leur description",
@@ -167,15 +174,15 @@ function getSections(settings: SiteSettings) {
         <P>Les paiements peuvent être effectués par :</P>
         <Ul
           items={[
-            "Orange Money",
-            "MTN Mobile Money",
-            "Wave",
-            "Paiement à la livraison (espèces, à réception du colis)",
+            "Paiement en ligne via notre prestataire WiniPayer : Orange Money, MTN Mobile Money, Wave ou carte bancaire",
+            "Paiement à la livraison (espèces, à réception du colis), lorsqu'il est proposé",
           ]}
         />
         <P>
-          La commande est confirmée dès sa validation ; le paiement mobile money est vérifié
-          manuellement par notre équipe, qui met à jour le statut de la commande en conséquence.
+          Un paiement en ligne est considéré comme effectué uniquement après confirmation par
+          WiniPayer ; le statut de la commande est alors mis à jour automatiquement. Le détail des
+          prix, frais de livraison, retours et garanties figure dans les{" "}
+          <a href="/cgv" className="text-blue-600 underline underline-offset-2">Conditions Générales de Vente</a>.
         </P>
         <SubTitle>Livraison</SubTitle>
         <P>Deux modes de livraison sont proposés à la validation de la commande :</P>
@@ -200,7 +207,16 @@ function getSections(settings: SiteSettings) {
           L'acheteur peut annuler gratuitement une commande tant qu'elle est au statut « en
           attente » ou « confirmée », depuis son espace « Mes commandes ». Au-delà, l'annulation
           doit être demandée auprès du service client. Toute commande annulée ou remboursée fait
-          l'objet d'un e-mail de confirmation.
+          l'objet d'un e-mail de confirmation. Les retours après livraison sont décrits dans les{" "}
+          <a href="/cgv#retours" className="text-blue-600 underline underline-offset-2">CGV</a>.
+        </P>
+        <SubTitle>Avis</SubTitle>
+        <P>
+          Après chaque livraison, l'acheteur reçoit par e-mail et SMS un lien personnel pour noter
+          les produits reçus et le service. Les avis sont publiés avec le prénom et l'initiale du nom
+          de leur auteur et la mention « Achat vérifié » ; ils peuvent être modifiés via le même lien.
+          Skignas peut supprimer un avis contenant des propos illicites, injurieux ou sans rapport avec
+          le produit, mais ne modifie jamais le contenu d'un avis.
         </P>
       </>
     ),
@@ -256,14 +272,24 @@ function getSections(settings: SiteSettings) {
     title: "Responsabilité",
     content: (
       <>
-        <P>Skignas agit comme intermédiaire entre magasins/fournisseurs partenaires et acheteurs. Elle ne peut être tenue responsable :</P>
+        <P>
+          Skignas encaisse le paiement, organise la livraison et reste l'interlocuteur de l'acheteur pour
+          toute commande passée sur la plateforme, y compris pour les produits vendus par des marchands
+          (réclamations, retours, remboursements).
+        </P>
+        <P>La responsabilité de Skignas ne peut toutefois être engagée :</P>
         <Ul
           items={[
-            "des descriptions inexactes fournies par un magasin partenaire",
-            "des retards imputables aux transporteurs",
-            "des cas de force majeure",
+            "en cas de force majeure",
+            "en cas de faute de l'utilisateur (informations de livraison erronées, usage non conforme d'un produit)",
+            "pour les interruptions temporaires du site dues à la maintenance ou à un incident technique",
           ]}
         />
+        <P>
+          Ces dispositions ne limitent en rien les droits et garanties dont bénéficie l'acheteur
+          consommateur en application de la loi ivoirienne n° 2016-412 du 15 juin 2016 relative à la
+          consommation.
+        </P>
       </>
     ),
   },
@@ -320,9 +346,10 @@ function getSections(settings: SiteSettings) {
     content: (
       <>
         <P>
-          Les présentes CGU peuvent être modifiées à tout moment. Toute nouvelle version est
-          publiée sur cette page et entre en vigueur à sa date de publication ; la poursuite de
-          l'utilisation de la plateforme après publication vaut acceptation de la version mise à jour.
+          Les présentes CGU peuvent être modifiées. En cas de modification importante, les
+          utilisateurs titulaires d'un compte en sont informés par e-mail ou par une notification
+          avant son entrée en vigueur. Chaque commande reste régie par la version en vigueur au
+          moment où elle a été passée.
         </P>
         <SubTitle>Contact</SubTitle>
         <P>Pour toute question relative aux présentes CGU :</P>
@@ -356,7 +383,7 @@ export default function CguPage() {
     <>
       <PageMeta
         title="Conditions Générales d'Utilisation"
-        description="Consultez les CGU de Skignas : objet du contrat, conditions d'utilisation, commandes, paiement, livraison, propriété intellectuelle et droits des utilisateurs."
+        description="Consultez les CGU de Skignas : accès à la plateforme, compte, services, sourcing, avis, responsabilité et droits des utilisateurs."
         path="/cgu"
       />
       <LegalLayout
@@ -364,7 +391,7 @@ export default function CguPage() {
         accentColor="#3b9c3c"
         title="Conditions Générales d'Utilisation"
         subtitle="En utilisant la plateforme Skignas, vous acceptez les termes et conditions décrits dans ce document. Lisez-le attentivement avant toute utilisation."
-        lastUpdated="9 juillet 2026"
+        lastUpdated="27 septembre 2026"
         readTime="7 min"
         sections={SECTIONS}
         contactEmail={settings.supportEmail}

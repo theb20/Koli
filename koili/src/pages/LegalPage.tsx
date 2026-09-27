@@ -1,7 +1,11 @@
 import { LegalLayout, P, Strong, Ul, InfoBox, SubTitle } from "../components/ui/LegalLayout";
 import { PageMeta } from "../components/seo/PageMeta";
+import { useSiteSettings, type SiteSettings } from "../hooks/useSiteSettings";
 
-const SECTIONS = [
+/* Coordonnées issues des réglages du site (modifiables dans l'admin) : une
+   seule adresse e-mail et un seul téléphone pour tous les documents légaux. */
+function getSections(settings: SiteSettings) {
+  return [
   {
     id: "editeur",
     title: "Éditeur du site",
@@ -17,11 +21,11 @@ const SECTIONS = [
                 ["Raison sociale",    "Skignas "],
                 ["Forme juridique",   "Société par Actions Simplifiée (SAS)"],
                 ["Capital social",    "1 000 000 Fcfa"],
-                ["RCS",              "En cours d'immatriculation"],
-                ["Siège social",      "Cocody, Côte d'Ivoire"],
-                ["Téléphone",         "+225 05 74 71 74 55"],
-                ["E-mail",            "legal@skignas.com"],
-                ["N° de compte contribuable", "En cours d'immatriculation"],
+                ["RCCM",             "En cours d'immatriculation"],
+                ["Siège social",      settings.address],
+                ["Téléphone",         settings.supportPhone],
+                ["E-mail",            settings.supportEmail],
+                ["N° de compte contribuable (NCC)", "En cours d'immatriculation"],
               ].map(([k, v]) => (
                 <tr key={k} className="border-b border-gray-100 last:border-none">
                   <td className="px-4 py-3 font-semibold text-gray-500 w-1/2">{k}</td>
@@ -45,8 +49,8 @@ const SECTIONS = [
         </P>
         <P>
           Toute demande relative au contenu éditorial du site peut être adressée à :
-          {" "}<a href="mailto:direction@skignas.com" className="text-blue-600 underline underline-offset-2">
-            direction@skignas.com
+          {" "}<a href={`mailto:${settings.supportEmail}`} className="text-blue-600 underline underline-offset-2">
+            {settings.supportEmail}
           </a>
         </P>
       </>
@@ -57,30 +61,13 @@ const SECTIONS = [
     title: "Hébergement",
     content: (
       <>
+        <SubTitle>Site web</SubTitle>
+        <P>Les pages du site skignas.com sont hébergées et diffusées par <Strong>Google (Firebase Hosting)</Strong>, via un réseau de serveurs répartis dans le monde — firebase.google.com.</P>
+        <SubTitle>API et base de données</SubTitle>
+        <P>Le serveur applicatif et la base de données sont hébergés par <Strong>Railway Corporation</Strong> (railway.com), sur des serveurs situés aux <Strong>États-Unis</Strong>.</P>
         <P>
-          Le site skignas.com est hébergé par :
-        </P>
-        <div className="mb-4 overflow-hidden rounded-xl border border-gray-100 bg-gray-50">
-          <table className="w-full text-sm">
-            <tbody>
-              {[
-                ["Société",   "Google Ireland Limited (Firebase Hosting)"],
-                ["Adresse",   "Gordon House, Barrow Street, Dublin 4, Irlande"],
-                ["Site web",  "firebase.google.com"],
-                ["Support",   "https://firebase.google.com/support"],
-              ].map(([k, v]) => (
-                <tr key={k} className="border-b border-gray-100 last:border-none">
-                  <td className="px-4 py-3 font-semibold text-gray-500 w-1/3">{k}</td>
-                  <td className="px-4 py-3 text-gray-700">{v}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <P>
-          L'infrastructure de traitement des données est localisée dans des centres de données
-          situés en Europe (région EU West), conformément aux exigences de la loi ivoirienne
-          n° 2013-450 relative à la protection des données à caractère personnel.
+          Les transferts de données correspondants sont décrits dans notre{" "}
+          <a href="/privacy#transferts" className="text-blue-600 underline underline-offset-2">Politique de confidentialité</a>.
         </P>
       </>
     ),
@@ -122,11 +109,11 @@ const SECTIONS = [
           (ARTCI).
         </P>
         <P>
-          Le responsable du traitement est Skignas SAS, représenté par son Président.
-          Un délégué à la protection des données (DPO) est joignable à :
-          {" "}<a href="mailto:dpo@skignas.com" className="text-blue-600 underline underline-offset-2">
-            dpo@skignas.com
-          </a>
+          Le responsable du traitement est Skignas SAS, représenté par son Président. Pour toute
+          question relative à vos données personnelles :
+          {" "}<a href={`mailto:${settings.supportEmail}`} className="text-blue-600 underline underline-offset-2">
+            {settings.supportEmail}
+          </a> (objet : « Données personnelles »)
         </P>
         <InfoBox variant="blue">
           Pour plus d'informations sur la collecte et le traitement de vos données, consultez
@@ -143,22 +130,13 @@ const SECTIONS = [
     content: (
       <>
         <P>
-          Le site skignas.com utilise des cookies et traceurs afin d'améliorer votre expérience
-          de navigation, mesurer l'audience et personnaliser les contenus et publicités affichés.
+          Le site utilise des cookies essentiels à son fonctionnement et, uniquement avec votre
+          accord, des cookies de mesure d'audience (Google Analytics). Aucun cookie publicitaire
+          n'est utilisé à ce jour.
         </P>
-        <SubTitle>Types de cookies utilisés</SubTitle>
-        <Ul
-          items={[
-            "Cookies essentiels — nécessaires au fonctionnement du site (session, authentification)",
-            "Cookies analytiques — mesure d'audience via Google Analytics (Firebase Analytics)",
-            "Cookies de personnalisation — mémorisation de vos préférences d'affichage",
-            "Cookies tiers — intégrations Google Fonts et prestataires de paiement mobile (Orange Money, MTN Mobile Money, Wave)",
-          ]}
-        />
         <P>
-          Vous pouvez à tout moment gérer vos préférences via le bandeau de consentement ou les
-          paramètres de votre navigateur. Le refus de certains cookies peut altérer les
-          fonctionnalités du site.
+          Le détail des cookies, leur durée et la façon de modifier vos choix figurent dans la{" "}
+          <a href="/privacy#cookies" className="text-blue-600 underline underline-offset-2">section Cookies de la Politique de confidentialité</a>.
         </P>
       </>
     ),
@@ -173,7 +151,8 @@ const SECTIONS = [
           publiées sur son site, mais ne peut garantir leur exhaustivité ou leur absence d'erreur.
         </P>
         <P>
-          Skignas SAS décline toute responsabilité en cas de :
+          Dans les limites permises par la loi, et sans préjudice des droits des consommateurs,
+          Skignas SAS ne saurait être tenue responsable en cas de :
         </P>
         <Ul
           items={[
@@ -207,9 +186,12 @@ const SECTIONS = [
       </>
     ),
   },
-];
+  ];
+}
 
 export default function LegalPage() {
+  const settings = useSiteSettings();
+  const SECTIONS = getSections(settings);
   return (
     <>
       <PageMeta
@@ -222,7 +204,7 @@ export default function LegalPage() {
         accentColor="#2563eb"
         title="Mentions légales"
         subtitle="Informations légales relatives à l'éditeur du site, à l'hébergement, à la propriété intellectuelle et aux conditions d'utilisation de skignas.com."
-        lastUpdated="1er janvier 2025"
+        lastUpdated="27 septembre 2026"
         readTime="5 min"
         sections={SECTIONS}
       />

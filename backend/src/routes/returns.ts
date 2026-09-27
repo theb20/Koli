@@ -125,12 +125,35 @@ const adminStatusSchema = z.object({
 })
 
 /* ── Helpers ─────────────────────────────────────────────────── */
+/**
+ * Plafond de remboursement = ce que le client a RÉELLEMENT payé pour les
+ * articles retournés : prix HT × quantité, TVA de la commande incluse, au
+ * prorata d'un éventuel code promo. Livraison et option « Assistance
+ * technique » exclues (voir CGV). Auparavant la TVA payée n'était jamais
+ * remboursable (plafond au prix HT).
+ */
+export function refundableAmount(
+  items: { price: number; quantity: number }[],
+  order: { subtotal: number; taxRate: number; total: number; shippingCost: number; assistanceTotal: number },
+): number {
+  const rate = 1 + (order.taxRate ?? 0) / 100
+  const itemsTtc = items.reduce((sum, it) => sum + it.price * it.quantity, 0) * rate
+  const productsTtcListed = order.subtotal * rate
+  const productsTtcPaid = order.total - order.shippingCost - order.assistanceTotal * rate
+  const paidRatio = productsTtcListed > 0 ? Math.min(1, Math.max(0, productsTtcPaid / productsTtcListed)) : 1
+  return Math.round(itemsTtc * paidRatio)
+}
+
 async function computeMaxRefundable(returnId: string): Promise<number> {
-  const items = await prisma.orderReturnItem.findMany({
-    where: { returnId },
-    include: { orderItem: { select: { price: true } } },
+  const ret = await prisma.orderReturn.findUnique({
+    where: { id: returnId },
+    select: {
+      items: { select: { quantity: true, orderItem: { select: { price: true } } } },
+      order: { select: { subtotal: true, taxRate: true, total: true, shippingCost: true, assistanceTotal: true } },
+    },
   })
-  return items.reduce((sum, it) => sum + it.orderItem.price * it.quantity, 0)
+  if (!ret) return 0
+  return refundableAmount(ret.items.map(it => ({ price: it.orderItem.price, quantity: it.quantity })), ret.order)
 }
 
 const RETURN_INCLUDE = {

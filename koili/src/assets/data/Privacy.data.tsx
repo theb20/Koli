@@ -1,4 +1,14 @@
-import { P, Strong, Ul, InfoBox, SubTitle } from "../../components/ui/LegalLayout";
+import { P, Strong, Ul, InfoBox, SubTitle, Table } from "../../components/ui/LegalLayout";
+import { openCookieSettings } from "../../lib/consent";
+
+/* Politique de confidentialité — alignée sur le fonctionnement RÉEL de la
+   plateforme (prestataires effectivement appelés par le code, hébergement,
+   cookies). À mettre à jour à chaque nouveau prestataire ou nouvel usage. */
+
+export const PRIVACY_LAST_UPDATED = "27 septembre 2026";
+const CONTACT = "support@skignas.com";
+
+const mailLink = <a href={`mailto:${CONTACT}`} className="text-blue-600 underline underline-offset-2">{CONTACT}</a>;
 
 export const SECTIONS = [
   {
@@ -7,21 +17,18 @@ export const SECTIONS = [
     content: (
       <>
         <P>
-          <Strong>Skignas SAS</Strong> (ci-après « Skignas », « nous ») est responsable du
-          traitement des données personnelles collectées via la plateforme skignas.com et ses
-          services associés. Nous attachons la plus grande importance à la protection de votre
-          vie privée et nous nous engageons à traiter vos données de manière transparente,
-          loyale et sécurisée.
+          <Strong>Skignas SAS</Strong> (ci-après « Skignas », « nous ») est responsable du traitement des
+          données personnelles collectées via la plateforme skignas.com, ses espaces marchands et ses services
+          associés (e-mails, SMS, WhatsApp).
         </P>
         <P>
-          La présente politique s'applique à toute personne qui visite notre site, crée un compte,
-          effectue un achat ou interagit avec nos services, quelle que soit sa localisation.
+          Cette politique s'applique à toute personne qui visite le site, crée un compte, passe commande,
+          demande un devis, laisse un avis, contacte le support ou vend sur la plateforme.
         </P>
         <InfoBox variant="green">
-          Notre traitement des données est conforme à la loi ivoirienne n° 2013-450 du
-          19 juin 2013 relative à la protection des données à caractère personnel, sous le
-          contrôle de l'Autorité de Régulation des Télécommunications/TIC de Côte d'Ivoire
-          (ARTCI).
+          Nos traitements sont soumis à la loi ivoirienne n° 2013-450 du 19 juin 2013 relative à la protection
+          des données à caractère personnel, sous le contrôle de l'Autorité de Régulation des
+          Télécommunications/TIC de Côte d'Ivoire (ARTCI).
         </InfoBox>
       </>
     ),
@@ -31,33 +38,34 @@ export const SECTIONS = [
     title: "Données que nous collectons",
     content: (
       <>
-        <P>
-          Nous collectons uniquement les données strictement nécessaires à la fourniture de nos
-          services. Voici les catégories de données concernées :
-        </P>
-        <SubTitle>Données que vous nous fournissez directement</SubTitle>
+        <SubTitle>Données que vous nous fournissez</SubTitle>
         <Ul
           items={[
-            "Identité : nom, prénom, nom de votre boutique",
-            "Coordonnées : adresse e-mail, numéro de téléphone, adresse postale",
-            "Informations de connexion : identifiants, mots de passe hashés",
-            "Informations de paiement : traitées par notre prestataire PayDunya (mobile money et carte), non stockées par nous",
-            "Documents d'identité et justificatifs (pour la vérification des marchands)",
+            "Compte : nom, prénom, e-mail, téléphone, date de naissance et genre (facultatifs), mot de passe (stocké uniquement sous forme chiffrée irréversible)",
+            "Commandes : adresses de livraison, produits achetés, montants, mode de livraison et de paiement, historique des statuts",
+            "Paiement en ligne : saisi directement chez notre prestataire WiniPayer — Skignas ne reçoit ni ne stocke vos numéros de carte ou codes mobile money",
+            "Demandes de sourcing et devis : description du produit recherché, photos, budget, adresse de livraison, acceptation ou refus du devis et motif éventuel",
+            "Retours : motif, commentaire et photos envoyés",
+            "Avis : note, commentaire, photos éventuelles",
+            "Messages : formulaire de contact, échanges WhatsApp avec le support, messages saisis dans l'assistant de discussion du site",
+            "Marchands : informations de la boutique et documents de vérification d'identité (via Didit)",
           ]}
         />
         <SubTitle>Données collectées automatiquement</SubTitle>
         <Ul
           items={[
-            "Données de navigation : adresse IP (anonymisée), navigateur, système d'exploitation",
-            "Données d'utilisation : pages visitées, durée de session, clics, fonctionnalités utilisées",
-            "Données techniques : journaux d'erreurs, performances, cookies (voir section dédiée)",
+            "Sessions de connexion : adresse IP et navigateur (sécurité du compte, détection des connexions suspectes)",
+            "Activité sur le site : produits consultés (historique de navigation de votre compte), favoris, panier, listes cadeaux, points de fidélité et parrainage",
+            "Mesure d'audience : uniquement si vous l'acceptez (voir la section Cookies)",
+            "Journaux techniques : erreurs et performances du service",
           ]}
         />
         <SubTitle>Données provenant de tiers</SubTitle>
         <Ul
           items={[
-            "Informations de profil lors d'une connexion via Google ou Facebook",
-            "Données de vérification d'identité via notre partenaire Didit",
+            "Connexion avec Google : nom, prénom, e-mail et photo de profil de votre compte Google",
+            "Statut de paiement transmis par WiniPayer (réussi, annulé, échoué)",
+            "Résultat de la vérification d'identité des marchands transmis par Didit",
           ]}
         />
       </>
@@ -65,85 +73,103 @@ export const SECTIONS = [
   },
   {
     id: "finalites",
-    title: "Finalités et bases légales du traitement",
+    title: "Finalités et bases légales",
     content: (
-      <>
-        <P>
-          Nous traitons vos données uniquement pour des finalités déterminées, légitimes et
-          fondées sur l'une des bases légales suivantes :
-        </P>
-        <div className="mb-4 overflow-hidden rounded-xl border border-gray-100">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left font-semibold text-gray-600">Finalité</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-600">Base légale</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                ["Création et gestion de votre compte", "Exécution du contrat"],
-                ["Traitement des commandes et paiements", "Exécution du contrat"],
-                ["Envoi de communications transactionnelles", "Exécution du contrat"],
-                ["Amélioration de la plateforme", "Intérêt légitime"],
-                ["Analyse d'audience (anonymisée)", "Intérêt légitime"],
-                ["Envoi de newsletter et offres commerciales", "Consentement"],
-                ["Prévention de la fraude", "Obligation légale"],
-                ["Conservation des factures", "Obligation légale (10 ans)"],
-              ].map(([f, b]) => (
-                <tr key={f} className="border-t border-gray-100">
-                  <td className="px-4 py-3 text-gray-600">{f}</td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
-                        b === "Consentement"
-                          ? "bg-blue-50 text-blue-700"
-                          : b === "Obligation légale (10 ans)" || b === "Obligation légale"
-                          ? "bg-amber-50 text-amber-700"
-                          : b === "Exécution du contrat"
-                          ? "bg-green-50 text-green-700"
-                          : "bg-gray-100 text-gray-600"
-                      }`}
-                    >
-                      {b}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </>
+      <Table
+        head={["Finalité", "Base légale"]}
+        rows={[
+          ["Création et gestion de votre compte", "Exécution du contrat"],
+          ["Traitement des commandes, paiements, livraisons et retours", "Exécution du contrat"],
+          ["Devis de sourcing (envoi, acceptation, paiement)", "Exécution de mesures précontractuelles / du contrat"],
+          ["E-mails et SMS transactionnels (confirmation, suivi, devis, lien d'avis)", "Exécution du contrat"],
+          ["Publication de vos avis (prénom + initiale du nom, mention « Achat vérifié »)", "Consentement (vous choisissez de publier)"],
+          ["Support client et assistant de discussion", "Exécution du contrat / intérêt légitime"],
+          ["Sécurité, prévention de la fraude, anti-robot (reCAPTCHA)", "Intérêt légitime"],
+          ["Mesure d'audience (Google Analytics)", "Consentement"],
+          ["Newsletter et offres commerciales", "Consentement"],
+          ["Conservation des factures et pièces comptables", "Obligation légale"],
+        ]}
+      />
     ),
   },
   {
     id: "partage",
-    title: "Partage et transfert des données",
+    title: "Prestataires et destinataires",
     content: (
       <>
         <P>
-          Nous ne vendons jamais vos données personnelles à des tiers. Nous pouvons en revanche
-          les partager dans les cas suivants :
+          Nous ne vendons jamais vos données. Elles sont accessibles à l'équipe Skignas habilitée et, pour les
+          commandes contenant leurs produits, au marchand concerné, dans la limite nécessaire à la préparation et
+          à la livraison de ses produits. Nous faisons appel aux prestataires suivants :
         </P>
-        <SubTitle>Sous-traitants techniques</SubTitle>
-        <Ul
-          items={[
-            "PayDunya (paiements mobile money et carte) — données de paiement chiffrées",
-            "Firebase / Google (hébergement) — journaux de serveur, centres de données en Europe (région EU West)",
-            "Resend (e-mails transactionnels) — adresse e-mail, contenu des e-mails",
-            "Didit (vérification d'identité des marchands) — documents et selfie de vérification",
-            "WhatsApp Business (support client) — messages échangés avec notre équipe support",
+        <Table
+          head={["Prestataire", "Rôle", "Données concernées"]}
+          rows={[
+            ["Railway", "Hébergement de l'API et de la base de données", "Ensemble des données de compte, commandes et messages"],
+            ["Google (Firebase Hosting)", "Hébergement du site web", "Adresse IP, journaux techniques"],
+            ["Google (Firebase Authentication)", "Connexion avec Google", "Identifiants du compte Google"],
+            ["Google (Analytics, Tag Manager)", "Mesure d'audience — après consentement uniquement", "Identifiants de navigation, pages vues"],
+            ["Google (reCAPTCHA)", "Protection anti-robot des formulaires", "Adresse IP, données d'interaction"],
+            ["Google (Fonts)", "Affichage de polices de caractères", "Adresse IP"],
+            ["WiniPayer", "Paiement en ligne : Orange Money, MTN Mobile Money, Wave, carte bancaire", "Montant, référence de commande, données de paiement saisies"],
+            ["Resend", "Envoi des e-mails", "E-mail, contenu des messages"],
+            ["Zavu", "Envoi des SMS (codes, suivi, devis, liens d'avis)", "Numéro de téléphone, contenu des SMS"],
+            ["Meta (WhatsApp Business)", "Support client et notifications internes de commande", "Nom, téléphone, contenu des messages, montant et numéro de commande"],
+            ["Groq", "Assistant de discussion du site", "Messages saisis dans l'assistant"],
+            ["Cloudmersive", "Analyse antivirus des fichiers envoyés", "Photos et fichiers téléversés"],
+            ["Didit", "Vérification d'identité des marchands", "Pièces d'identité et selfie des marchands"],
+            ["AppSignal", "Supervision technique", "Journaux d'erreurs et de performance"],
           ]}
         />
-        <SubTitle>Autorités légales</SubTitle>
+        <SubTitle>Autorités</SubTitle>
+        <P>Vos données peuvent être communiquées aux autorités compétentes sur réquisition judiciaire ou administrative.</P>
+      </>
+    ),
+  },
+  {
+    id: "transferts",
+    title: "Transferts hors de Côte d'Ivoire",
+    content: (
+      <>
         <P>
-          Nous pouvons divulguer vos données aux autorités compétentes sur réquisition judiciaire
-          ou administrative, conformément à la législation applicable.
+          Plusieurs de nos prestataires traitent vos données hors de Côte d'Ivoire. En particulier, notre API et
+          notre base de données sont hébergées aux <Strong>États-Unis</Strong> (Railway), de même que les
+          services de Google, Meta, Groq, Resend et Cloudmersive. Le site web est diffusé via le réseau mondial
+          de Google (Firebase Hosting).
         </P>
-        <InfoBox variant="amber">
-          Tout transfert de données vers un pays tiers est encadré par des garanties
-          contractuelles appropriées avec nos prestataires.
-        </InfoBox>
+        <P>
+          Ces transferts sont soumis aux formalités préalables prévues par la loi n° 2013-450 auprès de l'ARTCI.
+          Vous pouvez obtenir des informations sur ces transferts en nous écrivant à {mailLink}.
+        </P>
+      </>
+    ),
+  },
+  {
+    id: "cookies",
+    title: "Cookies et traceurs",
+    content: (
+      <>
+        <P>
+          Aucun cookie de mesure d'audience ni de publicité n'est déposé avant votre choix dans le bandeau
+          cookies. Tant que vous n'avez pas accepté, Google Tag Manager et Google Analytics ne sont pas chargés.
+        </P>
+        <Table
+          head={["Catégorie", "Exemples", "Durée", "Consentement"]}
+          rows={[
+            ["Essentiels", "Session de connexion (cookie sécurisé), panier, choix cookies, protection anti-robot reCAPTCHA", "Session à 30 jours", "Non requis"],
+            ["Mesure d'audience", "Google Analytics 4 via Google Tag Manager (_ga, _ga_*), Firebase Analytics", "13 mois maximum", "Requis"],
+            ["Préférences", "Mémorisation de réglages d'affichage", "12 mois", "Requis"],
+            ["Marketing", "Aucun cookie publicitaire n'est utilisé à ce jour ; cette catégorie ne serait activée qu'avec votre accord", "—", "Requis"],
+          ]}
+        />
+        <P>
+          Vous pouvez modifier ou retirer votre consentement à tout moment ; les cookies de mesure d'audience
+          sont alors supprimés.
+        </P>
+        <button type="button" onClick={openCookieSettings}
+          className="mb-4 inline-flex items-center rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-gray-800 transition-colors">
+          Gérer mes cookies
+        </button>
       </>
     ),
   },
@@ -151,37 +177,19 @@ export const SECTIONS = [
     id: "conservation",
     title: "Durées de conservation",
     content: (
-      <>
-        <P>
-          Vos données sont conservées pour la durée strictement nécessaire aux finalités pour
-          lesquelles elles ont été collectées, dans les limites imposées par la loi.
-        </P>
-        <div className="mb-4 overflow-hidden rounded-xl border border-gray-100">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left font-semibold text-gray-600">Type de donnée</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-600">Durée</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                ["Données de compte actif", "Durée de vie du compte + 90 jours"],
-                ["Données après résiliation", "90 jours (export possible), puis suppression"],
-                ["Factures et données comptables", "10 ans (obligation légale OHADA)"],
-                ["Journaux de sécurité", "12 mois"],
-                ["Données de navigation anonymisées", "13 mois maximum"],
-                ["Candidatures non retenues", "2 ans"],
-              ].map(([t, d]) => (
-                <tr key={t} className="border-t border-gray-100">
-                  <td className="px-4 py-3 text-gray-600">{t}</td>
-                  <td className="px-4 py-3 font-medium text-gray-800">{d}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </>
+      <Table
+        head={["Données", "Durée"]}
+        rows={[
+          ["Compte actif", "Tant que le compte existe"],
+          ["Compte supprimé", "Suppression des données de compte ; les commandes sont conservées de façon anonymisée ou pour la durée légale comptable"],
+          ["Commandes, factures et pièces comptables", "10 ans (obligation comptable OHADA)"],
+          ["Avis publiés", "Tant qu'ils sont en ligne ; supprimables sur demande"],
+          ["Devis de sourcing non acceptés", "3 ans après la dernière interaction"],
+          ["Sessions et journaux de sécurité", "12 mois"],
+          ["Cookies de mesure d'audience", "13 mois maximum"],
+          ["Documents de vérification des marchands", "Durée de la relation commerciale + délais légaux"],
+        ]}
+      />
     ),
   },
   {
@@ -189,47 +197,26 @@ export const SECTIONS = [
     title: "Vos droits",
     content: (
       <>
-        <P>
-          Conformément à la loi ivoirienne n° 2013-450 relative à la protection des données à
-          caractère personnel, vous disposez des droits suivants sur vos données personnelles :
-        </P>
+        <P>Conformément à la loi n° 2013-450, vous disposez des droits suivants sur vos données :</P>
         <Ul
           items={[
-            "Droit d'accès — obtenir une copie de toutes les données que nous détenons sur vous",
-            "Droit de rectification — corriger des données inexactes ou incomplètes",
-            "Droit à l'effacement — demander la suppression de vos données (« droit à l'oubli »)",
-            "Droit à la limitation — restreindre le traitement dans certaines circonstances",
-            "Droit à la portabilité — recevoir vos données dans un format structuré et lisible",
-            "Droit d'opposition — vous opposer à un traitement fondé sur l'intérêt légitime",
-            "Droit de retirer votre consentement — à tout moment et sans conséquence",
-            "Droit de définir des directives post-mortem — relatives au sort de vos données après décès",
+            "droit d'accès et d'information",
+            "droit de rectification",
+            "droit d'opposition, notamment à la prospection commerciale",
+            "droit à l'effacement (suppression de compte possible depuis « Mon profil »)",
+            "droit de retirer à tout moment un consentement donné (cookies, newsletter, publication d'un avis)",
           ]}
         />
         <SubTitle>Comment exercer vos droits</SubTitle>
         <P>
-          Adressez votre demande par e-mail à notre DPO :{" "}
-          <a href="mailto:dpo@skignas.com" className="font-medium text-blue-600 underline underline-offset-2">
-            dpo@skignas.com
-          </a>
-          {" "}ou par courrier à Skignas SAS – DPO, Cocody, Abidjan, Côte d'Ivoire.
-          Nous vous répondrons dans un délai d'un mois (prorogeable de deux mois en cas de
-          demande complexe).
+          Écrivez à {mailLink} (objet : « Données personnelles ») ou par courrier à Skignas SAS, Cocody, Abidjan,
+          Côte d'Ivoire. Nous répondons dans un délai d'un mois. Une pièce justificative d'identité peut vous être
+          demandée en cas de doute sur votre identité.
         </P>
-        <InfoBox variant="blue">
-          Si vous estimez que vos droits ne sont pas respectés, vous pouvez introduire une
-          réclamation auprès de l'ARTCI (Autorité de Régulation des Télécommunications/TIC
-          de Côte d'Ivoire)
-          {" "}
-          <a
-            href="https://www.artci.ci"
-            target="_blank"
-            rel="noreferrer"
-            className="font-medium underline underline-offset-2"
-          >
-            www.artci.ci
-          </a>
-          .
-        </InfoBox>
+        <P>
+          Vous pouvez également introduire une réclamation auprès de l'ARTCI :{" "}
+          <a href="https://www.artci.ci" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline underline-offset-2">www.artci.ci</a>.
+        </P>
       </>
     ),
   },
@@ -238,48 +225,34 @@ export const SECTIONS = [
     title: "Sécurité des données",
     content: (
       <>
-        <P>
-          Nous mettons en œuvre des mesures techniques et organisationnelles appropriées pour
-          protéger vos données contre tout accès non autorisé, toute altération, divulgation ou
-          destruction.
-        </P>
+        <P>Les mesures en place sur la plateforme :</P>
         <Ul
           items={[
-            "Chiffrement des données en transit (TLS 1.3) et au repos (AES-256)",
-            "Mots de passe hashés avec bcrypt (facteur de coût élevé)",
-            "Accès aux données restreint au personnel habilité, selon le principe du moindre privilège",
-            "Journaux d'accès et d'audit conservés 12 mois",
-            "Tests de pénétration annuels réalisés par un prestataire indépendant",
-            "Plan de réponse aux incidents de sécurité documenté et testé",
+            "Connexions chiffrées (HTTPS) sur l'ensemble du site et de l'API",
+            "Mots de passe stockés uniquement sous forme hachée (bcrypt), jamais en clair",
+            "Session de connexion protégée par un cookie sécurisé inaccessible aux scripts",
+            "Double authentification disponible pour les comptes",
+            "Limitation des tentatives de connexion et protection anti-robot",
+            "Analyse antivirus des fichiers envoyés",
+            "Accès aux données limité à l'équipe habilitée ; actions d'administration journalisées",
+            "Paiements traités par un prestataire spécialisé : aucune donnée de carte ou de mobile money stockée par Skignas",
           ]}
         />
         <P>
-          En cas de violation de données susceptible d'engendrer un risque pour vos droits et
-          libertés, nous vous notifierons dans les 72 heures suivant sa découverte, conformément
-          à la réglementation ivoirienne en vigueur.
+          En cas de violation de données présentant un risque pour vos droits, nous vous en informerons dans les
+          meilleurs délais et procéderons aux notifications prévues par la réglementation ivoirienne.
         </P>
       </>
     ),
   },
   {
     id: "mineurs",
-    title: "Protection des mineurs",
+    title: "Mineurs",
     content: (
-      <>
-        <P>
-          Nos services sont exclusivement destinés aux personnes majeures (18 ans ou plus).
-          Nous ne collectons pas sciemment de données personnelles concernant des mineurs.
-        </P>
-        <P>
-          Si nous apprenons qu'un mineur nous a fourni des données sans le consentement de ses
-          parents ou tuteurs légaux, nous procéderons à la suppression de ces données dans les
-          meilleurs délais. Veuillez nous contacter à{" "}
-          <a href="mailto:privacy@skignas.com" className="text-blue-600 underline underline-offset-2">
-            privacy@skignas.com
-          </a>{" "}
-          si vous avez connaissance d'une telle situation.
-        </P>
-      </>
+      <P>
+        Les achats sur Skignas sont réservés aux personnes majeures. Si vous constatez qu'un mineur nous a transmis
+        des données sans l'accord de ses représentants légaux, écrivez-nous à {mailLink} : nous les supprimerons.
+      </P>
     ),
   },
   {
@@ -288,23 +261,11 @@ export const SECTIONS = [
     content: (
       <>
         <P>
-          Skignas se réserve le droit de modifier la présente politique à tout moment.
-          En cas de modification substantielle, nous vous en informerons par e-mail et/ou
-          par une notification dans votre espace client, au moins 30 jours avant l'entrée
-          en vigueur des nouvelles dispositions.
+          Nous pouvons mettre à jour cette politique, notamment en cas de nouveau prestataire ou de nouvel usage
+          de vos données. En cas de modification importante, vous en serez informé par e-mail ou par une
+          notification dans votre espace client avant son entrée en vigueur.
         </P>
-        <P>
-          La poursuite de l'utilisation de nos services après la date d'entrée en vigueur
-          des modifications constitue votre acceptation de la politique mise à jour.
-        </P>
-        <InfoBox variant="green">
-          La version en vigueur est toujours disponible à l'adresse{" "}
-          <a href="/privacy" className="font-semibold underline underline-offset-2">
-            skignas.com/privacy
-          </a>
-          .
-          La date de dernière mise à jour est indiquée en haut de ce document.
-        </InfoBox>
+        <P>La date de dernière mise à jour figure en haut de ce document. Version en vigueur : skignas.com/privacy.</P>
       </>
     ),
   },
