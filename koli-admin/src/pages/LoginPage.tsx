@@ -1,8 +1,17 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Lock, Mail, Eye, EyeOff, AlertCircle } from 'lucide-react'
+import { Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { preloadRecaptcha } from '../lib/recaptcha'
+import { DotMatrixCanvas } from '../components/ui/DotMatrixCanvas'
+
+/* Règles inchangées : e-mail + mot de passe, reCAPTCHA v3 (préchargé),
+   comptes non-admin refusés (useAuth), erreurs serveur affichées,
+   redirection vers / après connexion, lien mot de passe oublié.
+   Pas d'inscription ni de connexion sociale : les comptes admin ne se
+   créent pas depuis cette page. */
+
+const field = 'w-full h-10 px-3.5 rounded-btn-sm border border-login-field-border bg-login-bg text-[14px] text-login-text placeholder:text-login-faint outline-none transition-colors focus:border-login-muted'
 
 export default function LoginPage() {
   const { login, loading, error } = useAuth()
@@ -20,132 +29,65 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen w-full flex flex-col lg:flex-row bg-[#f5f5f7]">
+    <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden bg-login-bg text-login-text font-sans px-4 py-10">
+      <DotMatrixCanvas className="absolute inset-0 w-full h-full z-0" />
+      {/* Vignette : assombrit le centre pour la lisibilité du formulaire */}
+      <div className="absolute inset-0 z-[1] pointer-events-none bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.75)_0%,rgba(0,0,0,0)_100%)]" aria-hidden />
 
-      {/* Left: form panel */}
-      <div className="flex-1 lg:basis-[46%] min-w-0 flex items-start justify-center px-6 sm:px-12 py-10 overflow-y-auto">
+      <main className="relative z-[2] w-full max-w-[400px] rounded-cta border border-login-card-border bg-login-card p-8 shadow-[0_10px_40px_rgba(0,0,0,0.8)] flex flex-col items-center text-center">
+        <div className="w-11 h-11 mb-3 rounded-full border border-login-field-border bg-login-logo-bg flex items-center justify-center text-[20px] font-bold leading-none" aria-hidden>
+          s
+        </div>
+        <h1 className="text-[1.35rem] font-semibold tracking-[-0.025em] mb-1">Administration Skignas</h1>
+        <p className="text-[0.85rem] text-login-muted mb-4 leading-relaxed">Connectez-vous à votre espace.</p>
 
-        <div className="w-full max-w-md my-auto">
+        {error && (
+          <div role="alert" className="w-full mb-3 flex items-start gap-2 rounded-btn-sm border border-down/40 bg-down/10 px-3 py-2.5 text-left text-[0.8rem] text-login-error">
+            <AlertCircle size={15} className="shrink-0 mt-px" />
+            <span>{error}</span>
+          </div>
+        )}
 
-          {/* Logo */}
-          <div className="text-center mb-7">
-            <div className="mx-auto mb-4 flex h-[52px] w-[52px] items-center justify-center rounded-full shadow-xl">
-              <img src="/imgs_dropship/sk_black.png" className="w-full" alt="Logo skignas" />
-            </div>
-            <h1 className="text-[28px] font-semibold tracking-tight text-[#0f0f10]">
-              Administration Skignas
-            </h1>
-            <p className="mt-1.5 text-sm text-slate-500">
-              Connectez-vous à votre espace
-            </p>
+        <form onSubmit={handleSubmit} className="w-full flex flex-col gap-2.5 text-left">
+          <label htmlFor="login-email" className="sr-only">Adresse e-mail</label>
+          <input id="login-email" type="email" required autoComplete="username" autoFocus
+            value={email} onChange={e => setEmail(e.target.value)}
+            placeholder="admin@skignas.com" className={field} />
+
+          <label htmlFor="login-password" className="sr-only">Mot de passe</label>
+          <div className="relative">
+            <input id="login-password" type={show ? 'text' : 'password'} required autoComplete="current-password"
+              value={pass} onChange={e => setPass(e.target.value)}
+              placeholder="Mot de passe" className={`${field} pr-10`} />
+            <button type="button" onClick={() => setShow(s => !s)}
+              aria-label={show ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+              className="absolute right-1 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-btn-sm text-login-muted hover:text-login-text transition-colors">
+              {show ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
           </div>
 
-          {/* Card */}
-          <form
-            onSubmit={handleSubmit}
-            className="rounded-3xl border border-white/70 bg-white/70 backdrop-blur-2xl p-8 shadow-[0_20px_70px_rgba(0,0,0,0.08)]"
-          >
+          <button type="submit" disabled={loading}
+            className="mt-1 w-full h-10 rounded-btn-sm bg-login-cta text-login-cta-text text-[14px] font-medium flex items-center justify-center gap-2 transition-colors hover:bg-login-cta-hover disabled:opacity-60">
+            {loading && <Loader2 size={15} className="animate-spin" />}
+            {loading ? 'Connexion…' : 'Se connecter'}
+          </button>
+        </form>
 
-            {error && (
-              <div className="mb-5 flex items-center gap-2.5 rounded-2xl border border-red-200 bg-red-50 p-3.5 text-red-600 text-sm">
-                <AlertCircle size={18} className="flex-shrink-0" />
-                <span>{error}</span>
-              </div>
-            )}
+        <div className="h-px w-full bg-login-card-border my-4" />
 
-            {/* Email */}
-            <div className="mb-5">
-              <label className="mb-2 block text-[13px] font-medium text-slate-600">
-                Adresse e-mail
-              </label>
-              <div className="relative">
-                <Mail
-                  size={18}
-                  className="absolute left-[18px] top-1/2 -translate-y-1/2 text-slate-400"
-                />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@skignas.com"
-                  className="
-                    h-14 w-full box-border rounded-2xl border border-slate-200 bg-white
-                    pl-[52px] pr-4 text-[15px] outline-none transition
-                    focus:border-black focus:ring-4 focus:ring-black/5
-                  "
-                />
-              </div>
-            </div>
+        <Link to="/mot-de-passe-oublie" className="text-[0.875rem] text-login-muted hover:text-login-text transition-colors">
+          Mot de passe oublié ?
+        </Link>
+        <p className="mt-3 text-[0.8rem] text-login-muted">
+          Accès réservé à l'équipe Skignas.
+        </p>
 
-            {/* Password */}
-            <div>
-              <div className="mb-2 flex items-baseline justify-between gap-3 flex-wrap">
-                <label className="text-[13px] font-medium text-slate-600 whitespace-nowrap">
-                  Mot de passe
-                </label>
-                <Link
-                  to="/mot-de-passe-oublie"
-                  className="text-[13px] text-slate-400 hover:text-black transition-colors whitespace-nowrap"
-                >
-                  Mot de passe oublié ?
-                </Link>
-              </div>
-              <div className="relative">
-                <Lock
-                  size={18}
-                  className="absolute left-[18px] top-1/2 -translate-y-1/2 text-slate-400"
-                />
-                <input
-                  type={show ? 'text' : 'password'}
-                  value={pass}
-                  onChange={(e) => setPass(e.target.value)}
-                  placeholder="••••••••"
-                  className="
-                    h-14 w-full box-border rounded-2xl border border-slate-200 bg-white
-                    pl-[52px] pr-[52px] text-[15px] outline-none transition
-                    focus:border-black focus:ring-4 focus:ring-black/5
-                  "
-                />
-                <button
-                  type="button"
-                  onClick={() => setShow(!show)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500"
-                >
-                  {show ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-            </div>
-
-            <button
-              disabled={loading}
-              className="
-                mt-6 h-14 w-full rounded-2xl bg-black text-white font-medium
-                transition hover:scale-[1.01] hover:bg-slate-900
-                active:scale-[0.99] disabled:opacity-50
-              "
-            >
-              {loading ? 'Connexion...' : 'Se connecter'}
-            </button>
-
-            <p className="mt-5 text-center text-[13px] text-slate-400">
-              Accès sécurisé au Backoffice Skignas
-            </p>
-
-          </form>
-
-        </div>
-
-      </div>
-
-      {/* Right: image panel — masqué en dessous de lg, priorité au formulaire */}
-      <div className="hidden lg:flex lg:flex-1 lg:basis-[54%] min-w-0 p-5 pl-0">
-        <div className="relative w-full h-full rounded-[28px] overflow-hidden">
-          
-            <img src="/image.png" alt="" className="absolute inset-0 h-full w-full object-cover" />
-         
-        </div>
-      </div>
-
+        <p className="mt-4 text-[0.72rem] text-login-faint leading-relaxed">
+          Ce site est protégé par reCAPTCHA : les{' '}
+          <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="text-login-muted underline-offset-2 hover:underline">règles de confidentialité</a> et les{' '}
+          <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer" className="text-login-muted underline-offset-2 hover:underline">conditions d'utilisation</a> de Google s'appliquent.
+        </p>
+      </main>
     </div>
   )
 }

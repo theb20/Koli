@@ -48,6 +48,19 @@
   --event-gray: #ECEDE8;
   --day-selected-bg: #ECE8F7; --day-selected-text: #6B5BB5;
   --online: #22C55E;
+  /* Page de connexion — toujours sombre (fond animé), indépendante du thème */
+  --login-bg: #000000;
+  --login-card: #121212;
+  --login-card-border: #222222;
+  --login-field-border: #333333;
+  --login-logo-bg: #111111;
+  --login-text: #FFFFFF;
+  --login-muted: #888888;
+  --login-faint: #666666;
+  --login-cta: #EDEDED;
+  --login-cta-hover: #FFFFFF;
+  --login-cta-text: #000000;
+  --login-error: #FCA5A5;
   --overlay: rgba(22, 32, 28, 0.35);
   --fab-shadow: 0 6px 20px rgba(31, 74, 66, 0.25);
   --popover-shadow: 0 12px 32px rgba(22, 32, 28, 0.12);
@@ -111,6 +124,18 @@
   --color-day-selected: var(--day-selected-bg);
   --color-day-selected-ink: var(--day-selected-text);
   --color-online: var(--online);
+  --color-login-bg: var(--login-bg);
+  --color-login-card: var(--login-card);
+  --color-login-card-border: var(--login-card-border);
+  --color-login-field-border: var(--login-field-border);
+  --color-login-logo-bg: var(--login-logo-bg);
+  --color-login-text: var(--login-text);
+  --color-login-muted: var(--login-muted);
+  --color-login-faint: var(--login-faint);
+  --color-login-cta: var(--login-cta);
+  --color-login-cta-hover: var(--login-cta-hover);
+  --color-login-cta-text: var(--login-cta-text);
+  --color-login-error: var(--login-error);
   --color-overlay: var(--overlay);
 
   --radius-card: 18px;

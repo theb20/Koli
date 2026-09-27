@@ -27,12 +27,20 @@ async function refreshAccessToken(): Promise<string | null> {
   return refreshPromise
 }
 
+/* Routes d'authentification publiques : leur 401 est une réponse métier
+   (ex. mauvais mot de passe) à afficher dans le formulaire — jamais un
+   jeton expiré. Sans cette exclusion, un échec de connexion rechargeait
+   /login et effaçait le message d'erreur. */
+const PUBLIC_AUTH = ['/api/auth/refresh', '/api/auth/login', '/api/auth/forgot-password', '/api/auth/reset-password']
+
 /* ── 401 → tente un refresh une fois, sinon déconnexion ──── */
 api.interceptors.response.use(
   (res) => res,
   async (err) => {
     const original = err.config
-    const isRefreshCall = typeof original?.url === 'string' && original.url.includes('/api/auth/refresh')
+    const url = typeof original?.url === 'string' ? original.url : ''
+    if (PUBLIC_AUTH.some(p => url.includes(p))) return Promise.reject(err)
+    const isRefreshCall = url.includes('/api/auth/refresh')
 
     if (err.response?.status === 401 && original && !original._retried && !isRefreshCall) {
       original._retried = true
