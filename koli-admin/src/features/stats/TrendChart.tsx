@@ -41,7 +41,8 @@ export function TrendChart({ data, metric }: { data?: KpiResponse; metric: Metri
           </span>
         ) : undefined} />
       <div className="h-[300px] mt-6 -ml-2" role="img" aria-label={`Courbe ${m.label}`}>
-        <ResponsiveContainer width="100%" height="100%">
+        {/* initialDimension : évite l'avertissement « width(-1) » au premier rendu, avant la mesure du conteneur */}
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} initialDimension={{ width: 800, height: 300 }}>
           <AreaChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
             <defs>
               <linearGradient id="kpiFill" x1="0" y1="0" x2="0" y2="1">

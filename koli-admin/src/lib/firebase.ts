@@ -1,6 +1,5 @@
 import { initializeApp, getApps } from 'firebase/app'
 import { getAnalytics, isSupported } from 'firebase/analytics'
-import { getAuth, GoogleAuthProvider } from 'firebase/auth'
 
 /* ─────────────────────────────────────────
    CONFIG — valeurs dans .env
@@ -22,15 +21,10 @@ export const app = getApps().length === 0
   ? initializeApp(firebaseConfig)
   : getApps()[0]
 
-/* ─────────────────────────────────────────
-   AUTH
-───────────────────────────────────────── */
-export const auth = getAuth(app)
-
-export const googleProvider = new GoogleAuthProvider()
-googleProvider.addScope('email')
-googleProvider.addScope('profile')
-googleProvider.setCustomParameters({ prompt: 'select_account' })
+/* Pas de Firebase Auth : la connexion à l'admin passe par le JWT du
+   backend (/api/auth/login). L'initialiser pour rien interrogeait
+   identitytoolkit, en erreur CONFIGURATION_NOT_FOUND (Auth non activé
+   sur le projet Firebase de l'admin). */
 
 /* ─────────────────────────────────────────
    ANALYTICS — usage interne (backoffice), pas de bannière RGPD nécessaire
