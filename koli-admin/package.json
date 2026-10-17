@@ -24,7 +24,7 @@
     "motion": "^13.4.4",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "react-hook-form": "^7.76.1",
+    "react-hook-form": "^7.82.0",
     "react-router-dom": "^7.15.1",
     "recharts": "^3.8.1",
     "sonner": "^2.0.8",
