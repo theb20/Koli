@@ -79,7 +79,8 @@ app.use(cors({
   },
   credentials: true,   // cookies cross-origin
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  // Idempotency-Key : envoyé par les fronts sur les écritures (voir lib/idempotency.ts)
+  allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key'],
 }))
 
 /* ── Compression gzip — réduit la taille des réponses JSON ────── */
