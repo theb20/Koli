@@ -75,6 +75,121 @@ router.post('/', validate(checked), async (req, res) => {
   }
 })
 
+/* ─────────────────────────────────────────────────────────────
+   Produits à compléter — catalogue Skignas uniquement (Product.storeId
+   null : les boutiques marchandes ont leur commission dans merchantgo).
+   Déclarées AVANT /:id, sinon « sourcing » serait pris pour un identifiant.
+───────────────────────────────────────────────────────────── */
+const SOURCING_FILTERS = ['no_supplier', 'no_price', 'all'] as const
+type SourcingFilter = typeof SOURCING_FILTERS[number]
+
+/** Sans fournisseur : aucune fiche d'approvisionnement, ou fournisseur vide. */
+const NO_SUPPLIER = { OR: [{ sourcing: { is: null } }, { sourcing: { is: { supplierId: null } } }] }
+/** Sans prix d'achat alors qu'il est nécessaire (mode marge, ou pas de fournisseur = marge par défaut). */
+const NO_PRICE = {
+  OR: [
+    { sourcing: { is: null } },
+    { sourcing: { is: { supplierPrice: null, OR: [{ supplierId: null }, { supplier: { is: { mode: 'MARGIN' } } }] } } },
+  ],
+}
+const whereFor = (f: SourcingFilter, q?: string) => ({
+  storeId: null,
+  ...(f === 'no_supplier' ? NO_SUPPLIER : f === 'no_price' ? NO_PRICE : {}),
+  ...(q ? { OR: [{ name: { contains: q, mode: 'insensitive' as const } }, { brand: { contains: q, mode: 'insensitive' as const } }] } : {}),
+})
+
+const sourcingQuery = z.object({
+  filter: z.enum(SOURCING_FILTERS).default('no_supplier'),
+  q:      z.string().trim().max(100).optional(),
+  page:   z.coerce.number().int().min(1).default(1),
+  limit:  z.coerce.number().int().min(1).max(200).default(50),
+})
+
+/* ── GET /api/admin/suppliers/sourcing?filter=no_supplier|no_price|all&q=&page= ── */
+router.get('/sourcing', async (req, res) => {
+  const parsed = sourcingQuery.safeParse(req.query)
+  if (!parsed.success) { res.status(400).json({ success: false, message: 'Paramètres invalides' }); return }
+  const { filter, q, page, limit } = parsed.data
+  try {
+    // Un filtre de recherche (OR) et un filtre de statut (OR) ne peuvent pas cohabiter dans le même objet
+    const where = q ? { AND: [whereFor(filter), whereFor('all', q)] } : whereFor(filter)
+    const [total, products, noSupplier, noPrice, catalog] = await Promise.all([
+      prisma.product.count({ where }),
+      prisma.product.findMany({
+        where, orderBy: [{ isActive: 'desc' }, { sold: 'desc' }, { id: 'asc' }], skip: (page - 1) * limit, take: limit,
+        select: {
+          id: true, name: true, brand: true, category: true, price: true, isActive: true, sold: true,
+          images: { orderBy: { position: 'asc' }, take: 1, select: { url: true, thumbnailUrl: true } },
+          sourcing: { select: { supplierId: true, supplierPrice: true } },
+        },
+      }),
+      prisma.product.count({ where: whereFor('no_supplier') }),
+      prisma.product.count({ where: whereFor('no_price') }),
+      prisma.product.count({ where: whereFor('all') }),
+    ])
+    res.json({ success: true, data: {
+      counts: { noSupplier, noPrice, catalog },
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      products: products.map(({ images, sourcing, ...p }) => ({
+        ...p,
+        image: images[0]?.thumbnailUrl ?? images[0]?.url ?? null,
+        supplierId: sourcing?.supplierId ?? null,
+        supplierPrice: sourcing?.supplierPrice ?? null,
+      })),
+    } })
+  } catch (err) {
+    logger.error('[suppliers] sourcing list', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/*
+ * PUT /api/admin/suppliers/sourcing — correction EN MASSE. Chaque ligne ne
+ * modifie que les champs présents : { productId, supplierId? , supplierPrice? }
+ * (null = vider). Tout ou rien : une ligne invalide annule le lot.
+ * Ne s'applique qu'aux ventes FUTURES (les commandes payées ont figé leurs
+ * coûts) — voir lib/finance/snapshot.ts.
+ */
+const bulkSourcingSchema = z.object({
+  items: z.array(z.object({
+    productId:     z.number().int().positive(),
+    supplierId:    z.number().int().positive().nullable().optional(),
+    supplierPrice: z.number().int().nonnegative().max(1_000_000_000).nullable().optional(),
+  }).refine(i => i.supplierId !== undefined || i.supplierPrice !== undefined, { message: 'Rien à modifier' })).min(1).max(500),
+})
+
+router.put('/sourcing', validate(bulkSourcingSchema), async (req, res) => {
+  const { items } = req.body as z.infer<typeof bulkSourcingSchema>
+  try {
+    const productIds = [...new Set(items.map(i => i.productId))]
+    if (productIds.length !== items.length) { res.status(400).json({ success: false, message: 'Un produit apparaît plusieurs fois dans le lot' }); return }
+    const supplierIds = [...new Set(items.map(i => i.supplierId).filter((v): v is number => typeof v === 'number'))]
+    const [products, suppliers] = await Promise.all([
+      prisma.product.findMany({ where: { id: { in: productIds } }, select: { id: true, storeId: true } }),
+      prisma.supplier.findMany({ where: { id: { in: supplierIds } }, select: { id: true } }),
+    ])
+    const missing = productIds.filter(id => !products.some(p => p.id === id))
+    if (missing.length) { res.status(400).json({ success: false, message: `Produit(s) introuvable(s) : ${missing.join(', ')}` }); return }
+    const merchant = products.filter(p => p.storeId !== null).map(p => p.id)
+    if (merchant.length) { res.status(400).json({ success: false, message: `Produit(s) de boutique marchande, non concernés : ${merchant.join(', ')}` }); return }
+    const unknownSuppliers = supplierIds.filter(id => !suppliers.some(s => s.id === id))
+    if (unknownSuppliers.length) { res.status(400).json({ success: false, message: `Fournisseur(s) introuvable(s) : ${unknownSuppliers.join(', ')}` }); return }
+
+    await prisma.$transaction(items.map(i => {
+      const data = {
+        ...(i.supplierId !== undefined ? { supplierId: i.supplierId } : {}),
+        ...(i.supplierPrice !== undefined ? { supplierPrice: i.supplierPrice } : {}),
+      }
+      return prisma.productSourcing.upsert({ where: { productId: i.productId }, create: { productId: i.productId, ...data }, update: data })
+    }))
+    logAdminAction(req, { action: 'productSourcing.bulkUpdate', targetType: 'Product', targetId: productIds.slice(0, 20).join(','), metadata: { count: items.length, supplierIds } })
+    res.json({ success: true, data: { updated: items.length } })
+  } catch (err) {
+    logger.error('[suppliers] sourcing bulk', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
 /* ── PUT /api/admin/suppliers/:id ── */
 router.put('/:id', validateParams(zIntIdParam), validate(supplierSchema.partial()), async (req, res) => {
   try {
