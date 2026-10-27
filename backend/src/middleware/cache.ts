@@ -13,8 +13,10 @@ import type { Request, Response, NextFunction } from 'express'
  * partagée entre origines différentes.
  */
 export function cacheControl(maxAgeSeconds: number) {
-  return (_req: Request, res: Response, next: NextFunction): void => {
-    res.set('Cache-Control', `private, max-age=${maxAgeSeconds}`)
+  return (req: Request, res: Response, next: NextFunction): void => {
+    // Admin (req.user posé par optionalAuth en amont) : jamais de cache
+    // navigateur, sinon une fiche/liste modifiée reste affichée périmée.
+    res.set('Cache-Control', req.user?.role === 'admin' ? 'no-store' : `private, max-age=${maxAgeSeconds}`)
     next()
   }
 }

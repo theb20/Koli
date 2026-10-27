@@ -30,6 +30,10 @@ function set(key: string, body: unknown, ttlSeconds: number): void {
 export function memoryCache(ttlSeconds: number, options: { varyByAuth?: boolean } = {}) {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (options.varyByAuth && req.user) { next(); return }
+    // Le back-office doit toujours lire l'état réel (stock, prix…) : sans ça,
+    // la liste admin réaffichait jusqu'à TTL secondes l'ancienne valeur après
+    // une modification. Effectif là où req.user est connu (optionalAuth avant).
+    if (req.user?.role === 'admin') { next(); return }
 
     const key = req.originalUrl
     const cached = store.get(key)

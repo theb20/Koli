@@ -20,7 +20,8 @@ const schema = z.object({
   price:       z.coerce.number().int('Entier requis').positive('Prix requis').min(1, 'Min 1 F CFA'),
   oldPrice:    z.coerce.number().int().positive().optional().or(z.literal('')),
   badge:       z.enum(['hot', 'new', 'sale', 'top', '']).optional(),
-  stock:       z.coerce.number().int().nonnegative(),
+  // Champ vide → erreur « requis » (z.coerce.number() seul le transformait en 0 = rupture silencieuse)
+  stock:       z.preprocess(v => (v === '' ? undefined : v), z.coerce.number({ error: 'Stock requis' }).int('Nombre entier requis').nonnegative('Le stock ne peut pas être négatif')),
   isNew:       z.boolean(),
   description: z.string().optional(),
   images:      z.array(z.object({ url: z.string().url('URL invalide') })).min(1, 'Au moins 1 image'),
@@ -67,6 +68,13 @@ const BADGES = [
   { value: 'new', label: 'Nouveau ✨' }, { value: 'sale', label: 'Promo 💰' },
   { value: 'top', label: 'Top ⭐' },
 ]
+
+/** Message d'erreur API + champs refusés (« Données invalides » seul ne disait pas lequel). */
+function apiErrorText(error: unknown): string {
+  const data = (error as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }).response?.data
+  const fields = Object.entries(data?.errors ?? {}).map(([field, msgs]) => `${field} : ${msgs.join(', ')}`)
+  return [data?.message ?? "Erreur lors de l'enregistrement", ...fields].join(' — ')
+}
 
 function fmtPreview(raw: string | number) {
   const n = Number(raw)
@@ -146,6 +154,7 @@ export default function ProductFormPage() {
       : api.post('/api/products', body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['products'] })
+      qc.removeQueries({ queryKey: ['product', id] }) // pas de fiche périmée à la réouverture
       qc.invalidateQueries({ queryKey: ['product-sourcing', id] })
       qc.invalidateQueries({ queryKey: ['suppliers'] })
       navigate('/products')
@@ -222,7 +231,7 @@ export default function ProductFormPage() {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         {mutation.isError && (
           <div className="bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-xl">
-            {(mutation.error as { response?: { data?: { message?: string } } }).response?.data?.message ?? "Erreur lors de l'enregistrement"}
+            {apiErrorText(mutation.error)}
           </div>
         )}
 
