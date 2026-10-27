@@ -14,7 +14,8 @@ import { getVatRatePercent } from '../lib/finance/vat'
 import { requestOrderReview } from '../lib/orderReview'
 import { getLoyaltySettings } from './loyalty'
 import { createWinipayerPayment, isMerchantgoConfigured, refreshWinipayerPayment } from '../lib/merchantgo'
-import type { Request } from 'express'
+import type { Request, Response } from 'express'
+import type { Order } from '@prisma/client'
 
 const router = Router()
 
@@ -106,6 +107,60 @@ type OrderStatusValue = typeof ORDER_STATUSES[number]
  *   de passerelle de paiement réelle ici : la progression du statut par un admin
  *   fait office de confirmation manuelle du paiement.
  */
+/**
+ * Lien de paiement WiniPayer d'une commande en ligne (via merchantgo) —
+ * idempotent : merchantgo renvoie la tentative encore en attente de la
+ * commande au lieu d'en ouvrir une nouvelle, donc rappeler cette fonction
+ * (rejeu d'une commande déjà créée) redonne le MÊME lien. Si merchantgo/
+ * WiniPayer est indisponible, la commande reste créée (dégradation).
+ */
+async function orderPaymentUrl(order: { id: string; orderNumber: string; total: number }): Promise<string | undefined> {
+  if (!isMerchantgoConfigured()) return undefined
+  try {
+    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:5173'
+    const payment = await createWinipayerPayment({
+      orderId:     order.id,
+      orderNumber: order.orderNumber,
+      amount:      order.total,
+      description: `Commande ${order.orderNumber} — Skignas`,
+      // Les deux pointent vers la même page neutre de vérification —
+      // jamais vers la page de commande directement, et jamais de
+      // distinction basée sur laquelle des deux URLs WiniPayer a
+      // effectivement utilisée : seul POST /:id/verify-payment fait foi.
+      returnUrl:   `${frontendUrl}/paiement/verification/${order.orderNumber}`,
+      cancelUrl:   `${frontendUrl}/paiement/verification/${order.orderNumber}`,
+    })
+    await prisma.order.update({ where: { id: order.id }, data: { winipayerRef: payment.data.providerRef } })
+    return payment.data.checkoutUrl
+  } catch (err) {
+    logger.error('[orders] échec création paiement WiniPayer', order.orderNumber, err)
+    return undefined
+  }
+}
+
+/**
+ * Réponse à une commande déjà créée (même clientRequestId : double-clic,
+ * retry réseau). Reprend le lien de paiement si la commande en ligne attend
+ * encore son paiement — sans lui, la réponse rejouée ne redirigeait pas le
+ * client vers WiniPayer.
+ */
+async function replyExistingOrder(res: Response, existing: Order) {
+  const awaitingPayment = existing.paymentMethod !== 'cash' && existing.paymentStatus === 'pending' && existing.status !== 'cancelled'
+  res.status(200).json({
+    success: true,
+    message: 'Commande déjà créée',
+    data: {
+      orderNumber:   existing.orderNumber,
+      orderId:       existing.id,
+      total:         existing.total,
+      shippingCost:  existing.shippingCost,
+      promoDiscount: existing.promoDiscount,
+      pointsEarned:  existing.pointsEarned,
+      paymentUrl:    awaitingPayment ? await orderPaymentUrl(existing) : undefined,
+    },
+  })
+}
+
 export async function applyOrderStatusChange(orderId: string, status: OrderStatusValue) {
   const result = await prisma.$transaction(async (tx) => {
     const order = await tx.order.findUnique({ where: { id: orderId }, include: { items: true } })
@@ -217,18 +272,7 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
     if (body.clientRequestId) {
       const existing = await prisma.order.findUnique({ where: { clientRequestId: body.clientRequestId } })
       if (existing) {
-        res.status(200).json({
-          success: true,
-          message: 'Commande déjà créée',
-          data: {
-            orderNumber:   existing.orderNumber,
-            orderId:       existing.id,
-            total:         existing.total,
-            shippingCost:  existing.shippingCost,
-            promoDiscount: existing.promoDiscount,
-            pointsEarned:  existing.pointsEarned,
-          },
-        })
+        await replyExistingOrder(res, existing)
         return
       }
     }
@@ -591,28 +635,7 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
     //    pour un incident côté prestataire de paiement. PayDunya reste dans
     //    le code (désactivé, isPaydunyaConfigured non appelé ici) comme
     //    filet de secours en cas de bascule arrière.
-    let paymentUrl: string | undefined
-    if (body.paymentMethod !== 'cash' && isMerchantgoConfigured()) {
-      try {
-        const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:5173'
-        const payment = await createWinipayerPayment({
-          orderId:     order.id,
-          orderNumber,
-          amount:      order.total,
-          description: `Commande ${orderNumber} — Skignas`,
-          // Les deux pointent vers la même page neutre de vérification —
-          // jamais vers la page de commande directement, et jamais de
-          // distinction basée sur laquelle des deux URLs WiniPayer a
-          // effectivement utilisée : seul POST /:id/verify-payment fait foi.
-          returnUrl:   `${frontendUrl}/paiement/verification/${orderNumber}`,
-          cancelUrl:   `${frontendUrl}/paiement/verification/${orderNumber}`,
-        })
-        await prisma.order.update({ where: { id: order.id }, data: { winipayerRef: payment.data.providerRef } })
-        paymentUrl = payment.data.checkoutUrl
-      } catch (err) {
-        logger.error('[orders] échec création paiement WiniPayer', orderNumber, err)
-      }
-    }
+    const paymentUrl = body.paymentMethod !== 'cash' ? await orderPaymentUrl(order) : undefined
 
     res.status(201).json({
       success: true,
@@ -640,18 +663,7 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
         ? await prisma.order.findUnique({ where: { clientRequestId } })
         : null
       if (existing) {
-        res.status(200).json({
-          success: true,
-          message: 'Commande déjà créée',
-          data: {
-            orderNumber:   existing.orderNumber,
-            orderId:       existing.id,
-            total:         existing.total,
-            shippingCost:  existing.shippingCost,
-            promoDiscount: existing.promoDiscount,
-            pointsEarned:  existing.pointsEarned,
-          },
-        })
+        await replyExistingOrder(res, existing)
         return
       }
     }

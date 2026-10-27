@@ -1020,3 +1020,29 @@ model MerchantSyncItem {
   @@index([runId, status])
   @@map("merchant_sync_items")
 }
+
+/// Clés d'idempotence — en-tête HTTP `Idempotency-Key` sur les requêtes
+/// d'écriture (voir middleware/idempotency.ts). Une même clé rejouée par le
+/// même utilisateur renvoie la réponse enregistrée au lieu de ré-exécuter
+/// l'action (double-clic, retry réseau). Purgées après expiration (24 h).
+model IdempotencyKey {
+  id           String   @id @default(cuid())
+  /// "u:<userId>" si authentifié, "anon" sinon — une clé n'est jamais
+  /// rejouable par un autre utilisateur.
+  scope        String
+  key          String
+  /// sha256(méthode + URL + corps) — la même clé avec une autre requête est refusée (422)
+  fingerprint  String
+  /// "processing" | "completed"
+  status       String   @default("processing")
+  responseCode Int?
+  responseBody Json?
+  /// Début du traitement en cours — au-delà de 60 s, considéré abandonné (repris)
+  lockedAt     DateTime @default(now())
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  @@unique([scope, key])
+  @@index([expiresAt])
+  @@map("idempotency_keys")
+}

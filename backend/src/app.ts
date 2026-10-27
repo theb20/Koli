@@ -58,6 +58,7 @@ import merchantApplicationsRouter from './routes/merchant-applications'
 import subscriptionPlansRouter    from './routes/subscription-plans'
 import adminSellersRouter          from './routes/admin-sellers'
 import internalRouter              from './routes/internal'
+import { idempotency } from './middleware/idempotency'
 
 const app = express()
 
@@ -79,8 +80,8 @@ app.use(cors({
   },
   credentials: true,   // cookies cross-origin
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  // Idempotency-Key : envoyé par les fronts sur les écritures (voir lib/idempotency.ts)
   allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key'],
+  exposedHeaders: ['Idempotent-Replayed'],
 }))
 
 /* ── Compression gzip — réduit la taille des réponses JSON ────── */
@@ -190,6 +191,9 @@ app.use(cookieParser())
 
 /* ── HPP — neutralise la pollution de paramètres HTTP (ex: ?role=customer&role=admin) ── */
 app.use(hpp())
+
+/* ── Idempotence des écritures (en-tête Idempotency-Key) — voir middleware/idempotency.ts ── */
+app.use('/api', idempotency({ exclude: [/^\/auth(\/|$)/, /^\/internal(\/|$)/, /^\/payments(\/|$)/] }))
 
 /* ── Logging ────────────────────────────────────────────────── */
 if (process.env.NODE_ENV === 'development') {
