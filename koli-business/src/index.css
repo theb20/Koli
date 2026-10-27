@@ -1,5 +1,25 @@
 @import "tailwindcss";
 
+/* Héro (components/ResponsiveHeroBanner.tsx) : titre en Instrument Serif +
+   apparition en fondu décalée des blocs (1 → 4). */
+@theme {
+  --font-instrument-serif: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+}
+
+@keyframes fade-slide-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@utility animate-fade-slide-in-1 { animation: fade-slide-in 0.6s ease-out 0.05s both; }
+@utility animate-fade-slide-in-2 { animation: fade-slide-in 0.6s ease-out 0.15s both; }
+@utility animate-fade-slide-in-3 { animation: fade-slide-in 0.6s ease-out 0.25s both; }
+@utility animate-fade-slide-in-4 { animation: fade-slide-in 0.6s ease-out 0.35s both; }
+
+@media (prefers-reduced-motion: reduce) {
+  [class*="animate-fade-slide-in"] { animation: none; }
+}
+
 body {
   background: #f7f7f5;
   color: #111111;

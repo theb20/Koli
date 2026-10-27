@@ -1,7 +1,11 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { Zap, ShieldCheck, LineChart, Truck, Wallet, Headset, ArrowRight, ChevronLeft, ChevronRight, Plus, Minus, Quote, Check } from 'lucide-react'
+import { Zap, ShieldCheck, LineChart, Truck, Wallet, Headset, ArrowRight, ChevronLeft, ChevronRight, Plus, Minus, Quote } from 'lucide-react'
 import { getSubscriptionPlans, type SubscriptionPlan } from '../lib/api'
+import ResponsiveHeroBanner from '../components/ResponsiveHeroBanner'
+import { PricingSection } from '../components/pricing/PricingSection'
+import { planToTier } from '../components/pricing/pricing'
+import BlackHoleCta from '../components/BlackHoleCta'
 
 const BENEFITS = [
   { icon: Zap,         title: 'Mise en ligne simple',    desc: 'Ajoutez un produit en moins de 2 minutes, photos comprises.' },
@@ -165,15 +169,6 @@ function StatsScreen() {
   )
 }
 
-function parseFeatures(raw: string): string[] {
-  try {
-    const arr = JSON.parse(raw)
-    return Array.isArray(arr) ? arr.filter((f): f is string => typeof f === 'string') : []
-  } catch {
-    return []
-  }
-}
-
 export default function HomePage() {
   const [openFaq, setOpenFaq] = useState(0)
   const [walkIndex, setWalkIndex] = useState(0)
@@ -189,59 +184,8 @@ export default function HomePage() {
 
   return (
     <div className="bg-white">
-      {/* ── Header ───────────────────────────────────────────── */}
-      <div className="bg-[#0c0c0c] text-[#f4f4f2]">
-        <header className="flex items-center justify-between px-8 lg:px-14 py-5 border-b border-[#262626]">
-          <img src="/logo-skignas.png" alt="Skignas" width={130} height={43} decoding="async" className="h-8 w-auto invert" />
-          <nav className="hidden md:flex items-center gap-7 text-sm">
-            
-            <a href="#comment-ca-marche" className="text-[#d8d8d8] hover:text-white transition-colors">Comment ça marche</a>
-            <a href="#tarifs" className="text-[#d8d8d8] hover:text-white transition-colors">Tarifs</a>
-            <a href="#" className="text-[#d8d8d8] hover:text-white transition-colors">Aide</a>
-            <Link to="https://me.skignas.com/connexion" className="text-[#d8d8d8] hover:text-white transition-colors">Se connecter</Link>
-            <Link to="/inscription" className="bg-[#f4f4f2] text-[#111] rounded-md px-5 py-2.5 text-sm font-bold hover:bg-white transition-colors">
-              Devenir marchand
-            </Link>
-          </nav>
-        </header>
-      </div>
-
-      {/* ── Héro — photo plein cadre + carte CTA flottante ────── */}
-      <section className="relative h-[520px] lg:h-[620px] overflow-hidden">
-        <img
-          src="/og-1.png"
-          alt=""
-          width={1910}
-          height={823}
-          decoding="async"
-          fetchPriority="high"
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/35 to-transparent" />
-
-        <div className="absolute inset-x-6 lg:inset-x-14 bottom-8 lg:bottom-16 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
-          <div className="max-w-xl">
-            <h1 className="text-4xl lg:text-[54px] font-extrabold leading-[1.02] tracking-tight text-white">
-              Votre boutique.<br />Votre business.<br />Skignas s'occupe du reste.
-            </h1>
-            <p className="text-[#e0e0e4] text-base lg:text-lg leading-snug mt-5">
-              Publiez vos produits, suivez vos commandes et recevez vos paiements.
-            </p>
-          </div>
-
-          <Link
-            to="/inscription"
-            className="w-full lg:w-[420px] shrink-0 bg-white rounded-2xl px-8 py-8 flex items-center justify-between gap-5 text-[#0a0a0b] hover:bg-[#f4f4f2] transition-colors"
-          >
-            <span className="text-lg lg:text-xl font-extrabold leading-snug tracking-tight">
-              Créez votre compte et commencez à vendre !
-            </span>
-            <span className="w-12 h-12 shrink-0 rounded-full bg-[#111] text-white flex items-center justify-center">
-              <ArrowRight size={20} />
-            </span>
-          </Link>
-        </div>
-      </section>
+      {/* ── En-tête + héro plein écran (menu, accroche, CTA) ──── */}
+      <ResponsiveHeroBanner />
 
       {/* ── Avantages ──────────────────────────────────────────── */}
       <section id="avantages" className="px-8 lg:px-14 py-16 lg:py-20 flex flex-col gap-10">
@@ -353,65 +297,12 @@ export default function HomePage() {
 
       {/* ── Tarifs ──────────────────────────────────────────────── */}
       {plans.length > 0 && (
-        <section id="tarifs" className="px-8 lg:px-14 py-16 lg:py-20 flex flex-col gap-10">
-          <div className="flex flex-col gap-3 max-w-2xl">
-            <h2 className="text-2xl lg:text-[30px] font-extrabold tracking-tight text-[#111]">Un modèle pour chaque activité</h2>
-            <p className="text-[#6f6f6f] text-[15px] leading-relaxed">
-              Démarrez en commission, sans engagement, ou passez à un abonnement pour réduire votre taux de commission à mesure que vous vendez plus.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {plans.map(plan => {
-              const features = parseFeatures(plan.features)
-              const highlighted = plan.slug === 'pro'
-              return (
-                <div
-                  key={plan.id}
-                  className={`flex flex-col gap-6 rounded-2xl p-7 ${
-                    highlighted ? 'bg-[#0c0c0c] text-white' : 'border border-[#ebebeb] text-[#111]'
-                  }`}
-                >
-                  <div className="flex flex-col gap-1.5">
-                    <span className={`text-base font-extrabold ${highlighted ? 'text-white' : 'text-[#111]'}`}>{plan.name}</span>
-                    <span className={`text-[13px] ${highlighted ? 'text-[#c8c8ce]' : 'text-[#6f6f6f]'}`}>
-                      Commission {plan.commission_rate}%
-                    </span>
-                  </div>
-
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-3xl font-extrabold tracking-tight">
-                      {plan.price_monthly === 0 ? 'Sur devis' : `${plan.price_monthly.toLocaleString('fr-FR')} FCFA`}
-                    </span>
-                    {plan.price_monthly > 0 && (
-                      <span className={`text-sm ${highlighted ? 'text-[#c8c8ce]' : 'text-[#6f6f6f]'}`}>/mois</span>
-                    )}
-                  </div>
-
-                  <ul className="flex flex-col gap-2.5 flex-1">
-                    {features.map(f => (
-                      <li key={f} className="flex items-start gap-2.5 text-sm">
-                        <Check size={16} strokeWidth={2.5} className={highlighted ? 'text-white shrink-0 mt-0.5' : 'text-[#111] shrink-0 mt-0.5'} />
-                        <span className={highlighted ? 'text-[#e0e0e4]' : 'text-[#4a4a52]'}>{f}</span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  <Link
-                    to="/inscription"
-                    className={`text-center rounded-full py-3.5 text-sm font-extrabold tracking-wide uppercase transition-colors ${
-                      highlighted
-                        ? 'bg-white text-[#111] hover:bg-[#f4f4f2]'
-                        : 'bg-black text-white hover:bg-[#c8281f]'
-                    }`}
-                  >
-                    Choisir ce plan
-                  </Link>
-                </div>
-              )
-            })}
-          </div>
-        </section>
+        <PricingSection
+          id="tarifs"
+          title="Un modèle pour chaque activité"
+          subtitle="Démarrez gratuitement, sans engagement, ou passez à un abonnement pour réduire votre taux de commission à mesure que vous vendez plus."
+          tiers={[...plans].sort((a, b) => a.position - b.position).map(planToTier)}
+        />
       )}
 
       {/* ── Bandeau inscription (photo + carte) ────────────────── */}
@@ -500,16 +391,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── CTA banner ─────────────────────────────────────────── */}
-      <section className="bg-[#0c0c0c] text-[#f4f4f2] px-8 lg:px-14 py-12 lg:py-14 flex flex-col sm:flex-row items-center justify-between gap-8">
-        <div className="flex flex-col gap-2 text-center sm:text-left">
-          <span className="text-2xl lg:text-[28px] font-extrabold tracking-tight">Prêt à développer vos ventes ?</span>
-          <span className="text-[#9a9a9a] text-[15px]">Rejoignez plus de 12 500 marchands sur Skignas.</span>
-        </div>
-        <Link to="/inscription" className="shrink-0 bg-[#f4f4f2] text-[#111] rounded-lg px-8 py-4 text-[15px] font-bold hover:bg-white transition-colors whitespace-nowrap">
-          Devenir marchand
-        </Link>
-      </section>
+      {/* ── Appel à l'action final, sur le trou noir animé (WebGL) ── */}
+      <BlackHoleCta />
 
       {/* ── Footer ─────────────────────────────────────────────── */}
       <footer className="flex flex-col sm:flex-row items-center justify-between gap-3 px-8 lg:px-14 py-5 border-t border-[#ebebeb] text-[#9a9a9a] text-[13px]">
