@@ -4,5 +4,8 @@
 			"path": "../../.."
 		}
 	],
-	"settings": {}
+	"settings": {},
+	"trae": {
+		"workspaceId": "3815d594fb4cbc6814c04defa204ae67"
+	}
 }
