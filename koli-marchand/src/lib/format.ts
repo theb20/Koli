@@ -1,5 +1,6 @@
+/** 48000 → « 48 000 F CFA » (XOF, entier, séparateur de milliers insécable) */
 export const fmtFcfa = (n: number) =>
-  Math.round(n).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA'
+  `${Math.round(n).toLocaleString('fr-FR', { maximumFractionDigits: 0 }).replace(/[\u202F\u00A0 ]/g, '\u00A0')}\u00A0F\u00A0CFA`
 
 export const fmtNumber = (n: number) => n.toLocaleString('fr-FR')
 

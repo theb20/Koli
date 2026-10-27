@@ -1,69 +1,60 @@
-/* ── Cockpit marchand — types dédiés ─────────────────────────
-   Tout ici correspond à une vraie source de données (GET /api/seller/
-   dashboard/summary côté backend/, ou merchantgo pour la commission/le
-   solde). Aucun champ "visiteurs"/"conversion" — aucun tracking de
-   trafic n'existe dans la plateforme, mieux vaut l'absence du champ
-   qu'une valeur inventée. */
+/* ── Tableau de bord marchand — types dédiés ─────────────────
+   Chaque indicateur correspond à une fiche du dictionnaire des métriques
+   (backend/src/lib/sellerMetrics/dictionary.ts). Aucun champ « visiteurs »
+   ou « conversion » : aucun suivi de trafic n'existe encore — mieux vaut
+   l'absence du champ qu'une valeur inventée. */
 
-export type DashboardPeriod = 'today' | '7d' | '30d' | '12m' | 'custom'
+/* Préréglages de période — les bornes sont calculées par le SERVEUR, en
+   Africa/Abidjan (GET /api/seller/overview?preset=…), jamais dans le
+   navigateur (dont le fuseau peut différer). */
+export type DashboardPeriod = 'today' | 'yesterday' | '7d' | '30d' | 'month' | 'lastMonth' | 'quarter' | 'year' | 'custom'
 
 export interface PeriodRange {
   key: DashboardPeriod
   label: string
-  from: Date
-  to: Date
+  /** AAAA-MM-JJ, inclus — seulement pour « Personnalisé » */
+  from?: string
+  to?: string
 }
 
-export interface TrendMetric {
+/* ── Accueil (GET /api/seller/overview) — chaque indicateur correspond à
+   une fiche du dictionnaire (GET /api/seller/metrics/dictionary). ── */
+export interface OverviewDelta { abs: number; pct: number | null }
+
+export interface OverviewKpi {
   current: number
   previous: number
-  changePct: number
+  lastYear: number
+  vsPrevious: OverviewDelta
+  vsLastYear: OverviewDelta
+  sparkline: number[] | null
 }
 
-export interface SeriesPoint {
-  date: string
-  label: string
-  amount: number
+export interface SellerOverview {
+  preset: DashboardPeriod
+  period: { from: string; to: string; timezone: string }
+  kpis: {
+    revenueHt: OverviewKpi
+    validOrders: OverviewKpi
+    avgBasket: OverviewKpi
+    newCustomers: OverviewKpi
+    netRevenue: OverviewKpi & { coveragePct: number | null }
+    returnRate: OverviewKpi & { returnedUnits: number; returnedValue: number }
+    stockAtRisk: { current: number; atRisk: number; outOfStock: number; products: { id: number; name: string; stock: number; days: number }[] }
+  }
+  alerts: { id: string; severity: 'critical' | 'warning' | 'info'; title: string; detail: string; link: string }[]
 }
 
-export interface OrdersSeriesPoint {
-  date: string
-  label: string
-  count: number
+export interface MetricDefinition {
+  id: string
+  name: string
+  definition: string
+  formula: string
+  included: string
+  excluded: string
+  source: string
+  refresh: string
+  owner: string
 }
 
-export interface DashboardSummary {
-  period: { from: string; to: string; granularity: 'day' | 'month' }
-  revenue: TrendMetric
-  orders: TrendMetric
-  avgBasket: TrendMetric
-  products: { active: number; outOfStock: number }
-  customers: { active: number; new: number; loyal: number }
-  reviews: { count: number; avgRating: number }
-  returns: { count: number }
-  favorites: { count: number }
-  revenueSeries: SeriesPoint[]
-  ordersSeries: OrdersSeriesPoint[]
-}
 
-/* Ajoutées côté client à partir de merchantgo (jamais calculées par
-   backend/ — cf. règle d'architecture paiements) une fois le taux de
-   commission réel du marchand connu. */
-export interface DashboardFinance {
-  commissionRate: number
-  commission: number
-  netRevenue: number
-  netRevenueSeries: SeriesPoint[]
-  walletBalance: number
-}
-
-export type KpiColor = 'blue' | 'green' | 'orange' | 'red' | 'purple' | 'slate'
-
-export interface KpiCardData {
-  key: string
-  label: string
-  value: string
-  changePct?: number
-  sparkline?: number[]
-  color: KpiColor
-}

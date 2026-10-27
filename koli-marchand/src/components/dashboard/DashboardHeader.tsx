@@ -8,8 +8,9 @@ import type { DashboardPeriod } from '@/types/dashboard'
 interface DashboardHeaderProps {
   period: DashboardPeriod
   onPeriodChange: (period: DashboardPeriod) => void
-  customRange: { from: Date; to: Date } | null
-  onCustomRangeChange: (range: { from: Date; to: Date }) => void
+  /** Dates AAAA-MM-JJ incluses (fuseau Africa/Abidjan, interprétées par le serveur) */
+  customRange: { from: string; to: string } | null
+  onCustomRangeChange: (range: { from: string; to: string }) => void
 }
 
 /*
@@ -33,13 +34,19 @@ export function DashboardHeader({ period, onPeriodChange, customRange, onCustomR
   const [periodOpen, setPeriodOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
 
-  const periodLabel = PERIOD_OPTIONS.find((o) => o.key === period)?.label ?? '30 jours'
+  const periodLabel = PERIOD_OPTIONS.find((o) => o.key === period)?.label ?? '30 derniers jours'
+  // Saisie locale : la période n'est appliquée que quand les deux dates sont valides et dans l'ordre
+  const [draft, setDraft] = useState({ from: customRange?.from ?? '', to: customRange?.to ?? '' })
+  const applyDraft = (next: { from: string; to: string }) => {
+    setDraft(next)
+    if (next.from && next.to && next.from <= next.to) onCustomRangeChange(next)
+  }
 
   return (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
       <div>
         <h1 className="text-2xl font-extrabold text-[#0a0a0b] tracking-tight">Bonjour {firstName} 👋</h1>
-        <p className="text-sm text-[#6b6b68] mt-1">Résumé de la journée</p>
+        <p className="text-sm text-[#6b6b68] mt-1">Votre activité · {periodLabel.toLowerCase()}</p>
       </div>
 
       <div className="flex items-center gap-2.5">
@@ -78,11 +85,9 @@ export function DashboardHeader({ period, onPeriodChange, customRange, onCustomR
                       Du
                       <input
                         type="date"
-                        defaultValue={customRange?.from.toISOString().slice(0, 10)}
-                        onChange={(e) => {
-                          if (!e.target.value) return
-                          onCustomRangeChange({ from: new Date(e.target.value), to: customRange?.to ?? new Date() })
-                        }}
+                        value={draft.from}
+                        max={draft.to || undefined}
+                        onChange={(e) => applyDraft({ ...draft, from: e.target.value })}
                         className="rounded-lg border border-[#e8e8e4] px-2 py-1.5 text-sm"
                       />
                     </label>
@@ -90,11 +95,9 @@ export function DashboardHeader({ period, onPeriodChange, customRange, onCustomR
                       Au
                       <input
                         type="date"
-                        defaultValue={customRange?.to.toISOString().slice(0, 10)}
-                        onChange={(e) => {
-                          if (!e.target.value) return
-                          onCustomRangeChange({ from: customRange?.from ?? new Date(), to: new Date(e.target.value) })
-                        }}
+                        value={draft.to}
+                        min={draft.from || undefined}
+                        onChange={(e) => applyDraft({ ...draft, to: e.target.value })}
                         className="rounded-lg border border-[#e8e8e4] px-2 py-1.5 text-sm"
                       />
                     </label>

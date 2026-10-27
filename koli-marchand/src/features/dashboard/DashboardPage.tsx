@@ -1,154 +1,94 @@
-import {
-  DollarSign, Percent, ShoppingBag, ShoppingCart,
-  Package, AlertTriangle, Users, UserPlus, Repeat, Star, RotateCcw, Heart, Wallet, PiggyBank,
-} from 'lucide-react'
-import { PageHeader } from '@/components/ui/PageHeader'
-import { StatCard } from '@/components/ui/StatCard'
-import { KpiCard } from '@/components/cards/KpiCard'
-import { BarTrendChart } from '@/components/charts/BarTrendChart'
+import { useState } from 'react'
+import { DollarSign, ShoppingCart, ShoppingBag, UserPlus, Wallet, RotateCcw, PackageX, BookOpen } from 'lucide-react'
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader'
-import { fmtFcfa } from '@/lib/format'
 import { useDashboard } from './api/useDashboard'
-import { useDashboardFinance, useDashboardSummary } from './api/useDashboardSummary'
 import { usePeriod } from './hooks/usePeriod'
-import { RevenueChart } from './components/RevenueChart'
 import { BestSellers } from './components/BestSellers'
 import { RecentOrdersTable } from './components/RecentOrdersTable'
+import { useMetricsDictionary, useSellerOverview } from './overview/api'
+import { OverviewKpiCard } from './overview/OverviewKpiCard'
+import { AlertsPanel } from './overview/AlertsPanel'
+import { RevenueNotice } from './overview/RevenueNotice'
+import { DefinitionsDrawer } from './overview/DefinitionsDrawer'
+import { fmtInt, fmtRate, fmtXof } from './overview/format'
 
-const ICONS = {
-  revenue: DollarSign,
-  orders: ShoppingCart,
-  averageBasket: ShoppingBag,
-  conversionRate: Percent,
-} as const
-
+/**
+ * Accueil du tableau de bord marchand — 7 indicateurs du dictionnaire des
+ * métriques (calculés par le serveur, commandes payées uniquement), alertes
+ * actives, puis meilleures ventes et dernières commandes.
+ */
 export default function DashboardPage() {
-  // Widgets historiques (best-sellers, commandes récentes) — inchangés,
-  // toujours alimentés par /api/seller/dashboard tel quel.
-  const { data, isLoading } = useDashboard()
-
-  // Cockpit enrichi — nouvel endpoint dédié, période pilotée par le header.
   const { period, setPeriod, customRange, setCustomRange, range } = usePeriod()
-  const { data: summary, isLoading: summaryLoading } = useDashboardSummary(range)
-  const { data: finance } = useDashboardFinance(summary)
+  const { data, isLoading, isError, refetch, isPlaceholderData } = useSellerOverview(range)
+  const { data: dict } = useMetricsDictionary()
+  const { data: legacy } = useDashboard()
+  const [showDefs, setShowDefs] = useState(false)
+  const k = data?.kpis
+  const pts = (n: number) => `${n.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}\u00A0pt${Math.abs(n) >= 2 ? 's' : ''}`
 
   return (
     <div>
-      <DashboardHeader
-        period={period}
-        onPeriodChange={setPeriod}
-        customRange={customRange}
-        onCustomRangeChange={setCustomRange}
-      />
+      <DashboardHeader period={period} onPeriodChange={setPeriod} customRange={customRange} onCustomRangeChange={setCustomRange} />
+      <RevenueNotice onShowDefinitions={() => setShowDefs(true)} />
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3 mb-6">
-        {summaryLoading &&
-          Array.from({ length: 10 }).map((_, i) => (
-            <div key={i} className="h-[104px] rounded-2xl bg-white border border-[#e8e8e4] animate-pulse" />
-          ))}
-        {summary && (
-          <>
-            <KpiCard
-              label="Revenus"
-              value={fmtFcfa(summary.revenue.current)}
-              icon={<DollarSign size={18} />}
-              changePct={summary.revenue.changePct}
-              sparkline={summary.revenueSeries.map((p) => p.amount)}
-              color="blue"
-            />
-            <KpiCard
-              label="Commandes"
-              value={String(summary.orders.current)}
-              icon={<ShoppingCart size={18} />}
-              changePct={summary.orders.changePct}
-              sparkline={summary.ordersSeries.map((p) => p.count)}
-              color="blue"
-            />
-            <KpiCard
-              label="Panier moyen"
-              value={fmtFcfa(summary.avgBasket.current)}
-              icon={<ShoppingBag size={18} />}
-              changePct={summary.avgBasket.changePct}
-              color="slate"
-            />
-            <KpiCard label="Produits actifs" value={String(summary.products.active)} icon={<Package size={18} />} color="green" />
-            <KpiCard label="Produits en rupture" value={String(summary.products.outOfStock)} icon={<AlertTriangle size={18} />} color="red" />
-            <KpiCard label="Clients actifs" value={String(summary.customers.active)} icon={<Users size={18} />} color="purple" />
-            <KpiCard label="Nouveaux clients" value={String(summary.customers.new)} icon={<UserPlus size={18} />} color="blue" />
-            <KpiCard label="Clients fidèles" value={String(summary.customers.loyal)} icon={<Repeat size={18} />} color="purple" />
-            <KpiCard
-              label="Avis"
-              value={summary.reviews.count ? `${summary.reviews.count} · ${summary.reviews.avgRating}★` : '0'}
-              icon={<Star size={18} />}
-              color="orange"
-            />
-            <KpiCard label="Retours" value={String(summary.returns.count)} icon={<RotateCcw size={18} />} color="red" />
-            <KpiCard label="Produits favoris" value={String(summary.favorites.count)} icon={<Heart size={18} />} color="purple" />
-            {finance && (
-              <>
-                <KpiCard label="Commission Skignas" value={`${fmtFcfa(finance.commission)} (${finance.commissionRate}%)`} icon={<Percent size={18} />} color="slate" />
-                <KpiCard
-                  label="Revenus nets"
-                  value={fmtFcfa(finance.netRevenue)}
-                  icon={<Wallet size={18} />}
-                  sparkline={finance.netRevenueSeries.map((p) => p.amount)}
-                  color="green"
-                />
-                <KpiCard label="Solde disponible" value={fmtFcfa(finance.walletBalance)} icon={<PiggyBank size={18} />} color="green" />
-              </>
-            )}
-          </>
-        )}
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <h2 className="text-sm font-bold text-[#0a0a0b]">Indicateurs clés</h2>
+        <button type="button" onClick={() => setShowDefs(true)}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#6b6b68] hover:text-[#0a0a0b]">
+          <BookOpen size={14} aria-hidden /> Définitions
+        </button>
       </div>
 
-      {summary && (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6">
-          <BarTrendChart
-            title="Chiffre d'affaires"
-            data={summary.revenueSeries.map((p) => ({ date: p.date, label: p.label, value: p.amount }))}
-            color="#1E90FF"
-            formatValue={fmtFcfa}
-            formatAxis={(v) => `${Math.round(v / 1000)}k`}
-          />
-          <BarTrendChart
-            title="Commandes"
-            data={summary.ordersSeries.map((p) => ({ date: p.date, label: p.label, value: p.count }))}
-            color="#8b5cf6"
-            formatValue={(v) => `${v} commande${v > 1 ? 's' : ''}`}
-          />
+      {isError ? (
+        <div className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+          Impossible de charger les indicateurs. <button type="button" onClick={() => refetch()} className="font-semibold underline">Réessayer</button>
+        </div>
+      ) : (
+        <div className={`grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mb-6 transition-opacity ${isPlaceholderData ? 'opacity-60' : ''}`}
+          aria-busy={isLoading}>
+          {!k ? Array.from({ length: 7 }).map((_, i) => (
+            <div key={i} className="h-[178px] rounded-2xl bg-white border border-[#e8e8e4] animate-pulse" />
+          )) : (
+            <>
+              <OverviewKpiCard label="Chiffre d'affaires HT" value={fmtXof(k.revenueHt.current)} kpi={k.revenueHt} formatAbs={fmtXof}
+                definition={dict?.revenueHt} icon={<DollarSign size={16} />} accent="#1E90FF" />
+              <OverviewKpiCard label="Commandes valides" value={fmtInt(k.validOrders.current)} kpi={k.validOrders} formatAbs={fmtInt}
+                definition={dict?.validOrders} icon={<ShoppingCart size={16} />} accent="#8b5cf6" />
+              <OverviewKpiCard label="Panier moyen HT" value={fmtXof(k.avgBasket.current)} kpi={k.avgBasket} formatAbs={fmtXof}
+                definition={dict?.avgBasket} icon={<ShoppingBag size={16} />} accent="#0ea5e9" />
+              <OverviewKpiCard label="Nouveaux clients" value={fmtInt(k.newCustomers.current)} kpi={k.newCustomers} formatAbs={fmtInt}
+                definition={dict?.newCustomers} icon={<UserPlus size={16} />} accent="#f59e0b" />
+              {/* Net : jamais un « 0 F CFA » trompeur quand la commission est inconnue */}
+              {k.netRevenue.coveragePct === 0 ? (
+                <OverviewKpiCard label="Net perçu" value="Non disponible"
+                  definition={dict?.netRevenue} icon={<Wallet size={16} />} accent="#10b981"
+                  footnote="La commission de ces ventes n'a pas été enregistrée au paiement (ventes antérieures au 27 septembre 2026). Le net s'affichera pour les ventes suivantes." />
+              ) : (
+                <OverviewKpiCard label="Net perçu" value={fmtXof(k.netRevenue.current)} kpi={k.netRevenue} formatAbs={fmtXof}
+                  definition={dict?.netRevenue} icon={<Wallet size={16} />} accent="#10b981"
+                  footnote={k.netRevenue.coveragePct != null && k.netRevenue.coveragePct < 100
+                    ? <>Calculé sur {fmtRate(k.netRevenue.coveragePct)} du CA : la commission des ventes plus anciennes n'est pas connue.</>
+                    : undefined} />
+              )}
+              <OverviewKpiCard label="Taux de retour" value={fmtRate(k.returnRate.current)} kpi={k.returnRate} formatAbs={pts} invert
+                definition={dict?.returnRate} icon={<RotateCcw size={16} />} accent="#f43f5e"
+                footnote={k.returnRate.returnedUnits > 0 ? <>{fmtInt(k.returnRate.returnedUnits)} article(s), soit {fmtXof(k.returnRate.returnedValue)}</> : undefined} />
+              <OverviewKpiCard label="Stock à risque" value={`${fmtInt(k.stockAtRisk.current)} produit${k.stockAtRisk.current > 1 ? 's' : ''}`}
+                definition={dict?.stockAtRisk} icon={<PackageX size={16} />} accent="#64748b"
+                footnote={<>{fmtInt(k.stockAtRisk.outOfStock)} en rupture · {fmtInt(k.stockAtRisk.atRisk)} bientôt épuisé{k.stockAtRisk.atRisk > 1 ? 's' : ''} (moins de 7 j). Stock du jour, quelle que soit la période.</>} />
+            </>
+          )}
         </div>
       )}
-      {finance && (
-        <div className="mb-6">
-          <BarTrendChart
-            title="Profit net (après commission)"
-            data={finance.netRevenueSeries.map((p) => ({ date: p.date, label: p.label, value: p.amount }))}
-            color="#10b981"
-            formatValue={fmtFcfa}
-            formatAxis={(v) => `${Math.round(v / 1000)}k`}
-          />
-        </div>
-      )}
-
-      <PageHeader title="Vue d'ensemble" subtitle="Chiffre d'affaires, meilleures ventes et commandes des 30 derniers jours" />
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-        {isLoading &&
-          Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-[104px] rounded-2xl bg-white border border-[#e8e8e4] animate-pulse" />
-          ))}
-        {data?.kpis.map((kpi) => {
-          const Icon = ICONS[kpi.key]
-          return <StatCard key={kpi.key} title={kpi.label} value={kpi.value} change={kpi.change} icon={<Icon size={20} />} />
-        })}
-      </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-6">
-        <div className="xl:col-span-2">{data && <RevenueChart data={data.revenueByDay} />}</div>
-        <div>{data && <BestSellers products={data.bestSellers} />}</div>
+        <div>{data && <AlertsPanel alerts={data.alerts} />}</div>
+        <div className="xl:col-span-2">{legacy && <BestSellers products={legacy.bestSellers} />}</div>
       </div>
 
-      {data && <RecentOrdersTable orders={data.recentOrders} />}
+      {legacy && <RecentOrdersTable orders={legacy.recentOrders} />}
+
+      {showDefs && dict && <DefinitionsDrawer metrics={Object.values(dict)} onClose={() => setShowDefs(false)} />}
     </div>
   )
 }

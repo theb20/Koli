@@ -9,7 +9,9 @@ interface BestSellersProps {
 export function BestSellers({ products }: BestSellersProps) {
   return (
     <Card className="p-5">
-      <h2 className="font-bold text-[#0a0a0b] mb-4">Meilleures ventes</h2>
+      <h2 className="font-bold text-[#0a0a0b]">Meilleures ventes</h2>
+      {/* Classement depuis l'ouverture (commandes payées) — il ne suit pas encore le sélecteur de période */}
+      <p className="text-xs text-[#6b6b68] mt-0.5 mb-4">Depuis l'ouverture de la boutique, commandes payées</p>
       <ul className="space-y-3">
         {products.map((p, i) => (
           <li key={p.productId} className="flex items-center gap-3">
