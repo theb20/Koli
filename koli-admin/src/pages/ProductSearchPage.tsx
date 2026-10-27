@@ -115,7 +115,10 @@ export default function ProductSearchPage() {
                   <ul className="space-y-1">
                     {draft.specs.map((s, i) => (
                       <li key={i} className="flex gap-2">
-                        <input value={s.label} aria-label="Libellé" onChange={e => setDraft({ ...draft, specs: draft.specs.map((x, j) => j === i ? { ...x, label: e.target.value } : x) })} className={`${field} h-8 w-2/5`} />
+                        {/* !w-2/5 : `field` impose déjà w-full, qui sinon l'emporte sur w-2/5 (même
+                            spécificité CSS) — flex-basis se résout alors sur width:100%, l'input
+                            Libellé avale toute la ligne et écrase le champ Valeur (flex-1) à ~0 px. */}
+                        <input value={s.label} aria-label="Libellé" onChange={e => setDraft({ ...draft, specs: draft.specs.map((x, j) => j === i ? { ...x, label: e.target.value } : x) })} className={`${field} h-8 !w-2/5`} />
                         <input value={s.value} aria-label="Valeur" onChange={e => setDraft({ ...draft, specs: draft.specs.map((x, j) => j === i ? { ...x, value: e.target.value } : x) })} className={`${field} h-8 flex-1`} />
                         <button type="button" aria-label="Retirer" className="text-muted hover:text-ink px-1" onClick={() => setDraft({ ...draft, specs: draft.specs.filter((_, j) => j !== i) })}>×</button>
                       </li>
