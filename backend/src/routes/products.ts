@@ -23,6 +23,7 @@ import { logAdminAction } from '../lib/auditLog'
 import { scanBuffer } from '../lib/virusScan'
 import { DEFAULT_SUPPLIER_MODE, productPricing } from '../lib/finance/formulas'
 import { getVatRatePercent } from '../lib/finance/vat'
+import { productOgImage } from '../lib/ogImage'
 
 const router = Router()
 
@@ -316,6 +317,34 @@ router.get('/image-jpg/:filename', async (req, res) => {
    /api/products/sync-merchant dans app.ts — module plus large
    (jobs async, historique) qui ne tenait plus dans ce fichier.
 ───────────────────────────────────────────────────────────── */
+
+/* ─────────────────────────────────────────────────────────────
+   GET /api/products/:id/og-image.jpg — public. Image d'aperçu de partage
+   (balise og:image des pages produit pré-générées de koili) : JPEG
+   1200×630 à partir de la 1re photo du produit (voir lib/ogImage.ts).
+   Sans photo ou en cas d'échec : redirection vers l'image générique du site.
+───────────────────────────────────────────────────────────── */
+const OG_FALLBACK = 'https://skignas.com/wall/og-image.jpg'
+
+router.get('/:id/og-image.jpg', validateParams(zIntIdParam), async (req, res) => {
+  const id = Number(req.params['id'])
+  try {
+    const product = await prisma.product.findFirst({
+      where:  { id, isActive: true },
+      select: { images: { orderBy: { position: 'asc' }, take: 1, select: { url: true } } },
+    })
+    const source = product?.images[0]?.url
+    if (!source) { res.redirect(302, OG_FALLBACK); return }
+    const file = await productOgImage(id, source)
+    res.setHeader('Content-Type', 'image/jpeg')
+    // L'URL change avec la photo (paramètre ?v= posé par koili) : cache long sans risque
+    res.setHeader('Cache-Control', 'public, max-age=604800')
+    fs.createReadStream(file).pipe(res)
+  } catch (err) {
+    logger.warn('[products] image og indisponible', id, err instanceof Error ? err.message : err)
+    res.redirect(302, OG_FALLBACK)
+  }
+})
 
 /* ─────────────────────────────────────────────────────────────
    GET /api/products/:id
