@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -87,6 +87,8 @@ export default function ProductFormPage() {
   const navigate  = useNavigate()
   const qc        = useQueryClient()
   const isEdit    = !!id
+  /** Brouillon venu de « Recherche produit » (création uniquement) */
+  const prefill   = (useLocation().state as { prefill?: Partial<FormData> } | null)?.prefill
 
   /* Catégories dynamiques */
   const { data: catData } = useQuery({
@@ -117,7 +119,7 @@ export default function ProductFormPage() {
 
   const { register, control, handleSubmit, reset, watch, setValue, getValues, setError, formState: { errors, dirtyFields } } = useForm<FormData>({
     resolver: zodResolver(schema) as import('react-hook-form').Resolver<FormData>,
-    defaultValues: { images: [{ url: '' }], specs: [], isNew: false, stock: 100, category: '', assistanceEnabled: false, assistancePrice: DEFAULT_ASSISTANCE_PRICE, supplierId: '', supplierPrice: '' },
+    defaultValues: { images: [{ url: '' }], specs: [], isNew: false, stock: 100, category: '', assistanceEnabled: false, assistancePrice: DEFAULT_ASSISTANCE_PRICE, supplierId: '', supplierPrice: '', ...(isEdit ? {} : prefill) },
   })
 
   const { fields: imgFields, append: appendImg, remove: removeImg } = useFieldArray({ control, name: 'images' })

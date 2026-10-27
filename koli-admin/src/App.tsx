@@ -34,6 +34,7 @@ const PromoBannersPage = lazy(() => import('./pages/promo-banners/PromoBannersPa
 const SubscriptionPlansPage = lazy(() => import('./pages/plans/SubscriptionPlansPage'))
 const TaxPage = lazy(() => import('./pages/TaxPage'))
 const SuppliersPage = lazy(() => import('./pages/SuppliersPage'))
+const ProductSearchPage = lazy(() => import('./pages/ProductSearchPage'))
 const ProductSourcingPage = lazy(() => import('./pages/ProductSourcingPage'))
 const EmailTemplatesPage = lazy(() => import('./pages/EmailTemplatesPage'))
 const ReturnsPage = lazy(() => import('./pages/ReturnsPage'))
@@ -60,6 +61,7 @@ export default function App() {
             <Route path="/products"      element={<ProductsPage />} />
             <Route path="/products/new"  element={<ProductFormPage />} />
             <Route path="/products/:id"  element={<ProductFormPage />} />
+            <Route path="/product-search" element={<ProductSearchPage />} />
             <Route path="/deals"         element={<DealsPage />} />
             <Route path="/suppliers"     element={<SuppliersPage />} />
             <Route path="/suppliers/a-completer" element={<ProductSourcingPage />} />

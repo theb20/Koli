@@ -81,3 +81,16 @@ export async function searchPrices(query: string): Promise<PriceOffer[]> {
     .sort((a, b) => a.priceFcfa - b.priceFcfa)
     .slice(0, MAX_RESULTS)
 }
+
+/* Cache mémoire 24 h par requête : limite le coût de l'API (quota payant). */
+const CACHE_MS = 24 * 3600_000
+const cache = new Map<string, { at: number; offers: PriceOffer[] }>()
+
+export async function searchPricesCached(query: string, refresh = false): Promise<{ offers: PriceOffer[]; cached: boolean }> {
+  const key = query.toLowerCase()
+  const hit = cache.get(key)
+  if (hit && !refresh && Date.now() - hit.at < CACHE_MS) return { offers: hit.offers, cached: true }
+  const offers = await searchPrices(query)
+  cache.set(key, { at: Date.now(), offers })
+  return { offers, cached: false }
+}

@@ -13,7 +13,7 @@ import { validate, validateParams, zIntIdParam } from '../middleware/validate'
 import { logAdminAction } from '../lib/auditLog'
 import { logger } from '../lib/logger'
 import { SUPPLIER_MODES } from '../lib/finance/formulas'
-import { isPriceSearchConfigured, searchPrices, type PriceOffer } from '../lib/priceSearch'
+import { isPriceSearchConfigured, searchPricesCached } from '../lib/priceSearch'
 
 const router = Router()
 router.use(requireAdmin)
@@ -198,11 +198,8 @@ router.put('/sourcing', validate(bulkSourcingSchema), async (req, res) => {
 
 /*
  * POST /api/admin/suppliers/price-search { productId } — prix publics trouvés
- * sur Internet pour un produit du catalogue. Cache mémoire 24 h par produit
- * pour limiter le coût de l'API ; { refresh: true } force une nouvelle recherche.
+ * sur Internet pour un produit du catalogue (cache 24 h, voir lib/priceSearch) ; { refresh: true } force une nouvelle recherche.
  */
-const PRICE_CACHE_MS = 24 * 3600_000
-const priceCache = new Map<string, { at: number; offers: PriceOffer[] }>()
 const priceSearchSchema = z.object({ productId: z.number().int().positive(), refresh: z.boolean().optional() })
 
 router.post('/price-search', validate(priceSearchSchema), async (req, res) => {
@@ -212,15 +209,9 @@ router.post('/price-search', validate(priceSearchSchema), async (req, res) => {
     const product = await prisma.product.findUnique({ where: { id: productId }, select: { name: true, brand: true, storeId: true } })
     if (!product || product.storeId !== null) { res.status(404).json({ success: false, message: 'Produit introuvable' }); return }
     const query = [product.brand, product.name].filter(Boolean).join(' ').slice(0, 150)
-    const key = query.toLowerCase()
-    const hit = priceCache.get(key)
-    if (hit && !refresh && Date.now() - hit.at < PRICE_CACHE_MS) {
-      res.json({ success: true, data: { query, offers: hit.offers, cached: true } }); return
-    }
-    const offers = await searchPrices(query)
-    priceCache.set(key, { at: Date.now(), offers })
-    logAdminAction(req, { action: 'productSourcing.priceSearch', targetType: 'Product', targetId: String(productId) })
-    res.json({ success: true, data: { query, offers, cached: false } })
+    const { offers, cached } = await searchPricesCached(query, refresh)
+    if (!cached) logAdminAction(req, { action: 'productSourcing.priceSearch', targetType: 'Product', targetId: String(productId) })
+    res.json({ success: true, data: { query, offers, cached } })
   } catch (err) {
     logger.error('[suppliers] price search', err)
     res.status(502).json({ success: false, message: 'Le service de recherche de prix est indisponible' })

@@ -49,7 +49,7 @@ type GroqResponse = {
   }>
 }
 
-export async function chatCompletion(messages: ChatMessage[], tools?: ToolDefinition[]): Promise<GroqResponse> {
+export async function chatCompletion(messages: ChatMessage[], tools?: ToolDefinition[], opts?: { maxTokens?: number }): Promise<GroqResponse> {
   const apiKey = process.env.GROQ_API_KEY
   if (!apiKey) throw new Error('Groq non configuré (GROQ_API_KEY manquant)')
 
@@ -64,7 +64,7 @@ export async function chatCompletion(messages: ChatMessage[], tools?: ToolDefini
       messages,
       ...(tools ? { tools, tool_choice: 'auto' } : {}),
       temperature: 0.3,
-      max_tokens: 400,
+      max_tokens: opts?.maxTokens ?? 400,
     }),
   })
 

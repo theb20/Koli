@@ -2,7 +2,7 @@
 import {
   House, BarChart3, Bell, Package, Layers, Zap, PackageSearch, Star,
   ShoppingCart, RotateCcw, Tag, Percent, Store, Building2, Briefcase, CreditCard,
-  Users, Gift, Megaphone, BookOpen, Send, MessageSquare, Settings, Truck, type LucideIcon,
+  Users, Gift, Megaphone, BookOpen, Send, MessageSquare, Settings, Truck, Search, type LucideIcon,
 } from 'lucide-react'
 
 /** Clé du compteur affiché en pastille (voir useAdminCounters). */
@@ -19,6 +19,7 @@ export const NAV_GROUPS: NavGroup[] = [
   ] },
   { title: 'Catalogue', items: [
     { to: '/products',         label: 'Produits',              icon: Package, keywords: 'catalogue stock' },
+    { to: '/product-search',   label: 'Recherche produit',     icon: Search, keywords: 'recherche internet prix description fiche ajouter nouveau produit' },
     { to: '/categories',       label: 'Catégories',            icon: Layers },
     { to: '/deals',            label: 'Deals',                 icon: Zap, keywords: 'vente flash promo du jour' },
     { to: '/suppliers',        label: 'Fournisseurs',          icon: Truck, keywords: 'prix d\'achat marge commission approvisionnement produits sans fournisseur à compléter' },

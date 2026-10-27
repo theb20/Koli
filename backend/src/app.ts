@@ -51,6 +51,7 @@ import adminOverviewRouter from './routes/admin-overview'
 import adminKpisRouter from './routes/admin-kpis'
 import adminFinanceRouter from './routes/admin-finance'
 import suppliersRouter from './routes/suppliers'
+import productSearchRouter from './routes/productSearch'
 import paymentsRouter          from './routes/payments'
 import merchantSyncRouter      from './routes/merchant-sync'
 import merchantOnboardingRouter from './routes/merchant-onboarding'
@@ -279,6 +280,7 @@ app.use('/api/admin/overview', adminOverviewRouter)
 app.use('/api/admin/kpis', adminKpisRouter)
 app.use('/api/admin/finance', adminFinanceRouter)
 app.use('/api/admin/suppliers', suppliersRouter)
+app.use('/api/admin/product-search', productSearchRouter)
 app.use('/api/payments',      paymentsRouter)
 app.use('/api/internal',      internalRouter)
 
