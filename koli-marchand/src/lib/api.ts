@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { installAxiosIdempotency } from './idempotency'
 
 export const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:4000'
 
@@ -84,3 +85,6 @@ api.interceptors.response.use(
     return Promise.reject(err)
   },
 )
+
+/* ── Idempotency-Key sur toutes les écritures (voir lib/idempotency.ts) ── */
+installAxiosIdempotency(api)
