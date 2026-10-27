@@ -17,7 +17,8 @@
     "lint": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:db": "sh -c 'set -a; . ./.env.test; set +a; FINANCE_DB_TESTS=1 vitest run src/lib/finance'",
+    "test:db": "sh -c 'set -a; . ./.env.test; set +a; FINANCE_DB_TESTS=1 vitest run src/lib/finance src/lib/sellerMetrics'",
+    "metrics:doc": "tsx scripts/generate-metrics-doc.ts",
     "dev:test": "DOTENV_CONFIG_PATH=.env.test RECAPTCHA_SECRET_KEY= tsx watch src/index.ts",
     "db:test:migrate": "sh -c 'set -a; . ./.env.test; set +a; prisma migrate deploy'",
     "db:test:seed": "DOTENV_CONFIG_PATH=.env.test tsx -r dotenv/config prisma/seed-test.ts"

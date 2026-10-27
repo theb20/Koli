@@ -19,6 +19,9 @@ import { searchProductIds, normalizeSearchQuery } from '../lib/search'
 import { buildMerchantOrderPdf } from '../lib/invoicePdf'
 import { requestOrderReview } from '../lib/orderReview'
 import type { Prisma, Order, OrderItem } from '@prisma/client'
+import { sellerOverview } from '../lib/sellerMetrics/queries'
+import { resolvePeriod as resolveMetricsPeriod, PERIOD_PRESETS, type PeriodPreset } from '../lib/sellerMetrics/periods'
+import { SELLER_METRICS, SELLER_ALERT_THRESHOLDS } from '../lib/sellerMetrics/dictionary'
 
 const router = Router()
 
@@ -370,7 +373,6 @@ router.post('/products/bulk-import/commit', requireSeller, async (req, res) => {
  * d'affaires affiché.
  * ─────────────────────────────────────────────────────────────────────
  */
-const COUNTED_STATUSES = ['confirmed', 'processing', 'shipped', 'delivered']
 
 async function requireMyStore(userId: string) {
   return prisma.sellerStore.findUnique({ where: { userId } })
@@ -409,6 +411,41 @@ function shapeProduct(p: ProductWithImages, revenue = 0) {
 }
 
 /** Items de commande dont le produit appartient à cette boutique. */
+/**
+ * Lignes du marchand comptées dans SES STATISTIQUES — même définition que le
+ * dictionnaire (lib/sellerMetrics/dictionary.ts, fiche « Commande valide ») :
+ * commandes PAYÉES, ni annulées ni remboursées, non supprimées ; quantités
+ * des retours remboursés déduites ; datées au PAIEMENT. Pour que les calculs
+ * existants de ces routes (qui datent par `order.createdAt`) suivent cette
+ * règle sans être réécrits, `order.createdAt` est remplacé ici par la date de
+ * paiement. À n'utiliser que pour des statistiques — jamais pour lister les
+ * commandes (voir storeOrderItems).
+ */
+async function paidStoreItems(storeId: number, opts: { since?: Date } = {}) {
+  const items = await prisma.orderItem.findMany({
+    where: {
+      product: { storeId },
+      order: {
+        paymentStatus: 'paid',
+        status: { notIn: ['cancelled', 'refunded'] },
+        deletedAt: null,
+        ...(opts.since ? { OR: [{ paidAt: { gte: opts.since } }, { paidAt: null, createdAt: { gte: opts.since } }] } : {}),
+      },
+    },
+    include: {
+      order: true,
+      returnItems: { where: { orderReturn: { status: 'refunded' } }, select: { quantity: true } },
+    },
+  })
+  return items
+    .map(({ returnItems, ...it }) => ({
+      ...it,
+      qty: Math.max(0, it.qty - returnItems.reduce((sum, r) => sum + r.quantity, 0)),
+      order: { ...it.order, createdAt: it.order.paidAt ?? it.order.createdAt },
+    }))
+    .filter(it => it.qty > 0)
+}
+
 async function storeOrderItems(storeId: number, opts: { since?: Date; statuses?: string[] } = {}) {
   return prisma.orderItem.findMany({
     where: {
@@ -588,9 +625,9 @@ router.get('/dashboard', requireSeller, async (req, res) => {
     const period60 = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000)
 
     const [recentItems, previousItems, allCountedItems] = await Promise.all([
-      storeOrderItems(store.id, { since: period30, statuses: COUNTED_STATUSES }),
-      storeOrderItems(store.id, { since: period60, statuses: COUNTED_STATUSES }),
-      storeOrderItems(store.id, { statuses: COUNTED_STATUSES }),
+      paidStoreItems(store.id, { since: period30 }),
+      paidStoreItems(store.id, { since: period60 }),
+      paidStoreItems(store.id),
     ])
     const olderItems = previousItems.filter(i => i.order.createdAt < period30)
 
@@ -699,6 +736,40 @@ function resolvePeriod(query: Request['query'], now: Date): PeriodBounds {
 
 const pctChange = (curr: number, prev: number) => prev === 0 ? (curr > 0 ? 100 : 0) : Math.round(((curr - prev) / prev) * 100)
 
+/* ─────────────────────────────────────────────────────────────
+   GET /api/seller/overview?preset=…&from=AAAA-MM-JJ&to=AAAA-MM-JJ
+   Accueil du tableau de bord : indicateurs du dictionnaire
+   (lib/sellerMetrics/dictionary.ts), calculés en SQL sur les commandes
+   PAYÉES uniquement, avec variations vs période précédente et vs an
+   dernier, mini-courbes 30 jours et alertes.
+───────────────────────────────────────────────────────────── */
+const isoDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+const overviewQuery = z.object({
+  preset: z.enum(PERIOD_PRESETS).default('30d'),
+  from:   isoDay.optional(),
+  to:     isoDay.optional(),
+}).refine(q => q.preset !== 'custom' || (q.from && q.to && q.from <= q.to), { message: 'Période personnalisée invalide' })
+
+router.get('/overview', requireSeller, async (req, res) => {
+  const parsed = overviewQuery.safeParse(req.query)
+  if (!parsed.success) { res.status(400).json({ success: false, message: 'Période invalide' }); return }
+  try {
+    const store = await requireMyStore(req.user!.userId)
+    if (!store) { res.status(404).json({ success: false, message: 'Boutique introuvable.' }); return }
+    const q = parsed.data as { preset: PeriodPreset; from?: string; to?: string }
+    const range = resolveMetricsPeriod(q.preset, q.from && q.to ? { from: q.from, to: q.to } : undefined)
+    res.json({ success: true, data: { preset: q.preset, ...(await sellerOverview(store.id, range)) } })
+  } catch (err) {
+    logger.error('[seller/overview]', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/* GET /api/seller/metrics/dictionary — fiches des indicateurs (infobulles, page « Définitions »). */
+router.get('/metrics/dictionary', requireSeller, (_req, res) => {
+  res.json({ success: true, data: { metrics: Object.values(SELLER_METRICS), thresholds: SELLER_ALERT_THRESHOLDS } })
+})
+
 router.get('/dashboard/summary', requireSeller, async (req, res) => {
   try {
     const store = await requireMyStore(req.user!.userId)
@@ -711,8 +782,8 @@ router.get('/dashboard/summary', requireSeller, async (req, res) => {
     const productIds = sellerProducts.map(p => p.productId)
 
     const [windowItems, allTimeItems, activeProducts, outOfStockProducts, reviews, favoritesCount, returnItems] = await Promise.all([
-      storeOrderItems(store.id, { since: prevFrom, statuses: COUNTED_STATUSES }),
-      storeOrderItems(store.id, { statuses: COUNTED_STATUSES }),
+      paidStoreItems(store.id, { since: prevFrom }),
+      paidStoreItems(store.id),
       prisma.product.count({ where: { storeId: store.id, isActive: true } }),
       prisma.product.count({ where: { storeId: store.id, stock: { lte: 0 } } }),
       prisma.review.findMany({ where: { productId: { in: productIds } }, select: { rating: true, createdAt: true } }),
@@ -827,7 +898,7 @@ router.get('/products', requireSeller, async (req, res) => {
     // pas de _sum direct utilisable : _sum.price serait le prix unitaire
     // (pas le sous-total), recalcul exact ligne à ligne
     const items = await prisma.orderItem.findMany({
-      where: { productId: { in: products.map(p => p.id) }, order: { status: { in: COUNTED_STATUSES } } },
+      where: { productId: { in: products.map(p => p.id) }, order: { paymentStatus: 'paid', status: { notIn: ['cancelled', 'refunded'] }, deletedAt: null } },
       select: { productId: true, price: true, qty: true },
     })
     const revenueMap = new Map<number, number>()
@@ -1143,7 +1214,7 @@ router.get('/customers', requireSeller, async (req, res) => {
     const page     = Math.max(1, Number(req.query.page ?? 1))
     const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize ?? 20)))
 
-    const items = await storeOrderItems(store.id, { statuses: COUNTED_STATUSES })
+    const items = await paidStoreItems(store.id)
     const byCustomer = new Map<string, { name: string; email: string; phone: string; orders: Set<string>; total: number; lastOrderAt: string }>()
     for (const it of items) {
       const key = it.order.userId ?? it.order.clientEmail
@@ -1182,7 +1253,7 @@ router.get('/customers/:id', requireSeller, async (req, res) => {
     const store = await requireMyStore(req.user!.userId)
     if (!store) { res.status(404).json({ success: false, message: 'Boutique introuvable.' }); return }
 
-    const items = await storeOrderItems(store.id, { statuses: COUNTED_STATUSES })
+    const items = await paidStoreItems(store.id)
     const mine = items.filter(it => (it.order.userId ?? it.order.clientEmail) === req.params.id)
     if (mine.length === 0) { res.status(404).json({ success: false, message: 'Client introuvable.' }); return }
 
@@ -1296,7 +1367,7 @@ router.get('/analytics', requireSeller, async (req, res) => {
     const store = await requireMyStore(req.user!.userId)
     if (!store) { res.status(404).json({ success: false, message: 'Boutique introuvable.' }); return }
 
-    const items = await storeOrderItems(store.id, { statuses: COUNTED_STATUSES })
+    const items = await paidStoreItems(store.id)
 
     const byCategory = new Map<string, { revenue: number; unitsSold: number }>()
     const productCategory = new Map<number, string>()
