@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"go.uber.org/zap"
 
@@ -36,6 +37,11 @@ type paymentService struct {
 	cfg     *config.Config
 	backend *backendapi.Client
 	logger  *zap.Logger
+	// Un verrou par commande : deux créations simultanées pour la même
+	// commande (double-clic sur « Payer ») sont sérialisées, la seconde
+	// retrouve alors l'intention créée par la première. Suffisant tant que
+	// merchantgo tourne en une seule instance.
+	orderLocks sync.Map // orderID → *sync.Mutex
 }
 
 func NewPaymentService(repo repository.PaymentRepository, cfg *config.Config, backend *backendapi.Client, logger *zap.Logger) PaymentService {
@@ -55,7 +61,28 @@ func (s *paymentService) winipayerClient() (*winipayer.Client, error) {
 	}), nil
 }
 
+// CreatePayment est idempotent par commande : tant qu'une tentative est
+// encore en attente pour le même montant, son lien est renvoyé au lieu
+// d'ouvrir une nouvelle transaction WiniPayer. Sans ça, un double envoi
+// créait deux transactions et backend/ ne gardait que la référence de la
+// dernière : un client payant avec le PREMIER lien voyait sa confirmation
+// refusée (« référence incohérente »), commande jamais marquée payée.
+// Une tentative échouée/annulée n'est pas réutilisée : le client peut relancer.
 func (s *paymentService) CreatePayment(ctx context.Context, in CreatePaymentInput) (*models.PaymentIntent, error) {
+	lock, _ := s.orderLocks.LoadOrStore(in.OrderID, &sync.Mutex{})
+	lock.(*sync.Mutex).Lock()
+	defer lock.(*sync.Mutex).Unlock()
+
+	existing, err := s.repo.FindPendingByOrderID(ctx, in.OrderID)
+	if err != nil {
+		return nil, utils.ErrInternal(err)
+	}
+	if existing != nil && existing.Amount == in.Amount && existing.CheckoutURL != "" {
+		s.logger.Info("paiement déjà initié pour cette commande, lien existant renvoyé",
+			zap.String("orderId", in.OrderID), zap.String("providerRef", existing.ProviderRef))
+		return existing, nil
+	}
+
 	client, err := s.winipayerClient()
 	if err != nil {
 		return nil, err

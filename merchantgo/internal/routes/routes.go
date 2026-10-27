@@ -22,6 +22,7 @@ func Setup(
 	walletHandler *handlers.WalletHandler,
 	planHandler *handlers.SubscriptionPlanHandler,
 	paymentHandler *handlers.PaymentHandler,
+	idempotency gin.HandlerFunc,
 	logger *zap.Logger,
 ) *gin.Engine {
 	if cfg.IsProduction() {
@@ -53,7 +54,7 @@ func Setup(
 		v1.POST("/webhooks/winipayer", paymentHandler.Webhook)
 
 		applications := v1.Group("/applications")
-		applications.Use(middleware.RequireAuth(cfg, logger))
+		applications.Use(middleware.RequireAuth(cfg, logger), idempotency)
 		{
 			applications.PUT("/me", appHandler.SaveDraft)
 			applications.GET("/me", appHandler.GetMine)
@@ -61,7 +62,7 @@ func Setup(
 		}
 
 		admin := v1.Group("/admin/applications")
-		admin.Use(middleware.RequireAdmin(cfg, logger))
+		admin.Use(middleware.RequireAdmin(cfg, logger), idempotency)
 		{
 			admin.GET("", adminHandler.List)
 			admin.GET("/:id", adminHandler.Get)
@@ -72,7 +73,7 @@ func Setup(
 		// Modèle économique + portefeuille — authentifié par le même JWT
 		// backend/ que /applications (voir middleware.RequireAuth).
 		merchant := v1.Group("/merchant")
-		merchant.Use(middleware.RequireAuth(cfg, logger))
+		merchant.Use(middleware.RequireAuth(cfg, logger), idempotency)
 		{
 			merchant.GET("/billing", billingHandler.GetMine)
 			merchant.PUT("/billing", billingHandler.Choose)
@@ -85,7 +86,7 @@ func Setup(
 		v1.GET("/subscription-plans", planHandler.List)
 
 		adminBilling := v1.Group("/admin/subscription-plans")
-		adminBilling.Use(middleware.RequireAdmin(cfg, logger))
+		adminBilling.Use(middleware.RequireAdmin(cfg, logger), idempotency)
 		{
 			adminBilling.GET("", planHandler.List)
 			adminBilling.POST("", planHandler.Create)
@@ -104,7 +105,7 @@ func Setup(
 		}
 
 		adminBillingBulk := v1.Group("/admin/billing")
-		adminBillingBulk.Use(middleware.RequireAdmin(cfg, logger))
+		adminBillingBulk.Use(middleware.RequireAdmin(cfg, logger), idempotency)
 		{
 			adminBillingBulk.POST("/bulk", billingHandler.GetBulk)
 			adminBillingBulk.PUT("/:userId", billingHandler.AdminSet)

@@ -17,6 +17,7 @@ import (
 	"merchantgo/internal/config"
 	"merchantgo/internal/database"
 	"merchantgo/internal/handlers"
+	"merchantgo/internal/middleware"
 	"merchantgo/internal/repository"
 	"merchantgo/internal/routes"
 	"merchantgo/internal/services"
@@ -87,7 +88,9 @@ func main() {
 	paymentService := services.NewPaymentService(paymentRepo, cfg, backendClient, logger)
 	paymentHandler := handlers.NewPaymentHandler(paymentService, cfg, logger)
 
-	router := routes.Setup(cfg, appHandler, adminHandler, kycWebhookHandler, billingHandler, walletHandler, planHandler, paymentHandler, logger)
+	// Idempotence des écritures (en-tête Idempotency-Key) — voir middleware/idempotency.go
+	idempotency := middleware.Idempotency(repository.NewIdempotencyRepository(db), logger, middleware.IdempotencyOptions{})
+	router := routes.Setup(cfg, appHandler, adminHandler, kycWebhookHandler, billingHandler, walletHandler, planHandler, paymentHandler, idempotency, logger)
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.Port,
