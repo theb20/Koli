@@ -21,7 +21,7 @@ export const NAV_GROUPS: NavGroup[] = [
     { to: '/products',         label: 'Produits',              icon: Package, keywords: 'catalogue stock' },
     { to: '/categories',       label: 'Catégories',            icon: Layers },
     { to: '/deals',            label: 'Deals',                 icon: Zap, keywords: 'vente flash promo du jour' },
-    { to: '/suppliers',        label: 'Fournisseurs',          icon: Truck, keywords: 'prix d\'achat marge commission approvisionnement' },
+    { to: '/suppliers',        label: 'Fournisseurs',          icon: Truck, keywords: 'prix d\'achat marge commission approvisionnement produits sans fournisseur à compléter' },
     { to: '/product-requests', label: 'Demandes',              icon: PackageSearch, counter: 'newProductRequests', keywords: 'demandes de produits sourcing devis' },
     { to: '/reviews',          label: 'Avis',                  icon: Star, keywords: 'commentaires notes' },
   ] },

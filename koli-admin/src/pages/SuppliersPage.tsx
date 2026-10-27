@@ -3,7 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Pencil, Trash2, Truck, AlertTriangle } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Pencil, Trash2, Truck, AlertTriangle, ListChecks } from 'lucide-react'
 import { api } from '../lib/api'
 import { formatNumber } from '../lib/format'
 import { PageHeader } from '../components/layout/PageHeader'
@@ -83,6 +84,7 @@ export default function SuppliersPage() {
     <>
       <PageHeader title="Fournisseurs"
         subtitle="Fournisseurs du catalogue Skignas : mode de rémunération et prix d'achat servent au calcul des marges."
+        actions={<Link to="/suppliers/a-completer"><Button variant="secondary" size="cta" icon={<ListChecks size={16} />}>Produits à compléter</Button></Link>}
         cta={{ label: 'Nouveau fournisseur', onClick: () => open('new') }} />
 
       <div className="space-y-[18px]">

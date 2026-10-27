@@ -157,7 +157,7 @@ export function ProfitBlock({ data }: { data: FinanceOverview }) {
             <strong className="font-medium">{plural(cov.excludedOrders, 'commande')} exclue{cov.excludedOrders > 1 ? 's' : ''} des calculs de marge</strong>
             {cov.excludedSharePct != null && ` (${pct(cov.excludedSharePct)} des commandes de la période)`} : coût fournisseur inconnu
             (commandes antérieures au suivi, ou produits sans prix d'achat). Elles restent comptées dans le volume d'affaires.{' '}
-            <Link to="/suppliers" className="underline underline-offset-2">Renseigner les fournisseurs</Link>
+            <Link to="/suppliers/a-completer" className="underline underline-offset-2">Compléter les produits</Link>
           </p>
         </div>
       )}
