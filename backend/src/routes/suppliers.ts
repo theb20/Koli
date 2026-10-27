@@ -13,6 +13,7 @@ import { validate, validateParams, zIntIdParam } from '../middleware/validate'
 import { logAdminAction } from '../lib/auditLog'
 import { logger } from '../lib/logger'
 import { SUPPLIER_MODES } from '../lib/finance/formulas'
+import { isPriceSearchConfigured, searchPrices, type PriceOffer } from '../lib/priceSearch'
 
 const router = Router()
 router.use(requireAdmin)
@@ -155,7 +156,9 @@ const bulkSourcingSchema = z.object({
     productId:     z.number().int().positive(),
     supplierId:    z.number().int().positive().nullable().optional(),
     supplierPrice: z.number().int().nonnegative().max(1_000_000_000).nullable().optional(),
-  }).refine(i => i.supplierId !== undefined || i.supplierPrice !== undefined, { message: 'Rien à modifier' })).min(1).max(500),
+    /** Nouveau prix de vente du produit (Product.price) — jamais vidé */
+    price:         z.number().int().positive().max(1_000_000_000).optional(),
+  }).refine(i => i.supplierId !== undefined || i.supplierPrice !== undefined || i.price !== undefined, { message: 'Rien à modifier' })).min(1).max(500),
 })
 
 router.put('/sourcing', validate(bulkSourcingSchema), async (req, res) => {
@@ -175,18 +178,52 @@ router.put('/sourcing', validate(bulkSourcingSchema), async (req, res) => {
     const unknownSuppliers = supplierIds.filter(id => !suppliers.some(s => s.id === id))
     if (unknownSuppliers.length) { res.status(400).json({ success: false, message: `Fournisseur(s) introuvable(s) : ${unknownSuppliers.join(', ')}` }); return }
 
-    await prisma.$transaction(items.map(i => {
+    await prisma.$transaction(items.flatMap(i => {
       const data = {
         ...(i.supplierId !== undefined ? { supplierId: i.supplierId } : {}),
         ...(i.supplierPrice !== undefined ? { supplierPrice: i.supplierPrice } : {}),
       }
-      return prisma.productSourcing.upsert({ where: { productId: i.productId }, create: { productId: i.productId, ...data }, update: data })
+      return [
+        ...(Object.keys(data).length ? [prisma.productSourcing.upsert({ where: { productId: i.productId }, create: { productId: i.productId, ...data }, update: data })] : []),
+        ...(i.price !== undefined ? [prisma.product.update({ where: { id: i.productId }, data: { price: i.price } })] : []),
+      ]
     }))
-    logAdminAction(req, { action: 'productSourcing.bulkUpdate', targetType: 'Product', targetId: productIds.slice(0, 20).join(','), metadata: { count: items.length, supplierIds } })
+    logAdminAction(req, { action: 'productSourcing.bulkUpdate', targetType: 'Product', targetId: productIds.slice(0, 20).join(','), metadata: { count: items.length, supplierIds, priceChanges: items.filter(i => i.price !== undefined).length } })
     res.json({ success: true, data: { updated: items.length } })
   } catch (err) {
     logger.error('[suppliers] sourcing bulk', err)
     res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/*
+ * POST /api/admin/suppliers/price-search { productId } — prix publics trouvés
+ * sur Internet pour un produit du catalogue. Cache mémoire 24 h par produit
+ * pour limiter le coût de l'API ; { refresh: true } force une nouvelle recherche.
+ */
+const PRICE_CACHE_MS = 24 * 3600_000
+const priceCache = new Map<string, { at: number; offers: PriceOffer[] }>()
+const priceSearchSchema = z.object({ productId: z.number().int().positive(), refresh: z.boolean().optional() })
+
+router.post('/price-search', validate(priceSearchSchema), async (req, res) => {
+  if (!isPriceSearchConfigured()) { res.status(503).json({ success: false, message: 'Recherche de prix non configurée (SERPAPI_API_KEY manquante)' }); return }
+  const { productId, refresh } = req.body as z.infer<typeof priceSearchSchema>
+  try {
+    const product = await prisma.product.findUnique({ where: { id: productId }, select: { name: true, brand: true, storeId: true } })
+    if (!product || product.storeId !== null) { res.status(404).json({ success: false, message: 'Produit introuvable' }); return }
+    const query = [product.brand, product.name].filter(Boolean).join(' ').slice(0, 150)
+    const key = query.toLowerCase()
+    const hit = priceCache.get(key)
+    if (hit && !refresh && Date.now() - hit.at < PRICE_CACHE_MS) {
+      res.json({ success: true, data: { query, offers: hit.offers, cached: true } }); return
+    }
+    const offers = await searchPrices(query)
+    priceCache.set(key, { at: Date.now(), offers })
+    logAdminAction(req, { action: 'productSourcing.priceSearch', targetType: 'Product', targetId: String(productId) })
+    res.json({ success: true, data: { query, offers, cached: false } })
+  } catch (err) {
+    logger.error('[suppliers] price search', err)
+    res.status(502).json({ success: false, message: 'Le service de recherche de prix est indisponible' })
   }
 })
 

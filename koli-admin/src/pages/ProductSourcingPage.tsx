@@ -2,12 +2,13 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { ArrowLeft, Search, Truck, AlertTriangle, CheckCircle2, ImageOff } from 'lucide-react'
+import { ArrowLeft, Search, Truck, AlertTriangle, CheckCircle2, ImageOff, Globe, ExternalLink, RefreshCw } from 'lucide-react'
 import { api } from '../lib/api'
 import { formatFCFA, formatNumber } from '../lib/format'
 import { PageHeader } from '../components/layout/PageHeader'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
+import { Modal } from '../components/ui/Modal'
 import { Tabs } from '../components/ui/Tabs'
 import { Pagination } from '../components/ui/Pagination'
 import { StatusPill } from '../components/ui/Badge'
@@ -32,7 +33,90 @@ type Row = {
 type Supplier = { id: number; name: string; mode: 'MARGIN' | 'COMMISSION'; commissionRate: number | null; isActive: boolean }
 type Data = { counts: { noSupplier: number; noPrice: number; catalog: number }; pagination: { page: number; limit: number; total: number; totalPages: number }; products: Row[] }
 /** Modification en attente : seuls les champs touchés sont envoyés (null = vider). */
-type Draft = { supplierId?: number | null; supplierPrice?: number | null }
+type Draft = { supplierId?: number | null; supplierPrice?: number | null; price?: number }
+
+type Offer = { title: string; source: string; originalAmount: number; currency: string; priceLabel: string; rate: number; priceFcfa: number; link: string | null; thumbnail: string | null }
+type PriceResult = { query: string; offers: Offer[]; cached: boolean }
+
+/** Fenêtre « Comparer les prix » : prix publics trouvés sur Internet, à reporter dans le brouillon du prix d'achat. */
+const readNum = (key: string, fallback: string) => { try { return localStorage.getItem(key) ?? fallback } catch { return fallback } }
+const writeNum = (key: string, v: string) => { try { localStorage.setItem(key, v) } catch { /* stockage indisponible */ } }
+const toInt = (v: string) => (/^\d{1,10}$/.test(v.replace(/[\s\u00A0\u202F]/g, '')) ? Number(v.replace(/[\s\u00A0\u202F]/g, '')) : 0)
+
+function PriceCompareModal({ row, onClose, onUse }: { row: Row | null; onClose: () => void; onUse: (v: { cost: number; price: number }) => void }) {
+  const [shipping, setShipping] = useState(() => readNum('sourcing.shipping', '0'))
+  const [margin, setMargin] = useState(() => readNum('sourcing.margin', '20'))
+  const shippingFcfa = toInt(shipping)
+  const marginPct = Math.min(1000, Number(margin.replace(',', '.')) || 0)
+  /** Prix de vente conseillé : coût de revient + marge, arrondi à la centaine supérieure */
+  const suggest = (converted: number) => { const cost = converted + shippingFcfa; return { cost, price: Math.ceil((cost * (1 + marginPct / 100)) / 100) * 100 } }
+  const search = useQuery({
+    queryKey: ['price-search', row?.id],
+    enabled: row !== null,
+    staleTime: 5 * 60_000,
+    retry: false,
+    queryFn: async () => (await api.post('/api/admin/suppliers/price-search', { productId: row!.id })).data.data as PriceResult,
+  })
+  const refresh = useMutation({
+    mutationFn: async () => (await api.post('/api/admin/suppliers/price-search', { productId: row!.id, refresh: true })).data.data as PriceResult,
+    onSuccess: d => search.refetch().then(() => d),
+    onError: e => toast.error(errMsg(e)),
+  })
+  const offers = search.data?.offers ?? []
+  return (
+    <Modal open={row !== null} onClose={onClose} title={row ? `Prix sur Internet — ${row.name}` : ''} width="max-w-2xl">
+      {search.isLoading ? <CardSkeleton lines={4} />
+        : search.isError ? <ErrorState onRetry={() => search.refetch()} />
+        : offers.length === 0 ? <EmptyState icon={<Globe size={22} />} title="Aucun prix trouvé" text="Essayez de préciser le nom ou la marque du produit." />
+        : (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <label className="text-caption text-muted">Frais de livraison (F CFA)
+                <input inputMode="numeric" value={shipping} onChange={e => { setShipping(e.target.value); writeNum('sourcing.shipping', e.target.value) }}
+                  className="mt-1 h-9 w-full rounded-input border border-line bg-card px-2.5 text-secondary text-ink tabular" />
+              </label>
+              <label className="text-caption text-muted">Marge souhaitée (%)
+                <input inputMode="decimal" value={margin} onChange={e => { setMargin(e.target.value); writeNum('sourcing.margin', e.target.value) }}
+                  className="mt-1 h-9 w-full rounded-input border border-line bg-card px-2.5 text-secondary text-ink tabular" />
+              </label>
+            </div>
+            <p className="text-caption text-muted">
+              Recherche « {search.data?.query} » · prix convertis en F CFA (taux indicatifs), à vérifier avant usage
+              {search.data?.cached && ' · résultat en cache (< 24 h)'}
+            </p>
+            <ul className="divide-y divide-line">
+              {offers.map((o, i) => {
+                const { cost, price: suggested } = suggest(o.priceFcfa)
+                return (
+                  <li key={i} className="py-3 flex items-center gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-secondary text-ink line-clamp-1">{o.title}</p>
+                      <p className="text-caption text-muted flex items-center gap-2">
+                        {o.source}
+                        {o.link && <a href={o.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 hover:underline">Voir <ExternalLink size={11} aria-hidden /></a>}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="font-medium tabular">{formatFCFA(o.priceFcfa)}</p>
+                      {o.currency !== 'XOF' && <p className="text-caption text-muted tabular">{o.priceLabel} · 1 {o.currency} = {formatNumber(o.rate)} F</p>}
+                      <p className="text-caption text-muted tabular">Revient à {formatFCFA(cost)}</p>
+                      <p className="text-caption text-emerald-700 tabular">Vente conseillée {formatFCFA(suggested)}</p>
+                    </div>
+                    <Button size="sm" variant="secondary" onClick={() => onUse({ cost, price: suggested })}>Utiliser</Button>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        )}
+      {row && !search.isLoading && (
+        <div className="mt-4 flex justify-end">
+          <Button size="sm" variant="ghost" icon={<RefreshCw size={14} />} loading={refresh.isPending} onClick={() => refresh.mutate()}>Relancer la recherche</Button>
+        </div>
+      )}
+    </Modal>
+  )
+}
 
 const errMsg = (e: unknown) => (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Échec de l'enregistrement"
 
@@ -45,6 +129,7 @@ export default function ProductSourcingPage() {
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [drafts, setDrafts] = useState<Map<number, Draft>>(new Map())
   const [bulkSupplier, setBulkSupplier] = useState('')
+  const [compare, setCompare] = useState<Row | null>(null)
 
   const list = useQuery({
     queryKey: ['product-sourcing-list', filter, q, page],
@@ -78,6 +163,7 @@ export default function ProductSourcingPage() {
     // Revenu à la valeur d'origine : ce champ n'est plus une modification
     if (d.supplierId !== undefined && d.supplierId === r.supplierId) delete d.supplierId
     if (d.supplierPrice !== undefined && d.supplierPrice === r.supplierPrice) delete d.supplierPrice
+    if (d.price !== undefined && d.price === r.price) delete d.price
     if (Object.keys(d).length) next.set(r.id, d); else next.delete(r.id)
     return next
   })
@@ -172,7 +258,10 @@ export default function ProductSourcingPage() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-right tabular whitespace-nowrap">{formatFCFA(r.price)}</td>
+                        <td className="px-4 py-3 text-right tabular whitespace-nowrap">
+                          {formatFCFA(e.price)}
+                          {e.price !== r.price && <p className="text-caption text-muted line-through">{formatFCFA(r.price)}</p>}
+                        </td>
                         <td className="px-4 py-3">
                           <select value={e.supplierId ?? ''} aria-label={`Fournisseur de ${r.name}`}
                             onChange={ev => setDraft(r, { supplierId: ev.target.value ? Number(ev.target.value) : null })}
@@ -190,6 +279,9 @@ export default function ProductSourcingPage() {
                               if (/^\d{1,10}$/.test(v)) setDraft(r, { supplierPrice: Number(v) })
                             }}
                             className={`h-9 w-full rounded-input border bg-card px-2.5 text-secondary text-ink tabular ${needsPrice ? 'border-amber-300' : 'border-line'}`} />
+                          <button type="button" onClick={() => setCompare(r)} className="mt-1 inline-flex items-center gap-1 text-caption text-primary hover:underline">
+                            <Globe size={11} aria-hidden /> Comparer les prix
+                          </button>
                           {needsPrice && <p className="text-caption text-amber-800 mt-1 flex items-center gap-1"><AlertTriangle size={11} aria-hidden /> Requis en mode marge</p>}
                         </td>
                       </tr>
@@ -207,7 +299,7 @@ export default function ProductSourcingPage() {
           <div className="sticky bottom-4 z-30 rounded-card border border-line bg-card/95 backdrop-blur px-4 py-3 shadow-[var(--popover-shadow)] flex flex-wrap items-center justify-between gap-3">
             <p className="text-body text-ink">
               <strong className="font-semibold">{formatNumber(drafts.size)}</strong> modification{drafts.size > 1 ? 's' : ''} non enregistrée{drafts.size > 1 ? 's' : ''}
-              <span className="text-muted"> · s'applique aux ventes futures</span>
+              <span className="text-muted"> · prix d'achat et de vente : ventes futures uniquement</span>
             </p>
             <div className="flex gap-2">
               <Button size="sm" variant="secondary" onClick={() => setDrafts(new Map())}>Annuler</Button>
@@ -217,6 +309,8 @@ export default function ProductSourcingPage() {
         )}
       </div>
 
+      <PriceCompareModal row={compare} onClose={() => setCompare(null)}
+        onUse={({ cost, price }) => { if (compare) setDraft(compare, { supplierPrice: cost, price }); setCompare(null); toast.success("Prix d'achat et prix de vente reportés : pensez à enregistrer") }} />
     </>
   )
 }
