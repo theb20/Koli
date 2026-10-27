@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { formatFCFA } from './format'
+import { installAxiosIdempotency } from './idempotency'
 
 export const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:4000'
 
@@ -61,6 +62,9 @@ api.interceptors.response.use(
     return Promise.reject(err)
   }
 )
+
+/* ── Idempotency-Key sur toutes les écritures (voir lib/idempotency.ts) ── */
+installAxiosIdempotency(api)
 
 /* ── Helpers formatage ───────────────────────────────────── */
 /** Alias historique — un seul format monétaire dans l'admin : formatFCFA (lib/format.ts). */
