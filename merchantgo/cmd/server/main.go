@@ -77,8 +77,13 @@ func main() {
 	walletService := services.NewWalletService(walletRepo, billingService, logger)
 	walletHandler := handlers.NewWalletHandler(walletService, logger)
 
-	if !cfg.WinipayerConfigured() {
-		logger.Warn("clés WiniPayer absentes pour l'environnement actif — paiement en ligne indisponible", zap.String("env", cfg.WinipayerEnv))
+	if !cfg.GeniusPayConfigured() {
+		logger.Warn("clés GeniusPay absentes pour l'environnement actif — paiement en ligne indisponible", zap.String("env", cfg.GeniusPayEnv))
+	}
+	if cfg.WinipayerConfigured() {
+		// Legacy : encore utile tant que des transactions WiniPayer créées
+		// avant la bascule restent en attente (voir payment_handler.go).
+		logger.Info("clés WiniPayer présentes (legacy) — sert uniquement les transactions déjà en attente", zap.String("env", cfg.WinipayerEnv))
 	}
 	backendClient := backendapi.NewClient(cfg.BackendURL, cfg.MerchantgoCallbackSecret)
 	if !backendClient.Configured() {

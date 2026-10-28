@@ -106,7 +106,7 @@ function App() {
                 <Route path="/vendeur"             element={<SellerPage />} />
                 <Route path="/panier"      element={<PanierPage />} />
 
-                {/* ── Retour de paiement WiniPayer ──────────────────────
+                {/* ── Retour de paiement GeniusPay ──────────────────────
                     returnUrl ET cancelUrl (backend) pointent toutes deux
                     vers /paiement/verification — jamais de résultat déduit
                     de l'URL, voir PaymentVerificationPage. */}

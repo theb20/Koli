@@ -30,11 +30,15 @@ type Config struct {
 	// fonctionne (voir internal/winipayer).
 	PublicURL string
 
-	// Paiement en ligne WiniPayer — un jeu de clés TEST et un jeu PROD,
-	// WiniPayer les distingue strictement (impossible de générer un lien
-	// PROD avec des clés TEST et inversement). WinipayerEnv choisit lequel
-	// utiliser ("test" par défaut, "prod" en production réelle).
-	WinipayerEnv              string
+	// WiniPayer — RETIRÉ comme passerelle active (voir GeniusPay ci-dessous) :
+	// CreatePayment n'en crée plus. Champs et méthodes conservés tels quels
+	// (même esprit que PayDunya avant lui) uniquement pour que les paiements
+	// WiniPayer déjà en attente au moment de la bascule puissent recevoir
+	// leur webhook et être revérifiés jusqu'à leur terme — voir les routes
+	// /webhooks/winipayer et /payments/winipayer/:ref/refresh, restées
+	// montées, et payment_service.ConfirmPayment (dispatch par
+	// PaymentIntent.Provider).
+	WinipayerEnv               string
 	WinipayerMerchantApplyTest string
 	WinipayerMerchantTokenTest string
 	WinipayerPrivateKeyTest    string
@@ -42,11 +46,25 @@ type Config struct {
 	WinipayerMerchantTokenProd string
 	WinipayerPrivateKeyProd    string
 
+	// Paiement en ligne GENIUSPAY — passerelle active (remplace WiniPayer,
+	// voir ci-dessus). Un jeu de clés sandbox et un jeu live, jamais
+	// mélangés (même doctrine que WiniPayer). GeniusPayBaseURL permet de
+	// corriger l'URL de base sans redéploiement si besoin (voir le
+	// commentaire de tête de internal/geniuspay/client.go — une seule
+	// source a pu être corroborée pour cette valeur, à confirmer en sandbox).
+	GeniusPayEnv           string
+	GeniusPayAPIKeySandbox string
+	GeniusPaySecretSandbox string
+	GeniusPayAPIKeyLive    string
+	GeniusPaySecretLive    string
+	GeniusPayWebhookSecret string
+	GeniusPayBaseURL       string
+
 	// Secret partagé avec backend/ pour le rappel "commande payée" —
 	// merchantgo → backend, sens inverse de ADMIN_API_KEY (backend →
 	// merchantgo). DOIT être identique à MERCHANTGO_CALLBACK_SECRET dans
 	// backend/.env.
-	BackendURL             string
+	BackendURL               string
 	MerchantgoCallbackSecret string
 }
 
@@ -66,6 +84,22 @@ func (c *Config) WinipayerCredentials() (merchantApply, merchantToken, privateKe
 func (c *Config) WinipayerConfigured() bool {
 	apply, token, key := c.WinipayerCredentials()
 	return apply != "" && token != "" && key != ""
+}
+
+// GeniusPayCredentials renvoie le couple (api_key, api_secret) correspondant
+// à l'environnement actif — jamais mélangé entre sandbox et live.
+func (c *Config) GeniusPayCredentials() (apiKey, apiSecret string) {
+	if c.GeniusPayEnv == "live" {
+		return c.GeniusPayAPIKeyLive, c.GeniusPaySecretLive
+	}
+	return c.GeniusPayAPIKeySandbox, c.GeniusPaySecretSandbox
+}
+
+// GeniusPayConfigured indique si les clés de l'environnement actif sont
+// renseignées.
+func (c *Config) GeniusPayConfigured() bool {
+	key, secret := c.GeniusPayCredentials()
+	return key != "" && secret != ""
 }
 
 // defaultAllowedOrigins reprend exactement la liste de
@@ -100,6 +134,7 @@ func Load() (*Config, error) {
 	v.SetDefault("RATE_LIMIT_BURST", 15)
 	v.SetDefault("BILLING_LOCK_DAYS", 30)
 	v.SetDefault("WINIPAYER_ENV", "test")
+	v.SetDefault("GENIUSPAY_ENV", "sandbox")
 	v.SetDefault("PUBLIC_URL", "http://localhost:8080")
 
 	// .env optionnel — en production (Railway), les variables sont déjà
@@ -126,6 +161,14 @@ func Load() (*Config, error) {
 		WinipayerMerchantApplyProd: v.GetString("WINIPAYER_MERCHANT_APPLY_PROD"),
 		WinipayerMerchantTokenProd: v.GetString("WINIPAYER_MERCHANT_TOKEN_PROD"),
 		WinipayerPrivateKeyProd:    v.GetString("WINIPAYER_PRIVATE_KEY_PROD"),
+
+		GeniusPayEnv:           v.GetString("GENIUSPAY_ENV"),
+		GeniusPayAPIKeySandbox: v.GetString("GENIUSPAY_API_KEY_SANDBOX"),
+		GeniusPaySecretSandbox: v.GetString("GENIUSPAY_API_SECRET_SANDBOX"),
+		GeniusPayAPIKeyLive:    v.GetString("GENIUSPAY_API_KEY_LIVE"),
+		GeniusPaySecretLive:    v.GetString("GENIUSPAY_API_SECRET_LIVE"),
+		GeniusPayWebhookSecret: v.GetString("GENIUSPAY_WEBHOOK_SECRET"),
+		GeniusPayBaseURL:       v.GetString("GENIUSPAY_BASE_URL"),
 
 		BackendURL:               v.GetString("KOLI_BACKEND_URL"),
 		MerchantgoCallbackSecret: v.GetString("MERCHANTGO_CALLBACK_SECRET"),

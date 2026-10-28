@@ -358,11 +358,16 @@ model Order {
   /// Token de facture PayDunya — désactivé (voir winipayerRef), conservé
   /// uniquement pour permettre un retour en arrière si besoin.
   paydunyaToken   String?         @unique
-  /// Référence de transaction WiniPayer (uuid) — passerelle de paiement en
-  /// ligne active, remplace PayDunya. Sert à retrouver la commande depuis le
+  /// Référence de transaction WiniPayer (uuid) — désactivée (voir
+  /// geniusPayRef), conservée pour les commandes déjà suivies par WiniPayer
+  /// au moment de la bascule (voir gatewayTracked dans orders.ts) et comme
+  /// retour en arrière possible.
+  winipayerRef    String?         @unique
+  /// Référence de transaction GeniusPay — passerelle de paiement en ligne
+  /// active, remplace WiniPayer. Sert à retrouver la commande depuis le
   /// rappel merchantgo ("mark-paid") et confirme qu'un paiement en ligne est
   /// suivi par la passerelle (voir gatewayTracked dans orders.ts).
-  winipayerRef    String?         @unique
+  geniusPayRef    String?         @unique
   /// Raison de l'échec du paiement en ligne — "cancelled" (client a annulé
   /// sur la page WiniPayer) ou "failed" (paiement refusé/expiré). Posé
   /// uniquement par POST /api/internal/orders/:id/mark-cancelled, jamais par

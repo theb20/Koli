@@ -43,7 +43,7 @@ export const SECTIONS = [
           items={[
             "Compte : nom, prénom, e-mail, téléphone, date de naissance et genre (facultatifs), mot de passe (stocké uniquement sous forme chiffrée irréversible)",
             "Commandes : adresses de livraison, produits achetés, montants, mode de livraison et de paiement, historique des statuts",
-            "Paiement en ligne : saisi directement chez notre prestataire WiniPayer — Skignas ne reçoit ni ne stocke vos numéros de carte ou codes mobile money",
+            "Paiement en ligne : saisi directement chez notre prestataire GeniusPay — Skignas ne reçoit ni ne stocke vos numéros de carte ou codes mobile money",
             "Demandes de sourcing et devis : description du produit recherché, photos, budget, adresse de livraison, acceptation ou refus du devis et motif éventuel",
             "Retours : motif, commentaire et photos envoyés",
             "Avis : note, commentaire, photos éventuelles",
@@ -64,7 +64,7 @@ export const SECTIONS = [
         <Ul
           items={[
             "Connexion avec Google : nom, prénom, e-mail et photo de profil de votre compte Google",
-            "Statut de paiement transmis par WiniPayer (réussi, annulé, échoué)",
+            "Statut de paiement transmis par GeniusPay (réussi, annulé, échoué)",
             "Résultat de la vérification d'identité des marchands transmis par Didit",
           ]}
         />
@@ -111,7 +111,7 @@ export const SECTIONS = [
             ["Google (Analytics, Tag Manager)", "Mesure d'audience — après consentement uniquement", "Identifiants de navigation, pages vues"],
             ["Google (reCAPTCHA)", "Protection anti-robot des formulaires", "Adresse IP, données d'interaction"],
             ["Google (Fonts)", "Affichage de polices de caractères", "Adresse IP"],
-            ["WiniPayer", "Paiement en ligne : Orange Money, MTN Mobile Money, Wave, carte bancaire", "Montant, référence de commande, données de paiement saisies"],
+            ["GeniusPay", "Paiement en ligne : Orange Money, MTN Mobile Money, Wave, carte bancaire", "Montant, référence de commande, données de paiement saisies"],
             ["Resend", "Envoi des e-mails", "E-mail, contenu des messages"],
             ["Zavu", "Envoi des SMS (codes, suivi, devis, liens d'avis)", "Numéro de téléphone, contenu des SMS"],
             ["Meta (WhatsApp Business)", "Support client et notifications internes de commande", "Nom, téléphone, contenu des messages, montant et numéro de commande"],

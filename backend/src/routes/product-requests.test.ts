@@ -5,12 +5,14 @@ import { prismaMock } from '../test/prismaMock'
 
 vi.mock('../lib/prisma', () => ({ prisma: prismaMock }))
 
-const createPaymentMock  = vi.fn()
-const refreshPaymentMock = vi.fn()
+const createPaymentMock        = vi.fn()
+const refreshGeniusPayMock     = vi.fn()
+const refreshWinipayerMock     = vi.fn() // legacy — commandes encore suivies par WiniPayer au moment de la bascule
 vi.mock('../lib/merchantgo', () => ({
   isMerchantgoConfigured:  () => true,
-  createWinipayerPayment:  (...a: unknown[]) => createPaymentMock(...a),
-  refreshWinipayerPayment: (...a: unknown[]) => refreshPaymentMock(...a),
+  createGeniusPayPayment:  (...a: unknown[]) => createPaymentMock(...a),
+  refreshGeniusPayPayment: (...a: unknown[]) => refreshGeniusPayMock(...a),
+  refreshWinipayerPayment: (...a: unknown[]) => refreshWinipayerMock(...a),
 }))
 
 const applyOrderStatusChangeMock = vi.fn().mockResolvedValue(null)
@@ -82,7 +84,7 @@ describe('Devis de sourcing — acceptation / paiement', () => {
     expect(createPaymentMock).not.toHaveBeenCalled()
   })
 
-  it('première acceptation : commande EN ATTENTE (jamais payée) + lien WiniPayer du montant TTC', async () => {
+  it('première acceptation : commande EN ATTENTE (jamais payée) + lien GeniusPay du montant TTC', async () => {
     prismaMock.productRequest.findUnique.mockResolvedValue(quote() as never)
     const txOrderCreate = vi.fn().mockResolvedValue({ id: 'ord1', orderNumber: 'KLI-1', total: 50_000 })
     const txRequestUpdate = vi.fn().mockResolvedValue({})
@@ -101,13 +103,13 @@ describe('Devis de sourcing — acceptation / paiement', () => {
     expect(orderData).toMatchObject({ paymentStatus: 'pending', status: 'pending', paymentMethod: 'online', subtotal: 50_000, total: 50_000 })
     expect(txRequestUpdate).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'accepted', orderId: 'ord1' }) }))
     expect(createPaymentMock).toHaveBeenCalledWith(expect.objectContaining({ orderId: 'ord1', amount: 50_000 }))
-    expect(prismaMock.order.update).toHaveBeenCalledWith({ where: { id: 'ord1' }, data: { winipayerRef: 'ref1' } })
+    expect(prismaMock.order.update).toHaveBeenCalledWith({ where: { id: 'ord1' }, data: { geniusPayRef: 'ref1' } })
   })
 
   it('devis déjà payé → 409, aucun nouveau lien de paiement', async () => {
     prismaMock.productRequest.findUnique.mockResolvedValue(quote({
       status: 'paid', orderId: 'ord1',
-      order: { id: 'ord1', orderNumber: 'KLI-1', status: 'pending', paymentStatus: 'paid', total: 50_000, winipayerRef: 'ref1' },
+      order: { id: 'ord1', orderNumber: 'KLI-1', status: 'pending', paymentStatus: 'paid', total: 50_000, geniusPayRef: 'ref1' },
     }) as never)
 
     const res = await request(buildApp()).post(`/api/product-requests/quote/${TOKEN}/accept`)
@@ -116,26 +118,27 @@ describe('Devis de sourcing — acceptation / paiement', () => {
     expect(createPaymentMock).not.toHaveBeenCalled()
   })
 
-  it('relance de paiement : revérifie l\'ancienne tentative AVANT d\'en créer une — pas de double paiement si elle avait abouti', async () => {
-    const pendingOrder = { id: 'ord1', orderNumber: 'KLI-1', status: 'pending', paymentStatus: 'pending', total: 50_000, winipayerRef: 'ref1' }
+  it('relance de paiement (GeniusPay) : revérifie l\'ancienne tentative AVANT d\'en créer une — pas de double paiement si elle avait abouti', async () => {
+    const pendingOrder = { id: 'ord1', orderNumber: 'KLI-1', status: 'pending', paymentStatus: 'pending', total: 50_000, geniusPayRef: 'ref1' }
     prismaMock.productRequest.findUnique
       .mockResolvedValueOnce(quote({ status: 'accepted', orderId: 'ord1', order: pendingOrder }) as never)
       // après revérification : le paiement avait en fait réussi
       .mockResolvedValueOnce(quote({ status: 'paid', orderId: 'ord1', order: { ...pendingOrder, paymentStatus: 'paid' } }) as never)
-    refreshPaymentMock.mockResolvedValue({ data: { state: 'success' } })
+    refreshGeniusPayMock.mockResolvedValue({ data: { state: 'success' } })
 
     const res = await request(buildApp()).post(`/api/product-requests/quote/${TOKEN}/accept`)
 
-    expect(refreshPaymentMock).toHaveBeenCalledWith('ref1')
+    expect(refreshGeniusPayMock).toHaveBeenCalledWith('ref1')
+    expect(refreshWinipayerMock).not.toHaveBeenCalled()
     expect(res.status).toBe(409)
     expect(createPaymentMock).not.toHaveBeenCalled()
   })
 
   it('relance après paiement toujours en attente : nouveau lien pour la MÊME commande', async () => {
-    const pendingOrder = { id: 'ord1', orderNumber: 'KLI-1', status: 'pending', paymentStatus: 'pending', total: 50_000, winipayerRef: 'ref1' }
+    const pendingOrder = { id: 'ord1', orderNumber: 'KLI-1', status: 'pending', paymentStatus: 'pending', total: 50_000, geniusPayRef: 'ref1' }
     const accepted = quote({ status: 'accepted', orderId: 'ord1', order: pendingOrder, quoteExpiresAt: new Date(Date.now() - DAY) })
     prismaMock.productRequest.findUnique.mockResolvedValue(accepted as never)
-    refreshPaymentMock.mockResolvedValue({ data: { state: 'pending' } })
+    refreshGeniusPayMock.mockResolvedValue({ data: { state: 'pending' } })
     createPaymentMock.mockResolvedValue({ data: { checkoutUrl: 'https://pay.example/y', providerRef: 'ref2' } })
 
     const res = await request(buildApp()).post(`/api/product-requests/quote/${TOKEN}/accept`)
@@ -143,6 +146,20 @@ describe('Devis de sourcing — acceptation / paiement', () => {
     expect(res.status).toBe(200)
     expect(prismaMock.$transaction).not.toHaveBeenCalled() // pas de 2e commande
     expect(createPaymentMock).toHaveBeenCalledWith(expect.objectContaining({ orderId: 'ord1', amount: 50_000 }))
+  })
+
+  it('relance de paiement (WiniPayer legacy) : commande encore suivie par WiniPayer au moment de la bascule, jamais GeniusPay', async () => {
+    const pendingOrder = { id: 'ord1', orderNumber: 'KLI-1', status: 'pending', paymentStatus: 'pending', total: 50_000, winipayerRef: 'legacy-ref' }
+    prismaMock.productRequest.findUnique
+      .mockResolvedValueOnce(quote({ status: 'accepted', orderId: 'ord1', order: pendingOrder }) as never)
+      .mockResolvedValueOnce(quote({ status: 'paid', orderId: 'ord1', order: { ...pendingOrder, paymentStatus: 'paid' } }) as never)
+    refreshWinipayerMock.mockResolvedValue({ data: { state: 'success' } })
+
+    const res = await request(buildApp()).post(`/api/product-requests/quote/${TOKEN}/accept`)
+
+    expect(refreshWinipayerMock).toHaveBeenCalledWith('legacy-ref')
+    expect(refreshGeniusPayMock).not.toHaveBeenCalled()
+    expect(res.status).toBe(409)
   })
 })
 
@@ -154,7 +171,7 @@ describe('Devis de sourcing — refus', () => {
   })
 
   it('refus d\'un devis accepté mais impayé → la commande en attente est annulée', async () => {
-    const pendingOrder = { id: 'ord1', orderNumber: 'KLI-1', status: 'pending', paymentStatus: 'pending', total: 50_000, winipayerRef: 'ref1' }
+    const pendingOrder = { id: 'ord1', orderNumber: 'KLI-1', status: 'pending', paymentStatus: 'pending', total: 50_000, geniusPayRef: 'ref1' }
     prismaMock.productRequest.findUnique.mockResolvedValue(quote({ status: 'accepted', orderId: 'ord1', order: pendingOrder }) as never)
 
     const res = await request(buildApp())
@@ -170,7 +187,7 @@ describe('Devis de sourcing — refus', () => {
 
   it('impossible de refuser un devis déjà payé', async () => {
     prismaMock.productRequest.findUnique.mockResolvedValue(quote({
-      status: 'paid', order: { id: 'ord1', orderNumber: 'KLI-1', status: 'pending', paymentStatus: 'paid', total: 50_000, winipayerRef: 'ref1' },
+      status: 'paid', order: { id: 'ord1', orderNumber: 'KLI-1', status: 'pending', paymentStatus: 'paid', total: 50_000, geniusPayRef: 'ref1' },
     }) as never)
 
     const res = await request(buildApp()).post(`/api/product-requests/quote/${TOKEN}/decline`).send({})

@@ -9,11 +9,11 @@ const MAX_ATTEMPTS = 6
 const RETRY_DELAY_MS = 1500
 
 /**
- * Page neutre de retour WiniPayer — returnUrl ET cancelUrl y renvoient
+ * Page neutre de retour GeniusPay — returnUrl ET cancelUrl y renvoient
  * toutes les deux (voir backend/src/routes/orders.ts, création de commande).
  * Le résultat n'est JAMAIS déduit de l'URL de redirection : cette page
  * demande systématiquement au backend de revérifier en direct auprès de
- * WiniPayer, puis redirige vers la page d'issue correspondante une fois le
+ * GeniusPay, puis redirige vers la page d'issue correspondante une fois le
  * statut réellement confirmé — jamais avant.
  */
 export default function PaymentVerificationPage() {

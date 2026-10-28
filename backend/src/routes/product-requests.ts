@@ -11,7 +11,7 @@ import { uploadToStockgo } from '../lib/stockgo'
 import { toWebp } from '../lib/imageProcessing'
 import { logger } from '../lib/logger'
 import { scanFiles } from '../lib/virusScan'
-import { isMerchantgoConfigured, createWinipayerPayment, refreshWinipayerPayment } from '../lib/merchantgo'
+import { isMerchantgoConfigured, createGeniusPayPayment, refreshGeniusPayPayment, refreshWinipayerPayment } from '../lib/merchantgo'
 import { applyOrderStatusChange } from './orders'
 import { getVatRatePercent } from '../lib/finance/vat'
 import { sendSms } from '../lib/sms/zavu'
@@ -306,7 +306,7 @@ const zQuoteToken = z.object({ token: z.string().regex(/^[a-f0-9]{48}$/) })
 async function findByToken(token: string) {
   return prisma.productRequest.findUnique({
     where: { quoteToken: token },
-    include: { order: { select: { id: true, orderNumber: true, status: true, paymentStatus: true, total: true, winipayerRef: true } } },
+    include: { order: { select: { id: true, orderNumber: true, status: true, paymentStatus: true, total: true, geniusPayRef: true, winipayerRef: true } } },
   })
 }
 
@@ -384,8 +384,12 @@ router.post('/quote/:token/accept', validateParams(zQuoteToken), async (req, res
     // Une tentative précédente a peut-être abouti sans que le webhook soit
     // encore arrivé : on revérifie AVANT de générer un nouveau lien, pour ne
     // jamais faire payer deux fois ni orpheliner un paiement réussi.
-    if (order?.winipayerRef) {
-      await refreshWinipayerPayment(order.winipayerRef).catch(() => {})
+    // geniusPayRef pour une tentative créée depuis la bascule ; winipayerRef
+    // en repli pour une tentative encore suivie par WiniPayer.
+    const pendingGatewayRef = order?.geniusPayRef ?? order?.winipayerRef
+    if (pendingGatewayRef) {
+      const refresh = order?.geniusPayRef ? refreshGeniusPayPayment : refreshWinipayerPayment
+      await refresh(pendingGatewayRef).catch(() => {})
       r = (await findByToken(req.params['token']!))!
       if (r.order?.paymentStatus === 'paid') {
         res.status(409).json({ success: false, message: 'Ce devis a déjà été payé.', data: { orderNumber: r.order.orderNumber } })
@@ -419,20 +423,20 @@ router.post('/quote/:token/accept', validateParams(zQuoteToken), async (req, res
     }
 
     try {
-      const payment = await createWinipayerPayment({
+      const payment = await createGeniusPayPayment({
         orderId:     order.id,
         orderNumber: order.orderNumber,
         amount:      order.total,
         description: `Devis sourcing ${order.orderNumber} — Skignas`,
         // Retour sur la page du devis, qui revérifie le statut réel (jamais
-        // déduit de l'URL utilisée par WiniPayer) — accessible sans compte.
+        // déduit de l'URL utilisée par GeniusPay) — accessible sans compte.
         returnUrl:   `${quoteUrl(req.params['token']!)}?retour=1`,
         cancelUrl:   `${quoteUrl(req.params['token']!)}?retour=1`,
       })
-      await prisma.order.update({ where: { id: order.id }, data: { winipayerRef: payment.data.providerRef } })
+      await prisma.order.update({ where: { id: order.id }, data: { geniusPayRef: payment.data.providerRef } })
       res.json({ success: true, data: { paymentUrl: payment.data.checkoutUrl, orderNumber: order.orderNumber } })
     } catch (err) {
-      logger.error('[quote accept] échec création paiement WiniPayer', order.orderNumber, err)
+      logger.error('[quote accept] échec création paiement GeniusPay', order.orderNumber, err)
       res.status(502).json({ success: false, message: "Le paiement n'a pas pu être initié. Réessayez dans un instant." })
     }
   } catch (err) {
@@ -442,10 +446,11 @@ router.post('/quote/:token/accept', validateParams(zQuoteToken), async (req, res
 })
 
 /**
- * POST /api/product-requests/quote/:token/verify — appelé au retour de
- * WiniPayer : force une revérification réelle du paiement (merchantgo
- * rappelle mark-paid/mark-cancelled si l'état est terminal), puis renvoie
- * le devis à jour.
+ * POST /api/product-requests/quote/:token/verify — appelé au retour de la
+ * passerelle de paiement (GeniusPay, ou WiniPayer pour un devis accepté
+ * avant la bascule) : force une revérification réelle du paiement
+ * (merchantgo rappelle mark-paid/mark-cancelled si l'état est terminal),
+ * puis renvoie le devis à jour.
  */
 router.post('/quote/:token/verify', validateParams(zQuoteToken), async (req, res) => {
   try {
@@ -454,8 +459,10 @@ router.post('/quote/:token/verify', validateParams(zQuoteToken), async (req, res
       res.status(404).json({ success: false, message: 'Devis introuvable' })
       return
     }
-    if (r.order?.winipayerRef && r.order.paymentStatus !== 'paid' && isMerchantgoConfigured()) {
-      await refreshWinipayerPayment(r.order.winipayerRef).catch(err =>
+    const quoteGatewayRef = r.order?.geniusPayRef ?? r.order?.winipayerRef
+    if (quoteGatewayRef && r.order?.paymentStatus !== 'paid' && isMerchantgoConfigured()) {
+      const refresh = r.order?.geniusPayRef ? refreshGeniusPayPayment : refreshWinipayerPayment
+      await refresh(quoteGatewayRef).catch(err =>
         logger.error('[quote verify] échec revérification', r.order?.orderNumber, err))
     }
     const fresh = (await findByToken(req.params['token']!))!

@@ -9,6 +9,7 @@ import (
 
 	"merchantgo/internal/backendapi"
 	"merchantgo/internal/config"
+	"merchantgo/internal/geniuspay"
 	"merchantgo/internal/models"
 	"merchantgo/internal/repository"
 	"merchantgo/internal/utils"
@@ -48,6 +49,9 @@ func NewPaymentService(repo repository.PaymentRepository, cfg *config.Config, ba
 	return &paymentService{repo: repo, cfg: cfg, backend: backend, logger: logger}
 }
 
+// winipayerClient — réservé à ConfirmPayment pour les transactions WiniPayer
+// déjà en attente au moment de la bascule (voir CreatePayment, qui ne crée
+// plus que des paiements GeniusPay).
 func (s *paymentService) winipayerClient() (*winipayer.Client, error) {
 	if !s.cfg.WinipayerConfigured() {
 		return nil, utils.NewAppError(503, "Paiement en ligne indisponible (WiniPayer non configuré)", nil)
@@ -61,13 +65,29 @@ func (s *paymentService) winipayerClient() (*winipayer.Client, error) {
 	}), nil
 }
 
+func (s *paymentService) geniusPayClient() (*geniuspay.Client, error) {
+	if !s.cfg.GeniusPayConfigured() {
+		return nil, utils.NewAppError(503, "Paiement en ligne indisponible (GeniusPay non configuré)", nil)
+	}
+	apiKey, apiSecret := s.cfg.GeniusPayCredentials()
+	return geniuspay.NewClient(geniuspay.Credentials{
+		APIKey:    apiKey,
+		APISecret: apiSecret,
+		BaseURL:   s.cfg.GeniusPayBaseURL,
+	}), nil
+}
+
 // CreatePayment est idempotent par commande : tant qu'une tentative est
 // encore en attente pour le même montant, son lien est renvoyé au lieu
-// d'ouvrir une nouvelle transaction WiniPayer. Sans ça, un double envoi
+// d'ouvrir une nouvelle transaction GeniusPay. Sans ça, un double envoi
 // créait deux transactions et backend/ ne gardait que la référence de la
 // dernière : un client payant avec le PREMIER lien voyait sa confirmation
 // refusée (« référence incohérente »), commande jamais marquée payée.
 // Une tentative échouée/annulée n'est pas réutilisée : le client peut relancer.
+//
+// Passerelle active : GeniusPay (WiniPayer retiré — voir winipayerClient,
+// conservé seulement pour revérifier les transactions déjà en attente au
+// moment de la bascule).
 func (s *paymentService) CreatePayment(ctx context.Context, in CreatePaymentInput) (*models.PaymentIntent, error) {
 	lock, _ := s.orderLocks.LoadOrStore(in.OrderID, &sync.Mutex{})
 	lock.(*sync.Mutex).Lock()
@@ -83,28 +103,29 @@ func (s *paymentService) CreatePayment(ctx context.Context, in CreatePaymentInpu
 		return existing, nil
 	}
 
-	client, err := s.winipayerClient()
+	client, err := s.geniusPayClient()
 	if err != nil {
 		return nil, err
 	}
 
-	callbackURL := s.cfg.PublicURL + "/api/v1/webhooks/winipayer"
-	result, err := client.CreatePayment(ctx, winipayer.CreatePaymentInput{
+	result, err := client.CreatePayment(ctx, geniuspay.CreatePaymentInput{
 		Amount:      in.Amount,
 		Description: in.Description,
-		ReturnURL:   in.ReturnURL,
-		CancelURL:   in.CancelURL,
-		CallbackURL: callbackURL,
-		CustomData:  map[string]any{"order_id": in.OrderID, "order_number": in.OrderNumber},
+		// GeniusPay n'a qu'un couple success/error (pas de 3e URL "cancel"
+		// distincte) — les deux pointent de toute façon vers la même page
+		// neutre de vérification côté koili (voir orderPaymentUrl, backend/).
+		SuccessURL: in.ReturnURL,
+		ErrorURL:   in.CancelURL,
+		Metadata:   map[string]any{"order_id": in.OrderID, "order_number": in.OrderNumber},
 	})
 	if err != nil {
-		s.logger.Error("création paiement WiniPayer échouée", zap.Error(err), zap.String("orderId", in.OrderID))
-		return nil, utils.NewAppError(502, "Création du paiement WiniPayer échouée", err)
+		s.logger.Error("création paiement GeniusPay échouée", zap.Error(err), zap.String("orderId", in.OrderID))
+		return nil, utils.NewAppError(502, "Création du paiement GeniusPay échouée", err)
 	}
 
 	intent := &models.PaymentIntent{
-		Provider:    models.ProviderWinipayer,
-		ProviderRef: result.UUID,
+		Provider:    models.ProviderGeniusPay,
+		ProviderRef: result.Reference,
 		OrderID:     in.OrderID,
 		OrderNumber: in.OrderNumber,
 		Amount:      in.Amount,
@@ -135,28 +156,12 @@ func (s *paymentService) ConfirmPayment(ctx context.Context, providerRef string)
 		return intent, nil
 	}
 
-	client, err := s.winipayerClient()
+	state, operator, operatorRef, err := s.checkProviderStatus(ctx, intent)
 	if err != nil {
 		return nil, err
 	}
-
-	detail, err := client.CheckStatus(ctx, providerRef)
-	if err != nil {
-		s.logger.Error("vérification statut WiniPayer échouée", zap.Error(err), zap.String("providerRef", providerRef))
-		return nil, utils.NewAppError(502, "Vérification du paiement WiniPayer échouée", err)
-	}
-
-	switch detail.State {
-	case "success":
-		intent.State = models.PaymentSuccess
-	case "failed":
-		intent.State = models.PaymentFailed
-	case "cancelled":
-		intent.State = models.PaymentCancelled
-	default:
-		intent.State = models.PaymentPending
-	}
-	intent.OperatorRef = detail.OperatorRef
+	intent.State = state
+	intent.OperatorRef = operatorRef
 
 	if err := s.repo.Update(ctx, intent); err != nil {
 		return nil, utils.ErrInternal(fmt.Errorf("mise à jour intention de paiement: %w", err))
@@ -169,11 +174,11 @@ func (s *paymentService) ConfirmPayment(ctx context.Context, providerRef string)
 
 	switch intent.State {
 	case models.PaymentSuccess:
-		if err := s.backend.MarkOrderPaid(ctx, intent.OrderID, intent.ProviderRef, detail.Operator); err != nil {
+		if err := s.backend.MarkOrderPaid(ctx, intent.OrderID, intent.ProviderRef, operator); err != nil {
 			// Le paiement est confirmé et l'intent l'enregistre déjà en base —
-			// une erreur ici doit remonter en 5xx pour que WiniPayer retente
-			// le webhook, ce qui redéclenchera ConfirmPayment jusqu'à ce que
-			// backend/ réponde (voir kyc_webhook_handler.go, même doctrine).
+			// une erreur ici doit remonter en 5xx pour que la passerelle
+			// retente le webhook, ce qui redéclenchera ConfirmPayment jusqu'à
+			// ce que backend/ réponde (voir kyc_webhook_handler.go, même doctrine).
 			return nil, utils.NewAppError(502, "Confirmation de commande échouée côté backend", err)
 		}
 	case models.PaymentCancelled, models.PaymentFailed:
@@ -181,8 +186,71 @@ func (s *paymentService) ConfirmPayment(ctx context.Context, providerRef string)
 			return nil, utils.NewAppError(502, "Annulation de commande échouée côté backend", err)
 		}
 	default:
-		// pending — rien à notifier tant que WiniPayer n'a pas de statut terminal.
+		// pending — rien à notifier tant que la passerelle n'a pas de statut terminal.
 	}
 
 	return intent, nil
+}
+
+// checkProviderStatus revérifie l'état réel d'une transaction auprès du
+// FOURNISSEUR enregistré sur l'intent au moment de sa création — jamais un
+// client unique : une transaction WiniPayer encore en attente au moment de
+// la bascule vers GeniusPay doit continuer à être vérifiée auprès de
+// WiniPayer, pas de GeniusPay qui ne la connaît pas. Renvoie (état mappé,
+// nom de l'opérateur de paiement, référence opérateur, erreur).
+func (s *paymentService) checkProviderStatus(ctx context.Context, intent *models.PaymentIntent) (models.PaymentState, string, string, error) {
+	switch intent.Provider {
+	case models.ProviderGeniusPay:
+		client, err := s.geniusPayClient()
+		if err != nil {
+			return "", "", "", err
+		}
+		detail, err := client.CheckStatus(ctx, intent.ProviderRef)
+		if err != nil {
+			s.logger.Error("vérification statut GeniusPay échouée", zap.Error(err), zap.String("providerRef", intent.ProviderRef))
+			return "", "", "", utils.NewAppError(502, "Vérification du paiement GeniusPay échouée", err)
+		}
+		return mapGeniusPayStatus(detail.Status), detail.Gateway, detail.GatewayRef, nil
+
+	case models.ProviderWinipayer:
+		client, err := s.winipayerClient()
+		if err != nil {
+			return "", "", "", err
+		}
+		detail, err := client.CheckStatus(ctx, intent.ProviderRef)
+		if err != nil {
+			s.logger.Error("vérification statut WiniPayer échouée", zap.Error(err), zap.String("providerRef", intent.ProviderRef))
+			return "", "", "", utils.NewAppError(502, "Vérification du paiement WiniPayer échouée", err)
+		}
+		return mapWinipayerStatus(detail.State), detail.Operator, detail.OperatorRef, nil
+
+	default:
+		return "", "", "", utils.NewAppError(500, fmt.Sprintf("Fournisseur de paiement inconnu: %s", intent.Provider), nil)
+	}
+}
+
+func mapGeniusPayStatus(status string) models.PaymentState {
+	switch status {
+	case "completed":
+		return models.PaymentSuccess
+	case "failed", "expired":
+		return models.PaymentFailed
+	case "cancelled":
+		return models.PaymentCancelled
+	default: // pending, processing
+		return models.PaymentPending
+	}
+}
+
+func mapWinipayerStatus(state string) models.PaymentState {
+	switch state {
+	case "success":
+		return models.PaymentSuccess
+	case "failed":
+		return models.PaymentFailed
+	case "cancelled":
+		return models.PaymentCancelled
+	default:
+		return models.PaymentPending
+	}
 }

@@ -72,8 +72,9 @@ func (c *Client) MarkOrderPaid(ctx context.Context, orderID, providerRef, operat
 
 // MarkOrderCancelled appelle POST {backend}/api/internal/orders/:id/mark-cancelled
 // — reason vaut "cancelled" (annulation volontaire) ou "failed" (paiement
-// refusé/expiré), jamais deviné : reflète l'état WiniPayer réellement observé
-// (voir services/payment_service.go, ConfirmPayment).
+// refusé/expiré), jamais deviné : reflète l'état réellement observé auprès
+// de la passerelle (GeniusPay ou WiniPayer legacy, voir
+// services/payment_service.go, ConfirmPayment).
 func (c *Client) MarkOrderCancelled(ctx context.Context, orderID, providerRef, reason string) error {
 	path := fmt.Sprintf("/api/internal/orders/%s/mark-cancelled", orderID)
 	return c.postJSON(ctx, path, map[string]string{

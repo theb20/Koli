@@ -10,7 +10,12 @@ import (
 type PaymentProvider string
 
 const (
+	// ProviderWinipayer n'est plus produit par de nouveaux paiements (voir
+	// payment_service.CreatePayment) — conservé pour les PaymentIntent déjà
+	// en base (historique, et toute transaction encore en attente au moment
+	// de la bascule vers GeniusPay).
 	ProviderWinipayer PaymentProvider = "winipayer"
+	ProviderGeniusPay PaymentProvider = "geniuspay"
 )
 
 type PaymentState string

@@ -174,13 +174,13 @@ function getSections(settings: SiteSettings) {
         <P>Les paiements peuvent être effectués par :</P>
         <Ul
           items={[
-            "Paiement en ligne via notre prestataire WiniPayer : Orange Money, MTN Mobile Money, Wave ou carte bancaire",
+            "Paiement en ligne via notre prestataire GeniusPay : Orange Money, MTN Mobile Money, Wave ou carte bancaire",
             "Paiement à la livraison (espèces, à réception du colis), lorsqu'il est proposé",
           ]}
         />
         <P>
           Un paiement en ligne est considéré comme effectué uniquement après confirmation par
-          WiniPayer ; le statut de la commande est alors mis à jour automatiquement. Le détail des
+          GeniusPay ; le statut de la commande est alors mis à jour automatiquement. Le détail des
           prix, frais de livraison, retours et garanties figure dans les{" "}
           <a href="/cgv" className="text-blue-600 underline underline-offset-2">Conditions Générales de Vente</a>.
         </P>

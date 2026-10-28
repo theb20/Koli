@@ -75,12 +75,12 @@ function getSections(s: SiteSettings) {
         <>
           <Ul
             items={[
-              "Paiement en ligne, via notre prestataire WiniPayer : Orange Money, MTN Mobile Money, Wave ou carte bancaire. Skignas ne reçoit ni ne conserve vos données de carte ou de mobile money.",
+              "Paiement en ligne, via notre prestataire GeniusPay : Orange Money, MTN Mobile Money, Wave ou carte bancaire. Skignas ne reçoit ni ne conserve vos données de carte ou de mobile money.",
               "Paiement à la livraison (espèces), lorsqu'il est proposé au moment de la commande.",
             ]}
           />
           <P>
-            Un paiement en ligne n'est considéré comme effectué qu'après confirmation par WiniPayer. En cas de
+            Un paiement en ligne n'est considéré comme effectué qu'après confirmation par GeniusPay. En cas de
             paiement annulé ou refusé, aucun montant n'est débité et la commande est annulée.
           </P>
         </>

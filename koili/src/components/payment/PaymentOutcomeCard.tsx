@@ -6,7 +6,7 @@ import { fmtPrice, type ApiOrder } from '../../lib/api'
 export type PaymentOutcome = 'success' | 'cancelled' | 'failed'
 
 const PAYMENT_LABELS: Record<string, string> = {
-  online: 'WiniPayer',
+  online: 'GeniusPay',
   cash:   'Paiement à la livraison',
 }
 

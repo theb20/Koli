@@ -96,7 +96,7 @@ export type ApiOrder = {
   promoDiscount: number
   total: number
   status: string
-  /// "cancelled" (client a annulé sur WiniPayer) ou "failed" (paiement
+  /// "cancelled" (client a annulé sur GeniusPay) ou "failed" (paiement
   /// refusé/expiré) — posé uniquement quand status="cancelled" ET que la
   /// commande était suivie par la passerelle. Distingue les pages
   /// /paiement/annule et /paiement/echec.
@@ -408,8 +408,8 @@ export async function fetchOrder(id: string, token?: string | null) {
 }
 
 /**
- * Demande une vérification en direct du paiement WiniPayer d'une commande —
- * appelé par la page de retour (returnUrl ET cancelUrl WiniPayer pointent
+ * Demande une vérification en direct du paiement GeniusPay d'une commande —
+ * appelé par la page de retour (returnUrl ET cancelUrl GeniusPay pointent
  * toutes les deux ici, voir orders.ts backend) : ne déduit jamais le résultat
  * de l'URL, seule cette vérification serveur fait foi.
  */
@@ -625,14 +625,14 @@ export async function fetchQuote(quoteToken: string) {
   return apiFetch<ApiResponse<ApiQuote>>(`/api/product-requests/quote/${quoteToken}`)
 }
 
-/** Accepte le devis → renvoie l'URL de paiement WiniPayer vers laquelle rediriger. */
+/** Accepte le devis → renvoie l'URL de paiement GeniusPay vers laquelle rediriger. */
 export async function acceptQuote(quoteToken: string) {
   return apiFetch<ApiResponse<{ paymentUrl: string; orderNumber: string }>>(
     `/api/product-requests/quote/${quoteToken}/accept`, null, { method: 'POST' },
   )
 }
 
-/** Retour de WiniPayer — revérification réelle du paiement, devis à jour. */
+/** Retour de GeniusPay — revérification réelle du paiement, devis à jour. */
 export async function verifyQuotePayment(quoteToken: string) {
   return apiFetch<ApiResponse<ApiQuote>>(`/api/product-requests/quote/${quoteToken}/verify`, null, { method: 'POST' })
 }

@@ -49,9 +49,19 @@ func Setup(
 		// pas un marchand ni koli-admin.
 		v1.POST("/webhooks/didit", kycWebhookHandler.Receive)
 
-		// Authentifié par hash (voir handlers.PaymentHandler.Webhook), pas
-		// par RequireAuth/RequireAdmin — c'est WiniPayer qui appelle.
+		// LEGACY — sert les transactions WiniPayer déjà en attente au moment
+		// de la bascule vers GeniusPay (voir CreateGeniusPayPayment) ;
+		// aucune nouvelle transaction WiniPayer n'est plus créée, cette
+		// route cessera de recevoir des appels une fois les dernières
+		// transactions en attente résolues. Authentifié par hash (voir
+		// handlers.PaymentHandler.Webhook), pas par RequireAuth/RequireAdmin
+		// — c'est WiniPayer qui appelle.
 		v1.POST("/webhooks/winipayer", paymentHandler.Webhook)
+
+		// Authentifié par signature HMAC (voir
+		// handlers.PaymentHandler.GeniusPayWebhook), pas par
+		// RequireAuth/RequireAdmin — c'est GeniusPay qui appelle.
+		v1.POST("/webhooks/geniuspay", paymentHandler.GeniusPayWebhook)
 
 		applications := v1.Group("/applications")
 		applications.Use(middleware.RequireAuth(cfg, logger), idempotency)
@@ -100,8 +110,13 @@ func Setup(
 		internal.Use(middleware.RequireAdmin(cfg, logger))
 		{
 			internal.POST("/orders/paid", walletHandler.RecordSale)
-			internal.POST("/payments/winipayer/create", paymentHandler.CreateWinipayerPayment)
+			// LEGACY — pas de /payments/winipayer/create : plus aucune
+			// nouvelle transaction WiniPayer ne doit être créée (voir
+			// payment_service.CreatePayment). /refresh reste monté pour
+			// les transactions encore en attente au moment de la bascule.
 			internal.POST("/payments/winipayer/:providerRef/refresh", paymentHandler.RefreshWinipayerPayment)
+			internal.POST("/payments/geniuspay/create", paymentHandler.CreateGeniusPayPayment)
+			internal.POST("/payments/geniuspay/:providerRef/refresh", paymentHandler.RefreshGeniusPayPayment)
 		}
 
 		adminBillingBulk := v1.Group("/admin/billing")

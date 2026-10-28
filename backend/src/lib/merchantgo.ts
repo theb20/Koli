@@ -78,12 +78,12 @@ export function recordMerchantSale(input: { userId: string; orderId: string; ord
 }
 
 /**
- * Crée un lien de paiement WiniPayer via merchantgo — remplace PayDunya
+ * Crée un lien de paiement GeniusPay via merchantgo — remplace WiniPayer
  * comme passerelle de paiement en ligne (voir order_payment_architecture) :
  * toute la logique de paiement vit désormais dans merchantgo, backend/ ne
  * fait que relayer la création et se faire notifier au retour.
  */
-export function createWinipayerPayment(input: {
+export function createGeniusPayPayment(input: {
   orderId: string
   orderNumber: string
   amount: number
@@ -92,18 +92,31 @@ export function createWinipayerPayment(input: {
   cancelUrl: string
 }) {
   return merchantgoRequest<{ success: boolean; data: { checkoutUrl: string; providerRef: string } }>(
-    `/api/v1/internal/payments/winipayer/create`,
+    `/api/v1/internal/payments/geniuspay/create`,
     { method: 'POST', body: input },
   )
 }
 
 /**
- * Force une revérification en direct d'un paiement WiniPayer auprès de
- * merchantgo (qui revérifie lui-même auprès de WiniPayer, jamais de
+ * Force une revérification en direct d'un paiement GeniusPay auprès de
+ * merchantgo (qui revérifie lui-même auprès de GeniusPay, jamais de
  * confiance dans un statut local périmé) — utilisé par la page de retour
  * client quand le webhook n'est peut-être pas encore arrivé. Si le paiement
  * est dans un état terminal, merchantgo rappelle lui-même mark-paid /
  * mark-cancelled sur ce backend avant de répondre ici.
+ */
+export function refreshGeniusPayPayment(providerRef: string) {
+  return merchantgoRequest<{ success: boolean; data: { state: string; operatorRef?: string } }>(
+    `/api/v1/internal/payments/geniuspay/${encodeURIComponent(providerRef)}/refresh`,
+    { method: 'POST' },
+  )
+}
+
+/**
+ * LEGACY — ne sert plus qu'à revérifier une commande encore suivie par
+ * WiniPayer au moment de la bascule vers GeniusPay (voir Order.winipayerRef
+ * et gatewayTracked dans orders.ts). Aucune nouvelle transaction WiniPayer
+ * n'est créée (pas d'équivalent createWinipayerPayment).
  */
 export function refreshWinipayerPayment(providerRef: string) {
   return merchantgoRequest<{ success: boolean; data: { state: string; operatorRef?: string } }>(

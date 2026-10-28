@@ -13,7 +13,7 @@ import { snapshotOrderFinancialsSafe } from '../lib/finance/snapshot'
 import { getVatRatePercent } from '../lib/finance/vat'
 import { requestOrderReview } from '../lib/orderReview'
 import { getLoyaltySettings } from './loyalty'
-import { createWinipayerPayment, isMerchantgoConfigured, refreshWinipayerPayment } from '../lib/merchantgo'
+import { createGeniusPayPayment, isMerchantgoConfigured, refreshGeniusPayPayment, refreshWinipayerPayment } from '../lib/merchantgo'
 import type { Request, Response } from 'express'
 import type { Order } from '@prisma/client'
 
@@ -108,32 +108,32 @@ type OrderStatusValue = typeof ORDER_STATUSES[number]
  *   fait office de confirmation manuelle du paiement.
  */
 /**
- * Lien de paiement WiniPayer d'une commande en ligne (via merchantgo) —
+ * Lien de paiement GeniusPay d'une commande en ligne (via merchantgo) —
  * idempotent : merchantgo renvoie la tentative encore en attente de la
  * commande au lieu d'en ouvrir une nouvelle, donc rappeler cette fonction
  * (rejeu d'une commande déjà créée) redonne le MÊME lien. Si merchantgo/
- * WiniPayer est indisponible, la commande reste créée (dégradation).
+ * GeniusPay est indisponible, la commande reste créée (dégradation).
  */
 async function orderPaymentUrl(order: { id: string; orderNumber: string; total: number }): Promise<string | undefined> {
   if (!isMerchantgoConfigured()) return undefined
   try {
     const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:5173'
-    const payment = await createWinipayerPayment({
+    const payment = await createGeniusPayPayment({
       orderId:     order.id,
       orderNumber: order.orderNumber,
       amount:      order.total,
       description: `Commande ${order.orderNumber} — Skignas`,
       // Les deux pointent vers la même page neutre de vérification —
       // jamais vers la page de commande directement, et jamais de
-      // distinction basée sur laquelle des deux URLs WiniPayer a
+      // distinction basée sur laquelle des deux URLs GeniusPay a
       // effectivement utilisée : seul POST /:id/verify-payment fait foi.
       returnUrl:   `${frontendUrl}/paiement/verification/${order.orderNumber}`,
       cancelUrl:   `${frontendUrl}/paiement/verification/${order.orderNumber}`,
     })
-    await prisma.order.update({ where: { id: order.id }, data: { winipayerRef: payment.data.providerRef } })
+    await prisma.order.update({ where: { id: order.id }, data: { geniusPayRef: payment.data.providerRef } })
     return payment.data.checkoutUrl
   } catch (err) {
-    logger.error('[orders] échec création paiement WiniPayer', order.orderNumber, err)
+    logger.error('[orders] échec création paiement GeniusPay', order.orderNumber, err)
     return undefined
   }
 }
@@ -178,14 +178,15 @@ export async function applyOrderStatusChange(orderId: string, status: OrderStatu
       }
     }
 
-    // Une commande liée à une transaction WiniPayer (winipayerRef posé, ou
-    // paydunyaToken pour d'anciennes commandes créées avant la migration) a
-    // son paiement suivi par la passerelle — seul le webhook merchantgo
-    // (voir routes/internal.ts) fait foi. Faire progresser son statut
-    // manuellement ne doit jamais la faire passer "payée" par raccourci : un
-    // admin qui avance une commande par erreur avant que le client ait
-    // réellement payé ne doit pas la faire apparaître payée à tort.
-    const gatewayTracked = !!order.winipayerRef || !!order.paydunyaToken
+    // Une commande liée à une transaction GeniusPay (geniusPayRef posé),
+    // WiniPayer (winipayerRef — commandes créées avant la bascule) ou
+    // paydunyaToken (avant WiniPayer) a son paiement suivi par la
+    // passerelle — seul le webhook merchantgo (voir routes/internal.ts) fait
+    // foi. Faire progresser son statut manuellement ne doit jamais la faire
+    // passer "payée" par raccourci : un admin qui avance une commande par
+    // erreur avant que le client ait réellement payé ne doit pas la faire
+    // apparaître payée à tort.
+    const gatewayTracked = !!order.geniusPayRef || !!order.winipayerRef || !!order.paydunyaToken
     const paymentStatus =
       status === 'refunded'                                                   ? 'refunded'
       : gatewayTracked                                                         ? order.paymentStatus
@@ -931,19 +932,25 @@ router.post('/:id/verify-payment', optionalAuth, validateParams(zCuidIdParam), a
     // Rien à vérifier : paiement à la livraison, jamais passé par la
     // passerelle, ou déjà dans un état terminal (payée ou annulée).
     const alreadyFinal = order.paymentStatus === 'paid' || order.status === 'cancelled'
-    if (order.paymentMethod === 'cash' || !order.winipayerRef || alreadyFinal) {
+    // geniusPayRef pour toute commande en ligne créée depuis la bascule ;
+    // winipayerRef en repli pour une commande encore suivie par WiniPayer
+    // (créée juste avant la bascule, paiement pas encore résolu) — jamais
+    // les deux à la fois sur une même commande.
+    const gatewayRef = order.geniusPayRef ?? order.winipayerRef
+    if (order.paymentMethod === 'cash' || !gatewayRef || alreadyFinal) {
       res.json({ success: true, data: order })
       return
     }
 
     try {
-      // merchantgo revérifie l'état réel auprès de WiniPayer et, si le
+      // merchantgo revérifie l'état réel auprès de la passerelle et, si le
       // paiement est dans un état terminal, rappelle lui-même
       // mark-paid/mark-cancelled sur ce même backend — par le temps que cet
       // appel revienne, notre propre commande est donc déjà à jour.
-      await refreshWinipayerPayment(order.winipayerRef)
+      if (order.geniusPayRef) await refreshGeniusPayPayment(order.geniusPayRef)
+      else await refreshWinipayerPayment(order.winipayerRef!)
     } catch (err) {
-      logger.error('[orders] échec vérification WiniPayer', order.orderNumber, err)
+      logger.error('[orders] échec vérification paiement', order.orderNumber, err)
       // Non bloquant : on renvoie l'état connu, le frontend pourra réessayer.
     }
 

@@ -40,7 +40,7 @@ function phaseOf(q: ApiQuote): Phase {
 /**
  * Devis de sourcing — ouvert depuis le lien personnel reçu par e-mail/SMS
  * (fonctionne sans compte). Le client y accepte et paie en ligne
- * (WiniPayer, 100 % à la commande) ou refuse. Au retour de WiniPayer
+ * (GeniusPay, 100 % à la commande) ou refuse. Au retour de GeniusPay
  * (?retour=1), le statut réel est revérifié côté serveur — jamais déduit de
  * l'URL de redirection.
  */
@@ -66,7 +66,7 @@ export default function QuotePage() {
   })
   const quote = data?.data
 
-  /* ── Retour de WiniPayer : revérification réelle, quelques essais le
+  /* ── Retour de GeniusPay : revérification réelle, quelques essais le
         temps que la passerelle rende un statut définitif ── */
   const cancelledRef = useRef(false)
   useEffect(() => () => { cancelledRef.current = true }, [])
