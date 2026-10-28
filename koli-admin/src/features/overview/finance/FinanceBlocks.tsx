@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeftRight, ArrowUpRight, PiggyBank, AlertTriangle, Package, Truck } from 'lucide-react'
+import { ArrowLeftRight, ArrowUpRight, PiggyBank, AlertTriangle, Package, Truck, RefreshCw } from 'lucide-react'
 import { Card } from '../../../components/ui/Card'
+import { Button } from '../../../components/ui/Button'
 import { DeltaBadge } from '../../../components/ui/Stat'
 import { InfoTip } from '../../../components/ui/InfoTip'
 import { Skeleton, EmptyState } from '../../../components/ui/States'
@@ -145,7 +146,9 @@ function TopList<T>({ title, help, items, empty, render }: {
 
 const pct = (v: number | null) => v == null ? '—' : `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(v)}\u00A0%`
 
-export function ProfitBlock({ data }: { data: FinanceOverview }) {
+type ProfitBlockProps = { data: FinanceOverview; onRecompute?: () => void; recomputing?: boolean }
+
+export function ProfitBlock({ data, onRecompute, recomputing }: ProfitBlockProps) {
   const p = data.profit, cov = data.coverage
   return (
     <Block tone="profit" icon={<PiggyBank size={17} />} title="Rentabilité"
@@ -153,12 +156,21 @@ export function ProfitBlock({ data }: { data: FinanceOverview }) {
       {cov.excludedOrders > 0 && (
         <div role="note" className="mb-4 flex items-start gap-2.5 rounded-input border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-secondary text-amber-800">
           <AlertTriangle size={15} className="mt-0.5 shrink-0" aria-hidden />
-          <p>
-            <strong className="font-medium">{plural(cov.excludedOrders, 'commande')} exclue{cov.excludedOrders > 1 ? 's' : ''} des calculs de marge</strong>
-            {cov.excludedSharePct != null && ` (${pct(cov.excludedSharePct)} des commandes de la période)`} : coût fournisseur inconnu
-            (commandes antérieures au suivi, ou produits sans prix d'achat). Elles restent comptées dans le volume d'affaires.{' '}
-            <Link to="/suppliers/a-completer" className="underline underline-offset-2">Compléter les produits</Link>
-          </p>
+          <div className="flex-1 min-w-0">
+            <p>
+              <strong className="font-medium">{plural(cov.excludedOrders, 'commande')} exclue{cov.excludedOrders > 1 ? 's' : ''} des calculs de marge</strong>
+              {cov.excludedSharePct != null && ` (${pct(cov.excludedSharePct)} des commandes de la période)`} : coût fournisseur inconnu
+              (commandes antérieures au suivi, ou produits sans prix d'achat). Elles restent comptées dans le volume d'affaires.{' '}
+              <Link to="/suppliers/a-completer" className="underline underline-offset-2">Compléter les produits</Link>
+            </p>
+            {onRecompute && (
+              <p className="mt-2">
+                <Button variant="secondary" size="sm" icon={<RefreshCw size={13} />} loading={recomputing} onClick={onRecompute}>
+                  Recalculer les commandes complétées
+                </Button>
+              </p>
+            )}
+          </div>
         </div>
       )}
       <div className="grid grid-cols-1 min-[420px]:grid-cols-2 xl:grid-cols-3 gap-3">

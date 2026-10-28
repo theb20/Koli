@@ -40,6 +40,7 @@ const EmailTemplatesPage = lazy(() => import('./pages/EmailTemplatesPage'))
 const ReturnsPage = lazy(() => import('./pages/ReturnsPage'))
 const ReturnDetailPage = lazy(() => import('./pages/ReturnDetailPage'))
 const ProductDeletionRequestsPage = lazy(() => import('./pages/ProductDeletionRequestsPage'))
+const SecurityEmailsPage = lazy(() => import('./pages/SecurityEmailsPage'))
 const LoyaltyPage = lazy(() => import('./pages/LoyaltyPage'))
 const LoyaltyDetailPage = lazy(() => import('./pages/LoyaltyDetailPage'))
 
@@ -94,6 +95,7 @@ export default function App() {
             <Route path="/returns"       element={<ReturnsPage />} />
             <Route path="/returns/:id"   element={<ReturnDetailPage />} />
             <Route path="/product-deletion-requests" element={<ProductDeletionRequestsPage />} />
+            <Route path="/security-emails" element={<SecurityEmailsPage />} />
             <Route path="/loyalty"       element={<LoyaltyPage />} />
             <Route path="/loyalty/:id"   element={<LoyaltyDetailPage />} />
           </Route>

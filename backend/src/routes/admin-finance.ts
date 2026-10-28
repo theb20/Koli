@@ -12,7 +12,7 @@ import { validate, validateParams, validateQuery, zCuidIdParam } from '../middle
 import { logAdminAction } from '../lib/auditLog'
 import { logger } from '../lib/logger'
 import { financeOverview, periodRange, PERIOD_PRESETS, type PeriodPreset } from '../lib/finance/overview'
-import { snapshotPendingOrders } from '../lib/finance/snapshot'
+import { snapshotPendingOrders, recomputeExcludedOrders } from '../lib/finance/snapshot'
 import { orderGrossMargin, shippingResult } from '../lib/finance/formulas'
 
 const router = Router()
@@ -34,6 +34,23 @@ router.get('/overview', validateQuery(overviewQuery), async (req, res) => {
     res.json({ success: true, data: { preset: q.preset, ...(await financeOverview(range)) } })
   } catch (err) {
     logger.error('[admin-finance/overview]', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/*
+ * POST /api/admin/finance/recompute-excluded — rattrape les commandes
+ * payées exclues des marges (coût fournisseur inconnu au moment du
+ * paiement) dont un produit a depuis reçu un vrai prix d'achat réel (voir
+ * "Produits à compléter"). Ne touche jamais une commande déjà à coût connu.
+ */
+router.post('/recompute-excluded', async (req, res) => {
+  try {
+    const result = await recomputeExcludedOrders()
+    logAdminAction(req, { action: 'finance.recompute_excluded', targetType: 'OrderFinancials', targetId: 'bulk', metadata: result })
+    res.json({ success: true, data: result })
+  } catch (err) {
+    logger.error('[admin-finance/recompute-excluded]', err)
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
 })

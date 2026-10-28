@@ -25,7 +25,7 @@ import {
   sendWelcomeEmail, sendMagicLinkEmail, sendPasswordResetEmail, sendPasswordChangedEmail,
   sendOrderConfirmationEmail, sendOrderStatusEmail, sendContactReply, sendBroadcastEmail,
   sendNewOrderAdminEmail, sendNewProductRequestAdminEmail, sendProductRequestReplyEmail,
-  sendReturnStatusEmail, sendNewReturnAdminEmail, sendSecurityUpdateEmail,
+  sendReturnStatusEmail, sendNewReturnAdminEmail, sendSecurityUpdateEmail, sendSecurityAlertEmail,
   sendReviewRequestEmail,
 } from '../lib/email'
 import { sendFlashDealEmail } from '../lib/email/templates/flash-deal'
@@ -57,6 +57,7 @@ const TEMPLATES: Record<string, () => Promise<void>> = {
   'contact-reply': () => sendContactReply('preview@example.com', 'Awa', 'Question sur ma commande'),
   broadcast: () => sendBroadcastEmail('preview@example.com', 'Awa', 'Nouvelle collection disponible', 'Découvrez nos derniers arrivages tech à prix imbattables cette semaine seulement.'),
   'security-update': () => sendSecurityUpdateEmail('preview@example.com', 'Awa'),
+  'security-alert': () => sendSecurityAlertEmail('preview@example.com', 'Awa', 'Activité inhabituelle détectée sur votre compte', 'Nous avons détecté une connexion depuis un nouvel appareil. Si ce n’était pas vous, changez votre mot de passe immédiatement.'),
   'new-order-admin': () => sendNewOrderAdminEmail('preview@example.com', {
     orderNumber: 'SKG-00042', clientNom: 'Awa Koné', clientTelephone: '+225 07 00 00 00 00',
     clientEmail: 'awa@example.com', items: DUMMY_ORDER_ITEMS, total: 34500,

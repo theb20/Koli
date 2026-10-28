@@ -9,10 +9,10 @@
 const FONT_BRAND = "'Google Sans',Roboto,Arial,sans-serif"
 const FONT_BODY  = 'Roboto,Arial,sans-serif'
 
-/** Sous-titre bleu en capslock avant le heading, avec puce */
-export function subheading(text: string): string {
-  return `<p style="font-family:${FONT_BRAND};font-size:12px;font-weight:600;color:#1967d2;letter-spacing:.2px;text-transform:uppercase;margin:0 0 14px">
-    <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#1a73e8;margin-right:8px;vertical-align:middle"></span>${text}
+/** Sous-titre en capslock avant le heading, avec puce — bleu par défaut */
+export function subheading(text: string, color = '#1967d2', dotColor = '#1a73e8'): string {
+  return `<p style="font-family:${FONT_BRAND};font-size:12px;font-weight:600;color:${color};letter-spacing:.2px;text-transform:uppercase;margin:0 0 14px">
+    <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${dotColor};margin-right:8px;vertical-align:middle"></span>${text}
   </p>`
 }
 

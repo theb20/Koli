@@ -33,6 +33,7 @@ const STATUS: Record<string, [PillTone, string]> = {
   requested: ['yellow', 'Demandé'], approved: ['blue', 'Approuvé'], received: ['lavender', 'Reçu'],
   success: ['green', 'Synchronisé'], running: ['blue', 'En cours'], skipped: ['gray', 'Ignoré'],
   submitted: ['yellow', 'Soumis'], pending_review: ['lavender', 'En revue'],
+  sending: ['lavender', 'Envoi en cours'], done: ['green', 'Terminé'],
 }
 
 /** Badge historique (pages existantes) — rendu désormais en pilule pastel. */

@@ -2,7 +2,7 @@
 import {
   House, BarChart3, Bell, Package, Layers, Zap, PackageSearch, Star,
   ShoppingCart, RotateCcw, Tag, Percent, Store, Building2, Briefcase, CreditCard,
-  Users, Gift, Megaphone, BookOpen, Send, MessageSquare, Settings, Truck, Search, Trash2, type LucideIcon,
+  Users, Gift, Megaphone, BookOpen, Send, MessageSquare, Settings, Truck, Search, Trash2, ShieldAlert, type LucideIcon,
 } from 'lucide-react'
 
 /** Clé du compteur affiché en pastille (voir useAdminCounters). */
@@ -48,6 +48,7 @@ export const NAV_GROUPS: NavGroup[] = [
     { to: '/contact',       label: 'Contact',        icon: MessageSquare, counter: 'unreadContacts', keywords: 'messages support' },
   ] },
   { title: 'Système', items: [
+    { to: '/security-emails', label: 'E-mails de sécurité', icon: ShieldAlert, keywords: 'alerte sécurité diffusion masse envoi ciblé' },
     { to: '/settings', label: 'Paramètres', icon: Settings, keywords: 'réglages configuration' },
   ] },
 ]

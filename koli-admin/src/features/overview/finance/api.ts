@@ -1,7 +1,7 @@
 /* Indicateurs financiers — GET /api/admin/finance/overview. Tous les calculs
    sont faits côté serveur (backend/src/lib/finance) : ce module ne fait que
    typer et transporter les valeurs, aucune formule ici. */
-import { useQuery, keepPreviousData } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { api } from '../../../lib/api'
 
 export type FinancePreset = 'month' | 'quarter' | 'year' | 'custom'
@@ -48,5 +48,18 @@ export function useFinanceOverview(preset: FinancePreset, from?: string, to?: st
     queryFn: async () => (await api.get(`/api/admin/finance/overview?${qs}`)).data.data as FinanceOverview,
     placeholderData: keepPreviousData,
     enabled: preset !== 'custom' || (!!from && !!to),
+  })
+}
+
+/**
+ * Rattrape les commandes exclues des marges dont un produit a depuis reçu
+ * un vrai prix d'achat (voir "Compléter les produits") — ne touche jamais
+ * une commande déjà à coût connu (backend/src/lib/finance/snapshot.ts).
+ */
+export function useRecomputeExcludedFinancials() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async () => (await api.post('/api/admin/finance/recompute-excluded')).data.data as { checked: number; recomputed: number },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['overview', 'finance'] }),
   })
 }

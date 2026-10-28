@@ -9,7 +9,8 @@ import { AgendaCard } from './AgendaCard'
 import { TodoCard, TopProductsCard } from './WorkCards'
 import { PaymentsCard, CitiesCard, LowStockCard, ActivityCard } from './AnalyticsCards'
 import { useInsights, usePendingApplications } from './api'
-import { useFinanceOverview } from './finance/api'
+import { toast } from 'sonner'
+import { useFinanceOverview, useRecomputeExcludedFinancials } from './finance/api'
 import { FinancePeriodFilter } from './finance/FinancePeriodFilter'
 import { useFinancePeriod } from './finance/period'
 import { VolumeBlock, CostsBlock, ProfitBlock, FinanceBlocksSkeleton } from './finance/FinanceBlocks'
@@ -34,6 +35,7 @@ export default function OverviewPage() {
   const { user } = useAuth()
   const period = useFinancePeriod()
   const finance = useFinanceOverview(period.preset, period.from, period.to)
+  const recompute = useRecomputeExcludedFinancials()
   const insights = useInsights()
   const { data: applications } = usePendingApplications()
   const ins = { data: insights.data, isLoading: insights.isLoading, isError: insights.isError, onRetry: () => insights.refetch() }
@@ -60,7 +62,17 @@ export default function OverviewPage() {
             <div className="space-y-[18px]">
               <Reveal i={1}><VolumeBlock data={finance.data} /></Reveal>
               <Reveal i={2}><CostsBlock data={finance.data} /></Reveal>
-              <Reveal i={3}><ProfitBlock data={finance.data} /></Reveal>
+              <Reveal i={3}>
+                <ProfitBlock data={finance.data} recomputing={recompute.isPending}
+                  onRecompute={() => recompute.mutate(undefined, {
+                    onSuccess: ({ checked, recomputed }) => {
+                      toast.success(recomputed > 0
+                        ? `${recomputed} commande${recomputed > 1 ? 's' : ''} rattrapée${recomputed > 1 ? 's' : ''} sur ${checked} vérifiée${checked > 1 ? 's' : ''}.`
+                        : `Aucune commande rattrapable pour l'instant (${checked} vérifiée${checked > 1 ? 's' : ''}) — complétez d'abord les produits concernés.`)
+                    },
+                    onError: () => toast.error('Échec du recalcul, réessayez.'),
+                  })} />
+              </Reveal>
             </div>
           </div>
         )}

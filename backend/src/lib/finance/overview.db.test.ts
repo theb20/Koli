@@ -11,7 +11,7 @@ const enabled = process.env.FINANCE_DB_TESTS === '1' && /@(localhost|127\.0\.0\.
 
 describe.skipIf(!enabled)('financeOverview (SQL) — base de test locale', async () => {
   const { prisma } = await import('../prisma')
-  const { snapshotOrderFinancials } = await import('./snapshot')
+  const { snapshotOrderFinancials, recomputeOrderFinancials } = await import('./snapshot')
   const { financeOverview, periodRange } = await import('./overview')
 
   const tag = `fin-test-${Date.now()}`
@@ -48,11 +48,13 @@ describe.skipIf(!enabled)('financeOverview (SQL) — base de test locale', async
 
   let result: Awaited<ReturnType<typeof financeOverview>>
   let productA: { id: number }
+  let marginSupplierId: number
 
   beforeAll(async () => {
     const margin = await prisma.supplier.create({ data: { name: `${tag} Marge`, mode: 'MARGIN' } })
     const commission = await prisma.supplier.create({ data: { name: `${tag} Commission`, mode: 'COMMISSION', commissionRate: 15 } })
     ids.suppliers.push(margin.id, commission.id)
+    marginSupplierId = margin.id
     productA = await product('A', 18_000, margin.id, 12_000)
     const productB = await product('B', 10_000, commission.id, null)
 
@@ -130,5 +132,56 @@ describe.skipIf(!enabled)('financeOverview (SQL) — base de test locale', async
   it('le figement est idempotent', async () => {
     await snapshotOrderFinancials(ids.orders[0]!)
     expect(await prisma.orderItemFinancials.count({ where: { orderId: ids.orders[0]! } })).toBe(2)
+  })
+
+  it('recomputeOrderFinancials rattrape une commande exclue une fois le produit complété', async () => {
+    // Prix d'achat inconnu au paiement → figée costKnown=false, comme une vraie commande exclue.
+    const productC = await product('C', 20_000, marginSupplierId, null)
+    const o = await order({
+      paidAt: new Date('2000-01-16T10:00:00Z'), subtotal: 20_000, taxAmount: 3_600, shippingCost: 0, total: 23_600,
+      items: [{ productId: productC.id, price: 20_000, qty: 1 }],
+    })
+    await snapshotOrderFinancials(o.id)
+    expect((await prisma.orderFinancials.findUnique({ where: { orderId: o.id } }))?.costKnown).toBe(false)
+
+    // Rien n'a encore été complété : toujours inconnu, mais pas une erreur.
+    expect(await recomputeOrderFinancials(o.id)).toBe('still_unknown')
+
+    // Le prix d'achat est enfin renseigné (donnée réelle saisie après coup, jamais inventée).
+    await prisma.productSourcing.update({ where: { productId: productC.id }, data: { supplierPrice: 13_000 } })
+    expect(await recomputeOrderFinancials(o.id)).toBe('recomputed')
+
+    const fin = await prisma.orderFinancials.findUnique({ where: { orderId: o.id } })
+    expect(fin?.costKnown).toBe(true)
+    const lines = await prisma.orderItemFinancials.findMany({ where: { orderId: o.id } })
+    expect(lines).toHaveLength(1)
+    expect(lines[0]).toMatchObject({ supplierPayout: 13_000, margin: 7_000 })
+
+    // Déjà à coût connu : un nouvel appel ne fait plus rien (jamais une 2e réécriture silencieuse).
+    expect(await recomputeOrderFinancials(o.id)).toBe('not_eligible')
+  })
+
+  it('recomputeOrderFinancials ne touche jamais une commande déjà à coût connu', async () => {
+    const before = await prisma.orderItemFinancials.findMany({ where: { orderId: ids.orders[0]! }, orderBy: { orderItemId: 'asc' } })
+    expect(await recomputeOrderFinancials(ids.orders[0]!)).toBe('not_eligible')
+    const after = await prisma.orderItemFinancials.findMany({ where: { orderId: ids.orders[0]! }, orderBy: { orderItemId: 'asc' } })
+    expect(after).toEqual(before)
+  })
+
+  it('recomputeExcludedOrders rattrape en masse les commandes payées encore exclues', async () => {
+    const { recomputeExcludedOrders } = await import('./snapshot')
+
+    const productD = await product('D', 15_000, marginSupplierId, null)
+    const o = await order({
+      paidAt: new Date('2000-01-17T10:00:00Z'), subtotal: 15_000, taxAmount: 2_700, shippingCost: 0, total: 17_700,
+      items: [{ productId: productD.id, price: 15_000, qty: 1 }],
+    })
+    await snapshotOrderFinancials(o.id)
+    await prisma.productSourcing.update({ where: { productId: productD.id }, data: { supplierPrice: 9_000 } })
+
+    const stats = await recomputeExcludedOrders()
+    expect(stats.checked).toBeGreaterThanOrEqual(1)
+    expect(stats.recomputed).toBeGreaterThanOrEqual(1)
+    expect((await prisma.orderFinancials.findUnique({ where: { orderId: o.id } }))?.costKnown).toBe(true)
   })
 })

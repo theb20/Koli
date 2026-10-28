@@ -91,6 +91,7 @@ model User {
   wishlist               WishlistItem[]
   productDeletionRequests         ProductDeletionRequest[] @relation("ProductDeletionRequestedBy")
   resolvedProductDeletionRequests ProductDeletionRequest[] @relation("ProductDeletionResolvedBy")
+  securityEmailCampaigns          SecurityEmailCampaign[]
 
   @@map("users")
 }
@@ -543,6 +544,38 @@ model ProductDeletionRequest {
   @@index([storeId])
   @@index([status])
   @@map("product_deletion_requests")
+}
+
+/// Campagne d'e-mail de sécurité envoyée par un admin — ciblée (liste
+/// d'utilisateurs précise) ou en masse (tous les utilisateurs actifs). Voir
+/// routes/admin-security-emails.ts : l'envoi réel se fait en tâche de fond
+/// (jamais dans le cycle de la requête HTTP qui crée la campagne), par lots
+/// avec throttling pour ne jamais dépasser le débit d'envoi de Resend.
+model SecurityEmailCampaign {
+  id              String    @id @default(cuid())
+  subject         String
+  message         String
+  /// all | targeted
+  audience        String
+  /// JSON string[] des User.id — uniquement quand audience = "targeted"
+  targetUserIds   String?
+  /// pending | sending | done | failed
+  status          String    @default("pending")
+  totalRecipients Int       @default(0)
+  sentCount       Int       @default(0)
+  failedCount     Int       @default(0)
+  /// JSON string[] des emails en échec, plafonné (diagnostic seulement,
+  /// jamais une liste illimitée — voir MAX_FAILED_EMAILS_LOGGED).
+  failedEmails    String?
+  createdById     String
+  createdAt       DateTime  @default(now())
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdBy       User      @relation(fields: [createdById], references: [id])
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("security_email_campaigns")
 }
 
 model Address {
