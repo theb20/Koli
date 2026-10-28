@@ -11,6 +11,7 @@ import { extractExtension } from '../security/mimeValidator'
 import { verifySpreadsheetSignature } from '../security/fileSignature'
 import { searchProductIds } from '../lib/search'
 import { requireAdmin, optionalAuth, requireApiKey } from '../middleware/auth'
+import { LOW_STOCK } from './admin-overview'
 import { validate, validateParams, zIntIdParam } from '../middleware/validate'
 import { cacheControl } from '../middleware/cache'
 import { memoryCache } from '../middleware/memoryCache'
@@ -50,7 +51,15 @@ const listQuerySchema = z.object({
   badge:    z.string().optional(),
   inStock:  z.coerce.boolean().optional(),
   storeId:  z.coerce.number().int().optional(),   // filter by store
-  hasSale:  z.coerce.boolean().optional(),        // filter: promo programmée (salePrice défini)
+  // z.coerce.boolean() coercerait "false" (chaîne non vide) en `true` — on
+  // garde donc les deux valeurs explicites en chaîne plutôt qu'un booléen.
+  hasSale:    z.enum(['true', 'false']).optional(),    // filter: promo programmée (salePrice défini) ou non
+  // Les trois filtres suivants couvrent les états réservés à l'admin
+  // (voir handler ci-dessous : isAdmin) — ignorés silencieusement pour tout
+  // appelant non-admin (jamais de fuite de produit désactivé côté public).
+  status:     z.enum(['active', 'inactive', 'all']).default('active'),
+  stockState: z.enum(['in_stock', 'low_stock', 'out_of_stock']).optional(),
+  syncStatus: z.enum(['success', 'failed', 'skipped', 'none']).optional(),
 })
 
 const createProductSchema = z.object({
@@ -120,15 +129,32 @@ const createProductSchemaChecked = createProductSchema.superRefine((d, ctx) => {
 router.get('/', optionalAuth, cacheControl(30), memoryCache(30), async (req, res) => {
   try {
     const query = listQuerySchema.parse(req.query)
-    const { page, limit, category, q, sort, minPrice, maxPrice, badge, inStock, storeId, hasSale } = query
+    const { page, limit, category, q, sort, minPrice, maxPrice, badge, inStock, storeId, hasSale, status, stockState, syncStatus } = query
+    const isAdmin = req.user?.role === 'admin'
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: Record<string, any> = { isActive: true }
+    const where: Record<string, any> = {}
+    // Hors admin, un produit désactivé ne doit JAMAIS apparaître, quels que
+    // soient les paramètres reçus — seul l'admin peut lever ce filtre
+    // (retrouver un produit désactivé, voir koli-admin/ProductsPage).
+    if (!isAdmin) where['isActive'] = true
+    else if (status !== 'all') where['isActive'] = status === 'active'
+
     if (category) where['category'] = category
     if (badge)    where['badge']    = badge
-    if (inStock)  where['stock']    = { gt: 0 }
     if (storeId)  where['storeId']  = storeId
-    if (hasSale)  where['salePrice'] = { not: null }
+    if (hasSale === 'true')  where['salePrice'] = { not: null }
+    if (hasSale === 'false') where['salePrice'] = null
+
+    if (stockState === 'out_of_stock') where['stock'] = { lte: 0 }
+    else if (stockState === 'low_stock')  where['stock'] = { gt: 0, lte: LOW_STOCK }
+    else if (stockState === 'in_stock')   where['stock'] = { gt: LOW_STOCK }
+    else if (inStock) where['stock'] = { gt: 0 }
+
+    // Statut de synchronisation Google Merchant — purement un outil interne,
+    // jamais exposé en dehors de l'admin (voir koli-admin/ProductsPage).
+    if (isAdmin && syncStatus) where['merchantSyncStatus'] = syncStatus === 'none' ? null : syncStatus
+
     if (minPrice !== undefined || maxPrice !== undefined) {
       where['price'] = {
         ...(minPrice !== undefined ? { gte: minPrice } : {}),
@@ -352,9 +378,13 @@ router.get('/:id/og-image.jpg', validateParams(zIntIdParam), async (req, res) =>
 router.get('/:id', optionalAuth, cacheControl(20), memoryCache(20, { varyByAuth: true }), validateParams(zIntIdParam), async (req, res) => {
   try {
     const id = Number(req.params['id'])
+    // Un admin doit pouvoir rouvrir la fiche d'un produit désactivé pour le
+    // modifier (ex: réactivation) — sinon ProductFormPage.tsx reçoit 404 dès
+    // qu'un produit a été désactivé depuis la liste.
+    const isAdmin = req.user?.role === 'admin'
 
     const product = await prisma.product.findFirst({
-      where: { id, isActive: true },
+      where: isAdmin ? { id } : { id, isActive: true },
       include: {
         images:      { orderBy: { position: 'asc' } },
         specs:       { orderBy: { position: 'asc' } },

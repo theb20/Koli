@@ -29,6 +29,11 @@ export default function ProductsPage() {
   const [category, setCategory] = useState('')
   const [sort, setSort]         = useState('newest')
   const [storeId, setStoreId]   = useState('')
+  const [status, setStatus]         = useState('active')
+  const [stockState, setStockState] = useState('')
+  const [badge, setBadge]           = useState('')
+  const [promo, setPromo]           = useState('')
+  const [syncStatus, setSyncStatus] = useState('')
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [bulkOpen, setBulkOpen] = useState(false)
   const [selected, setSelected] = useState<Set<number>>(new Set())
@@ -52,8 +57,11 @@ export default function ProductsPage() {
   const CATEGORIES = [{ value: '', label: 'Toutes catégories' }, ...(categoriesData ?? []).map(c => ({ value: c.slug, label: c.name }))]
 
   const { data, isLoading } = useQuery({
-    queryKey: ['products', page, debouncedSearch, category, sort, storeId],
-    queryFn: () => fetchProducts({ page, limit: 15, q: debouncedSearch, category, sort, storeId }),
+    queryKey: ['products', page, debouncedSearch, category, sort, storeId, status, stockState, badge, promo, syncStatus],
+    queryFn: () => fetchProducts({
+      page, limit: 15, q: debouncedSearch, category, sort, storeId,
+      status, stockState, badge, hasSale: promo, syncStatus,
+    }),
     placeholderData: (prev) => prev,
   })
 
@@ -157,6 +165,36 @@ export default function ProductsPage() {
             {storesData?.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
         )}
+        <select value={status} onChange={e => { setStatus(e.target.value); setPage(1); setSelected(new Set()) }} className={inputCls} style={{ width: 'auto' }}>
+          <option value="active">Actifs</option>
+          <option value="inactive">Désactivés</option>
+          <option value="all">Tous les statuts</option>
+        </select>
+        <select value={stockState} onChange={e => { setStockState(e.target.value); setPage(1); setSelected(new Set()) }} className={inputCls} style={{ width: 'auto' }}>
+          <option value="">Tout le stock</option>
+          <option value="in_stock">En stock</option>
+          <option value="low_stock">Stock faible</option>
+          <option value="out_of_stock">Rupture</option>
+        </select>
+        <select value={badge} onChange={e => { setBadge(e.target.value); setPage(1); setSelected(new Set()) }} className={inputCls} style={{ width: 'auto' }}>
+          <option value="">Tous les badges</option>
+          <option value="hot">Hot</option>
+          <option value="new">Nouveau</option>
+          <option value="sale">Promo</option>
+          <option value="top">Top</option>
+        </select>
+        <select value={promo} onChange={e => { setPromo(e.target.value); setPage(1); setSelected(new Set()) }} className={inputCls} style={{ width: 'auto' }}>
+          <option value="">Avec ou sans promo</option>
+          <option value="true">En promo</option>
+          <option value="false">Sans promo</option>
+        </select>
+        <select value={syncStatus} onChange={e => { setSyncStatus(e.target.value); setPage(1); setSelected(new Set()) }} className={inputCls} style={{ width: 'auto' }}>
+          <option value="">Sync Google (tous)</option>
+          <option value="success">Synchronisé</option>
+          <option value="failed">Échec de sync</option>
+          <option value="skipped">Ignoré</option>
+          <option value="none">Jamais synchronisé</option>
+        </select>
       </div>
 
       {/* Barre d'actions groupées */}

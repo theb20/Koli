@@ -164,7 +164,8 @@ router.get('/agenda', validateQuery(agendaQuery), async (req, res) => {
 
 /* ── GET /api/admin/overview/insights — rangées complémentaires ── */
 const LATE_DAYS = 3
-const LOW_STOCK = 5
+// Exporté — même seuil utilisé pour le filtre "stock faible" de la liste produits (voir routes/products.ts)
+export const LOW_STOCK = 5
 
 router.get('/insights', async (_req, res) => {
   try {
