@@ -10,9 +10,17 @@ import { ActionsMenu } from '@/components/ui/ActionsMenu'
 import { fmtFcfa } from '@/lib/format'
 import { productStatusMap } from '@/lib/statusMaps'
 import type { Product, ProductInput, ProductStatus } from '@/types'
-import { useCreateProduct, useDeleteProduct, useDuplicateProduct, useProducts, useUpdateProduct } from './api/useProducts'
+import {
+  useCancelDeletionRequest,
+  useCreateProduct,
+  useDeletionRequests,
+  useDuplicateProduct,
+  useProducts,
+  useUpdateProduct,
+} from './api/useProducts'
 import { ProductFormModal } from './components/ProductFormModal'
 import { BulkImportModal } from './components/BulkImportModal'
+import { DeletionRequestModal } from './components/DeletionRequestModal'
 import { useCategories } from '@/features/categories/api/useCategories'
 
 type StatusFilter = ProductStatus | 'all'
@@ -26,17 +34,26 @@ export default function ProductsPage() {
   // d'ouvrir directement le bon modal sans rendu en cascade.
   const [modalMode, setModalMode] = useState<'create' | Product | null>(() => (searchParams.get('new') === '1' ? 'create' : null))
   const [bulkImportOpen, setBulkImportOpen] = useState(() => searchParams.get('import') === '1')
+  const [deletionRequestProduct, setDeletionRequestProduct] = useState<Product | null>(null)
 
   const { data, isLoading } = useProducts({ status, search })
   const { data: allData } = useProducts({ status: 'all', search: '' })
   const { data: categories } = useCategories()
+  const { data: deletionRequests } = useDeletionRequests()
   const categoryNameBySlug = useMemo(
     () => new Map((categories ?? []).map((c) => [c.slug, c.name])),
     [categories],
   )
+  // Un produit n'a jamais plus d'une demande "requested" à la fois (voir
+  // garde-fou backend) — Map productId → demande en attente, pour afficher
+  // son statut et proposer "Annuler" plutôt que "Demander" à nouveau.
+  const pendingDeletionByProductId = useMemo(
+    () => new Map((deletionRequests ?? []).filter((r) => r.status === 'requested').map((r) => [String(r.productId), r])),
+    [deletionRequests],
+  )
   const createProduct = useCreateProduct()
   const updateProduct = useUpdateProduct()
-  const deleteProduct = useDeleteProduct()
+  const cancelDeletionRequest = useCancelDeletionRequest()
   const duplicateProduct = useDuplicateProduct()
 
   const products = data?.items ?? []
@@ -87,21 +104,31 @@ export default function ProductsPage() {
     {
       key: 'status',
       header: 'Statut',
-      render: (p) => <StatusBadge label={productStatusMap[p.status].label} tone={productStatusMap[p.status].tone} />,
+      render: (p) => (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <StatusBadge label={productStatusMap[p.status].label} tone={productStatusMap[p.status].tone} />
+          {pendingDeletionByProductId.has(p.id) && <StatusBadge label="Suppression demandée" tone="orange" />}
+        </div>
+      ),
     },
     {
       key: 'actions',
       header: '',
       align: 'right',
-      render: (p) => (
-        <ActionsMenu
-          items={[
-            { label: 'Éditer', onClick: () => setModalMode(p) },
-            { label: 'Dupliquer', onClick: () => duplicateProduct.mutate(p.id) },
-            { label: 'Supprimer', danger: true, onClick: () => deleteProduct.mutate(p.id) },
-          ]}
-        />
-      ),
+      render: (p) => {
+        const pending = pendingDeletionByProductId.get(p.id)
+        return (
+          <ActionsMenu
+            items={[
+              { label: 'Éditer', onClick: () => setModalMode(p) },
+              { label: 'Dupliquer', onClick: () => duplicateProduct.mutate(p.id) },
+              pending
+                ? { label: 'Annuler la demande de suppression', danger: true, onClick: () => cancelDeletionRequest.mutate(pending.id) }
+                : { label: 'Demander la suppression', danger: true, onClick: () => setDeletionRequestProduct(p) },
+            ]}
+          />
+        )
+      },
     },
   ]
 
@@ -160,6 +187,10 @@ export default function ProductsPage() {
       )}
 
       {bulkImportOpen && <BulkImportModal onClose={() => setBulkImportOpen(false)} />}
+
+      {deletionRequestProduct && (
+        <DeletionRequestModal product={deletionRequestProduct} onClose={() => setDeletionRequestProduct(null)} />
+      )}
     </div>
   )
 }

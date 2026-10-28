@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 import { Plus, Search, Edit, Trash2, Eye, EyeOff, Package, Store, Upload, X, RefreshCw, History } from 'lucide-react'
 import { api, fmt, fmtDate } from '../../lib/api'
 import { Button } from '../../components/ui/Button'
@@ -67,7 +68,16 @@ export default function ProductsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => api.delete(`/api/products/${id}`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['products'] }); setDeleteId(null) },
+    onSuccess: ({ data }) => {
+      qc.invalidateQueries({ queryKey: ['products'] })
+      setDeleteId(null)
+      // Le backend ne supprime réellement que si le produit n'a jamais été
+      // commandé (sinon il reste désactivé pour préserver l'historique des
+      // commandes, voir productDeletion.ts) — il faut le dire explicitement,
+      // sinon l'admin croit à une suppression qui n'a pas eu lieu.
+      toast.success(data.message)
+    },
+    onError: e => toast.error(errMsg(e)),
   })
 
   const toggleActive = useMutation({
@@ -84,11 +94,17 @@ export default function ProductsPage() {
 
   const bulkDelete = useMutation({
     mutationFn: () => Promise.all([...selected].map(id => api.delete(`/api/products/${id}`))),
-    onSuccess: () => {
+    onSuccess: (results) => {
       qc.invalidateQueries({ queryKey: ['products'] })
       setSelected(new Set())
       setBulkDeleteConfirm(false)
+      const hard = results.filter(r => r.data.data.result === 'hard').length
+      const soft = results.length - hard
+      if (soft === 0)      toast.success(`${hard} produit${hard > 1 ? 's' : ''} supprimé${hard > 1 ? 's' : ''} définitivement`)
+      else if (hard === 0) toast.success(`${soft} produit${soft > 1 ? 's' : ''} désactivé${soft > 1 ? 's' : ''} (déjà commandé${soft > 1 ? 's' : ''} — historique conservé)`)
+      else                 toast.success(`${hard} supprimé${hard > 1 ? 's' : ''} définitivement, ${soft} désactivé${soft > 1 ? 's' : ''} (déjà commandé${soft > 1 ? 's' : ''})`)
     },
+    onError: e => toast.error(errMsg(e)),
   })
 
   const products: Product[] = data?.products ?? []
@@ -330,7 +346,7 @@ export default function ProductsPage() {
         onConfirm={() => deleteId && deleteMutation.mutate(deleteId)}
         loading={deleteMutation.isPending}
         title="Supprimer le produit ?"
-        message="Cette action désactivera le produit (il ne sera plus visible sur le site)."
+        message="S'il n'a jamais été commandé, il sera supprimé définitivement (irréversible). S'il a déjà été commandé, il sera seulement désactivé, pour préserver l'historique des commandes."
       />
 
       <Confirm
@@ -339,8 +355,10 @@ export default function ProductsPage() {
         onConfirm={() => bulkDelete.mutate()}
         loading={bulkDelete.isPending}
         title={`Supprimer ${selected.size} produit${selected.size > 1 ? 's' : ''} ?`}
-        message="Cette action désactivera les produits sélectionnés (ils ne seront plus visibles sur le site)."
+        message="Chaque produit jamais commandé sera supprimé définitivement (irréversible) ; chaque produit déjà commandé sera seulement désactivé, pour préserver l'historique des commandes."
       />
     </div>
   )
 }
+
+const errMsg = (e: unknown) => (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Échec de la suppression'

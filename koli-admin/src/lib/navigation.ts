@@ -2,11 +2,11 @@
 import {
   House, BarChart3, Bell, Package, Layers, Zap, PackageSearch, Star,
   ShoppingCart, RotateCcw, Tag, Percent, Store, Building2, Briefcase, CreditCard,
-  Users, Gift, Megaphone, BookOpen, Send, MessageSquare, Settings, Truck, Search, type LucideIcon,
+  Users, Gift, Megaphone, BookOpen, Send, MessageSquare, Settings, Truck, Search, Trash2, type LucideIcon,
 } from 'lucide-react'
 
 /** Clé du compteur affiché en pastille (voir useAdminCounters). */
-export type CounterKey = 'pendingOrders' | 'requestedReturns' | 'newProductRequests' | 'unreadContacts' | 'unreadNotifications' | 'pendingApplications'
+export type CounterKey = 'pendingOrders' | 'requestedReturns' | 'newProductRequests' | 'unreadContacts' | 'unreadNotifications' | 'pendingApplications' | 'pendingProductDeletions'
 
 export type NavItem = { to: string; label: string; icon: LucideIcon; counter?: CounterKey; keywords?: string }
 export type NavGroup = { title: string; items: NavItem[] }
@@ -24,6 +24,7 @@ export const NAV_GROUPS: NavGroup[] = [
     { to: '/deals',            label: 'Deals',                 icon: Zap, keywords: 'vente flash promo du jour' },
     { to: '/suppliers',        label: 'Fournisseurs',          icon: Truck, keywords: 'prix d\'achat marge commission approvisionnement produits sans fournisseur à compléter' },
     { to: '/product-requests', label: 'Demandes',              icon: PackageSearch, counter: 'newProductRequests', keywords: 'demandes de produits sourcing devis' },
+    { to: '/product-deletion-requests', label: 'Suppressions', icon: Trash2, counter: 'pendingProductDeletions', keywords: 'suppression produit marchand demande' },
     { to: '/reviews',          label: 'Avis',                  icon: Star, keywords: 'commentaires notes' },
   ] },
   { title: 'Ventes', items: [

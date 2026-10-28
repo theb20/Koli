@@ -58,6 +58,7 @@ import merchantOnboardingRouter from './routes/merchant-onboarding'
 import merchantApplicationsRouter from './routes/merchant-applications'
 import subscriptionPlansRouter    from './routes/subscription-plans'
 import adminSellersRouter          from './routes/admin-sellers'
+import adminProductDeletionRequestsRouter from './routes/admin-product-deletion-requests'
 import internalRouter              from './routes/internal'
 import { idempotency } from './middleware/idempotency'
 
@@ -246,6 +247,7 @@ app.use('/api/merchant-onboarding', merchantOnboardingRouter)
 app.use('/api/admin/merchant-applications', merchantApplicationsRouter)
 app.use('/api/admin/subscription-plans', subscriptionPlansRouter)
 app.use('/api/admin/sellers', adminSellersRouter)
+app.use('/api/admin/product-deletion-requests', adminProductDeletionRequestsRouter)
 app.use('/api/products',      publicDataLimiter, productsRouter)
 app.use('/api/orders',        ordersRouter)
 app.use('/api/addresses',     addressesRouter)

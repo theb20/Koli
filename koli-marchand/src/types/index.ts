@@ -41,6 +41,22 @@ export interface Product {
 
 export type ProductInput = Omit<Product, 'id' | 'sku' | 'brand' | 'soldCount' | 'revenue' | 'createdAt' | 'updatedAt'> & { brand?: string }
 
+// Un marchand ne peut jamais supprimer directement un produit — seulement
+// demander sa suppression à l'administration Skignas, qui décide (voir
+// POST /api/seller/products/:id/deletion-request côté backend).
+export type ProductDeletionRequestStatus = 'requested' | 'approved' | 'rejected' | 'cancelled'
+
+export interface ProductDeletionRequest {
+  id: string
+  productId: string | number
+  status: ProductDeletionRequestStatus
+  reason: string | null
+  rejectionReason: string | null
+  requestedAt: string
+  resolvedAt: string | null
+  product?: { id: number; name: string; images: ProductImage[] }
+}
+
 /* ── Client ───────────────────────────────────────────────── */
 
 export interface Customer {

@@ -14,7 +14,6 @@ import { getBackendUrl } from '../lib/backendUrl'
 import { parseSpreadsheet } from '../lib/spreadsheet'
 import { extractExtension } from '../security/mimeValidator'
 import { verifySpreadsheetSignature } from '../security/fileSignature'
-import { deleteProductAtomic } from '../lib/productDeletion'
 import { searchProductIds, normalizeSearchQuery } from '../lib/search'
 import { buildMerchantOrderPdf } from '../lib/invoicePdf'
 import { requestOrderReview } from '../lib/orderReview'
@@ -1018,14 +1017,17 @@ router.patch('/products/:id', requireSeller, async (req, res) => {
 })
 
 /*
- * Suppression définitive si le produit n'a jamais été commandé (cascade +
- * purge des fichiers), sinon désactivation (historique de commande
- * préservé) — voir lib/productDeletion.ts. Avant ce fix, DELETE tentait
- * toujours une suppression définitive : un produit déjà vendu faisait
- * échouer la requête avec une violation de clé étrangère (OrderItem n'a
- * pas de cascade), renvoyée en 500 générique sans explication au marchand.
+ * Un marchand ne peut jamais supprimer directement un produit — seul
+ * l'admin Skignas décide (voir routes/admin-product-deletion-requests.ts,
+ * qui appelle réellement deleteProductAtomic à l'approbation). Avant ce
+ * fix, DELETE /products/:id appelait deleteProductAtomic directement
+ * depuis le marchand, sans validation ni trace côté admin.
  */
-router.delete('/products/:id', requireSeller, async (req, res) => {
+const deletionRequestSchema = z.object({
+  reason: z.string().max(500).optional(),
+})
+
+router.post('/products/:id/deletion-request', requireSeller, async (req, res) => {
   try {
     const store = await requireMyStore(req.user!.userId)
     if (!store) { res.status(404).json({ success: false, message: 'Boutique introuvable.' }); return }
@@ -1034,13 +1036,71 @@ router.delete('/products/:id', requireSeller, async (req, res) => {
     const existing = await prisma.product.findFirst({ where: { id, storeId: store.id } })
     if (!existing) { res.status(404).json({ success: false, message: 'Produit introuvable.' }); return }
 
-    const result = await deleteProductAtomic(id)
-    res.json({
-      success: true,
-      message: result === 'hard' ? 'Produit supprimé définitivement' : 'Produit désactivé (déjà commandé — historique conservé)',
+    const pending = await prisma.productDeletionRequest.findFirst({ where: { productId: id, status: 'requested' } })
+    if (pending) { res.status(409).json({ success: false, message: 'Une demande de suppression est déjà en attente pour ce produit.' }); return }
+
+    const { reason } = deletionRequestSchema.parse(req.body)
+    const created = await prisma.productDeletionRequest.create({
+      data: { productId: id, storeId: store.id, requestedById: req.user!.userId, reason },
     })
+
+    const admins = await prisma.user.findMany({ where: { role: 'admin' }, select: { id: true } })
+    await prisma.notification.createMany({
+      data: admins.map(a => ({
+        userId: a.id,
+        type:   'product_deletion',
+        title:  'Demande de suppression de produit',
+        body:   `${store.name} demande la suppression de « ${existing.name} »${reason ? ` — motif : ${reason}` : ''}`,
+        link:   '/product-deletion-requests',
+      })),
+    }).catch(err => logger.error('[seller/products deletion-request] échec notification admin', err))
+
+    res.status(201).json({ success: true, message: 'Demande envoyée à l’administration Skignas.', data: created })
   } catch (err) {
-    logger.error('[seller/products delete]', err)
+    if (err instanceof z.ZodError) { res.status(400).json({ success: false, message: err.issues[0]?.message ?? 'Requête invalide' }); return }
+    logger.error('[seller/products deletion-request]', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+router.get('/products/deletion-requests', requireSeller, async (req, res) => {
+  try {
+    const store = await requireMyStore(req.user!.userId)
+    if (!store) { res.status(404).json({ success: false, message: 'Boutique introuvable.' }); return }
+
+    const requests = await prisma.productDeletionRequest.findMany({
+      where:   { storeId: store.id },
+      include: { product: { select: { id: true, name: true, images: { take: 1, orderBy: { position: 'asc' } } } } },
+      orderBy: { createdAt: 'desc' },
+      take:    200,
+    })
+    res.json({ success: true, data: requests })
+  } catch (err) {
+    logger.error('[seller/products deletion-requests list]', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+router.post('/products/deletion-requests/:id/cancel', requireSeller, async (req, res) => {
+  try {
+    const store = await requireMyStore(req.user!.userId)
+    if (!store) { res.status(404).json({ success: false, message: 'Boutique introuvable.' }); return }
+
+    const id = req.params.id
+    const request = await prisma.productDeletionRequest.findFirst({ where: { id, storeId: store.id } })
+    if (!request) { res.status(404).json({ success: false, message: 'Demande introuvable.' }); return }
+    if (request.status !== 'requested') {
+      res.status(409).json({ success: false, message: `Cette demande a déjà été traitée (statut : ${request.status})` })
+      return
+    }
+
+    const updated = await prisma.productDeletionRequest.update({
+      where: { id },
+      data:  { status: 'cancelled', resolvedAt: new Date() },
+    })
+    res.json({ success: true, data: updated })
+  } catch (err) {
+    logger.error('[seller/products deletion-request cancel]', err)
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
 })

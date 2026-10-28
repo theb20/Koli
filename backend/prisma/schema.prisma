@@ -89,6 +89,8 @@ model User {
   sessions               Session[]
   stockAlerts            StockAlert[]
   wishlist               WishlistItem[]
+  productDeletionRequests         ProductDeletionRequest[] @relation("ProductDeletionRequestedBy")
+  resolvedProductDeletionRequests ProductDeletionRequest[] @relation("ProductDeletionResolvedBy")
 
   @@map("users")
 }
@@ -141,6 +143,7 @@ model SellerStore {
   // le système de dropship/commission préexistant). Voir seller.ts.
   ownedProducts Product[]
   user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deletionRequests ProductDeletionRequest[]
 
   @@map("seller_stores")
 }
@@ -210,6 +213,7 @@ model Product {
   sourcing           ProductSourcing?
   stockAlerts        StockAlert[]
   wishlistItems      WishlistItem[]
+  deletionRequests   ProductDeletionRequest[]
 
   @@index([categoryId])
   @@index([storeId])
@@ -505,6 +509,40 @@ model OrderReturnItem {
   @@index([returnId])
   @@index([orderItemId])
   @@map("order_return_items")
+}
+
+/// Demande de suppression d'un produit marchand — un marchand ne peut jamais
+/// supprimer directement un de ses produits (voir seller.ts), il ne peut que
+/// le demander ; seul l'admin Skignas décide (approve → deleteProductAtomic
+/// réellement appelé, reject → le produit n'est jamais touché). Même
+/// triptyque que OrderReturn : statut + notification aux admins à la
+/// création + notification au marchand à la résolution + logAdminAction.
+model ProductDeletionRequest {
+  id              String      @id @default(cuid())
+  productId       Int
+  storeId         Int
+  requestedById   String
+  resolvedById    String?
+  /// requested | approved | rejected | cancelled
+  status          String      @default("requested")
+  /// Motif donné par le marchand — optionnel mais utile à l'admin pour
+  /// décider (ex: "doublon", "arrêt de la référence fournisseur"...).
+  reason          String?
+  adminNotes      String?
+  rejectionReason String?
+  requestedAt     DateTime    @default(now())
+  resolvedAt      DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  product         Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  store           SellerStore @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  requestedBy     User        @relation("ProductDeletionRequestedBy", fields: [requestedById], references: [id], onDelete: Cascade)
+  resolvedBy      User?       @relation("ProductDeletionResolvedBy", fields: [resolvedById], references: [id])
+
+  @@index([productId])
+  @@index([storeId])
+  @@index([status])
+  @@map("product_deletion_requests")
 }
 
 model Address {

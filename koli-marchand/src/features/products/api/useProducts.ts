@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, unwrap } from '@/lib/api'
-import type { Paginated, Product, ProductImage, ProductInput, ProductStatus } from '@/types'
+import type { Paginated, Product, ProductDeletionRequest, ProductImage, ProductInput, ProductStatus } from '@/types'
 
 export interface ProductFilters {
   status: ProductStatus | 'all'
@@ -37,13 +37,31 @@ export function useUpdateProduct() {
   })
 }
 
-export function useDeleteProduct() {
+// Un marchand ne peut jamais supprimer directement un produit — seulement
+// demander sa suppression, que l'admin Skignas approuve ou refuse (voir
+// routes/admin-product-deletion-requests.ts côté backend).
+export function useDeletionRequests() {
+  return useQuery({
+    queryKey: ['deletion-requests'],
+    queryFn: async () => unwrap<ProductDeletionRequest[]>(await api.get('/api/seller/products/deletion-requests')),
+    staleTime: 15_000,
+  })
+}
+
+export function useRequestProductDeletion() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (id: string) => {
-      await api.delete(`/api/seller/products/${id}`)
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
+    mutationFn: async ({ id, reason }: { id: string; reason?: string }) =>
+      unwrap<ProductDeletionRequest>(await api.post(`/api/seller/products/${id}/deletion-request`, { reason })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['deletion-requests'] }),
+  })
+}
+
+export function useCancelDeletionRequest() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => unwrap<ProductDeletionRequest>(await api.post(`/api/seller/products/deletion-requests/${id}/cancel`)),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['deletion-requests'] }),
   })
 }
 

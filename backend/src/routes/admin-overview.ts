@@ -38,14 +38,15 @@ const PAID = Prisma.sql`o."paymentStatus" = 'paid' AND o.status NOT IN ('cancell
 /* ── GET /api/admin/overview/counters — pastilles de la sidebar ── */
 router.get('/counters', async (req, res) => {
   try {
-    const [pendingOrders, requestedReturns, newProductRequests, unreadContacts, unreadNotifications] = await Promise.all([
+    const [pendingOrders, requestedReturns, newProductRequests, unreadContacts, unreadNotifications, pendingProductDeletions] = await Promise.all([
       prisma.order.count({ where: { status: 'pending', deletedAt: null } }),
       prisma.orderReturn.count({ where: { status: 'requested' } }),
       prisma.productRequest.count({ where: { status: 'new' } }),
       prisma.contactMessage.count({ where: { status: 'new' } }),
       prisma.notification.count({ where: { userId: req.user!.userId, isRead: false } }),
+      prisma.productDeletionRequest.count({ where: { status: 'requested' } }),
     ])
-    res.json({ success: true, data: { pendingOrders, requestedReturns, newProductRequests, unreadContacts, unreadNotifications } })
+    res.json({ success: true, data: { pendingOrders, requestedReturns, newProductRequests, unreadContacts, unreadNotifications, pendingProductDeletions } })
   } catch {
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }

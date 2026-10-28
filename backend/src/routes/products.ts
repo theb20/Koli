@@ -994,6 +994,11 @@ router.delete('/:id', requireAdmin, validateParams(zIntIdParam), async (req, res
     logAdminAction(req, { action: result === 'hard' ? 'product.delete' : 'product.deactivate', targetType: 'Product', targetId: String(id) })
     res.json({
       success: true,
+      // `data.result` ('hard' | 'soft') permet au frontend de distinguer les
+      // deux issues sans parser le message — voir koli-admin/ProductsPage.tsx,
+      // qui doit informer l'admin quand "Supprimer" n'a en fait que désactivé
+      // le produit (déjà commandé, jamais vraiment supprimable).
+      data: { result },
       message: result === 'hard' ? 'Produit supprimé définitivement' : 'Produit désactivé (déjà commandé — historique conservé)',
     })
   } catch {
