@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { useFieldArray, type Control, type UseFormRegister, type UseFormSetValue, type FieldErrors } from 'react-hook-form'
+import { useFieldArray, useWatch, type Control, type UseFormRegister, type UseFormSetValue, type FieldErrors } from 'react-hook-form'
 import { ArrowDown, ArrowUp, ImageIcon, Link2, Loader2, Trash2, Type, Upload, Video } from 'lucide-react'
 import { api } from '../../lib/api'
 import { Button } from '../../components/ui/Button'
@@ -67,6 +67,16 @@ export function DescriptionBlocksEditor({ control, register, setValue, errors }:
   errors: FieldErrors<FormWithBlocks>
 }) {
   const { fields, append, remove, move } = useFieldArray({ control, name: 'descriptionBlocks' })
+  /*
+   * `fields` (useFieldArray) ne reflète que la STRUCTURE du tableau (ajout/
+   * suppression/réordre) — ses entrées gardent les valeurs figées au moment
+   * de l'ajout et ne se mettent pas à jour quand on appelle `setValue` sur
+   * un champ individuel (ex: changer `provider` ou remplir `url` après un
+   * upload). Sans `useWatch` ici, les radios vidéo et les aperçus après
+   * upload restent visuellement bloqués sur leur valeur initiale même si le
+   * formulaire est bien à jour en interne.
+   */
+  const watchedBlocks = useWatch({ control, name: 'descriptionBlocks' })
   const [uploadingAt, setUploadingAt] = useState<number | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
 
@@ -109,7 +119,7 @@ export function DescriptionBlocksEditor({ control, register, setValue, errors }:
       )}
 
       {fields.map((field, i) => {
-        const block = field as unknown as DescriptionBlockValue
+        const block = (watchedBlocks?.[i] ?? field) as unknown as DescriptionBlockValue
         return (
           <div key={field.id} className="border border-slate-200 rounded-xl p-3 space-y-2 bg-slate-50/50">
             <div className="flex items-center justify-between">
