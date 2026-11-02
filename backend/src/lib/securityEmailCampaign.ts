@@ -51,7 +51,7 @@ export async function runSecurityEmailCampaign(campaignId: string): Promise<void
     const failedEmails: string[] = []
 
     for (const batch of chunk(recipients, BATCH_SIZE)) {
-      const results = await Promise.allSettled(batch.map(u => sendSecurityAlertEmail(u.email, u.prenom, campaign.subject, campaign.message)))
+      const results = await Promise.allSettled(batch.map(u => sendSecurityAlertEmail(u.email, u.prenom, campaign.subject, campaign.message, campaign.customHtml ?? undefined)))
       results.forEach((r, i) => {
         if (r.status === 'fulfilled') {
           sent++

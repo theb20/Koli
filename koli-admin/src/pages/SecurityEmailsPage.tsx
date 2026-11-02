@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Search, X, Send } from 'lucide-react'
+import { Search, X, Send, Palette, Code2, Eye } from 'lucide-react'
 import { api, fmtDateTime } from '../lib/api'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
@@ -11,10 +11,17 @@ import { Confirm } from '../components/ui/Modal'
 import { PageTitle } from '../components/layout/Sidebar'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 
+// StudioMail n'est pas (encore) déployé — pas d'URL de production à
+// renseigner, seulement un repli pour le développement local. Le bouton
+// ouvre juste l'outil ; le pont réel vers l'envoi se fait en copiant son
+// export HTML dans le mode "HTML personnalisé" ci-dessous (voir
+// studiomail/README.md, section "Pont vers les e-mails de sécurité").
+const STUDIOMAIL_URL = import.meta.env.VITE_STUDIOMAIL_URL || 'https://studiomail.skignas.com'
+
 type Audience = 'all' | 'targeted'
 type PickedUser = { id: string; prenom: string; nom: string; email: string }
 type Campaign = {
-  id: string; subject: string; message: string; audience: Audience
+  id: string; subject: string; message: string; customHtml: string | null; audience: Audience
   status: 'pending' | 'sending' | 'done' | 'failed'
   totalRecipients: number; sentCount: number; failedCount: number
   failedEmails: string | null
@@ -79,6 +86,8 @@ export default function SecurityEmailsPage() {
   const qc = useQueryClient()
   const [subject, setSubject] = useState('')
   const [message, setMessage] = useState('')
+  const [htmlMode, setHtmlMode] = useState(false)
+  const [customHtml, setCustomHtml] = useState('')
   const [audience, setAudience] = useState<Audience>('targeted')
   const [picked, setPicked] = useState<PickedUser[]>([])
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -117,12 +126,13 @@ export default function SecurityEmailsPage() {
       const { data } = await api.post('/api/admin/security-emails', {
         subject, message, audience,
         userIds: audience === 'targeted' ? picked.map(u => u.id) : undefined,
+        customHtml: htmlMode ? customHtml : undefined,
       })
       return data.data as Campaign
     },
     onSuccess: campaign => {
       setConfirmOpen(false)
-      setSubject(''); setMessage(''); setPicked([])
+      setSubject(''); setMessage(''); setPicked([]); setCustomHtml(''); setHtmlMode(false)
       qc.invalidateQueries({ queryKey: ['security-email-campaigns'] })
       setPollingId(campaign.id)
       toast.success('Envoi démarré.')
@@ -130,17 +140,52 @@ export default function SecurityEmailsPage() {
     onError: e => toast.error(errMsg(e)),
   })
 
-  const canSend = subject.trim().length >= 3 && message.trim().length >= 3 && recipientCount > 0
+  const canSend = subject.trim().length >= 3 && message.trim().length >= 3 && recipientCount > 0 && (!htmlMode || customHtml.trim().length > 0)
 
   return (
     <div className="space-y-5">
-      <PageTitle title="E-mails de sécurité" sub="Alertes de sécurité envoyées par e-mail, ciblées ou à tous les utilisateurs de la plateforme." />
+      <PageTitle title="E-mails de sécurité" sub="Alertes de sécurité envoyées par e-mail, ciblées ou à tous les utilisateurs de la plateforme."
+        action={
+          <Button variant="secondary" icon={<Palette size={15} />} onClick={() => window.open(STUDIOMAIL_URL, '_blank', 'noopener,noreferrer')}>
+            Concevoir dans StudioMail
+          </Button>
+        } />
 
       <Card padded className="space-y-4">
         <Input label="Objet" value={subject} onChange={e => setSubject(e.target.value)}
           placeholder="Ex : Activité suspecte détectée sur votre compte" maxLength={200} />
-        <Textarea label="Message" rows={5} value={message} onChange={e => setMessage(e.target.value)}
-          placeholder="Décrivez l'alerte et l'action recommandée..." maxLength={5000} />
+
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => setHtmlMode(false)}
+            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-input text-secondary font-medium border transition-colors ${!htmlMode ? 'bg-primary/10 border-primary text-primary' : 'border-line text-ink-2 hover:bg-hover-fill'}`}>
+            Message simple
+          </button>
+          <button type="button" onClick={() => setHtmlMode(true)}
+            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-input text-secondary font-medium border transition-colors ${htmlMode ? 'bg-primary/10 border-primary text-primary' : 'border-line text-ink-2 hover:bg-hover-fill'}`}>
+            <Code2 size={14} /> HTML personnalisé (StudioMail)
+          </button>
+        </div>
+
+        <Textarea label={htmlMode ? 'Note interne (non envoyée, pour l’historique)' : 'Message'} rows={htmlMode ? 2 : 5}
+          value={message} onChange={e => setMessage(e.target.value)}
+          placeholder={htmlMode ? 'Ex : design StudioMail — campagne de phishing octobre' : 'Décrivez l’alerte et l’action recommandée...'} maxLength={5000} />
+
+        {htmlMode && (
+          <div className="space-y-2.5">
+            <Textarea label="HTML de l'e-mail (collez ici l'export de StudioMail)" rows={8} value={customHtml}
+              onChange={e => setCustomHtml(e.target.value)} placeholder="<html>...</html>"
+              className="font-mono text-[12px]" />
+            {customHtml.trim() && (
+              <div>
+                <p className="text-caption font-semibold uppercase tracking-wide text-muted mb-1.5 flex items-center gap-1"><Eye size={12} /> Aperçu</p>
+                <iframe title="Aperçu de l'e-mail" srcDoc={customHtml} className="w-full h-72 rounded-input border border-line bg-white" />
+              </div>
+            )}
+            <p className="text-caption text-muted">
+              Ce HTML remplace entièrement le message ci-dessus à l'envoi — aucune personnalisation par destinataire (même contenu pour tout le monde).
+            </p>
+          </div>
+        )}
 
         <div>
           <p className="text-secondary font-medium text-ink-2 mb-2">Destinataires</p>
@@ -177,7 +222,7 @@ export default function SecurityEmailsPage() {
         onConfirm={() => send.mutate()}
         loading={send.isPending}
         title="Envoyer cet e-mail de sécurité ?"
-        message={`Il sera envoyé à ${recipientCount} utilisateur${recipientCount > 1 ? 's' : ''}${audience === 'all' ? ' — TOUTE la plateforme' : ''}. Cette action est irréversible.`}
+        message={`Il sera envoyé à ${recipientCount} utilisateur${recipientCount > 1 ? 's' : ''}${audience === 'all' ? ' — TOUTE la plateforme' : ''}${htmlMode ? ', avec le design HTML personnalisé ci-dessus' : ''}. Cette action est irréversible.`}
         confirmLabel="Envoyer"
         confirmText="ENVOYER"
       />
@@ -201,7 +246,10 @@ export default function SecurityEmailsPage() {
               <tbody className="divide-y divide-line">
                 {campaigns.map(c => (
                   <tr key={c.id}>
-                    <td className="px-3 py-2.5 text-secondary text-ink max-w-[240px] truncate" title={c.subject}>{c.subject}</td>
+                    <td className="px-3 py-2.5 text-secondary text-ink max-w-[240px]">
+                      <span className="truncate block" title={c.subject}>{c.subject}</span>
+                      {c.customHtml && <span className="inline-flex items-center gap-1 text-caption text-primary mt-0.5"><Code2 size={10} /> HTML personnalisé</span>}
+                    </td>
                     <td className="px-3 py-2.5 text-secondary text-ink-2">{c.audience === 'all' ? 'Tous' : 'Ciblé'}</td>
                     <td className="px-3 py-2.5 text-secondary text-ink-2">
                       {c.sentCount}/{c.totalRecipients}

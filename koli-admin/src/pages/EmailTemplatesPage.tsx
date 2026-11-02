@@ -15,7 +15,8 @@
    emails réels envoyés par l'application.
 ───────────────────────────────────────────────────────────── */
 import { useEffect, useState } from 'react'
-import { Mail, Save, RotateCcw, Palette } from 'lucide-react'
+import { Mail, Save, RotateCcw, Palette, Copy, Check } from 'lucide-react'
+import { toast } from 'sonner'
 import { api } from '../lib/api'
 
 type EmailDesignTokens = {
@@ -60,6 +61,7 @@ export default function EmailTemplatesPage() {
   const [resetting, setResetting] = useState(false)
   const [saveMsg, setSaveMsg]     = useState<{ ok: boolean; text: string } | null>(null)
   const [error, setError]         = useState('')
+  const [copiedForStudio, setCopiedForStudio] = useState(false)
 
   // Chargement initial : liste des templates + tokens sauvegardés
   useEffect(() => {
@@ -110,6 +112,18 @@ export default function EmailTemplatesPage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  // Copie le HTML RÉELLEMENT prévisualisé (tokens en cours, pas encore
+  // sauvegardés) — pour le retoucher visuellement dans StudioMail (import
+  // en lecture seule, voir studiomail/README.md : rien ne republie
+  // automatiquement vers Skignas, il faut recopier manuellement l'export).
+  const copyForStudioMail = async () => {
+    if (!html) return
+    await navigator.clipboard.writeText(html)
+    setCopiedForStudio(true)
+    toast.success('HTML copié — dans StudioMail : Nouveau projet → Importer un design Skignas.')
+    setTimeout(() => setCopiedForStudio(false), 2000)
   }
 
   const resetDesign = async () => {
@@ -283,6 +297,16 @@ export default function EmailTemplatesPage() {
         <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
           <p className="text-sm font-medium text-slate-700">{selected ?? '—'}</p>
           {loadingPreview && <span className="text-xs text-slate-400">Actualisation…</span>}
+          <div className="flex-1" />
+          <button
+            onClick={copyForStudioMail}
+            disabled={!html}
+            title="Copier ce rendu pour le retoucher visuellement dans StudioMail"
+            className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-indigo-600 px-2.5 py-1.5 rounded-lg hover:bg-indigo-50 transition-colors disabled:opacity-50"
+          >
+            {copiedForStudio ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
+            {copiedForStudio ? 'Copié' : 'Copier pour StudioMail'}
+          </button>
         </div>
         <iframe
           srcDoc={html}

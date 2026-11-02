@@ -20,6 +20,7 @@ import { validate, validateParams, zCuidIdParam } from '../middleware/validate'
 import { logAdminAction } from '../lib/auditLog'
 import { logger } from '../lib/logger'
 import { runSecurityEmailCampaign } from '../lib/securityEmailCampaign'
+import { sanitizeEmailHtml } from '../lib/sanitizeEmailHtml'
 
 const router = Router()
 router.use(requireAdmin)
@@ -29,6 +30,12 @@ const createCampaignSchema = z.object({
   message:  z.string().trim().min(3, 'Message trop court').max(5000),
   audience: z.enum(['all', 'targeted']),
   userIds:  z.array(z.string()).max(10_000).optional(),
+  // HTML complet (ex: exporté depuis StudioMail) — remplace le gabarit
+  // standard basé sur `message` à l'envoi (voir
+  // lib/email/templates/security-alert.ts). Assaini à la création, pas
+  // seulement à l'envoi, pour que ce qui est stocké/audité corresponde
+  // exactement à ce qui part.
+  customHtml: z.string().max(300_000, 'HTML trop volumineux (300 Ko max)').optional(),
 }).refine(d => d.audience === 'all' || (d.userIds && d.userIds.length > 0), {
   message: 'Sélectionnez au moins un utilisateur ciblé', path: ['userIds'],
 })
@@ -60,6 +67,7 @@ router.post('/', validate(createCampaignSchema), async (req, res) => {
       data: {
         subject:        body.subject,
         message:        body.message,
+        customHtml:     body.customHtml ? sanitizeEmailHtml(body.customHtml) : null,
         audience:       body.audience,
         targetUserIds:  targetUserIds ? JSON.stringify(targetUserIds) : null,
         totalRecipients,
