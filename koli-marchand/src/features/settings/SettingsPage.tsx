@@ -9,6 +9,7 @@ import { TextField, TextAreaField } from '@/components/ui/FormField'
 import { FilterPills } from '@/components/ui/FilterPills'
 import { useSettings, useUpdateSettings } from './api/useSettings'
 import SecurityTab from './SecurityTab'
+import DeliveryZonesTab from './DeliveryZonesTab'
 
 const shopSchema = z.object({
   name: z.string().min(2, '2 caractères minimum'),
@@ -17,7 +18,7 @@ const shopSchema = z.object({
 })
 
 type ShopFormValues = z.infer<typeof shopSchema>
-type SettingsTab = 'boutique' | 'securite'
+type SettingsTab = 'boutique' | 'livraison' | 'securite'
 
 export default function SettingsPage() {
   const [tab, setTab] = useState<SettingsTab>('boutique')
@@ -30,6 +31,7 @@ export default function SettingsPage() {
         <FilterPills
           options={[
             { value: 'boutique', label: 'Boutique' },
+            { value: 'livraison', label: 'Livraison' },
             { value: 'securite', label: 'Sécurité' },
           ]}
           value={tab}
@@ -37,7 +39,7 @@ export default function SettingsPage() {
         />
       </div>
 
-      {tab === 'boutique' ? <ShopTab /> : <SecurityTab />}
+      {tab === 'boutique' ? <ShopTab /> : tab === 'livraison' ? <DeliveryZonesTab /> : <SecurityTab />}
     </div>
   )
 }
