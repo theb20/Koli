@@ -35,7 +35,8 @@
        ?v= : cache-busting — les navigateurs mettent en cache les favicons de
        façon très agressive (souvent au-delà du Cache-Control du serveur).
        Changer ce numéro de version force le rechargement de l'icône en prod
-       à chaque mise à jour du fichier. -->
+       à chaque mise à jour du fichier. 
+  -->
   <link rel="icon" type="image/png" href="/logo/favicon-96x96.png?v=2" sizes="96x96" />
   <link rel="icon" type="image/svg+xml" href="/logo/favicon.svg?v=2" />
   <link rel="shortcut icon" href="/logo/favicon.ico?v=2" />
@@ -79,7 +80,10 @@
        et comportement de tous les navigateurs), 'unsafe-inline' n'est donc
        pas nécessaire pour lui. Il reste inline (plutôt qu'en fichier externe)
        uniquement pour que les robots ne exécutant pas de JS le voient sans
-       requête supplémentaire — un choix SEO, pas une concession de sécurité. -->
+       requête supplémentaire — un choix SEO, pas une concession de sécurité. 
+  -->
+
+
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -148,9 +152,11 @@
     ]
   }
   </script>
+
 </head>
   <body>
     <div id="root">
+    
       <!--
         Contenu de repli visible par les robots qui n'exécutent pas de
         JavaScript (crawlers IA, certains bots de recherche, aperçus de liens
@@ -183,6 +189,7 @@
           <li>Vendez et encaissez sous 48h maximum</li>
         </ol>
       </main>
+
     </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
