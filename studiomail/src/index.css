@@ -1,0 +1,127 @@
+@import "tailwindcss";
+
+/* Inter hébergée localement, mêmes fichiers que koli-admin — servi sous
+   admin.skignas.com/studio-mail/, dont la CSP (style-src/font-src 'self')
+   bloque Google Fonts. Référencé en chemin relatif à ce fichier (pas
+   /fonts/... en public/) pour que Vite le fasse passer par son pipeline
+   d'assets et respecte le `base` de build (voir vite.config.ts). */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('./assets/fonts/inter-var-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('./assets/fonts/inter-var-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Palette alignée sur le design system du backoffice Skignas
+   (koli-admin/src/styles/tokens.css) — mêmes valeurs, même mécanisme de
+   thème (data-theme sur <html>, voir lib/theme.ts). Les valeurs par défaut
+   (clair) sont déclarées ici DANS @theme — Tailwind v4 les expose comme de
+   vraies custom properties CSS, donc la surcharge plus bas par
+   :root[data-theme="dark"] s'applique normalement à la cascade, sans
+   bloc @theme séparé.
+───────────────────────────────────────────────────────────── */
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  /* Police de la MAQUETTE d'e-mail composée (choix de contenu, pas de
+     marque du studio) — jamais utilisée pour le chrome de l'application. */
+  --font-email-serif: Georgia, 'Times New Roman', Times, serif;
+
+  --color-canvas: #F3F4EF;
+  --color-surface: #FFFFFF;
+  --color-surface-raised: #FFFFFF;
+  --color-border: #E6E8E2;
+  --color-border-strong: #D2D5CB;
+  --color-hover-fill: #E9EBE5;
+  --color-ink: #16201C;
+  --color-ink-dim: #3A4540;
+  --color-ink-faint: #8A928D;
+  --color-accent: #1F4A42;
+  --color-accent-hover: #173A34;
+  --color-accent-dim: #E3EAE7;
+  --color-accent-ink: #FFFFFF;
+  --color-danger: #DC2626;
+  --color-danger-dim: #FDECEC;
+  --color-warn: #B45309;
+  --color-warn-dim: #FFFBEB;
+  --color-success: #16A34A;
+  --color-success-dim: #EAF7EC;
+  --color-overlay: rgba(22, 32, 28, .35);
+
+  --shadow-soft: 0 1px 2px rgba(22, 32, 28, .05), 0 4px 16px rgba(22, 32, 28, .06);
+  --shadow-pop: 0 12px 32px rgba(22, 32, 28, .14);
+
+  --animate-fade-in: fade-in .18s ease-out;
+  --animate-pop-in: pop-in .16s cubic-bezier(.2,.8,.2,1);
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes pop-in {
+    from { opacity: 0; transform: scale(.97) translateY(2px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+}
+
+:root { color-scheme: light; }
+
+:root[data-theme="dark"] {
+  --color-canvas: #0F1412;
+  --color-surface: #171D1A;
+  --color-surface-raised: #1C2320;
+  --color-border: #26302B;
+  --color-border-strong: #344039;
+  --color-hover-fill: #232D28;
+  --color-ink: #EEF2EF;
+  --color-ink-dim: #C3CBC6;
+  --color-ink-faint: #8A948F;
+  --color-accent: #2E6B5F;
+  --color-accent-hover: #357A6C;
+  --color-accent-dim: #1D2B27;
+  --color-accent-ink: #FFFFFF;
+  --color-danger: #F87171;
+  --color-danger-dim: rgba(220, 38, 38, .14);
+  --color-warn: #FBBF24;
+  --color-warn-dim: rgba(180, 83, 9, .16);
+  --color-success: #4ADE80;
+  --color-success-dim: rgba(22, 163, 74, .14);
+  --color-overlay: rgba(0, 0, 0, .55);
+  --shadow-pop: 0 12px 32px rgba(0, 0, 0, .45);
+  color-scheme: dark;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+html, body, #root { height: 100%; }
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { background: var(--color-accent); color: var(--color-accent-ink); }
+
+* { scrollbar-width: thin; scrollbar-color: var(--color-border-strong) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: var(--color-border-strong); border-radius: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }

@@ -25,6 +25,7 @@ export const ALLOWED_MIME_TYPES: Record<UploadCategory, readonly string[]> = {
     'application/vnd.ms-excel',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   ],
+  video: ['video/mp4', 'video/webm'],
 }
 
 export const ALLOWED_EXTENSIONS: Record<UploadCategory, readonly string[]> = {
@@ -32,6 +33,7 @@ export const ALLOWED_EXTENSIONS: Record<UploadCategory, readonly string[]> = {
   pdf:         ['pdf'],
   document:    ['pdf'],
   spreadsheet: ['csv', 'xlsx'],
+  video:       ['mp4', 'webm'],
 }
 
 /** Extension réelle du nom de fichier — dernière portion après le dernier

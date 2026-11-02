@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, useFieldArray } from 'react-hook-form'
+import type { Control, UseFormRegister, UseFormSetValue, FieldErrors } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { ArrowLeft, Plus, Trash2, Save, Zap, X, Wrench, Truck, AlertTriangle } from 'lucide-react'
@@ -11,6 +12,7 @@ import { Input, Textarea, Select } from '../../components/ui/Input'
 import { toDatetimeLocal, fromDatetimeLocal, getSaleState, SALE_STATE_BADGE } from '../../lib/saleWindow'
 import type { Category } from '../../types'
 import { formatFCFA } from '../../lib/format'
+import { DescriptionBlocksEditor, type FormWithBlocks } from './DescriptionBlocksEditor'
 
 /* ── Schéma — les prix sont en F CFA (entiers), on ×100 avant envoi ── */
 const schema = z.object({
@@ -24,6 +26,16 @@ const schema = z.object({
   stock:       z.preprocess(v => (v === '' ? undefined : v), z.coerce.number({ error: 'Stock requis' }).int('Nombre entier requis').nonnegative('Le stock ne peut pas être négatif')),
   isNew:       z.boolean(),
   description: z.string().optional(),
+  descriptionBlocks: z.array(z.discriminatedUnion('type', [
+    z.object({ type: z.literal('text'), text: z.string().min(1, 'Texte requis') }),
+    z.object({ type: z.literal('image'), url: z.string().url('URL invalide'), alt: z.string().optional() }),
+    z.object({
+      type:     z.literal('video'),
+      url:      z.string().url('URL invalide'),
+      provider: z.enum(['upload', 'youtube', 'vimeo']),
+      poster:   z.string().optional(),
+    }),
+  ])),
   images:      z.array(z.object({ url: z.string().url('URL invalide') })).min(1, 'Au moins 1 image'),
   specs:       z.array(z.object({ label: z.string().min(1), value: z.string().min(1) })),
   /* Promo programmée (Deals du jour / vente flash) */
@@ -119,7 +131,7 @@ export default function ProductFormPage() {
 
   const { register, control, handleSubmit, reset, watch, setValue, getValues, setError, formState: { errors, dirtyFields } } = useForm<FormData>({
     resolver: zodResolver(schema) as import('react-hook-form').Resolver<FormData>,
-    defaultValues: { images: [{ url: '' }], specs: [], isNew: false, stock: 100, category: '', assistanceEnabled: false, assistancePrice: DEFAULT_ASSISTANCE_PRICE, supplierId: '', supplierPrice: '', ...(isEdit ? {} : prefill) },
+    defaultValues: { images: [{ url: '' }], specs: [], descriptionBlocks: [], isNew: false, stock: 100, category: '', assistanceEnabled: false, assistancePrice: DEFAULT_ASSISTANCE_PRICE, supplierId: '', supplierPrice: '', ...(isEdit ? {} : prefill) },
   })
 
   const { fields: imgFields, append: appendImg, remove: removeImg } = useFieldArray({ control, name: 'images' })
@@ -137,6 +149,7 @@ export default function ProductFormPage() {
         stock:       existing.stock,
         isNew:       existing.isNew,
         description: existing.description ?? '',
+        descriptionBlocks: existing.descriptionBlocks ?? [],
         images:      existing.images.map((i: { url: string }) => ({ url: i.url })),
         specs:       existing.specs.map((s: { label: string; value: string }) => ({ label: s.label, value: s.value })),
         salePrice:    existing.salePrice ?? '',
@@ -260,6 +273,22 @@ export default function ProductFormPage() {
             </div>
           </div>
           <Textarea label="Description" {...register('description')} rows={4} placeholder="Description détaillée du produit..." />
+        </div>
+
+        {/* Description riche — photos/vidéos intercalées dans le texte */}
+        <div className={cardCls}>
+          <div>
+            <h3 className="text-sm font-semibold text-slate-800">Description enrichie (optionnel)</h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Ajoutez des paragraphes, photos et vidéos qui s'affichent sous la description ci-dessus sur la fiche produit. Laissez vide pour n'afficher que le texte simple.
+            </p>
+          </div>
+          <DescriptionBlocksEditor
+            control={control as unknown as Control<FormWithBlocks>}
+            register={register as unknown as UseFormRegister<FormWithBlocks>}
+            setValue={setValue as unknown as UseFormSetValue<FormWithBlocks>}
+            errors={errors as unknown as FieldErrors<FormWithBlocks>}
+          />
         </div>
 
         {/* Prix & stock */}

@@ -180,6 +180,13 @@ model Product {
   isNew              Boolean         @default(false)
   isActive           Boolean         @default(true)
   description        String?
+  /// Blocs de contenu riche affichés sous la description texte (section
+  /// "Description du produit") — tableau de {type:"text"|"image"|"video", ...}.
+  /// Toujours optionnel : null/absent retombe sur `description` en texte brut
+  /// (voir koili/RichDescription.tsx). Jamais de HTML libre stocké ici — les
+  /// blocs sont structurés pour qu'aucune sanitisation HTML ne soit requise
+  /// à l'affichage.
+  descriptionBlocks  Json?
   colors             String?
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
@@ -555,6 +562,11 @@ model SecurityEmailCampaign {
   id              String    @id @default(cuid())
   subject         String
   message         String
+  /// HTML complet (ex: exporté depuis StudioMail), assaini côté serveur —
+  /// quand renseigné, remplace entièrement le gabarit standard basé sur
+  /// `message` (voir lib/email/templates/security-alert.ts). Jamais de
+  /// personnalisation par destinataire dans ce cas : même contenu pour tous.
+  customHtml      String?
   /// all | targeted
   audience        String
   /// JSON string[] des User.id — uniquement quand audience = "targeted"

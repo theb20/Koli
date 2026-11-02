@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import type { Request, Response, NextFunction } from 'express'
 import { z } from 'zod'
 import fs from 'fs'
 import path from 'path'
@@ -7,7 +8,7 @@ import sharp from 'sharp'
 import ExcelJS from 'exceljs'
 import { prisma } from '../lib/prisma'
 import { parseSpreadsheet } from '../lib/spreadsheet'
-import { extractExtension } from '../security/mimeValidator'
+import { extractExtension, isExtensionAllowed } from '../security/mimeValidator'
 import { verifySpreadsheetSignature } from '../security/fileSignature'
 import { searchProductIds } from '../lib/search'
 import { requireAdmin, optionalAuth, requireApiKey } from '../middleware/auth'
@@ -15,7 +16,11 @@ import { LOW_STOCK } from './admin-overview'
 import { validate, validateParams, zIntIdParam } from '../middleware/validate'
 import { cacheControl } from '../middleware/cache'
 import { memoryCache } from '../middleware/memoryCache'
-import { rehostImages } from '../lib/rehostImage'
+import { rehostImages, rehostImage } from '../lib/rehostImage'
+import { isStockgoUrl, uploadToStockgo } from '../lib/stockgo'
+import { toWebp } from '../lib/imageProcessing'
+import { maxUploadBytes, type UploadCategory } from '../security/limits'
+import { validateUpload, UploadValidationError } from '../security/uploadValidator'
 import { getBackendUrl } from '../lib/backendUrl'
 import { deleteLocalUpload } from '../lib/deleteLocalUpload'
 import { deleteProductAtomic } from '../lib/productDeletion'
@@ -37,6 +42,30 @@ const csvUpload = multer({
     else cb(new Error('Seuls les fichiers CSV ou Excel (.xlsx) sont acceptés'))
   },
 })
+
+/* ── Multer — photo/vidéo téléversée dans la description riche d'un produit ── */
+const descriptionMediaUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: Math.max(maxUploadBytes('image'), maxUploadBytes('video')) },
+  fileFilter: (_req, file, cb) => {
+    const ok = isExtensionAllowed(file.originalname, 'image') || isExtensionAllowed(file.originalname, 'video')
+    if (ok) cb(null, true)
+    else cb(new Error('Seuls les fichiers image (jpg, png, webp) ou vidéo (mp4, webm) sont acceptés'))
+  },
+})
+
+/** Cf. categories.ts — évite qu'une erreur multer ressorte en 500 générique */
+function handleDescriptionMediaUpload(req: Request, res: Response, next: NextFunction) {
+  descriptionMediaUpload.single('file')(req, res, (err: unknown) => {
+    if (!err) { next(); return }
+    if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+      res.status(400).json({ success: false, message: `Fichier trop volumineux (${Math.round(maxUploadBytes('video') / (1024 * 1024))} Mo maximum pour une vidéo)` })
+      return
+    }
+    const message = err instanceof Error ? err.message : 'Fichier invalide'
+    res.status(400).json({ success: false, message })
+  })
+}
 
 /* ── Schemas ─────────────────────────────────────────────────── */
 
@@ -62,6 +91,25 @@ const listQuerySchema = z.object({
   syncStatus: z.enum(['success', 'failed', 'skipped', 'none']).optional(),
 })
 
+/**
+ * Un bloc de la description riche (photos/vidéos intercalées dans le texte).
+ * Volontairement structuré plutôt que du HTML libre : aucun des trois types
+ * ne nécessite de sanitisation HTML à l'affichage (voir koili/RichDescription).
+ * "upload" doit toujours pointer vers un fichier hébergé chez nous (vérifié
+ * dans le handler via isStockgoUrl) — "youtube"/"vimeo" sont de simples
+ * références d'intégration, jamais de l'iframe/HTML arbitraire.
+ */
+const descriptionBlockSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('text'), text: z.string().min(1).max(5000) }),
+  z.object({ type: z.literal('image'), url: z.string().url(), alt: z.string().max(200).optional() }),
+  z.object({
+    type:     z.literal('video'),
+    url:      z.string().url(),
+    provider: z.enum(['upload', 'youtube', 'vimeo']),
+    poster:   z.string().url().optional(),
+  }),
+])
+
 const createProductSchema = z.object({
   name:        z.string().min(3).max(200),
   brand:       z.string().min(1).max(100),
@@ -72,6 +120,7 @@ const createProductSchema = z.object({
   stock:       z.number().int().nonnegative().default(100),
   isNew:       z.boolean().default(false),
   description: z.string().optional(),
+  descriptionBlocks: z.array(descriptionBlockSchema).max(40).optional(),
   colors:      z.array(z.string()).optional(),
   images:      z.array(z.string().url()).min(1).max(4),
   specs:       z.array(z.object({ label: z.string(), value: z.string() })).optional(),
@@ -88,6 +137,60 @@ const createProductSchema = z.object({
   /** Prix d'achat fournisseur HT, F CFA entiers */
   supplierPrice: z.number().int().nonnegative().nullable().optional(),
 })
+
+const EMBED_HOSTS: Record<'youtube' | 'vimeo', readonly string[]> = {
+  youtube: ['youtube.com', 'www.youtube.com', 'youtu.be'],
+  vimeo:   ['vimeo.com', 'www.vimeo.com', 'player.vimeo.com'],
+}
+
+/**
+ * Valide et ré-héberge les blocs de description riche :
+ * - "image" : l'URL externe est ré-hébergée chez nous (même traitement que
+ *   les photos produit, voir rehostImage.ts — protège contre le hotlinking
+ *   et le SSRF, no-op si déjà une URL stockgo).
+ * - "video" provider "upload" : doit déjà être une URL stockgo (uploadée via
+ *   POST /description-media) — jamais un lien tiers passé comme "upload".
+ * - "video" provider "youtube"/"vimeo" : simple référence d'intégration,
+ *   validée par domaine, jamais rehébergée ni transformée en HTML libre.
+ * Lève une erreur avec un message présentable tel quel au client.
+ */
+async function processDescriptionBlocks(
+  blocks: z.infer<typeof descriptionBlockSchema>[] | undefined,
+  backendBaseUrl: string,
+): Promise<z.infer<typeof descriptionBlockSchema>[] | undefined> {
+  if (!blocks) return undefined
+  const processed: z.infer<typeof descriptionBlockSchema>[] = []
+  for (const block of blocks) {
+    if (block.type === 'text') {
+      processed.push(block)
+      continue
+    }
+    if (block.type === 'image') {
+      const rehosted = await rehostImage(block.url, backendBaseUrl)
+      processed.push({ ...block, url: rehosted.url })
+      continue
+    }
+    // video
+    if (block.provider === 'upload') {
+      if (!isStockgoUrl(block.url)) {
+        throw new Error("Un bloc vidéo 'upload' doit pointer vers un fichier déjà téléversé sur la plateforme")
+      }
+      processed.push(block)
+      continue
+    }
+    let host: string
+    try {
+      host = new URL(block.url).host.toLowerCase()
+    } catch {
+      throw new Error('Lien vidéo invalide')
+    }
+    if (!EMBED_HOSTS[block.provider].includes(host)) {
+      throw new Error(`Ce lien ne correspond pas à un lien ${block.provider} valide`)
+    }
+    processed.push(block)
+  }
+  return processed
+}
 
 /**
  * Vérifie le fournisseur et exige un prix d'achat en mode MARGIN (mode par
@@ -121,6 +224,60 @@ const createProductSchemaChecked = createProductSchema.superRefine((d, ctx) => {
   if (err) ctx.addIssue({ code: z.ZodIssueCode.custom, message: err, path: ['saleEndsAt'] })
   const assistErr = assistanceError(d)
   if (assistErr) ctx.addIssue({ code: z.ZodIssueCode.custom, message: assistErr, path: ['assistancePrice'] })
+})
+
+/* ─────────────────────────────────────────────────────────────
+   POST /api/products/description-media  [ADMIN]
+   Téléversement d'une photo ou vidéo à insérer dans un bloc de la
+   description riche (voir descriptionBlockSchema). Un fichier à la fois,
+   stocké chez stockgo, jamais sur le disque local du backend.
+───────────────────────────────────────────────────────────── */
+router.post('/description-media', requireAdmin, handleDescriptionMediaUpload, async (req, res) => {
+  try {
+    if (!req.file) {
+      res.status(400).json({ success: false, message: "Champ 'file' manquant" })
+      return
+    }
+
+    const category: UploadCategory = isExtensionAllowed(req.file.originalname, 'video') ? 'video' : 'image'
+
+    const validated = await validateUpload(
+      {
+        buffer:       req.file.buffer,
+        originalName: req.file.originalname,
+        mimeType:     req.file.mimetype,
+        declaredSize: req.file.size,
+      },
+      category,
+    )
+
+    const scan = await scanBuffer(req.file.buffer, req.file.originalname)
+    if (!scan.clean) {
+      res.status(400).json({ success: false, message: `Fichier refusé — contenu malveillant détecté (${scan.reason})` })
+      return
+    }
+
+    let url: string
+    if (category === 'image') {
+      const webp = await toWebp(req.file.buffer)
+      const filename = `desc-${Date.now()}-${Math.random().toString(36).slice(2)}.webp`
+      url = await uploadToStockgo(webp, filename, 'image/webp', 'product-descriptions')
+    } else {
+      // Vidéo : pas de ré-encodage (hors périmètre — ffmpeg non disponible
+      // ici), le fichier validé (taille/mime/signature) est envoyé tel quel.
+      const filename = `${validated.safeFileName}`
+      url = await uploadToStockgo(req.file.buffer, filename, req.file.mimetype, 'product-descriptions')
+    }
+
+    res.status(201).json({ success: true, data: { url, type: category } })
+  } catch (err) {
+    if (err instanceof UploadValidationError) {
+      res.status(err.status).json({ success: false, message: err.message, reason: err.reason })
+      return
+    }
+    logger.error('[products] échec upload média description', err)
+    res.status(500).json({ success: false, message: "Échec de l'upload" })
+  }
 })
 
 /* ─────────────────────────────────────────────────────────────
@@ -389,6 +546,7 @@ router.get('/:id', optionalAuth, cacheControl(20), memoryCache(20, { varyByAuth:
         images:      { orderBy: { position: 'asc' } },
         specs:       { orderBy: { position: 'asc' } },
         categoryRel: { select: { id: true, slug: true, name: true, icon: true, image: true } },
+        store:       { select: { id: true, name: true } },
         reviewItems: {
           take: 5,
           orderBy: { createdAt: 'desc' },
@@ -788,7 +946,7 @@ router.post('/bulk-import/commit', requireAdmin, validate(bulkImportCommitSchema
 ───────────────────────────────────────────────────────────── */
 router.post('/', requireAdmin, validate(createProductSchemaChecked), async (req, res) => {
   try {
-    const { images, specs, colors, supplierId, supplierPrice, ...data } = req.body as z.infer<typeof createProductSchema>
+    const { images, specs, colors, supplierId, supplierPrice, descriptionBlocks, ...data } = req.body as z.infer<typeof createProductSchema>
 
     const sourcingErr = await sourcingError({ supplierId, supplierPrice })
     if (sourcingErr) {
@@ -806,9 +964,18 @@ router.post('/', requireAdmin, validate(createProductSchemaChecked), async (req,
     const BASE_URL = getBackendUrl()
     const rehostedImages = await rehostImages(images, BASE_URL)
 
+    let processedBlocks: z.infer<typeof descriptionBlockSchema>[] | undefined
+    try {
+      processedBlocks = await processDescriptionBlocks(descriptionBlocks, BASE_URL)
+    } catch (err) {
+      res.status(400).json({ success: false, message: err instanceof Error ? err.message : 'Bloc de description invalide' })
+      return
+    }
+
     const product = await prisma.product.create({
       data: {
         ...data,
+        descriptionBlocks: processedBlocks ?? undefined,
         categoryId: catRow.id,
         colors: colors ? JSON.stringify(colors) : null,
         images: {
@@ -837,7 +1004,7 @@ router.post('/', requireAdmin, validate(createProductSchemaChecked), async (req,
 router.put('/:id', requireAdmin, validateParams(zIntIdParam), validate(createProductSchema.partial()), async (req, res) => {
   try {
     const id = Number(req.params['id'])
-    const { images, specs, colors, supplierId, supplierPrice, ...data } = req.body as Partial<z.infer<typeof createProductSchema>>
+    const { images, specs, colors, supplierId, supplierPrice, descriptionBlocks, ...data } = req.body as Partial<z.infer<typeof createProductSchema>>
     const body = req.body as Record<string, unknown>
     const sourcingChanged = 'supplierId' in body || 'supplierPrice' in body
 
@@ -899,6 +1066,16 @@ router.put('/:id', requireAdmin, validateParams(zIntIdParam), validate(createPro
     const BASE_URL = getBackendUrl()
     const rehostedImages = images ? await rehostImages(images, BASE_URL) : undefined
 
+    let processedBlocks: z.infer<typeof descriptionBlockSchema>[] | undefined
+    if ('descriptionBlocks' in body) {
+      try {
+        processedBlocks = await processDescriptionBlocks(descriptionBlocks, BASE_URL)
+      } catch (err) {
+        res.status(400).json({ success: false, message: err instanceof Error ? err.message : 'Bloc de description invalide' })
+        return
+      }
+    }
+
     // Images actuelles — nécessaires pour nettoyer sur disque celles qui vont
     // être remplacées (Prisma ne fait que deleteMany les lignes, pas les fichiers).
     const previousImages = rehostedImages
@@ -909,6 +1086,7 @@ router.put('/:id', requireAdmin, validateParams(zIntIdParam), validate(createPro
       where: { id },
       data: {
         ...data,
+        ...('descriptionBlocks' in body ? { descriptionBlocks: processedBlocks ?? [] } : {}),
         ...(catRow !== undefined ? { categoryId: catRow?.id ?? null } : {}),
         ...(colors !== undefined ? { colors: JSON.stringify(colors) } : {}),
         ...(rehostedImages ? {

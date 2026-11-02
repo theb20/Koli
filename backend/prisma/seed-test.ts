@@ -67,6 +67,39 @@ const CATEGORIES = [
   { slug: 'sport',            name: 'Sport & Loisirs',         icon: 'Dumbbell' },
 ] as const
 
+/**
+ * Exemples de description enrichie (blocs texte/photo/vidéo) — voir
+ * descriptionBlockSchema dans routes/products.ts. Appliqués par index produit
+ * ci-dessous, juste pour démontrer les 3 types de blocs dans l'environnement
+ * de test (sans ça, aucun produit de test n'en a et la fonctionnalité est
+ * invisible tant qu'on ne l'ajoute pas manuellement via l'admin).
+ */
+type DescriptionBlock =
+  | { type: 'text'; text: string }
+  | { type: 'image'; url: string; alt?: string }
+  | { type: 'video'; url: string; provider: 'upload' | 'youtube' | 'vimeo'; poster?: string }
+
+const DESCRIPTION_BLOCKS: Record<number, DescriptionBlock[]> = {
+  // Samsung Galaxy A55 5G — texte + photo
+  0: [
+    { type: 'text', text: "Un équilibre parfait entre performance et autonomie, avec un écran Super AMOLED taillé pour la lumière d'Abidjan." },
+    { type: 'image', url: img('a55-detail'), alt: 'Détail du boîtier Samsung Galaxy A55' },
+    { type: 'text', text: 'Certifié IP67 — résiste à la poussière et à une immersion accidentelle jusqu\'à 1 mètre pendant 30 minutes.' },
+  ],
+  // iPhone 15 — texte + vidéo YouTube
+  1: [
+    { type: 'text', text: "Puce A16 Bionic, double capteur photo 48 Mpx, et le meilleur de l'écosystème Apple. Garantie internationale incluse." },
+    { type: 'video', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', provider: 'youtube' },
+  ],
+  // Routeur TP-Link Archer AX55 — combo texte + photo + vidéo (démo complète)
+  9: [
+    { type: 'text', text: "Wi-Fi 6 double bande (AX1800), 4 antennes externes, portée étendue pour couvrir tout un appartement à Abidjan sans zone morte." },
+    { type: 'image', url: img('ax55-ports'), alt: 'Ports Ethernet du routeur TP-Link Archer AX55' },
+    { type: 'text', text: 'Configuration en moins de 5 minutes via l\'application Tether, compatible avec tous les opérateurs locaux.' },
+    { type: 'video', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', provider: 'youtube' },
+  ],
+}
+
 const PRODUCTS: { name: string; brand: string; cat: typeof CATEGORIES[number]['slug']; price: number; stock: number; store?: number; assistance?: boolean }[] = [
   { name: 'Samsung Galaxy A55 5G 256 Go',        brand: 'Samsung',  cat: 'telephones',       price: 289_000, stock: 24 },
   { name: 'iPhone 15 128 Go',                     brand: 'Apple',    cat: 'telephones',       price: 689_000, stock: 6 },
@@ -163,6 +196,7 @@ async function main() {
         stock: p.stock, isActive: i !== PRODUCTS.length - 1, isNew: i % 5 === 0,
         storeId: p.store != null ? storeIds[p.store] : null,
         description: `${p.name} — garanti, livré partout à Abidjan sous 24 à 72 h.`,
+        descriptionBlocks: DESCRIPTION_BLOCKS[i] ?? undefined,
         badge: onSale ? 'sale' : i % 6 === 0 ? 'hot' : null,
         salePrice: onSale ? round(p.price * 0.85) : null,
         saleStartsAt: onSale ? daysAgo(2) : null,

@@ -3,13 +3,14 @@
  * dispersées dans chaque route, et surchargeables par variable d'environnement
  * sans toucher au code (ex: UPLOAD_MAX_IMAGE_MB=8 sur Railway).
  */
-export type UploadCategory = 'image' | 'pdf' | 'document' | 'spreadsheet'
+export type UploadCategory = 'image' | 'pdf' | 'document' | 'spreadsheet' | 'video'
 
 const DEFAULT_LIMITS_MB: Record<UploadCategory, number> = {
   image:       5,
   pdf:         10,
   document:    10,
   spreadsheet: 5,
+  video:       25,
 }
 
 function envOverrideMb(category: UploadCategory): number | undefined {

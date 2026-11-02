@@ -76,6 +76,30 @@ export function verifySpreadsheetSignature(buffer: Buffer, extension: string): b
   return false
 }
 
+/** mp4 : conteneur ISO-BMFF, même repli structurel que heic/avif (box
+ *  "ftyp" en tête) — brands vidéo plutôt qu'image cette fois. */
+const ISO_BMFF_VIDEO_BRANDS = ['isom', 'iso2', 'mp41', 'mp42', 'avc1', 'm4v ', 'mp4 ', 'dash']
+
+function looksLikeIsoBmffVideo(buffer: Buffer): boolean {
+  if (buffer.length < 12) return false
+  const boxType = buffer.subarray(4, 8).toString('ascii')
+  if (boxType !== 'ftyp') return false
+  const brand = buffer.subarray(8, 12).toString('ascii').toLowerCase()
+  return ISO_BMFF_VIDEO_BRANDS.includes(brand)
+}
+
+/** webm/mkv : conteneur Matroska, signature EBML fixe en tête de fichier. */
+function isEbmlSignature(buffer: Buffer): boolean {
+  if (buffer.length < 4) return false
+  return buffer[0] === 0x1a && buffer[1] === 0x45 && buffer[2] === 0xdf && buffer[3] === 0xa3
+}
+
+export function verifyVideoSignature(buffer: Buffer, extension: string): boolean {
+  if (extension === 'webm') return isEbmlSignature(buffer)
+  if (extension === 'mp4') return looksLikeIsoBmffVideo(buffer)
+  return false
+}
+
 /** Point d'entrée unique — dispatch par catégorie. Asynchrone dans tous les
  *  cas (même quand la vérification elle-même est synchrone) pour que les
  *  appelants n'aient pas à distinguer les catégories. */
@@ -92,6 +116,8 @@ export async function verifySignature(
       return verifyPdfSignature(buffer)
     case 'spreadsheet':
       return verifySpreadsheetSignature(buffer, extension)
+    case 'video':
+      return verifyVideoSignature(buffer, extension)
     default:
       return false
   }

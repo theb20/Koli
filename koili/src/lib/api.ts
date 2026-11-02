@@ -34,6 +34,12 @@ export type PaginationMeta = {
 export type ApiProductImage = { id: number; url: string; thumbnailUrl?: string | null; position: number }
 export type ApiProductSpec  = { id: number; label: string; value: string; position: number }
 
+/** Bloc de la description riche — voir backend/src/routes/products.ts (descriptionBlockSchema). */
+export type DescriptionBlock =
+  | { type: 'text'; text: string }
+  | { type: 'image'; url: string; alt?: string }
+  | { type: 'video'; url: string; provider: 'upload' | 'youtube' | 'vimeo'; poster?: string }
+
 export type ApiProduct = {
   id: number
   name: string
@@ -49,6 +55,7 @@ export type ApiProduct = {
   isNew: boolean
   isActive: boolean
   description?: string | null
+  descriptionBlocks?: DescriptionBlock[] | null
   colors?: string | null          // JSON string stocké en base
   /** Option payante "Assistance technique" — prix fixe par ligne de commande */
   assistanceEnabled?: boolean
@@ -259,12 +266,14 @@ export function mapApiProduct(p: ApiProduct) {
     stock: p.stock,
     isNew: p.isNew,
     description: p.description ?? undefined,
+    descriptionBlocks: p.descriptionBlocks ?? undefined,
     colors,
     specs,
     images: imgUrls as [string, string, string, string],
     thumbnails: thumbUrls as [string, string, string, string],
     /** Prix de l'option "Assistance technique" — null si non proposée */
     assistancePrice: p.assistanceEnabled && p.assistancePrice ? p.assistancePrice : null,
+    store: p.store ?? null,
   }
 }
 
@@ -279,6 +288,7 @@ type ProductsQuery = {
   minPrice?: number
   maxPrice?: number
   badge?: string
+  storeId?: number
 }
 
 export async function fetchCategories() {
