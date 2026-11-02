@@ -15,6 +15,8 @@ import CustomerDetailPage from '@/features/customers/CustomerDetailPage'
 import PromotionsPage from '@/features/promotions/PromotionsPage'
 import StatsPage from '@/features/stats/StatsPage'
 import SettingsPage from '@/features/settings/SettingsPage'
+import DeliveryPage from '@/features/delivery/DeliveryPage'
+import ShopPage from '@/features/shop/ShopPage'
 
 const qc = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
@@ -35,12 +37,14 @@ export default function App() {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/produits" element={<ProductsPage />} />
             <Route path="/commandes" element={<OrdersPage />} />
+            <Route path="/livraison" element={<DeliveryPage />} />
             <Route path="/paiements" element={<PaymentsPage />} />
             <Route path="/facturation" element={<BillingPage />} />
             <Route path="/clients" element={<CustomersPage />} />
             <Route path="/clients/:id" element={<CustomerDetailPage />} />
             <Route path="/promotions" element={<PromotionsPage />} />
             <Route path="/statistiques" element={<StatsPage />} />
+            <Route path="/boutique" element={<ShopPage />} />
             <Route path="/parametres" element={<SettingsPage />} />
           </Route>
 

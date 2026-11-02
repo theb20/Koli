@@ -1,25 +1,29 @@
 import { NavLink } from 'react-router-dom'
 import {
-  LayoutDashboard, Package, ShoppingCart, Users, BarChart2,
-  Wallet, Settings, LifeBuoy, LogOut, X,
+  LayoutDashboard, Package, ShoppingCart, Truck, Users, BarChart2,
+  Wallet, Store, Settings, LifeBuoy, LogOut, X,
 } from 'lucide-react'
 import { useUiStore } from '@/store/useUiStore'
 import { useAuthStore } from '@/features/auth/useAuthStore'
 
-// Paiements et Promotions retirés du menu : pas encore branchés sur un vrai
-// backend (le premier suppose un système de wallet à concevoir séparément,
-// le second une évolution de schéma pour scoper les codes promo par
-// boutique) — cf. discussion de périmètre. Les pages/routes existent
-// toujours, juste inaccessibles depuis la navigation pour l'instant.
-// Facturation (modèle économique + solde de commissions) est le vrai
-// système de wallet évoqué ci-dessus, branché sur merchantgo.
+// Paiements et Promotions toujours hors menu : pas encore branchés sur un
+// vrai backend (le premier suppose un système de versement/payout à
+// construire — merchantgo n'a que balance/transactions en lecture ; le
+// second suppose de scoper PromoCode par boutique côté backend, aujourd'hui
+// strictement admin/plateforme) — cf. discussion de périmètre. Les pages/
+// routes existent toujours, juste inaccessibles depuis la navigation.
+// Facturation (solde, commission, historique) EST le wallet réel évoqué
+// ci-dessus, branché sur merchantgo — "versements vers Mobile Money" est la
+// seule pièce manquante pour que "Paiements" ait un sens propre.
 const nav = [
   { to: '/dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
   { to: '/produits', label: 'Produits', icon: Package },
   { to: '/commandes', label: 'Commandes', icon: ShoppingCart },
+  { to: '/livraison', label: 'Livraisons', icon: Truck },
   { to: '/clients', label: 'Clients', icon: Users },
   { to: '/statistiques', label: 'Statistiques', icon: BarChart2 },
   { to: '/facturation', label: 'Facturation', icon: Wallet },
+  { to: '/boutique', label: 'Ma boutique', icon: Store },
   { to: '/parametres', label: 'Paramètres', icon: Settings },
 ]
 

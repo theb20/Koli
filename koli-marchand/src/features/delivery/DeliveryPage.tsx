@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Loader2, MapPin, Plus, Trash2 } from 'lucide-react'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { SelectField, TextField } from '@/components/ui/FormField'
@@ -10,7 +11,7 @@ import {
 
 const ALL_ZONE_NAMES = [...ABIDJAN_COMMUNES, UPCOUNTRY_ZONE_NAME]
 
-export default function DeliveryZonesTab() {
+export default function DeliveryPage() {
   const { data: zones, isLoading } = useDeliveryZones()
   const createZone = useCreateDeliveryZone()
   const updateZone = useUpdateDeliveryZone()
@@ -33,7 +34,9 @@ export default function DeliveryZonesTab() {
   }
 
   return (
-    <Card className="p-6">
+    <div>
+      <PageHeader title="Livraisons" subtitle="Zones de livraison, tarifs et éligibilité au paiement à la livraison" />
+      <Card className="p-6">
       <div className="flex items-start justify-between gap-4 mb-1">
         <div>
           <h2 className="font-bold text-[#0a0a0b]">Zones de livraison</h2>
@@ -125,6 +128,7 @@ export default function DeliveryZonesTab() {
           ))}
         </div>
       )}
-    </Card>
+      </Card>
+    </div>
   )
 }
