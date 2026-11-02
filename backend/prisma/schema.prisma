@@ -145,8 +145,34 @@ model SellerStore {
   ownedProducts Product[]
   user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   deletionRequests ProductDeletionRequest[]
+  deliveryZones    DeliveryZone[]
 
   @@map("seller_stores")
+}
+
+/// Zone de livraison définie par un marchand (commune, "Intérieur du pays"…)
+/// avec son propre tarif et son éligibilité au paiement à la livraison.
+/// Un marchand sans zone configurée retombe sur le tarif plateforme par
+/// défaut (voir shippingForCart dans lib/delivery.ts) — jamais bloquant.
+model DeliveryZone {
+  id         Int         @id @default(autoincrement())
+  storeId    Int
+  store      SellerStore @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  /// Nom de la zone tel qu'affiché et comparé à `shippingAddress.ville` à la
+  /// commande (ex: "Cocody", "Yopougon", "Intérieur du pays").
+  name       String
+  price      Int
+  /// Paiement à la livraison autorisé pour cette zone — distinct du
+  /// SiteSettings.codEnabled global, qui reste le coupe-circuit plateforme.
+  codAllowed Boolean     @default(true)
+  position   Int         @default(0)
+  isActive   Boolean     @default(true)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@unique([storeId, name])
+  @@index([storeId])
+  @@map("delivery_zones")
 }
 
 model SellerProduct {

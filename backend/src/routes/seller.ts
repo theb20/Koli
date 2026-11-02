@@ -16,11 +16,12 @@ import { extractExtension } from '../security/mimeValidator'
 import { verifySpreadsheetSignature } from '../security/fileSignature'
 import { searchProductIds, normalizeSearchQuery } from '../lib/search'
 import { buildMerchantOrderPdf } from '../lib/invoicePdf'
-import { requestOrderReview } from '../lib/orderReview'
+import { applyOrderStatusChange } from './orders'
 import type { Prisma, Order, OrderItem } from '@prisma/client'
 import { sellerOverview } from '../lib/sellerMetrics/queries'
 import { resolvePeriod as resolveMetricsPeriod, PERIOD_PRESETS, type PeriodPreset } from '../lib/sellerMetrics/periods'
 import { SELLER_METRICS, SELLER_ALERT_THRESHOLDS } from '../lib/sellerMetrics/dictionary'
+import { UPCOUNTRY_ZONE_NAME } from '../lib/delivery'
 
 const router = Router()
 
@@ -1244,17 +1245,15 @@ router.patch('/orders/:id/status', requireSeller, async (req, res) => {
       return
     }
 
-    const updated = await prisma.order.update({
-      where: { id: req.params.id },
-      data: {
-        status,
-        deliveredAt: status === 'delivered' && items[0].order.status !== 'delivered' ? new Date() : undefined,
-      },
-    })
-    // Première livraison → lien "Laisser un avis" au client (une seule fois)
-    if (status === 'delivered' && items[0].order.status !== 'delivered') {
-      requestOrderReview(updated.id).catch(() => {})
-    }
+    // Délègue à la transition partagée (routes/orders.ts) — restitution du
+    // stock si annulée/remboursée, alignement du paiement, email + WhatsApp
+    // + notification in-app au client, lien d'avis à la première livraison.
+    // Avant ce changement, cette route mettait à jour la commande en direct
+    // et aucune de ces conséquences ne se produisait pour un changement de
+    // statut fait par un marchand (seul l'admin en bénéficiait).
+    const updated = await applyOrderStatusChange(req.params.id, status)
+    if (!updated) { res.status(404).json({ success: false, message: 'Commande introuvable.' }); return }
+
     res.json({ success: true, data: shapeOrder(updated, items) })
   } catch (err) {
     if (err instanceof z.ZodError) { res.status(400).json({ success: false, message: 'Statut invalide' }); return }
@@ -1458,6 +1457,127 @@ router.get('/analytics', requireSeller, async (req, res) => {
     res.json({ success: true, data: { categorySales, periodSales } })
   } catch (err) {
     logger.error('[seller/analytics]', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/* ── Zones de livraison ──────────────────────────────────────────────
+ * Le nom de la zone doit correspondre exactement à une valeur de
+ * VILLES_CI (koili/src/constants/villesCI.ts) pour une commune d'Abidjan,
+ * ou au nom réservé UPCOUNTRY_ZONE_NAME pour tout le reste du pays — voir
+ * lib/delivery.ts (quoteShipping) qui s'appuie sur cette correspondance
+ * exacte pour calculer le tarif à la commande.
+ * ──────────────────────────────────────────────────────────────────── */
+const deliveryZoneSchema = z.object({
+  name:       z.string().min(1).max(60),
+  price:      z.number().int().nonnegative(),
+  codAllowed: z.boolean().default(true),
+  isActive:   z.boolean().default(true),
+})
+
+router.get('/delivery-zones', requireSeller, async (req, res) => {
+  try {
+    const store = await requireMyStore(req.user!.userId)
+    if (!store) { res.status(404).json({ success: false, message: 'Boutique introuvable.' }); return }
+
+    const zones = await prisma.deliveryZone.findMany({
+      where: { storeId: store.id },
+      orderBy: { position: 'asc' },
+    })
+    res.json({ success: true, data: { zones, upcountryZoneName: UPCOUNTRY_ZONE_NAME } })
+  } catch (err) {
+    logger.error('[seller/delivery-zones]', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+router.post('/delivery-zones', requireSeller, async (req, res) => {
+  try {
+    const store = await requireMyStore(req.user!.userId)
+    if (!store) { res.status(404).json({ success: false, message: 'Boutique introuvable.' }); return }
+
+    const body = deliveryZoneSchema.parse(req.body)
+    const count = await prisma.deliveryZone.count({ where: { storeId: store.id } })
+
+    const zone = await prisma.deliveryZone.create({
+      data: { ...body, storeId: store.id, position: count },
+    })
+    res.status(201).json({ success: true, data: zone })
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ success: false, message: 'Zone invalide' }); return }
+    // Contrainte unique (storeId, name) — une seule zone par nom de commune.
+    if ((err as { code?: string }).code === 'P2002') {
+      res.status(409).json({ success: false, message: 'Une zone avec ce nom existe déjà.' })
+      return
+    }
+    logger.error('[seller/delivery-zones create]', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+router.patch('/delivery-zones/reorder', requireSeller, async (req, res) => {
+  try {
+    const store = await requireMyStore(req.user!.userId)
+    if (!store) { res.status(404).json({ success: false, message: 'Boutique introuvable.' }); return }
+
+    const { order } = z.object({ order: z.array(z.number().int().positive()).min(1) }).parse(req.body)
+    const owned = await prisma.deliveryZone.count({ where: { id: { in: order }, storeId: store.id } })
+    if (owned !== order.length) {
+      res.status(403).json({ success: false, message: 'Zone(s) hors de votre boutique.' })
+      return
+    }
+
+    await Promise.all(order.map((id, idx) => prisma.deliveryZone.update({ where: { id }, data: { position: idx } })))
+    res.json({ success: true, message: 'Ordre mis à jour' })
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ success: false, message: 'Requête invalide' }); return }
+    logger.error('[seller/delivery-zones reorder]', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+router.patch('/delivery-zones/:id', requireSeller, async (req, res) => {
+  try {
+    const store = await requireMyStore(req.user!.userId)
+    if (!store) { res.status(404).json({ success: false, message: 'Boutique introuvable.' }); return }
+
+    const id = Number(req.params.id)
+    const existing = await prisma.deliveryZone.findUnique({ where: { id } })
+    if (!existing || existing.storeId !== store.id) {
+      res.status(404).json({ success: false, message: 'Zone introuvable.' })
+      return
+    }
+
+    const body = deliveryZoneSchema.partial().parse(req.body)
+    const zone = await prisma.deliveryZone.update({ where: { id }, data: body })
+    res.json({ success: true, data: zone })
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ success: false, message: 'Zone invalide' }); return }
+    if ((err as { code?: string }).code === 'P2002') {
+      res.status(409).json({ success: false, message: 'Une zone avec ce nom existe déjà.' })
+      return
+    }
+    logger.error('[seller/delivery-zones update]', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+router.delete('/delivery-zones/:id', requireSeller, async (req, res) => {
+  try {
+    const store = await requireMyStore(req.user!.userId)
+    if (!store) { res.status(404).json({ success: false, message: 'Boutique introuvable.' }); return }
+
+    const id = Number(req.params.id)
+    const existing = await prisma.deliveryZone.findUnique({ where: { id } })
+    if (!existing || existing.storeId !== store.id) {
+      res.status(404).json({ success: false, message: 'Zone introuvable.' })
+      return
+    }
+
+    await prisma.deliveryZone.delete({ where: { id } })
+    res.json({ success: true, message: 'Zone supprimée' })
+  } catch (err) {
+    logger.error('[seller/delivery-zones delete]', err)
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
 })

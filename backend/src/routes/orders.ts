@@ -6,6 +6,7 @@ import { validate, validateParams, validateQuery, zCuidIdParam, zPaginationQuery
 import { sendOrderConfirmationEmail, sendOrderStatusEmail, sendNewOrderAdminEmail, sendNewOrderMerchantEmail } from '../lib/mailer'
 import { buildInvoicePdf } from '../lib/invoicePdf'
 import { sendNewOrderWhatsAppNotification } from '../lib/whatsapp/newOrderNotification'
+import { sendOrderStatusWhatsApp } from '../lib/whatsapp/orderStatusNotification'
 import { logger } from '../lib/logger'
 import { logAdminAction } from '../lib/auditLog'
 import { notifyMerchantsOrderPaid } from '../lib/merchantWallet'
@@ -13,6 +14,7 @@ import { snapshotOrderFinancialsSafe } from '../lib/finance/snapshot'
 import { getVatRatePercent } from '../lib/finance/vat'
 import { requestOrderReview } from '../lib/orderReview'
 import { getLoyaltySettings } from './loyalty'
+import { quoteShipping } from '../lib/delivery'
 import { createGeniusPayPayment, isMerchantgoConfigured, refreshGeniusPayPayment, refreshWinipayerPayment } from '../lib/merchantgo'
 import type { Request, Response } from 'express'
 import type { Order } from '@prisma/client'
@@ -222,6 +224,12 @@ export async function applyOrderStatusChange(orderId: string, status: OrderStatu
   // resté identique (ex: admin renvoie la même valeur par erreur).
   if (result.changed) {
     sendOrderStatusEmail(result.updated.clientEmail, result.updated.clientPrenom, result.updated.orderNumber, status).catch(() => {})
+    sendOrderStatusWhatsApp(result.updated.clientTelephone, {
+      orderNumber: result.updated.orderNumber,
+      orderId:     result.updated.id,
+      clientNom:   result.updated.clientPrenom,
+      status,
+    }).catch(() => {})
     if (result.updated.userId) {
       prisma.notification.create({
         data: {
@@ -237,6 +245,47 @@ export async function applyOrderStatusChange(orderId: string, status: OrderStatu
 
   return result.updated
 }
+
+/* ─────────────────────────────────────────────────────────────
+   POST /api/orders/shipping-quote  — Devis de livraison (panier → checkout)
+   Public, sans écriture — même calcul que POST / (lib/delivery.ts), pour
+   que le panier affiche le tarif réel par zone marchand avant validation.
+───────────────────────────────────────────────────────────── */
+const shippingQuoteSchema = z.object({
+  items: z.array(z.object({ productId: z.number().int().positive(), qty: z.number().int().positive() })).min(1),
+  ville: z.string().min(1),
+  deliveryMethod: z.enum(['standard', 'express']),
+})
+router.post('/shipping-quote', validate(shippingQuoteSchema), async (req, res) => {
+  try {
+    const body = req.body as z.infer<typeof shippingQuoteSchema>
+    const products = await prisma.product.findMany({
+      where: { id: { in: body.items.map(i => i.productId) }, isActive: true },
+      select: { id: true, storeId: true, price: true },
+    })
+
+    const quote = await quoteShipping(
+      body.items.map(item => {
+        const p = products.find(p => p.id === item.productId)
+        return { storeId: p?.storeId ?? null, price: p?.price ?? 0, qty: item.qty }
+      }),
+      body.ville,
+      body.deliveryMethod,
+    )
+
+    res.json({
+      success: true,
+      data: {
+        shippingCost: quote.cost,
+        codAvailable: quote.codAllowed,
+        deliverable: quote.unmatchedStoreIds.length === 0,
+      },
+    })
+  } catch (err) {
+    logger.error('[orders/shipping-quote]', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
 
 /* ─────────────────────────────────────────────────────────────
    POST /api/orders  — Créer une commande
@@ -329,14 +378,28 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
       return sum + (item.assistance ? p.assistancePrice ?? 0 : 0)
     }, 0)
 
-    // Aligné sur les CGU/CGV et le panier : seule la livraison STANDARD
-    // devient gratuite dès 25 000 FCFA ; l'express reste à 3 500 FCFA.
-    // (Auparavant l'express devenait aussi gratuite côté serveur, alors que
-    // le panier affichait 3 500 FCFA.)
-    const shippingCost = (() => {
-      if (body.deliveryMethod === 'express') return 3_500
-      return subtotal >= 25_000 ? 0 : 1_500
-    })()
+    // Livraison : tarif par zone marchand quand la boutique en a défini
+    // (voir lib/delivery.ts) — sinon tarif plateforme historique (gratuite
+    // dès 25 000 FCFA en standard, 3 500 FCFA en express). Une boutique dont
+    // les zones existent mais ne couvrent pas la ville choisie ne livre pas
+    // là : on refuse la commande plutôt que de facturer un tarif au hasard.
+    const shippingQuote = await quoteShipping(
+      body.items.map(item => {
+        const p = products.find(p => p.id === item.productId)!
+        return { storeId: p.storeId, price: p.price, qty: item.qty }
+      }),
+      body.shippingAddress.ville,
+      body.deliveryMethod,
+    )
+    if (shippingQuote.unmatchedStoreIds.length > 0) {
+      res.status(400).json({ success: false, message: `Un ou plusieurs vendeurs de votre panier ne livrent pas à "${body.shippingAddress.ville}".` })
+      return
+    }
+    if (body.paymentMethod === 'cash' && !shippingQuote.codAllowed) {
+      res.status(400).json({ success: false, message: "Le paiement à la livraison n'est pas disponible pour cette adresse avec les articles de votre panier." })
+      return
+    }
+    const shippingCost = shippingQuote.cost
 
     // 3. Taux de TVA par défaut (source unique : lib/finance/vat.ts)
     const taxRatePercent = await getVatRatePercent()
