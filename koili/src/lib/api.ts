@@ -410,6 +410,24 @@ export async function createOrder(
   )
 }
 
+/**
+ * Devis de livraison réel (panier → étape livraison) — tarif par zone
+ * marchand si la boutique en a configuré une pour cette ville, sinon tarif
+ * plateforme (voir backend/src/lib/delivery.ts). `deliverable: false`
+ * signifie qu'au moins un vendeur du panier ne livre pas à cette adresse.
+ */
+export async function fetchShippingQuote(body: {
+  items: { productId: number; qty: number }[]
+  ville: string
+  deliveryMethod: 'standard' | 'express'
+}) {
+  return apiFetch<ApiResponse<{ shippingCost: number; codAvailable: boolean; deliverable: boolean }>>(
+    '/api/orders/shipping-quote',
+    undefined,
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+}
+
 export async function fetchOrder(id: string, token?: string | null) {
   return apiFetch<ApiResponse<ApiOrder>>(
     `/api/orders/${encodeURIComponent(id)}`,

@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import { useCart, fmtCart, lineAssistance, type CartItem } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
-import { createOrder, fetchPromo, fetchProducts, fetchProduct, mapApiProduct, fetchDefaultTax, fetchAddresses, type ApiAddress } from '../lib/api'
+import { createOrder, fetchPromo, fetchProducts, fetchProduct, mapApiProduct, fetchDefaultTax, fetchAddresses, fetchShippingQuote, type ApiAddress } from '../lib/api'
 import { useSiteSettings, waLink, telLink } from '../hooks/useSiteSettings'
 import { PageMeta } from '../components/seo/PageMeta'
 import { VILLES_CI } from '../constants/villesCI'
@@ -940,13 +940,13 @@ function InputField({ label, value, onChange, placeholder, error, icon, required
 /* ═══════════════════════════════════════════════════════════════
    ÉTAPE 3 — PAIEMENT
 ═══════════════════════════════════════════════════════════════ */
-function StepPaiement({ selected, onSelect, onNext, onBack }: {
+function StepPaiement({ selected, onSelect, onNext, onBack, codAvailable }: {
   selected: PaymentMethod | null; onSelect: (m: PaymentMethod) => void
-  onNext: () => void; onBack: () => void
+  onNext: () => void; onBack: () => void; codAvailable: boolean
 }) {
   const [noSelect, setNoSelect] = useState(false)
   const settings = useSiteSettings()
-  const options = settings.codEnabled ? PAYMENT_OPTIONS : PAYMENT_OPTIONS.filter(o => o.id !== 'cash')
+  const options = settings.codEnabled && codAvailable ? PAYMENT_OPTIONS : PAYMENT_OPTIONS.filter(o => o.id !== 'cash')
 
   const handleNext = () => {
     if (!selected) { setNoSelect(true); return }
@@ -1058,12 +1058,11 @@ function StepPaiement({ selected, onSelect, onNext, onBack }: {
 /* ═══════════════════════════════════════════════════════════════
    ÉTAPE 4 — CONFIRMATION
 ═══════════════════════════════════════════════════════════════ */
-function StepConfirmation({ items, delivery, paymentMethod, totalPrice, promoDiscount, onConfirm, onBack, loading }: {
+function StepConfirmation({ items, delivery, paymentMethod, totalPrice, promoDiscount, shipping, deliverable, onConfirm, onBack, loading }: {
   items: CartItem[]; delivery: DeliveryInfo; paymentMethod: PaymentMethod
-  totalPrice: number; promoDiscount: number; onConfirm: () => void; onBack: () => void; loading: boolean
+  totalPrice: number; promoDiscount: number; shipping: number; deliverable: boolean
+  onConfirm: () => void; onBack: () => void; loading: boolean
 }) {
-  const shipping = delivery.methode === 'express' ? SHIPPING_EXP
-    : totalPrice >= SHIPPING_FREE ? 0 : SHIPPING_STD
   const { data: taxDataConf } = useQuery({ queryKey: ['default-tax'], queryFn: fetchDefaultTax, staleTime: 300_000 })
   const taxRateConf   = taxDataConf?.data?.tax?.rate ?? 0
   const { totalAssistance } = useCart()
@@ -1196,6 +1195,15 @@ function StepConfirmation({ items, delivery, paymentMethod, totalPrice, promoDis
         </div>
       </div>
 
+      {!deliverable && (
+        <div className="flex items-start gap-2 p-4 rounded-xl bg-red-50 border border-red-100">
+          <AlertCircle size={15} className="text-red-500 shrink-0 mt-0.5" />
+          <p className="text-sm text-red-600">
+            Un ou plusieurs vendeurs de votre panier ne livrent pas à "{delivery.ville}". Modifiez votre adresse ou retirez l'article concerné.
+          </p>
+        </div>
+      )}
+
       {/* CGU */}
       <p className="text-xs text-gray-400 text-center leading-relaxed px-4">
         En confirmant, vous acceptez nos{' '}
@@ -1210,7 +1218,7 @@ function StepConfirmation({ items, delivery, paymentMethod, totalPrice, promoDis
           className="flex items-center gap-2 px-5 py-4 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-600 hover:border-gray-300 hover:text-gray-800 transition-colors">
           <ChevronLeft size={15} /> Retour
         </button>
-        <button onClick={onConfirm} disabled={loading}
+        <button onClick={onConfirm} disabled={loading || !deliverable}
           className="flex-1 py-4 rounded-2xl bg-emerald-600 text-white font-bold text-sm flex items-center justify-center gap-2 hover:bg-emerald-700 active:scale-[0.98] transition-all disabled:opacity-60 shadow-lg shadow-emerald-600/20">
           {loading ? (
             <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
@@ -1446,8 +1454,26 @@ export default function PanierPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [addresses])
 
-  const shipping = delivery.methode === 'express' ? SHIPPING_EXP
+  const fallbackShipping = delivery.methode === 'express' ? SHIPPING_EXP
     : totalPrice >= SHIPPING_FREE ? 0 : SHIPPING_STD
+
+  // Devis réel (tarif par zone marchand si configurée) — se déclenche dès que
+  // la ville est connue. Tant qu'il n'a pas répondu (ou en erreur réseau), on
+  // retombe sur le tarif plateforme ci-dessus plutôt que de bloquer l'affichage ;
+  // de toute façon POST /api/orders recalcule et valide tout côté serveur.
+  const { data: shippingQuote } = useQuery({
+    queryKey: ['shipping-quote', delivery.ville, delivery.methode, items.map(i => `${i.productId}:${i.qty}`).join(',')],
+    queryFn: () => fetchShippingQuote({
+      items: items.map(i => ({ productId: i.productId, qty: i.qty })),
+      ville: delivery.ville,
+      deliveryMethod: delivery.methode,
+    }),
+    enabled: !!delivery.ville && items.length > 0 && (step === 'paiement' || step === 'confirmation'),
+    staleTime: 10_000,
+  })
+  const shipping    = shippingQuote?.data?.shippingCost ?? fallbackShipping
+  const codAvailable = shippingQuote?.data?.codAvailable ?? true
+  const deliverable  = shippingQuote?.data?.deliverable  ?? true
 
   // Vérification stock en temps réel pour tous les articles du panier
   const stockQueries = useQueries({
@@ -1623,7 +1649,7 @@ export default function PanierPage() {
                   )}
                   {step === 'paiement' && (
                     <StepPaiement selected={paymentMethod} onSelect={setPaymentMethod}
-                      onNext={goNext} onBack={goBack} />
+                      onNext={goNext} onBack={goBack} codAvailable={codAvailable} />
                   )}
                   {step === 'confirmation' && (
                     <>
@@ -1635,6 +1661,7 @@ export default function PanierPage() {
                       )}
                       <StepConfirmation items={items} delivery={delivery} paymentMethod={paymentMethod!}
                         totalPrice={totalPrice} promoDiscount={promoDiscount}
+                        shipping={shipping} deliverable={deliverable}
                         onConfirm={handleConfirm} onBack={goBack} loading={loading} />
                     </>
                   )}
