@@ -6,9 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:with-studiomail": "npm run build && npm --prefix ../studiomail run build && mkdir -p dist/studio-mail && cp -r ../studiomail/dist/. dist/studio-mail/",
     "lint": "eslint .",
     "preview": "vite preview",
-    "deploy": "npm run build && firebase deploy",
+    "deploy": "npm run build:with-studiomail && firebase deploy",
     "dev:test": "vite --mode localtest --port 5176 --strictPort",
     "test": "vitest run"
   },
