@@ -91,6 +91,7 @@ export default function ProductPage() {
   const [wished, setWished]       = useState(inWishlist)
   const [addedCart, setAddedCart] = useState(false)
   const [color, setColor]         = useState(0)
+  const [variantId, setVariantId] = useState<number | null>(null)
   const [reviewFilter, setReviewFilter] = useState<number | null>(null)
   const [showReviewForm, setShowReviewForm] = useState(false)
   const [stickyVisible, setStickyVisible] = useState(false)
@@ -98,6 +99,13 @@ export default function ProductPage() {
   const heroEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { setWished(inWishlist) }, [inWishlist])
+
+  // Pré-sélectionne la première variante disponible — achat/panier doivent
+  // toujours viser une variante précise dès qu'il y en a (prix/stock réels).
+  useEffect(() => {
+    if (!product?.variants || product.variants.length === 0) return
+    setVariantId(v => v ?? product.variants!.find(x => x.stock > 0)?.id ?? product.variants![0]!.id)
+  }, [product?.variants])
 
   useEffect(() => {
     const el = heroEndRef.current
@@ -143,15 +151,19 @@ export default function ProductPage() {
     }
   }
 
+  const selectedVariant = product.variants?.find(v => v.id === variantId)
+
   const cartPayload = () => ({
     productId: product.id,
+    variantId: selectedVariant?.id,
+    variantName: selectedVariant?.name,
     name: product.name,
     brand: product.brand,
-    price: product.price,
-    oldPrice: product.oldPrice,
+    price: selectedVariant?.price ?? product.price,
+    oldPrice: selectedVariant ? undefined : product.oldPrice,
     image: product.thumbnails[0],
     color: product.colors?.[color],
-    stock: product.stock ?? undefined,
+    stock: (selectedVariant ? selectedVariant.stock : product.stock) ?? undefined,
     assistance: withAssistance && product.assistancePrice != null,
     assistancePrice: product.assistancePrice,
   })
@@ -179,7 +191,7 @@ export default function ProductPage() {
   }
 
   const filteredReviews = reviewFilter ? reviews.filter(r => r.rating === reviewFilter) : reviews
-  const variantLabel = product.colors?.[color]
+  const variantLabel = selectedVariant?.name ?? product.colors?.[color]
 
   return (
     <>
@@ -276,6 +288,8 @@ export default function ProductPage() {
                 setQty={setQty}
                 color={color}
                 setColor={setColor}
+                variantId={variantId}
+                setVariantId={setVariantId}
                 withAssistance={withAssistance}
                 setWithAssistance={setWithAssistance}
                 addedCart={addedCart}
@@ -391,6 +405,8 @@ export default function ProductPage() {
         product={product}
         visible={stickyVisible}
         variantLabel={variantLabel}
+        price={selectedVariant?.price ?? product.price}
+        stock={(selectedVariant ? selectedVariant.stock : product.stock) ?? null}
         onAddCart={handleAddCart}
         onBuyNow={handleBuyNow}
       />

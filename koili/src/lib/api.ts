@@ -33,6 +33,7 @@ export type PaginationMeta = {
 /* ── Produit API ── */
 export type ApiProductImage = { id: number; url: string; thumbnailUrl?: string | null; position: number }
 export type ApiProductSpec  = { id: number; label: string; value: string; position: number }
+export type ApiProductVariant = { id: number; name: string; price: number; stock: number; isActive: boolean }
 
 /** Bloc de la description riche — voir backend/src/routes/products.ts (descriptionBlockSchema). */
 export type DescriptionBlock =
@@ -64,6 +65,7 @@ export type ApiProduct = {
   images?: ApiProductImage[]
   specs?: ApiProductSpec[]
   store?: { id: number; name: string } | null
+  variants?: ApiProductVariant[]
 }
 
 /* ── Commande API ── */
@@ -274,6 +276,7 @@ export function mapApiProduct(p: ApiProduct) {
     /** Prix de l'option "Assistance technique" — null si non proposée */
     assistancePrice: p.assistanceEnabled && p.assistancePrice ? p.assistancePrice : null,
     store: p.store ?? null,
+    variants: (p.variants ?? []).filter(v => v.isActive),
   }
 }
 
@@ -392,7 +395,7 @@ export async function createOrder(
     deliveryMethod: 'standard' | 'express'
     shippingAddress: { ville: string; quartier?: string; adresse: string; instructions?: string }
     paymentMethod: 'online' | 'cash'
-    items: { productId: number; qty: number; color?: string; assistance?: boolean }[]
+    items: { productId: number; variantId?: number; qty: number; color?: string; assistance?: boolean }[]
     promoCode?: string
     notes?: string
     clientRequestId?: string

@@ -1549,6 +1549,7 @@ export default function PanierPage() {
           paymentMethod,
           items: items.map(i => ({
             productId: i.productId,
+            variantId: i.variantId,
             qty:       i.qty,
             color:     i.color,
             assistance: lineAssistance(i) > 0 || undefined,

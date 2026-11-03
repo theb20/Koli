@@ -14,6 +14,9 @@ import { registerPurgeHandler } from '../lib/sessionPurge'
 ═══════════════════════════════════════════════════════════════ */
 export type CartItem = {
   productId: number
+  /** Variante choisie — deux variantes du même produit forment deux lignes distinctes (voir sameLine). */
+  variantId?: number
+  variantName?: string
   name: string
   brand: string
   price: number
@@ -41,15 +44,19 @@ type CartState = {
 
 type CartAction =
   | { type: 'ADD';        item: Omit<CartItem, 'qty'>; qty?: number }
-  | { type: 'REMOVE';     productId: number }
-  | { type: 'UPDATE_QTY'; productId: number; qty: number }
-  | { type: 'SET_ASSISTANCE';   productId: number; assistance: boolean }
-  | { type: 'SYNC_ASSISTANCE';  productId: number; price: number | null }
+  | { type: 'REMOVE';     productId: number; variantId?: number }
+  | { type: 'UPDATE_QTY'; productId: number; variantId?: number; qty: number }
+  | { type: 'SET_ASSISTANCE';   productId: number; variantId?: number; assistance: boolean }
+  | { type: 'SYNC_ASSISTANCE';  productId: number; variantId?: number; price: number | null }
   | { type: 'CLEAR' }
   | { type: 'HYDRATE';    items: CartItem[] }
   | { type: 'OPEN' }
   | { type: 'CLOSE' }
   | { type: 'TOGGLE' }
+
+/** Deux lignes sont "la même" si même produit ET même variante (undefined = pas de variante, sur les deux). */
+const sameLine = (a: { productId: number; variantId?: number }, b: { productId: number; variantId?: number }) =>
+  a.productId === b.productId && (a.variantId ?? null) === (b.variantId ?? null)
 
 /** ApiCartItem (serveur) → CartItem (shape locale utilisée par toute l'app). */
 function fromApiCartItem(i: ApiCartItem): CartItem {
@@ -79,10 +86,10 @@ function cartReducer(state: CartState, action: CartAction): CartState {
       const qty = action.qty ?? 1
       const maxStock = (action.item.stock != null && action.item.stock > 0) ? action.item.stock : undefined
       const clamp = (n: number) => maxStock ? Math.min(n, maxStock) : n
-      const exists = state.items.find(i => i.productId === action.item.productId)
+      const exists = state.items.find(i => sameLine(i, action.item))
       const items = exists
         ? state.items.map(i =>
-            i.productId === action.item.productId
+            sameLine(i, action.item)
               ? {
                   ...i, qty: clamp(i.qty + qty), stock: action.item.stock ?? i.stock,
                   assistance:      action.item.assistance || i.assistance,
@@ -95,16 +102,16 @@ function cartReducer(state: CartState, action: CartAction): CartState {
     }
 
     case 'REMOVE':
-      return { ...state, items: state.items.filter(i => i.productId !== action.productId) }
+      return { ...state, items: state.items.filter(i => !sameLine(i, action)) }
 
     case 'UPDATE_QTY':
       if (action.qty <= 0) {
-        return { ...state, items: state.items.filter(i => i.productId !== action.productId) }
+        return { ...state, items: state.items.filter(i => !sameLine(i, action)) }
       }
       return {
         ...state,
         items: state.items.map(i =>
-          i.productId === action.productId ? { ...i, qty: action.qty } : i
+          sameLine(i, action) ? { ...i, qty: action.qty } : i
         ),
       }
 
@@ -112,7 +119,7 @@ function cartReducer(state: CartState, action: CartAction): CartState {
       return {
         ...state,
         items: state.items.map(i =>
-          i.productId === action.productId ? { ...i, assistance: action.assistance } : i
+          sameLine(i, action) ? { ...i, assistance: action.assistance } : i
         ),
       }
 
@@ -122,7 +129,7 @@ function cartReducer(state: CartState, action: CartAction): CartState {
       return {
         ...state,
         items: state.items.map(i =>
-          i.productId === action.productId
+          sameLine(i, action)
             ? { ...i, assistancePrice: action.price, assistance: action.price == null ? false : i.assistance }
             : i
         ),
@@ -176,10 +183,10 @@ type CartContextValue = {
   /** Somme des options "Assistance technique" — hors totalPrice (produits seuls) */
   totalAssistance: number
   addItem: (item: Omit<CartItem, 'qty'>, qty?: number) => void
-  setAssistance: (productId: number, assistance: boolean) => void
-  syncAssistanceOffer: (productId: number, price: number | null) => void
-  removeItem: (productId: number) => void
-  updateQty: (productId: number, qty: number) => void
+  setAssistance: (productId: number, assistance: boolean, variantId?: number) => void
+  syncAssistanceOffer: (productId: number, price: number | null, variantId?: number) => void
+  removeItem: (productId: number, variantId?: number) => void
+  updateQty: (productId: number, qty: number, variantId?: number) => void
   clearCart: () => void
   openCart: () => void
   closeCart: () => void
@@ -275,28 +282,28 @@ export function CartProvider({ children }: { children: ReactNode }) {
     if (token) addToCartApi(item.productId, qty ?? 1, item.color, token, item.assistance).catch(() => {})
   }, [token])
 
-  const setAssistance = useCallback((productId: number, assistance: boolean) => {
-    dispatch({ type: 'SET_ASSISTANCE', productId, assistance })
+  const setAssistance = useCallback((productId: number, assistance: boolean, variantId?: number) => {
+    dispatch({ type: 'SET_ASSISTANCE', productId, variantId, assistance })
     if (token) setCartAssistanceApi(productId, assistance, token).catch(() => {})
   }, [token])
 
   // Ref pour lire l'état courant sans recréer le callback à chaque changement du panier
   const itemsRef = useRef(state.items)
   itemsRef.current = state.items
-  const syncAssistanceOffer = useCallback((productId: number, price: number | null) => {
-    const current = itemsRef.current.find(i => i.productId === productId)
+  const syncAssistanceOffer = useCallback((productId: number, price: number | null, variantId?: number) => {
+    const current = itemsRef.current.find(i => sameLine(i, { productId, variantId }))
     if (!current || (current.assistancePrice ?? null) === price) return
-    dispatch({ type: 'SYNC_ASSISTANCE', productId, price })
+    dispatch({ type: 'SYNC_ASSISTANCE', productId, variantId, price })
     if (token && price == null && current.assistance) setCartAssistanceApi(productId, false, token).catch(() => {})
   }, [token])
 
-  const removeItem = useCallback((productId: number) => {
-    dispatch({ type: 'REMOVE', productId })
+  const removeItem = useCallback((productId: number, variantId?: number) => {
+    dispatch({ type: 'REMOVE', productId, variantId })
     if (token) removeFromCartApi(productId, token).catch(() => {})
   }, [token])
 
-  const updateQty = useCallback((productId: number, qty: number) => {
-    dispatch({ type: 'UPDATE_QTY', productId, qty })
+  const updateQty = useCallback((productId: number, qty: number, variantId?: number) => {
+    dispatch({ type: 'UPDATE_QTY', productId, variantId, qty })
     if (token) updateCartQtyApi(productId, qty, token).catch(() => {})
   }, [token])
 

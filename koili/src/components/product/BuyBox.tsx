@@ -14,7 +14,7 @@ const BADGE_COPY: Record<string, string> = {
 }
 
 export function BuyBox({
-  product, qty, setQty, color, setColor, withAssistance, setWithAssistance,
+  product, qty, setQty, color, setColor, variantId, setVariantId, withAssistance, setWithAssistance,
   addedCart, onAddCart, onBuyNow,
 }: {
   product: Product
@@ -22,14 +22,22 @@ export function BuyBox({
   setQty: (q: number) => void
   color: number
   setColor: (i: number) => void
+  variantId: number | null
+  setVariantId: (id: number) => void
   withAssistance: boolean
   setWithAssistance: (v: boolean) => void
   addedCart: boolean
   onAddCart: () => void
   onBuyNow: () => void
 }) {
-  const outOfStock = product.stock !== null && product.stock === 0
-  const d = product.oldPrice ? disc(product.price, product.oldPrice) : 0
+  const variant = product.variants?.find(v => v.id === variantId)
+  const price = variant?.price ?? product.price
+  const stock = variant ? variant.stock : product.stock
+  const outOfStock = stock !== null && stock === 0
+  // Le prix barré/remise ne porte que sur le produit de base — pas de garantie
+  // qu'il s'applique telle quelle à chaque variante, donc masqué dès qu'une
+  // variante est sélectionnée plutôt que d'afficher un pourcentage trompeur.
+  const d = !variant && product.oldPrice ? disc(product.price, product.oldPrice) : 0
   const promoLabel = product.badge ? BADGE_COPY[product.badge] : null
   const settings = useSiteSettings()
 
@@ -41,17 +49,17 @@ export function BuyBox({
 
       <div className="flex items-end gap-3 mb-1">
         <p className="text-4xl font-extrabold leading-none text-deal">
-          {product.price.toLocaleString('fr-FR')}
+          {price.toLocaleString('fr-FR')}
           <span className="text-lg font-semibold ml-1">FCFA</span>
         </p>
       </div>
-      {product.oldPrice && (
+      {!variant && product.oldPrice && (
         <div className="flex items-center gap-2 mb-5">
           <span className="text-sm text-muted line-through">{fmt(product.oldPrice)}</span>
           <span className="text-sm font-semibold text-deal">-{d}% de réduction</span>
         </div>
       )}
-      {!product.oldPrice && <div className="mb-5" />}
+      {(variant || !product.oldPrice) && <div className="mb-5" />}
 
       <div className="h-px bg-border mb-5" />
 
@@ -65,11 +73,24 @@ export function BuyBox({
         />
       )}
 
+      {product.variants && product.variants.length > 0 && (
+        <VariantSelector
+          type="text"
+          name="Variante"
+          selected={variant?.name ?? ''}
+          options={product.variants.map(v => ({ label: v.name, available: v.stock > 0 }))}
+          onSelect={label => {
+            const match = product.variants!.find(v => v.name === label)
+            if (match) setVariantId(match.id)
+          }}
+        />
+      )}
+
       <div className="flex items-center gap-4 mb-5">
         <span className="text-xs font-semibold text-muted uppercase tracking-wider">Quantité</span>
-        <QuantitySelector qty={qty} max={product.stock ?? 99} onChange={setQty} />
-        {product.stock !== null && product.stock > 0 && product.stock <= 10 && (
-          <p className="text-xs font-semibold text-deal">Plus que {product.stock} en stock</p>
+        <QuantitySelector qty={qty} max={stock ?? 99} onChange={setQty} />
+        {stock !== null && stock > 0 && stock <= 10 && (
+          <p className="text-xs font-semibold text-deal">Plus que {stock} en stock</p>
         )}
       </div>
 

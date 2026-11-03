@@ -2,14 +2,16 @@ import { AnimatePresence, motion } from 'motion/react'
 import { ShoppingCart, Zap } from 'lucide-react'
 import { fmt, type Product } from './types'
 
-export function StickyBuyBar({ product, visible, variantLabel, onAddCart, onBuyNow }: {
+export function StickyBuyBar({ product, visible, variantLabel, price, stock, onAddCart, onBuyNow }: {
   product: Product
   visible: boolean
   variantLabel?: string | null
+  price: number
+  stock: number | null
   onAddCart: () => void
   onBuyNow: () => void
 }) {
-  const outOfStock = product.stock !== null && product.stock === 0
+  const outOfStock = stock !== null && stock === 0
 
   return (
     <AnimatePresence>
@@ -32,8 +34,8 @@ export function StickyBuyBar({ product, visible, variantLabel, onAddCart, onBuyN
               {variantLabel && <p className="text-xs text-muted">{variantLabel}</p>}
             </div>
 
-            <p className="text-xl font-bold text-ink sm:hidden flex-1">{fmt(product.price)}</p>
-            <p className="hidden sm:block text-xl font-bold text-ink shrink-0">{fmt(product.price)}</p>
+            <p className="text-xl font-bold text-ink sm:hidden flex-1">{fmt(price)}</p>
+            <p className="hidden sm:block text-xl font-bold text-ink shrink-0">{fmt(price)}</p>
 
             <div className="flex items-center gap-2 shrink-0">
               <button
