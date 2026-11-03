@@ -183,10 +183,11 @@ export type SellerOverview = Awaited<ReturnType<typeof sellerOverview>>
 
 export async function sellerOverview(storeId: number, range: Range, now = new Date(), db: Db = prisma) {
   const ranges = { c: range, p: previousPeriod(range), y: lastYearPeriod(range) }
-  const [agg, days, ops] = await Promise.all([
+  const [agg, days, ops, zonesCount] = await Promise.all([
     aggregates(db, storeId, ranges),
     daily(db, storeId, sparklineRange(range)),
     stockAndOps(db, storeId, now),
+    db.deliveryZone.count({ where: { storeId } }),
   ])
   const { c, p, y } = agg
   const col = <K extends keyof (typeof days)[number]>(k: K) => days.map(d => d[k] as number)
@@ -198,6 +199,11 @@ export async function sellerOverview(storeId: number, range: Range, now = new Da
   if (ops.atRisk > 0) alerts.push({ id: 'stock-at-risk', severity: 'warning', title: `${ops.atRisk} produit(s) bientôt en rupture`, detail: `Moins de ${T.stockCoverageDays} jours de stock au rythme actuel${ops.atRiskList[0] ? `, dont « ${ops.atRiskList[0].name} » (${ops.atRiskList[0].days} j)` : ''}.`, link: '/produits' })
   const rr = returnRateOf(c)
   if (c.units >= 10 && rr > T.returnRatePct) alerts.push({ id: 'return-rate', severity: 'warning', title: `Taux de retour élevé : ${rr.toLocaleString('fr-FR')} %`, detail: `Au-dessus de ${T.returnRatePct} % sur la période.`, link: '/commandes' })
+  // Pas une erreur — juste informatif : sans zone configurée, TOUTES les
+  // communes du marchand retombent sur le tarif plateforme par défaut
+  // (1500/3500/gratuit FCFA), jamais un refus de commande (voir
+  // lib/delivery.ts, quoteShipping — dégradation gracieuse volontaire).
+  if (zonesCount === 0) alerts.push({ id: 'no-delivery-zones', severity: 'info', title: 'Aucune zone de livraison configurée', detail: 'Vos clients paient le tarif plateforme par défaut — configurez vos propres tarifs par commune si besoin.', link: '/livraison' })
 
   return {
     period: { from: range.from.toISOString(), to: range.to.toISOString(), timezone: SELLER_TIMEZONE },

@@ -138,7 +138,9 @@ describe.skipIf(!enabled)('sellerOverview (SQL) — base de test locale', async 
   })
 
   it('alertes triées par gravité, avec lien', () => {
-    expect(result.alerts.map(a => a.id)).toEqual(['late-orders', 'out-of-stock', 'stock-at-risk'])
+    // no-delivery-zones ferme la liste (info) : la boutique de test n'a
+    // aucune DeliveryZone configurée, comportement attendu (voir queries.ts).
+    expect(result.alerts.map(a => a.id)).toEqual(['late-orders', 'out-of-stock', 'stock-at-risk', 'no-delivery-zones'])
     expect(result.alerts.every(a => a.link.startsWith('/'))).toBe(true)
   })
 })
