@@ -225,6 +225,37 @@ export interface AuthResponse {
   user: MerchantUser
 }
 
+/* ── Retours (lecture seule + commentaire marchand) ───────── */
+
+export type OrderReturnStatus = 'requested' | 'approved' | 'rejected' | 'received' | 'refunded' | 'cancelled'
+export type OrderReturnReason = 'defective' | 'wrong_item' | 'not_as_described' | 'no_longer_needed' | 'other'
+
+export interface MerchantReturnItem {
+  name: string
+  price: number
+  quantity: number
+}
+
+// Le marchand ne pilote aucune transition de statut (process entièrement
+// géré par l'admin) — lecture seule à part merchantComment/merchantDamaged,
+// voir useCommentReturn.
+export interface MerchantReturn {
+  id: string
+  status: OrderReturnStatus
+  reason: OrderReturnReason
+  customerComment: string | null
+  photos: string[]
+  proofUrl: string | null
+  merchantComment: string | null
+  merchantDamaged: boolean | null
+  merchantCommentedAt: string | null
+  requestedAt: string
+  refundedAt: string | null
+  orderNumber: string
+  client: string
+  items: MerchantReturnItem[]
+}
+
 /* ── Pagination générique ─────────────────────────────────── */
 
 export interface Paginated<T> {

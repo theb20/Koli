@@ -9,12 +9,20 @@
 // (github.com/Genius-Groupsgit/geniuspay-laravel, GeniusPayClient.php,
 // Resources/Payment.php, Http/Controllers/WebhookController.php) — aucune
 // documentation HTTP brute publique n'étant accessible (pay.genius.ci/doc
-// est une page rendue en JavaScript). L'URL de base y est trouvée à deux
-// valeurs différentes (une dans le code, une dans la config par défaut) ;
-// celle retenue ici (pay.genius.ci) est celle du tableau de bord marchand
-// et de l'outil de test officiel fournis avec le SDK — à CONFIRMER en
-// sandbox avec de vraies clés avant mise en production (voir
-// GeniusPayBaseURL, overridable sans redéploiement de code).
+// est une page rendue en JavaScript). Le SDK lui-même contient TROIS valeurs
+// contradictoires pour l'URL de base (geniuspay.ci dans le code,
+// pay.geniuspay.io dans la config par défaut, pay.genius.ci dans le
+// README/dashboard) : confirmé le 2026-11-03 par appel direct (curl, sans
+// clé) que pay.genius.ci ET geniuspay.ci répondent tous les deux 401
+// MISSING_API_KEY avec le même format JSON (probablement le même backend
+// derrière deux domaines) — pay.geniuspay.io, lui, ne résout même pas.
+// pay.genius.ci reste la valeur retenue (overridable sans redéploiement via
+// GeniusPayBaseURL si jamais elle cesse de fonctionner avec de vraies clés).
+// Le remboursement n'a PAS d'endpoint dans ce SDK (aucune méthode refund()
+// dans GeniusPayClient.php) — seul un événement webhook "refund.completed"
+// existe (WebhookController.php) : un remboursement est donc toujours
+// déclenché manuellement par un humain sur le dashboard GeniusPay, jamais
+// par cette intégration (voir ConfirmRefund dans services/payment_service.go).
 package geniuspay
 
 import (
@@ -73,11 +81,25 @@ type CreatePaymentResult struct {
 	ExpiresAt   string
 }
 
-// apiErrorBody — forme d'erreur du SDK officiel (handleResponse) : un champ
-// "message", et "errors" uniquement en 422 (validation).
+// apiErrorBody — DEUX formes observées en pratique, pas qu'une : le SDK
+// Laravel officiel documente {message, errors} à plat (handleResponse), mais
+// un appel direct en sandbox (sans clé) renvoie {success:false, error:
+// {code, message}} imbriqué — probablement une couche gateway devant
+// l'appli Laravel. On tente les deux, imbriqué en priorité.
 type apiErrorBody struct {
 	Message string              `json:"message"`
 	Errors  map[string][]string `json:"errors"`
+	Error   *struct {
+		Code    string `json:"code"`
+		Message string `json:"message"`
+	} `json:"error"`
+}
+
+func (e apiErrorBody) message() string {
+	if e.Error != nil && e.Error.Message != "" {
+		return e.Error.Message
+	}
+	return e.Message
 }
 
 // paymentBody suit les champs exposés par Resources/Payment.php du SDK
@@ -136,8 +158,8 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body any, o
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
 		var apiErr apiErrorBody
 		_ = json.Unmarshal(raw, &apiErr)
-		if apiErr.Message != "" {
-			return fmt.Errorf("geniuspay: %s (HTTP %d)", apiErr.Message, res.StatusCode)
+		if msg := apiErr.message(); msg != "" {
+			return fmt.Errorf("geniuspay: %s (HTTP %d)", msg, res.StatusCode)
 		}
 		return fmt.Errorf("geniuspay: échec de la requête (HTTP %d)", res.StatusCode)
 	}

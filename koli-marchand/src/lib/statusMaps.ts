@@ -2,6 +2,8 @@ import type {
   CustomerSegment,
   OrderPaymentMethod,
   OrderStatus,
+  OrderReturnReason,
+  OrderReturnStatus,
   PaymentMethod,
   PayoutStatus,
   ProductStatus,
@@ -66,6 +68,23 @@ export const paymentMethodLabels: Record<PaymentMethod, string> = {
 export const orderPaymentMethodLabels: Record<OrderPaymentMethod, string> = {
   online: 'Paiement en ligne',
   cash: 'Paiement à la livraison',
+}
+
+export const returnStatusMap: Record<OrderReturnStatus, StatusEntry> = {
+  requested: { label: 'Demande en attente', tone: 'orange' },
+  approved: { label: 'Approuvé', tone: 'blue' },
+  rejected: { label: 'Refusé', tone: 'red' },
+  received: { label: 'Article reçu', tone: 'blue' },
+  refunded: { label: 'Remboursé', tone: 'green' },
+  cancelled: { label: 'Annulé', tone: 'gray' },
+}
+
+export const returnReasonLabels: Record<OrderReturnReason, string> = {
+  defective: 'Article défectueux',
+  wrong_item: 'Mauvais article reçu',
+  not_as_described: 'Ne correspond pas à la description',
+  no_longer_needed: "N'en a plus besoin",
+  other: 'Autre',
 }
 
 export const badgeToneClasses: Record<BadgeTone, string> = {

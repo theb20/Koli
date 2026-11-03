@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { RotateCcw, Search, Clock, CheckCircle2, Banknote } from 'lucide-react'
+import { RotateCcw, Search, Clock, CheckCircle2, Banknote, Image as ImageIcon, AlertTriangle } from 'lucide-react'
 import { api, fmt, fmtDate } from '../lib/api'
 import { Badge } from '../components/ui/Badge'
 import { StatCard } from '../components/ui/Card'
@@ -107,7 +107,13 @@ export default function ReturnsPage() {
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-500">{REASON_LABELS[r.reason] ?? r.reason}</td>
                   <td className="px-4 py-3 text-sm text-slate-500">{r.items.reduce((s, it) => s + it.quantity, 0)} article(s)</td>
-                  <td className="px-4 py-3"><Badge label={r.status} /></td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1.5">
+                      <Badge label={r.status} />
+                      {r.proofUrl && <span title="Preuve jointe"><ImageIcon size={13} className="text-green-500" /></span>}
+                      {r.merchantDamaged && <span title="Signalé endommagé par le marchand"><AlertTriangle size={13} className="text-red-500" /></span>}
+                    </div>
+                  </td>
                   <td className="px-4 py-3 text-xs text-slate-400">{fmtDate(r.createdAt)}</td>
                   <td className="px-4 py-3 text-right">
                     <span className="text-xs font-semibold text-indigo-600">Voir →</span>

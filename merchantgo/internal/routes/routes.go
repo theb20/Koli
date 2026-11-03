@@ -110,6 +110,7 @@ func Setup(
 		internal.Use(middleware.RequireAdmin(cfg, logger))
 		{
 			internal.POST("/orders/paid", walletHandler.RecordSale)
+			internal.POST("/orders/refunded", walletHandler.RecordRefund)
 			// LEGACY — pas de /payments/winipayer/create : plus aucune
 			// nouvelle transaction WiniPayer ne doit être créée (voir
 			// payment_service.CreatePayment). /refresh reste monté pour

@@ -25,6 +25,11 @@ const (
 	PaymentSuccess   PaymentState = "success"
 	PaymentFailed    PaymentState = "failed"
 	PaymentCancelled PaymentState = "cancelled"
+	// PaymentRefunded — jamais atteint via le statut d'un CheckStatus
+	// classique (GeniusPay ne documente aucune valeur de statut dédiée après
+	// remboursement) : posé uniquement depuis l'événement webhook
+	// "refund.completed", voir payment_service.ConfirmRefund.
+	PaymentRefunded PaymentState = "refunded"
 )
 
 // PaymentIntent trace chaque paiement en ligne initié pour une commande

@@ -78,6 +78,17 @@ export function recordMerchantSale(input: { userId: string; orderId: string; ord
 }
 
 /**
+ * Reprend la part d'un marchand sur les articles d'un retour remboursé —
+ * symétrique de recordMerchantSale (débit au lieu d'un crédit, même
+ * commission appliquée). `returnId` (pas seulement orderId) sert de clé
+ * d'idempotence côté merchantgo : une même commande peut avoir plusieurs
+ * retours distincts pour le même marchand. Voir lib/merchantWallet.ts.
+ */
+export function recordMerchantRefund(input: { userId: string; orderId: string; orderNumber: string; returnId: string; grossAmount: number }) {
+  return merchantgoRequest(`/api/v1/internal/orders/refunded`, { method: 'POST', body: input })
+}
+
+/**
  * Crée un lien de paiement GeniusPay via merchantgo — remplace WiniPayer
  * comme passerelle de paiement en ligne (voir order_payment_architecture) :
  * toute la logique de paiement vit désormais dans merchantgo, backend/ ne

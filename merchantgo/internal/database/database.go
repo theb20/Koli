@@ -45,6 +45,19 @@ func Connect(dsn string, production bool) (*gorm.DB, error) {
 // Migrate applique les migrations de schéma (AutoMigrate — suffisant ici,
 // pas de migrations de données complexes à gérer manuellement).
 func Migrate(db *gorm.DB) error {
+	// WalletTransaction : l'ancien index unique (user_id, order_id) est
+	// remplacé par (user_id, ref_id) pour permettre plusieurs retours par
+	// commande — voir models.WalletTransaction. AutoMigrate crée le nouvel
+	// index mais ne supprime jamais un index existant qui ne correspond
+	// plus aux tags de la struct, il faut donc le faire explicitement et
+	// AVANT l'AutoMigrate (sinon l'ancienne contrainte bloquerait toujours
+	// l'insertion d'un remboursement sur une commande déjà vendue).
+	if db.Migrator().HasIndex(&models.WalletTransaction{}, "idx_wallet_order_user") {
+		if err := db.Migrator().DropIndex(&models.WalletTransaction{}, "idx_wallet_order_user"); err != nil {
+			return fmt.Errorf("suppression ancien index wallet_transactions: %w", err)
+		}
+	}
+
 	return db.AutoMigrate(
 		&models.Application{}, &models.StatusEvent{}, &models.DiditWebhookEvent{},
 		&models.SubscriptionPlan{}, &models.MerchantBilling{}, &models.WalletTransaction{},

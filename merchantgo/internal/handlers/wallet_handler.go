@@ -81,3 +81,32 @@ func (h *WalletHandler) RecordSale(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": tx})
 }
+
+type recordRefundRequest struct {
+	UserID      string `json:"userId" binding:"required"`
+	OrderID     string `json:"orderId" binding:"required"`
+	OrderNumber string `json:"orderNumber" binding:"required"`
+	ReturnID    string `json:"returnId" binding:"required"`
+	GrossAmount int    `json:"grossAmount" binding:"required"`
+}
+
+// RecordRefund — POST /api/v1/internal/orders/refunded — appelé
+// serveur-à-serveur par backend/ dès qu'un retour (OrderReturn) passe
+// "refunded", une fois par marchand concerné. Symétrique de RecordSale :
+// reprend la part déjà créditée sur les articles retournés.
+func (h *WalletHandler) RecordRefund(c *gin.Context) {
+	var req recordRefundRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		middleware.RespondError(c, h.logger, utils.ErrBadRequest("Requête invalide", err))
+		return
+	}
+
+	tx, err := h.service.RecordRefund(c.Request.Context(), services.RecordRefundInput{
+		UserID: req.UserID, OrderID: req.OrderID, OrderNumber: req.OrderNumber, ReturnID: req.ReturnID, GrossAmount: req.GrossAmount,
+	})
+	if err != nil {
+		middleware.RespondError(c, h.logger, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": tx})
+}

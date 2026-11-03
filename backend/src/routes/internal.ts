@@ -16,10 +16,12 @@ import { validate, validateParams, zCuidIdParam } from '../middleware/validate'
 import { logger } from '../lib/logger'
 import { notifyMerchantsOrderPaid } from '../lib/merchantWallet'
 import { snapshotOrderFinancialsSafe } from '../lib/finance/snapshot'
-import { sendOrderConfirmationEmail } from '../lib/mailer'
+import { sendOrderConfirmationEmail, sendReturnStatusEmail } from '../lib/mailer'
 import { applyOrderStatusChange } from './orders'
 import { sendSms } from '../lib/sms/zavu'
 import { normalizePhoneCI } from '../lib/phone'
+import { computeMaxRefundable, RETURN_INCLUDE } from './returns'
+import { notifyMerchantsOrderRefunded } from '../lib/merchantWallet'
 
 function fmtFCFA(n: number): string {
   return n.toLocaleString('fr-FR') + ' FCFA'
@@ -156,6 +158,72 @@ router.post('/orders/:id/mark-cancelled', validateParams(zCuidIdParam), validate
     .catch(err => logger.error('[internal] échec SMS annulation paiement', order.orderNumber, err))
 
   res.json({ success: true })
+})
+
+const markRefundedSchema = z.object({
+  providerRef: z.string().min(1),
+})
+
+/**
+ * Appelée par merchantgo après confirmation d'un remboursement GeniusPay
+ * (webhook "refund.completed", revérifié côté merchantgo auprès de
+ * GeniusPay). GeniusPay n'expose aucune API pour DÉCLENCHER un
+ * remboursement (voir merchantgo/internal/geniuspay/client.go) : l'action
+ * reste toujours faite manuellement par un humain sur son dashboard — cet
+ * endpoint ne fait que réconcilier automatiquement le retour "received"
+ * associé, à la place de l'admin qui devait jusqu'ici le marquer
+ * "refunded" à la main après coup.
+ */
+router.post('/orders/:id/mark-refunded', validateParams(zCuidIdParam), validate(markRefundedSchema), async (req, res) => {
+  const { id } = req.params as unknown as { id: string }
+  const { providerRef } = req.body as z.infer<typeof markRefundedSchema>
+
+  const order = await prisma.order.findUnique({ where: { id } })
+  if (!order) {
+    res.status(404).json({ success: false, message: 'Commande introuvable' })
+    return
+  }
+  if (order.geniusPayRef && order.geniusPayRef !== providerRef) {
+    logger.error('[internal] mark-refunded : providerRef ne correspond pas', id, providerRef)
+    res.status(409).json({ success: false, message: 'Référence de paiement incohérente' })
+    return
+  }
+
+  // Réconciliation automatique seulement quand un SEUL retour "received"
+  // existe pour cette commande — ambigu (plusieurs) ou absent (remboursement
+  // fait hors du flux de retour, ou retour pas encore réceptionné) laissé à
+  // l'admin : réponse 200 (pas d'erreur, le webhook ne doit pas être rejoué
+  // indéfiniment pour un cas qui ne se résoudra jamais tout seul).
+  const candidates = await prisma.orderReturn.findMany({
+    where: { orderId: order.id, status: 'received' },
+    include: RETURN_INCLUDE,
+  })
+  if (candidates.length !== 1) {
+    logger.warn('[internal] mark-refunded : aucun retour "received" unique à réconcilier', id, candidates.length)
+    res.json({ success: true, message: 'Remboursement confirmé, aucun retour à réconcilier automatiquement' })
+    return
+  }
+
+  const ret = candidates[0]!
+  const refundAmount = ret.refundAmount ?? await computeMaxRefundable(ret.id)
+  const updated = await prisma.orderReturn.update({
+    where: { id: ret.id },
+    data: { status: 'refunded', refundedAt: new Date(), refundAmount, refundMethod: 'geniuspay' },
+  })
+
+  notifyMerchantsOrderRefunded(ret.id).catch(err => logger.error('[internal] échec notification remboursement marchand', ret.id, err))
+  sendReturnStatusEmail(ret.order.clientEmail, ret.order.clientPrenom, ret.order.orderNumber, 'refunded').catch(() => {})
+  prisma.notification.create({
+    data: {
+      userId: ret.userId,
+      type:   'return',
+      title:  `Retour ${ret.order.orderNumber} mis à jour`,
+      body:   'Nouveau statut : refunded',
+      link:   `/commandes/${ret.order.orderNumber}`,
+    },
+  }).catch(() => {})
+
+  res.json({ success: true, data: updated })
 })
 
 export default router

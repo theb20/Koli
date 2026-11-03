@@ -7,11 +7,8 @@
   "type": "commonjs",
   "scripts": {
     "dev": "concurrently -n CLIENT,ADMIN,BUSINESS,MARCHAND -c blue,red,green,yellow \"npm run dev --prefix koili\" \"npm run dev --prefix koli-admin\" \"npm run dev --prefix koli-business\" \"npm run dev --prefix koli-marchand\"",
-
     "build": "npm run build --prefix koili && npm run build --prefix koli-admin && npm run build --prefix koli-business && npm run build --prefix koli-marchand",
-
     "deploy": "npm run deploy --prefix koili && npm run deploy --prefix koli-admin && npm run deploy --prefix koli-business && npm run deploy --prefix koli-marchand",
-
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

@@ -559,7 +559,19 @@ model OrderReturn {
   /// Calculé à l'approbation à partir des articles retournés, plafonné au
   /// montant réellement payé — ajustable par l'admin avant remboursement.
   refundAmount    Int?
+  /// "geniuspay" (posé automatiquement par backend/mark-refunded après
+  /// confirmation GeniusPay) ou texte libre (virement manuel, etc.).
   refundMethod    String?
+  /// Preuve du remboursement (capture/reçu), ré-hébergée côté serveur comme
+  /// `photos` — obligatoire côté admin avant de passer au statut "refunded"
+  /// manuellement (voir returns.ts, PUT /:id/status).
+  proofUrl        String?
+  /// État du produit constaté par le MARCHAND à la réception du retour —
+  /// jamais écrit par le client ni par l'admin, simple commentaire
+  /// consultatif (le marchand ne pilote aucune transition de statut).
+  merchantComment   String?
+  merchantDamaged   Boolean?
+  merchantCommentedAt DateTime?
   requestedAt     DateTime          @default(now())
   approvedAt      DateTime?
   rejectedAt      DateTime?

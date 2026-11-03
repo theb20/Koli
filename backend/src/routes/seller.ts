@@ -1414,6 +1414,94 @@ router.patch('/orders/:id/status', requireSeller, async (req, res) => {
   }
 })
 
+/* ── Retours (lecture + commentaire marchand) ────────────────────────
+   Le marchand ne pilote AUCUNE transition de statut de retour — tout le
+   process (approuver/recevoir/rembourser) reste piloté par l'admin seul
+   (voir routes/returns.ts). Il peut seulement consulter les retours
+   touchant ses propres articles et laisser un commentaire sur l'état
+   constaté du produit à la réception (endommagé ou non) — informatif
+   uniquement, jamais utilisé pour calculer le remboursement du client. */
+router.get('/returns', requireSeller, async (req, res) => {
+  try {
+    const store = await requireMyStore(req.user!.userId)
+    if (!store) { res.status(404).json({ success: false, message: 'Boutique introuvable.' }); return }
+
+    const returnItems = await prisma.orderReturnItem.findMany({
+      where: { orderItem: { product: { storeId: store.id } } },
+      select: { returnId: true },
+      distinct: ['returnId'],
+    })
+    const returnIds = returnItems.map(r => r.returnId)
+    if (returnIds.length === 0) { res.json({ success: true, data: { items: [] } }); return }
+
+    const returns = await prisma.orderReturn.findMany({
+      where: { id: { in: returnIds } },
+      include: {
+        order: { select: { orderNumber: true, clientPrenom: true, clientNom: true } },
+        items: { include: { orderItem: { select: { name: true, price: true, product: { select: { storeId: true } } } } } },
+      },
+      orderBy: { requestedAt: 'desc' },
+    })
+
+    // Une commande peut mélanger plusieurs boutiques — jamais exposer les
+    // lignes d'articles d'un AUTRE marchand dans le détail d'un retour.
+    const shaped = returns.map(r => ({
+      id:                  r.id,
+      status:              r.status,
+      reason:              r.reason,
+      customerComment:     r.customerComment,
+      photos:              r.photos ? JSON.parse(r.photos) as string[] : [],
+      proofUrl:            r.proofUrl,
+      merchantComment:     r.merchantComment,
+      merchantDamaged:     r.merchantDamaged,
+      merchantCommentedAt: r.merchantCommentedAt,
+      requestedAt:         r.requestedAt,
+      refundedAt:          r.refundedAt,
+      orderNumber:         r.order.orderNumber,
+      client:              `${r.order.clientPrenom} ${r.order.clientNom}`,
+      items: r.items
+        .filter(it => it.orderItem.product.storeId === store.id)
+        .map(it => ({ name: it.orderItem.name, price: it.orderItem.price, quantity: it.quantity })),
+    }))
+
+    res.json({ success: true, data: { items: shaped } })
+  } catch (err) {
+    logger.error('[seller/returns list]', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+const merchantReturnCommentSchema = z.object({
+  damaged: z.boolean(),
+  comment: z.string().max(1000).optional(),
+})
+
+router.patch('/returns/:id/comment', requireSeller, async (req, res) => {
+  try {
+    const store = await requireMyStore(req.user!.userId)
+    if (!store) { res.status(404).json({ success: false, message: 'Boutique introuvable.' }); return }
+
+    const body = merchantReturnCommentSchema.parse(req.body)
+
+    const match = await prisma.orderReturnItem.findFirst({
+      where: { returnId: req.params.id, orderItem: { product: { storeId: store.id } } },
+      select: { id: true },
+    })
+    if (!match) { res.status(404).json({ success: false, message: 'Retour introuvable.' }); return }
+
+    const updated = await prisma.orderReturn.update({
+      where: { id: req.params.id },
+      data: { merchantDamaged: body.damaged, merchantComment: body.comment ?? null, merchantCommentedAt: new Date() },
+    })
+
+    res.json({ success: true, data: updated })
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ success: false, message: 'Données invalides' }); return }
+    logger.error('[seller/returns comment]', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
 /* ── Clients ──────────────────────────────────────────────────────── */
 router.get('/customers', requireSeller, async (req, res) => {
   try {

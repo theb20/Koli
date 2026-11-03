@@ -31,6 +31,7 @@ import { validate, validateParams, zCuidIdParam } from '../middleware/validate'
 import { getBackendUrl } from '../lib/backendUrl'
 import { uploadToStockgo, isStockgoUrl } from '../lib/stockgo'
 import { sendReturnStatusEmail, sendNewReturnAdminEmail } from '../lib/mailer'
+import { notifyMerchantsOrderRefunded } from '../lib/merchantWallet'
 import { toWebp } from '../lib/imageProcessing'
 import { logger } from '../lib/logger'
 import { logAdminAction } from '../lib/auditLog'
@@ -122,6 +123,10 @@ const adminStatusSchema = z.object({
   adminNotes:      z.string().max(2000).optional(),
   refundAmount:    z.coerce.number().int().min(0).optional(),
   refundMethod:    z.string().max(60).optional(),
+  // Obligatoire quand status === 'refunded' (voir handler) — capture/reçu
+  // du remboursement, ré-hébergé sur notre stockage via POST /upload-images
+  // comme les photos du retour, jamais une URL externe acceptée telle quelle.
+  proofUrl:        z.string().url().optional(),
 })
 
 /* ── Helpers ─────────────────────────────────────────────────── */
@@ -144,7 +149,7 @@ export function refundableAmount(
   return Math.round(itemsTtc * paidRatio)
 }
 
-async function computeMaxRefundable(returnId: string): Promise<number> {
+export async function computeMaxRefundable(returnId: string): Promise<number> {
   const ret = await prisma.orderReturn.findUnique({
     where: { id: returnId },
     select: {
@@ -156,7 +161,7 @@ async function computeMaxRefundable(returnId: string): Promise<number> {
   return refundableAmount(ret.items.map(it => ({ price: it.orderItem.price, quantity: it.quantity })), ret.order)
 }
 
-const RETURN_INCLUDE = {
+export const RETURN_INCLUDE = {
   items: { include: { orderItem: true } },
   order: { select: { orderNumber: true, clientEmail: true, clientPrenom: true, total: true, status: true } },
 } as const
@@ -386,12 +391,25 @@ router.put('/:id/status', requireAdmin, validateParams(zCuidIdParam), validate(a
       res.status(400).json({ success: false, message: `Le remboursement ne peut pas dépasser ${maxRefundable} FCFA` })
       return
     }
+    // Preuve obligatoire pour une transition manuelle (admin) — le passage
+    // automatique depuis le webhook GeniusPay (internal.ts, mark-refunded)
+    // ne passe jamais par CETTE route, donc cette contrainte ne s'applique
+    // qu'ici, pas au remboursement confirmé par GeniusPay lui-même.
+    if (!body.proofUrl || !isStockgoUrl(body.proofUrl)) {
+      res.status(400).json({ success: false, message: 'Une preuve du remboursement (capture/reçu) est requise' })
+      return
+    }
     data['refundedAt'] = now
     data['refundAmount'] = refundAmount
     data['refundMethod'] = body.refundMethod ?? null
+    data['proofUrl'] = body.proofUrl
   }
 
   const updated = await prisma.orderReturn.update({ where: { id }, data })
+
+  if (body.status === 'refunded') {
+    notifyMerchantsOrderRefunded(id).catch(err => logger.error('[returns] échec notification remboursement marchand', id, err))
+  }
 
   logAdminAction(req, { action: 'return.status.update', targetType: 'OrderReturn', targetId: id, metadata: { newStatus: body.status } })
 

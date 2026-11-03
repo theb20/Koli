@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Package, Boxes, ShoppingCart, Truck, Users, BarChart2,
-  Wallet, Store, Settings, LifeBuoy, LogOut, X,
+  Wallet, Store, Settings, LifeBuoy, LogOut, X, RotateCcw,
 } from 'lucide-react'
 import { useUiStore } from '@/store/useUiStore'
 import { useAuthStore } from '@/features/auth/useAuthStore'
@@ -20,6 +20,7 @@ const nav = [
   { to: '/produits', label: 'Produits', icon: Package },
   { to: '/stock', label: 'Stock', icon: Boxes },
   { to: '/commandes', label: 'Commandes', icon: ShoppingCart },
+  { to: '/retours', label: 'Retours', icon: RotateCcw },
   { to: '/livraison', label: 'Livraisons', icon: Truck },
   { to: '/clients', label: 'Clients', icon: Users },
   { to: '/statistiques', label: 'Statistiques', icon: BarChart2 },

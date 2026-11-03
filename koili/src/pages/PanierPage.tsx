@@ -1468,7 +1468,7 @@ export default function PanierPage() {
       ville: delivery.ville,
       deliveryMethod: delivery.methode,
     }),
-    enabled: !!delivery.ville && items.length > 0 && (step === 'paiement' || step === 'confirmation'),
+    enabled: !!delivery.ville && items.length > 0,
     staleTime: 10_000,
   })
   const shipping    = shippingQuote?.data?.shippingCost ?? fallbackShipping

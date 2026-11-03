@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft, Mail, Package, CheckCircle2, XCircle, Truck, Banknote,
-  Image as ImageIcon, MessageSquare,
+  Image as ImageIcon, MessageSquare, Upload, AlertTriangle, Store,
 } from 'lucide-react'
 import { api, fmt, fmtDateTime } from '../lib/api'
 import { Badge } from '../components/ui/Badge'
@@ -36,6 +36,9 @@ export default function ReturnDetailPage() {
   const [showRejectForm, setShowRejectForm]   = useState(false)
   const [refundAmount, setRefundAmount]       = useState('')
   const [refundMethod, setRefundMethod]       = useState('mobile_money')
+  const [proofUrl, setProofUrl]               = useState('')
+  const [uploadingProof, setUploadingProof]   = useState(false)
+  const [uploadError, setUploadError]         = useState('')
 
   const { data: ret, isLoading } = useQuery({
     queryKey: ['return', id],
@@ -51,6 +54,23 @@ export default function ReturnDetailPage() {
       setRejectionReason('')
     },
   })
+
+  async function uploadProof(file: File) {
+    setUploadError('')
+    setUploadingProof(true)
+    try {
+      const fd = new FormData()
+      fd.append('images', file)
+      const { data } = await api.post('/api/returns/upload-images', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      setProofUrl(data.data.urls[0])
+    } catch {
+      setUploadError("Échec de l'upload — réessaie")
+    } finally {
+      setUploadingProof(false)
+    }
+  }
 
   if (isLoading || !ret) {
     return <div className="h-64 bg-slate-50 rounded-2xl animate-pulse" />
@@ -133,7 +153,33 @@ export default function ReturnDetailPage() {
               <h3 className="text-sm font-semibold text-slate-900 mb-2 flex items-center gap-2">
                 <Banknote size={15} className="text-green-600" /> Remboursement effectué
               </h3>
-              <p className="text-sm text-slate-700">{fmt(ret.refundAmount ?? 0)} · {ret.refundMethod ?? '—'} · {ret.refundedAt && fmtDateTime(ret.refundedAt)}</p>
+              <p className="text-sm text-slate-700">{fmt(ret.refundAmount ?? 0)} · {ret.refundMethod === 'geniuspay' ? 'GeniusPay (confirmé auto)' : ret.refundMethod ?? '—'} · {ret.refundedAt && fmtDateTime(ret.refundedAt)}</p>
+              {ret.proofUrl && (
+                <a href={ret.proofUrl} target="_blank" rel="noopener noreferrer"
+                  className="mt-3 inline-block rounded-xl overflow-hidden border border-green-200 w-32">
+                  <img src={ret.proofUrl} alt="Preuve du remboursement" className="w-full aspect-square object-cover" />
+                </a>
+              )}
+              {!ret.proofUrl && (
+                <p className="mt-2 text-xs text-slate-500">Aucune preuve jointe — remboursement confirmé automatiquement par GeniusPay.</p>
+              )}
+            </Card>
+          )}
+
+          {(ret.merchantComment || ret.merchantDamaged !== null && ret.merchantDamaged !== undefined) && (
+            <Card className="p-5 border-amber-200 bg-amber-50/30">
+              <h3 className="text-sm font-semibold text-slate-900 mb-2 flex items-center gap-2">
+                <Store size={15} className="text-amber-600" /> Constat du marchand
+              </h3>
+              {ret.merchantDamaged !== null && ret.merchantDamaged !== undefined && (
+                <p className="text-sm text-slate-700 flex items-center gap-1.5">
+                  {ret.merchantDamaged
+                    ? <><AlertTriangle size={13} className="text-red-500" /> Article signalé endommagé</>
+                    : <><CheckCircle2 size={13} className="text-green-600" /> Article signalé non endommagé</>}
+                </p>
+              )}
+              {ret.merchantComment && <p className="text-sm text-slate-700 mt-1.5 whitespace-pre-line">{ret.merchantComment}</p>}
+              {ret.merchantCommentedAt && <p className="text-xs text-slate-400 mt-1.5">{fmtDateTime(ret.merchantCommentedAt)}</p>}
             </Card>
           )}
 
@@ -185,13 +231,34 @@ export default function ReturnDetailPage() {
                     onChange={e => setRefundMethod(e.target.value)}
                     options={REFUND_METHODS}
                   />
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">
+                      Preuve du remboursement (capture/reçu) — obligatoire
+                    </label>
+                    {proofUrl ? (
+                      <div className="flex items-center gap-3">
+                        <img src={proofUrl} alt="" className="w-16 h-16 rounded-lg object-cover border border-slate-200" />
+                        <Button variant="secondary" onClick={() => setProofUrl('')}>Remplacer</Button>
+                      </div>
+                    ) : (
+                      <label className="flex items-center gap-2 text-sm text-slate-600 border border-dashed border-slate-300 rounded-xl px-4 py-3 cursor-pointer hover:border-indigo-400 hover:text-indigo-600 transition-colors w-fit">
+                        <Upload size={14} />
+                        {uploadingProof ? 'Envoi en cours…' : 'Choisir une image'}
+                        <input type="file" accept="image/*" className="hidden" disabled={uploadingProof}
+                          onChange={e => { const f = e.target.files?.[0]; if (f) uploadProof(f) }} />
+                      </label>
+                    )}
+                    {uploadError && <p className="text-xs text-red-600 mt-1">{uploadError}</p>}
+                  </div>
                   <div className="flex justify-end gap-2 pt-1">
                     <Button variant="secondary" onClick={() => setShowRejectForm(true)}>Refuser</Button>
                     <Button variant="success" icon={<Banknote size={14} />} loading={transition.isPending}
+                      disabled={!proofUrl}
                       onClick={() => transition.mutate({
                         status: 'refunded',
                         refundAmount: refundAmount ? Number(refundAmount) : undefined,
                         refundMethod,
+                        proofUrl,
                       })}>
                       Rembourser
                     </Button>

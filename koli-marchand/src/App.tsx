@@ -8,6 +8,7 @@ import TwoFactorVerifyPage from '@/features/auth/TwoFactorVerifyPage'
 import DashboardPage from '@/features/dashboard/DashboardPage'
 import ProductsPage from '@/features/products/ProductsPage'
 import OrdersPage from '@/features/orders/OrdersPage'
+import ReturnsPage from '@/features/returns/ReturnsPage'
 import PaymentsPage from '@/features/payouts/PaymentsPage'
 import BillingPage from '@/features/billing/BillingPage'
 import CustomersPage from '@/features/customers/CustomersPage'
@@ -39,6 +40,7 @@ export default function App() {
             <Route path="/produits" element={<ProductsPage />} />
             <Route path="/stock" element={<StockPage />} />
             <Route path="/commandes" element={<OrdersPage />} />
+            <Route path="/retours" element={<ReturnsPage />} />
             <Route path="/livraison" element={<DeliveryPage />} />
             <Route path="/paiements" element={<PaymentsPage />} />
             <Route path="/facturation" element={<BillingPage />} />

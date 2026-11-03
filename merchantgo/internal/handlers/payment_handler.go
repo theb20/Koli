@@ -105,6 +105,19 @@ func (h *PaymentHandler) GeniusPayWebhook(c *gin.Context) {
 		return
 	}
 
+	// "refund.completed" est le seul événement remboursement du SDK officiel
+	// (voir geniuspay/client.go) — traité à part car il ne représente jamais
+	// une confirmation de PAIEMENT (ConfirmPayment est un no-op idempotent
+	// sur un intent déjà "success", il ne ferait donc rien d'utile ici).
+	if payload.Event == "refund.completed" {
+		if _, err := h.service.ConfirmRefund(c.Request.Context(), payload.Data.Reference); err != nil {
+			middleware.RespondError(c, h.logger, err)
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true})
+		return
+	}
+
 	if _, err := h.service.ConfirmPayment(c.Request.Context(), payload.Data.Reference); err != nil {
 		// 5xx volontaire : GeniusPay retente automatiquement, ce qui absorbe
 		// les pannes transitoires (backend/ momentanément indisponible...).

@@ -10,9 +10,11 @@ import (
 )
 
 type WalletRepository interface {
-	// FindByOrderAndUser sert l'idempotence de RecordSale — renvoie
-	// (nil, nil) si aucune transaction n'existe encore pour ce couple.
-	FindByOrderAndUser(ctx context.Context, orderID, userID string) (*models.WalletTransaction, error)
+	// FindByRefAndUser sert l'idempotence de RecordSale/RecordRefund —
+	// renvoie (nil, nil) si aucune transaction n'existe encore pour ce
+	// couple. refID = orderID pour une vente, returnID pour un
+	// remboursement (voir models.WalletTransaction, champ RefID).
+	FindByRefAndUser(ctx context.Context, refID, userID string) (*models.WalletTransaction, error)
 	Create(ctx context.Context, t *models.WalletTransaction) error
 	List(ctx context.Context, userID string, page, limit int) ([]models.WalletTransaction, int64, error)
 	SumNet(ctx context.Context, userID string) (int64, error)
@@ -26,9 +28,9 @@ func NewWalletRepository(db *gorm.DB) WalletRepository {
 	return &gormWalletRepository{db: db}
 }
 
-func (r *gormWalletRepository) FindByOrderAndUser(ctx context.Context, orderID, userID string) (*models.WalletTransaction, error) {
+func (r *gormWalletRepository) FindByRefAndUser(ctx context.Context, refID, userID string) (*models.WalletTransaction, error) {
 	var t models.WalletTransaction
-	err := r.db.WithContext(ctx).First(&t, "order_id = ? AND user_id = ?", orderID, userID).Error
+	err := r.db.WithContext(ctx).First(&t, "ref_id = ? AND user_id = ?", refID, userID).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil

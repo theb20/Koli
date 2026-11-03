@@ -31,6 +31,12 @@ type PaymentService interface {
 	// via le seul contenu du webhook) et, si elle est effectivement payée,
 	// notifie backend/ une seule fois (idempotent via l'état stocké).
 	ConfirmPayment(ctx context.Context, providerRef string) (*models.PaymentIntent, error)
+	// ConfirmRefund traite l'événement webhook GeniusPay "refund.completed" —
+	// ne DÉCLENCHE jamais de remboursement (GeniusPay n'en expose pas
+	// l'API), enregistre seulement qu'un remboursement déjà fait côté
+	// GeniusPay (manuellement, par un humain sur leur dashboard) doit être
+	// répercuté côté backend. Idempotent comme ConfirmPayment.
+	ConfirmRefund(ctx context.Context, providerRef string) (*models.PaymentIntent, error)
 }
 
 type paymentService struct {
@@ -189,6 +195,55 @@ func (s *paymentService) ConfirmPayment(ctx context.Context, providerRef string)
 		// pending — rien à notifier tant que la passerelle n'a pas de statut terminal.
 	}
 
+	return intent, nil
+}
+
+// ConfirmRefund traite l'événement webhook GeniusPay "refund.completed".
+// Contrairement à ConfirmPayment, il n'existe pas de valeur de statut
+// GeniusPay documentée pour "remboursé" sur GET /payments/:reference (SDK
+// officiel muet sur le sujet — voir geniuspay/client.go) : on ne peut donc
+// pas revérifier l'état exactement comme pour un paiement. On s'appuie ici
+// sur l'événement webhook lui-même (signature HMAC déjà vérifiée par
+// l'appelant, voir handlers/payment_handler.go) plutôt que de bloquer sur
+// une revérification impossible ; CheckStatus est quand même appelé pour
+// logguer le statut brut renvoyé, à titre de traçabilité et pour affiner
+// cette doctrine plus tard si GeniusPay documente un jour la bonne valeur.
+func (s *paymentService) ConfirmRefund(ctx context.Context, providerRef string) (*models.PaymentIntent, error) {
+	intent, err := s.repo.FindByProviderRef(ctx, providerRef)
+	if err != nil {
+		return nil, utils.ErrInternal(err)
+	}
+	if intent == nil {
+		return nil, utils.ErrNotFound("Transaction inconnue")
+	}
+	if intent.State == models.PaymentRefunded {
+		return intent, nil // webhook rejoué — déjà traité
+	}
+
+	if client, err := s.geniusPayClient(); err == nil {
+		if detail, err := client.CheckStatus(ctx, providerRef); err == nil {
+			s.logger.Info("remboursement GeniusPay confirmé",
+				zap.String("providerRef", providerRef), zap.String("statusBrut", detail.Status))
+		} else {
+			s.logger.Warn("revérification statut GeniusPay (remboursement) échouée — on continue sur la foi du webhook signé",
+				zap.Error(err), zap.String("providerRef", providerRef))
+		}
+	}
+
+	intent.State = models.PaymentRefunded
+	if err := s.repo.Update(ctx, intent); err != nil {
+		return nil, utils.ErrInternal(fmt.Errorf("mise à jour intention de paiement (remboursement): %w", err))
+	}
+
+	if !s.backend.Configured() {
+		s.logger.Warn("backend non configuré — remboursement non notifié", zap.String("orderId", intent.OrderID))
+		return intent, nil
+	}
+	if err := s.backend.MarkOrderRefunded(ctx, intent.OrderID, intent.ProviderRef); err != nil {
+		// 5xx volontaire : GeniusPay retente le webhook, ce qui absorbe une
+		// panne transitoire de backend/ (même doctrine que ConfirmPayment).
+		return nil, utils.NewAppError(502, "Notification du remboursement échouée côté backend", err)
+	}
 	return intent, nil
 }
 

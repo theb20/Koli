@@ -299,6 +299,10 @@ export type OrderReturn = {
   photos?: string | null
   refundAmount?: number | null
   refundMethod?: string | null
+  proofUrl?: string | null
+  merchantComment?: string | null
+  merchantDamaged?: boolean | null
+  merchantCommentedAt?: string | null
   requestedAt: string
   approvedAt?: string | null
   rejectedAt?: string | null
