@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { TextField, TextAreaField, SelectField } from '@/components/ui/FormField'
 import { useCategories } from '@/features/categories/api/useCategories'
 import { useUploadProductImage } from '../api/useProducts'
+import { VariantsSection } from './VariantsSection'
 import type { Product, ProductImage, ProductInput } from '@/types'
 
 const productSchema = z.object({
@@ -211,6 +212,14 @@ export function ProductFormModal({ product, onClose, onSubmit, isSubmitting }: P
           />
           {imagesError && <p className="text-xs text-rose-600 mt-1.5">{imagesError}</p>}
         </div>
+
+        {product ? (
+          <VariantsSection productId={product.id} />
+        ) : (
+          <p className="text-xs text-[#a3a3a1] bg-[#fafaf8] border border-[#e8e8e4] rounded-xl px-3 py-2.5">
+            Enregistrez d'abord le produit pour pouvoir y ajouter des variantes.
+          </p>
+        )}
 
         <div className="flex justify-end gap-3 pt-2">
           <Button type="button" variant="secondary" onClick={onClose}>
