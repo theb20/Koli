@@ -58,6 +58,22 @@ func Migrate(db *gorm.DB) error {
 		}
 	}
 
+	// ref_id est NOT NULL dans la struct — sur une base déjà peuplée (lignes
+	// de vente créées avant ce champ), AutoMigrate essaierait d'ajouter la
+	// colonne NOT NULL directement et échouerait (23502, lignes existantes
+	// sans valeur). On la crée donc nullable à la main, on la backfille
+	// (ref_id = order_id : c'était déjà la clé d'idempotence des ventes
+	// avant ce renommage, voir models.WalletTransaction), PUIS AutoMigrate
+	// peut passer la contrainte à NOT NULL sans trouver de ligne orpheline.
+	if !db.Migrator().HasColumn(&models.WalletTransaction{}, "ref_id") {
+		if err := db.Exec(`ALTER TABLE wallet_transactions ADD COLUMN ref_id VARCHAR(100)`).Error; err != nil {
+			return fmt.Errorf("ajout colonne ref_id: %w", err)
+		}
+		if err := db.Exec(`UPDATE wallet_transactions SET ref_id = order_id WHERE ref_id IS NULL`).Error; err != nil {
+			return fmt.Errorf("backfill ref_id: %w", err)
+		}
+	}
+
 	return db.AutoMigrate(
 		&models.Application{}, &models.StatusEvent{}, &models.DiditWebhookEvent{},
 		&models.SubscriptionPlan{}, &models.MerchantBilling{}, &models.WalletTransaction{},
