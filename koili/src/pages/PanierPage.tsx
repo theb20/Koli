@@ -104,10 +104,10 @@ function StepBar({ current }: { current: Step }) {
    ORDER SUMMARY SIDEBAR
 ═══════════════════════════════════════════════════════════════ */
 function SummarySidebar({
-  items, totalPrice, promoCode, promoDiscount, onPromoApply, shipping,
+  items, totalPrice, promoCode, promoDiscount, onPromoApply, shipping, deliverable,
 }: {
   items: CartItem[]; totalPrice: number; promoCode: string
-  promoDiscount: number; onPromoApply: (code: string) => void; shipping: number
+  promoDiscount: number; onPromoApply: (code: string) => void; shipping: number; deliverable: boolean
 }) {
   const [input,   setInput]   = useState('')
   const [error,   setError]   = useState('')
@@ -258,8 +258,8 @@ function SummarySidebar({
           <span className="flex items-center gap-1">
             <Truck size={11} /> Livraison
           </span>
-          <span className={shipping === 0 ? 'font-semibold text-emerald-600' : 'font-medium text-gray-700'}>
-            {shipping === 0 ? '🎉 Gratuite' : fmtCart(shipping)}
+          <span className={!deliverable ? 'font-medium text-red-500' : shipping === 0 ? 'font-semibold text-emerald-600' : 'font-medium text-gray-700'}>
+            {!deliverable ? 'Non livrable' : shipping === 0 ? '🎉 Gratuite' : fmtCart(shipping)}
           </span>
         </div>
 
@@ -314,9 +314,9 @@ function SummarySidebar({
 /* ═══════════════════════════════════════════════════════════════
    ÉTAPE 1 — PANIER
 ═══════════════════════════════════════════════════════════════ */
-function StepCart({ items, totalPrice, onNext, promoCode, promoDiscount, onPromoApply, shipping, outOfStockIds }: {
+function StepCart({ items, totalPrice, onNext, promoCode, promoDiscount, onPromoApply, shipping, deliverable, outOfStockIds }: {
   items: CartItem[]; totalPrice: number; onNext: () => void
-  promoCode: string; promoDiscount: number; onPromoApply: (c: string) => void; shipping: number
+  promoCode: string; promoDiscount: number; onPromoApply: (c: string) => void; shipping: number; deliverable: boolean
   outOfStockIds: Set<number>
 }) {
   const { removeItem, updateQty, setAssistance, totalAssistance } = useCart()
@@ -573,8 +573,8 @@ function StepCart({ items, totalPrice, onNext, promoCode, promoDiscount, onPromo
         )}
         <div className="flex justify-between text-sm text-gray-500">
           <span>Livraison</span>
-          <span className={shipping === 0 ? 'text-emerald-600 font-semibold' : 'text-gray-700 font-medium'}>
-            {shipping === 0 ? '🎉 Gratuite' : fmtCart(shipping)}
+          <span className={!deliverable ? 'text-red-500 font-medium' : shipping === 0 ? 'text-emerald-600 font-semibold' : 'text-gray-700 font-medium'}>
+            {!deliverable ? 'Non livrable' : shipping === 0 ? '🎉 Gratuite' : fmtCart(shipping)}
           </span>
         </div>
         {taxRate > 0 && (
@@ -1175,8 +1175,8 @@ function StepConfirmation({ items, delivery, paymentMethod, totalPrice, promoDis
           )}
           <div className="flex justify-between text-sm text-gray-500">
             <span>Livraison {delivery.methode === 'express' ? '(Express)' : '(Standard)'}</span>
-            <span className={shipping === 0 ? 'text-emerald-600 font-semibold' : 'text-gray-700 font-medium'}>
-              {shipping === 0 ? '🎉 Gratuite' : fmtCart(shipping)}
+            <span className={!deliverable ? 'text-red-500 font-medium' : shipping === 0 ? 'text-emerald-600 font-semibold' : 'text-gray-700 font-medium'}>
+              {!deliverable ? 'Non livrable' : shipping === 0 ? '🎉 Gratuite' : fmtCart(shipping)}
             </span>
           </div>
           {taxRateConf > 0 && (
@@ -1637,7 +1637,7 @@ export default function PanierPage() {
                   exit={{ opacity: 0, x: -16 }} transition={{ duration: 0.18 }}>
 
                   {step === 'cart' && (
-                    <StepCart items={items} totalPrice={totalPrice} shipping={shipping}
+                    <StepCart items={items} totalPrice={totalPrice} shipping={shipping} deliverable={deliverable}
                       promoCode={promoCode} promoDiscount={promoDiscount} onPromoApply={handlePromoApply}
                       onNext={goNext} outOfStockIds={outOfStockIds} />
                   )}
@@ -1672,7 +1672,7 @@ export default function PanierPage() {
 
             {/* Sidebar desktop */}
             <div className="hidden lg:block sticky top-20">
-              <SummarySidebar items={items} totalPrice={totalPrice} shipping={shipping}
+              <SummarySidebar items={items} totalPrice={totalPrice} shipping={shipping} deliverable={deliverable}
                 promoCode={promoCode} promoDiscount={promoDiscount} onPromoApply={handlePromoApply} />
             </div>
           </div>
