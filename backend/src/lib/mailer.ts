@@ -23,6 +23,7 @@ export {
   sendTwoFactorDisabledEmail,
   sendSecurityUpdateEmail,
   sendSecurityAlertEmail,
+  sendLowStockAlertEmail,
 } from './email'
 
 export type { OrderItem, OrderConfirmationPayload, NewOrderAdminPayload, NewProductRequestAdminPayload, NewReturnAdminPayload } from './email'

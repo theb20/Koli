@@ -547,6 +547,7 @@ router.get('/:id', optionalAuth, cacheControl(20), memoryCache(20, { varyByAuth:
         specs:       { orderBy: { position: 'asc' } },
         categoryRel: { select: { id: true, slug: true, name: true, icon: true, image: true } },
         store:       { select: { id: true, name: true } },
+        variants:    { where: isAdmin ? {} : { isActive: true }, orderBy: { position: 'asc' } },
         reviewItems: {
           take: 5,
           orderBy: { createdAt: 'desc' },

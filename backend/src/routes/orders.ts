@@ -15,6 +15,7 @@ import { getVatRatePercent } from '../lib/finance/vat'
 import { requestOrderReview } from '../lib/orderReview'
 import { getLoyaltySettings } from './loyalty'
 import { quoteShipping } from '../lib/delivery'
+import { checkLowStockAndAlert } from '../lib/lowStockAlert'
 import { createGeniusPayPayment, isMerchantgoConfigured, refreshGeniusPayPayment, refreshWinipayerPayment } from '../lib/merchantgo'
 import type { Request, Response } from 'express'
 import type { Order } from '@prisma/client'
@@ -77,6 +78,8 @@ const createOrderSchema = z.object({
   // Articles
   items: z.array(z.object({
     productId: z.number().int().positive(),
+    /** Variante choisie — son prix/stock remplacent ceux du produit si présente */
+    variantId: z.number().int().positive().optional(),
     qty:       z.number().int().positive(),
     color:     z.string().optional(),
     /** Option "Assistance technique" cochée — le prix n'est jamais pris du client */
@@ -339,16 +342,37 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
       return
     }
 
+    // Variantes demandées — prix/stock remplacent ceux du produit pour la ligne concernée.
+    const variantIds = body.items.map(i => i.variantId).filter((id): id is number => id != null)
+    const variants   = variantIds.length
+      ? await prisma.productVariant.findMany({ where: { id: { in: variantIds }, isActive: true } })
+      : []
+    for (const item of body.items) {
+      if (item.variantId == null) continue
+      const v = variants.find(v => v.id === item.variantId)
+      if (!v || v.productId !== item.productId) {
+        res.status(400).json({ success: false, message: 'Variante introuvable pour ce produit' })
+        return
+      }
+    }
+
+    /** Prix/stock effectifs d'une ligne — ceux de la variante choisie si elle existe, sinon ceux du produit. */
+    const lineOf = (item: { productId: number; variantId?: number }) => {
+      const p = products.find(p => p.id === item.productId)!
+      const v = item.variantId != null ? variants.find(v => v.id === item.variantId) : undefined
+      return { product: p, variant: v, price: v?.price ?? p.price, stock: v?.stock ?? p.stock, label: v ? `${p.name} — ${v.name}` : p.name }
+    }
+
     // Pré-vérification — message amical immédiat. Le garde-fou réel (contre les accès
     // concurrents) est la décrémentation atomique faite plus bas, dans la transaction.
     for (const item of body.items) {
-      const p = products.find(p => p.id === item.productId)!
-      if (p.stock !== null && p.stock === 0) {
-        res.status(400).json({ success: false, message: `"${p.name}" est en rupture de stock` })
+      const { stock, label } = lineOf(item)
+      if (stock === 0) {
+        res.status(400).json({ success: false, message: `"${label}" est en rupture de stock` })
         return
       }
-      if (p.stock !== null && p.stock < item.qty) {
-        res.status(400).json({ success: false, message: `Stock insuffisant pour "${p.name}" (disponible: ${p.stock})` })
+      if (stock < item.qty) {
+        res.status(400).json({ success: false, message: `Stock insuffisant pour "${label}" (disponible: ${stock})` })
         return
       }
     }
@@ -365,10 +389,7 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
     }
 
     // 2. Calculer les totaux
-    const subtotal = body.items.reduce((sum, item) => {
-      const p = products.find(p => p.id === item.productId)!
-      return sum + p.price * item.qty
-    }, 0)
+    const subtotal = body.items.reduce((sum, item) => sum + lineOf(item).price * item.qty, 0)
 
     // Assistance : un prix fixe par ligne (pas par unité), relu en base.
     // Hors subtotal — la livraison gratuite et le code promo ne portent que
@@ -385,8 +406,8 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
     // là : on refuse la commande plutôt que de facturer un tarif au hasard.
     const shippingQuote = await quoteShipping(
       body.items.map(item => {
-        const p = products.find(p => p.id === item.productId)!
-        return { storeId: p.storeId, price: p.price, qty: item.qty }
+        const { product, price } = lineOf(item)
+        return { storeId: product.storeId, price, qty: item.qty }
       }),
       body.shippingAddress.ville,
       body.deliveryMethod,
@@ -444,6 +465,21 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
       // les accès concurrents sur la même ligne, donc deux commandes ne peuvent jamais toutes
       // les deux réussir sur le dernier exemplaire disponible.
       for (const item of body.items) {
+        if (item.variantId != null) {
+          // Le vrai garde-fou porte sur la variante — Product.stock n'est
+          // décrémenté qu'en miroir (affichage catalogue), sans son propre
+          // gte : une dérive éventuelle y reste cosmétique, jamais une survente.
+          const updated = await tx.productVariant.updateMany({
+            where: { id: item.variantId, stock: { gte: item.qty } },
+            data:  { stock: { decrement: item.qty } },
+          })
+          if (updated.count === 0) throw new StockError(lineOf(item).label)
+          await tx.product.update({
+            where: { id: item.productId },
+            data:  { stock: { decrement: item.qty }, sold: { increment: item.qty } },
+          })
+          continue
+        }
         const updated = await tx.product.updateMany({
           where: { id: item.productId, stock: { gte: item.qty } },
           data:  { stock: { decrement: item.qty }, sold: { increment: item.qty } },
@@ -499,12 +535,14 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
           notes:           body.notes,
           items: {
             create: body.items.map(item => {
-              const p = products.find(p => p.id === item.productId)!
+              const { product: p, variant: v, price } = lineOf(item)
               return {
                 productId: p.id,
+                variantId: v?.id,
+                variantName: v?.name,
                 name:      p.name,
                 brand:     p.brand,
-                price:     p.price,
+                price,
                 qty:       item.qty,
                 image:     p.images[0]?.url ?? '',
                 color:     item.color,
@@ -517,6 +555,11 @@ router.post('/', optionalAuth, validate(createOrderSchema), async (req, res) => 
         include: { items: true },
       })
     })
+
+    // 5bis. Alerte stock bas — après coup, jamais bloquant pour la commande déjà créée.
+    for (const item of body.items) {
+      checkLowStockAndAlert(item.productId, item.variantId ?? null).catch(() => {})
+    }
 
     // 6a. Fidélité : créditer les points réellement gagnés (après résolution de la promo)
     if (req.user?.userId && order.pointsEarned > 0) {

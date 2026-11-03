@@ -22,6 +22,8 @@ import { sellerOverview } from '../lib/sellerMetrics/queries'
 import { resolvePeriod as resolveMetricsPeriod, PERIOD_PRESETS, type PeriodPreset } from '../lib/sellerMetrics/periods'
 import { SELLER_METRICS, SELLER_ALERT_THRESHOLDS } from '../lib/sellerMetrics/dictionary'
 import { UPCOUNTRY_ZONE_NAME } from '../lib/delivery'
+import { syncProductStockFromVariants } from '../lib/productVariants'
+import { checkLowStockAndAlert } from '../lib/lowStockAlert'
 
 const router = Router()
 
@@ -1009,10 +1011,160 @@ router.patch('/products/:id', requireSeller, async (req, res) => {
       },
       include: { images: true },
     })
+    if (body.stock != null) checkLowStockAndAlert(id, null).catch(() => {})
     res.json({ success: true, data: shapeProduct(product) })
   } catch (err) {
     if (err instanceof z.ZodError) { res.status(400).json({ success: false, message: err.issues[0]?.message ?? 'Requête invalide' }); return }
     logger.error('[seller/products update]', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/* ── Variantes produit ────────────────────────────────────────────────
+ * Une variante = un SKU achetable (ex: "L / Rouge") avec son propre prix
+ * et stock — voir schema.prisma (ProductVariant) pour le choix d'un champ
+ * `name` unique plutôt qu'une matrice d'attributs. Product.stock reste
+ * synchronisé en miroir (syncProductStockFromVariants) pour que le
+ * catalogue existant (badges, filtres) reste correct sans réécriture.
+ * ──────────────────────────────────────────────────────────────────── */
+const variantInputSchema = z.object({
+  name:     z.string().min(1).max(60),
+  price:    z.number().int().positive(),
+  stock:    z.number().int().nonnegative(),
+  sku:      z.string().max(60).optional(),
+  isActive: z.boolean().default(true),
+})
+
+async function myProductOrNotFound(res: import('express').Response, storeId: number, productId: number) {
+  const product = await prisma.product.findFirst({ where: { id: productId, storeId } })
+  if (!product) res.status(404).json({ success: false, message: 'Produit introuvable.' })
+  return product
+}
+
+router.get('/products/:id/variants', requireSeller, async (req, res) => {
+  try {
+    const store = await requireMyStore(req.user!.userId)
+    if (!store) { res.status(404).json({ success: false, message: 'Boutique introuvable.' }); return }
+    const productId = Number(req.params.id)
+    if (!await myProductOrNotFound(res, store.id, productId)) return
+
+    const variants = await prisma.productVariant.findMany({ where: { productId }, orderBy: { position: 'asc' } })
+    res.json({ success: true, data: variants })
+  } catch (err) {
+    logger.error('[seller/products/:id/variants]', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+router.post('/products/:id/variants', requireSeller, async (req, res) => {
+  try {
+    const store = await requireMyStore(req.user!.userId)
+    if (!store) { res.status(404).json({ success: false, message: 'Boutique introuvable.' }); return }
+    const productId = Number(req.params.id)
+    if (!await myProductOrNotFound(res, store.id, productId)) return
+
+    const body = variantInputSchema.parse(req.body)
+    const count = await prisma.productVariant.count({ where: { productId } })
+    const variant = await prisma.productVariant.create({ data: { ...body, productId, position: count } })
+    await syncProductStockFromVariants(productId)
+    checkLowStockAndAlert(productId, variant.id).catch(() => {})
+    res.status(201).json({ success: true, data: variant })
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ success: false, message: 'Variante invalide' }); return }
+    logger.error('[seller/products/:id/variants create]', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+router.patch('/products/:id/variants/reorder', requireSeller, async (req, res) => {
+  try {
+    const store = await requireMyStore(req.user!.userId)
+    if (!store) { res.status(404).json({ success: false, message: 'Boutique introuvable.' }); return }
+    const productId = Number(req.params.id)
+    if (!await myProductOrNotFound(res, store.id, productId)) return
+
+    const { order } = z.object({ order: z.array(z.number().int().positive()).min(1) }).parse(req.body)
+    const owned = await prisma.productVariant.count({ where: { id: { in: order }, productId } })
+    if (owned !== order.length) { res.status(403).json({ success: false, message: 'Variante(s) hors de ce produit.' }); return }
+
+    await Promise.all(order.map((id, idx) => prisma.productVariant.update({ where: { id }, data: { position: idx } })))
+    res.json({ success: true, message: 'Ordre mis à jour' })
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ success: false, message: 'Requête invalide' }); return }
+    logger.error('[seller/products/:id/variants reorder]', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+router.patch('/products/:id/variants/:variantId', requireSeller, async (req, res) => {
+  try {
+    const store = await requireMyStore(req.user!.userId)
+    if (!store) { res.status(404).json({ success: false, message: 'Boutique introuvable.' }); return }
+    const productId = Number(req.params.id)
+    if (!await myProductOrNotFound(res, store.id, productId)) return
+
+    const variantId = Number(req.params.variantId)
+    const existing = await prisma.productVariant.findUnique({ where: { id: variantId } })
+    if (!existing || existing.productId !== productId) { res.status(404).json({ success: false, message: 'Variante introuvable.' }); return }
+
+    const body = variantInputSchema.partial().parse(req.body)
+    const variant = await prisma.productVariant.update({ where: { id: variantId }, data: body })
+    await syncProductStockFromVariants(productId)
+    if (body.stock != null) checkLowStockAndAlert(productId, variantId).catch(() => {})
+    res.json({ success: true, data: variant })
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ success: false, message: 'Variante invalide' }); return }
+    logger.error('[seller/products/:id/variants update]', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+router.delete('/products/:id/variants/:variantId', requireSeller, async (req, res) => {
+  try {
+    const store = await requireMyStore(req.user!.userId)
+    if (!store) { res.status(404).json({ success: false, message: 'Boutique introuvable.' }); return }
+    const productId = Number(req.params.id)
+    if (!await myProductOrNotFound(res, store.id, productId)) return
+
+    const variantId = Number(req.params.variantId)
+    const existing = await prisma.productVariant.findUnique({ where: { id: variantId } })
+    if (!existing || existing.productId !== productId) { res.status(404).json({ success: false, message: 'Variante introuvable.' }); return }
+
+    await prisma.productVariant.delete({ where: { id: variantId } })
+    await syncProductStockFromVariants(productId)
+    res.json({ success: true, message: 'Variante supprimée' })
+  } catch (err) {
+    logger.error('[seller/products/:id/variants delete]', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/* ── Seuil d'alerte de stock bas ─────────────────────────────────────── */
+router.patch('/low-stock-threshold', requireSeller, async (req, res) => {
+  try {
+    const store = await requireMyStore(req.user!.userId)
+    if (!store) { res.status(404).json({ success: false, message: 'Boutique introuvable.' }); return }
+
+    const { threshold } = z.object({ threshold: z.number().int().nonnegative().nullable() }).parse(req.body)
+    await prisma.sellerStore.update({ where: { id: store.id }, data: { lowStockThreshold: threshold } })
+
+    // Nouveau seuil (ou changé) : vérifie tout de suite le catalogue existant
+    // plutôt que d'attendre la prochaine commande pour la première alerte.
+    if (threshold != null) {
+      const myProducts = await prisma.product.findMany({
+        where: { storeId: store.id },
+        select: { id: true, variants: { select: { id: true } } },
+      })
+      for (const p of myProducts) {
+        if (p.variants.length === 0) { checkLowStockAndAlert(p.id, null).catch(() => {}); continue }
+        for (const v of p.variants) checkLowStockAndAlert(p.id, v.id).catch(() => {})
+      }
+    }
+
+    res.json({ success: true, data: { threshold } })
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ success: false, message: 'Seuil invalide' }); return }
+    logger.error('[seller/low-stock-threshold]', err)
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
 })
