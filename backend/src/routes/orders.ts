@@ -1068,6 +1068,53 @@ router.post('/:id/verify-payment', optionalAuth, validateParams(zCuidIdParam), a
 })
 
 /* ─────────────────────────────────────────────────────────────
+   POST /api/orders/:id/pay — (re)génère un lien de paiement
+   Pour une commande en ligne créée mais jamais payée : soit le lien
+   initial n'a jamais été ouvert (client reparti), soit sa création a
+   échoué à la commande (merchantgo/GeniusPay indisponible — la commande
+   reste créée quand même, voir orderPaymentUrl plus haut, dégradation
+   délibérée). Sans cette route, une commande née dans ce dernier cas
+   n'avait AUCUN moyen d'être payée a posteriori : paymentUrl n'est généré
+   qu'une fois à la création, et verify-payment ne vérifie qu'un paiement
+   déjà tenté (gatewayRef posé), il n'en crée jamais un nouveau.
+   Idempotent côté merchantgo (CreatePayment) : un appel répété pour la
+   même commande encore en attente renvoie le MÊME lien, jamais une
+   nouvelle transaction.
+───────────────────────────────────────────────────────────── */
+router.post('/:id/pay', optionalAuth, validateParams(zCuidIdParam), async (req, res) => {
+  try {
+    const paramId = req.params['id'] ?? ''
+    const order = await prisma.order.findFirst({ where: orderOwnershipWhere(req, paramId) })
+    if (!order) {
+      res.status(404).json({ success: false, message: 'Commande introuvable' })
+      return
+    }
+    if (order.paymentMethod === 'cash') {
+      res.status(400).json({ success: false, message: 'Cette commande est en paiement à la livraison' })
+      return
+    }
+    if (order.paymentStatus === 'paid') {
+      res.status(400).json({ success: false, message: 'Cette commande est déjà payée' })
+      return
+    }
+    if (order.status === 'cancelled') {
+      res.status(400).json({ success: false, message: 'Cette commande a été annulée' })
+      return
+    }
+
+    const paymentUrl = await orderPaymentUrl(order)
+    if (!paymentUrl) {
+      res.status(502).json({ success: false, message: 'Le paiement en ligne est momentanément indisponible — réessayez dans quelques instants' })
+      return
+    }
+
+    res.json({ success: true, data: { paymentUrl } })
+  } catch {
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/* ─────────────────────────────────────────────────────────────
    PUT /api/orders/:id/cancel  — Annuler une commande
 ───────────────────────────────────────────────────────────── */
 router.put('/:id/cancel', requireAuth, validateParams(zCuidIdParam), async (req, res) => {

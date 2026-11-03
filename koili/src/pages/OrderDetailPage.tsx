@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'motion/react'
 import {
@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import { PageMeta } from '../components/seo/PageMeta'
 import { useAuth } from '../contexts/AuthContext'
-import { fetchOrder, apiFetch, API_BASE, type ApiOrder, type ApiResponse } from '../lib/api'
+import { fetchOrder, payOrder, apiFetch, API_BASE, type ApiOrder, type ApiResponse } from '../lib/api'
 import { useSiteSettings, waLink, telLink } from '../hooks/useSiteSettings'
 import { ReturnRequestModal } from '../components/orders/ReturnRequestModal'
 
@@ -289,8 +289,11 @@ function Card({ title, icon, children, className = '' }: {
 ═══════════════════════════════════════════════════════════════ */
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>()
+  const [searchParams] = useSearchParams()
   const { token } = useAuth()
   const settings = useSiteSettings()
+  const [payingNow, setPayingNow] = useState(false)
+  const [payError,  setPayError]  = useState('')
   const [copiedRef, setCopiedRef]     = useState(false)
   const [copiedTrack, setCopiedTrack] = useState(false)
   const [ratingOpen, setRatingOpen]   = useState(false)
@@ -403,6 +406,25 @@ export default function OrderDetailPage() {
       setCancelError(e instanceof Error ? e.message : 'Erreur lors de l\'annulation')
     } finally {
       setCancelling(false)
+    }
+  }
+
+  /**
+   * (Re)génère un lien de paiement pour une commande en ligne jamais payée —
+   * couvre le cas où le paiement a été "sauté" à la commande (passerelle
+   * momentanément indisponible, lien jamais ouvert...) : sans ça, une
+   * commande née dans cet état n'avait aucun moyen d'être payée a posteriori.
+   */
+  const handlePayNow = async () => {
+    if (!id) return
+    setPayingNow(true)
+    setPayError('')
+    try {
+      const res = await payOrder(id, token)
+      window.location.href = res.data.paymentUrl
+    } catch (e) {
+      setPayError(e instanceof Error ? e.message : 'Paiement momentanément indisponible — réessayez dans quelques instants')
+      setPayingNow(false)
     }
   }
 
@@ -553,6 +575,35 @@ export default function OrderDetailPage() {
               <p className="w-full text-xs text-red-500 mt-1">{invoiceError}</p>
             )}
           </motion.div>
+
+          {/* ── Paiement en ligne non abouti — le lien initial a pu échouer à
+              la commande (passerelle indisponible) ou n'a jamais été ouvert.
+              order.status !== 'cancelled' : une commande annulée n'est plus
+              payable, pas de bouton dans ce cas. ── */}
+          {order.payment.isOnline && order.payment.status === 'pending' && order.status !== 'cancelled' && (
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6 p-4 rounded-2xl bg-amber-50 border border-amber-200">
+              <AlertCircle size={18} className="text-amber-500 shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-amber-900">
+                  {searchParams.get('paiement') === 'indisponible'
+                    ? "Votre commande est enregistrée, mais le paiement n'a pas pu être lancé."
+                    : 'Cette commande attend toujours son paiement.'}
+                </p>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  Vos articles restent réservés. Cliquez pour (re)générer le lien de paiement sécurisé.
+                </p>
+              </div>
+              <button
+                onClick={handlePayNow}
+                disabled={payingNow}
+                className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold transition-colors disabled:opacity-60 shrink-0"
+              >
+                {payingNow ? <Loader2 size={14} className="animate-spin" /> : <CreditCard size={14} />}
+                Payer maintenant
+              </button>
+              {payError && <p className="w-full text-xs text-red-600">{payError}</p>}
+            </div>
+          )}
 
           {/* ── Main grid ── */}
           <div className="grid lg:grid-cols-3 gap-5">

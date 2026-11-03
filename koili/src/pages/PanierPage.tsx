@@ -1399,6 +1399,7 @@ function NavButtons({ onBack, onNext, nextLabel }: { onBack: () => void; onNext:
 export default function PanierPage() {
   const { items, totalPrice, clearCart, syncAssistanceOffer } = useCart()
   const { user, token } = useAuth()
+  const navigate = useNavigate()
   const [step,          setStep]          = useState<Step>('cart')
   const [delivery,      setDelivery]      = useState<DeliveryInfo>(EMPTY_DELIVERY)
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null)
@@ -1564,11 +1565,22 @@ export default function PanierPage() {
       requestIdRef.current = crypto.randomUUID() // prêt pour une éventuelle prochaine commande
 
       if (res.data.paymentUrl) {
-        // Paiement en ligne (Orange/MTN/Wave via PayDunya) — redirection vers la
-        // page de paiement sécurisée. Le panier est déjà vidé et la commande déjà
-        // créée (stock réservé) ; PayDunya nous ramènera sur /commandes/:orderNumber
-        // une fois le paiement tenté, quel qu'en soit le résultat.
+        // Paiement en ligne (Orange/MTN/Wave/carte via GeniusPay) — redirection
+        // vers la page de paiement sécurisée. Le panier est déjà vidé et la
+        // commande déjà créée (stock réservé) ; GeniusPay nous ramènera sur
+        // /paiement/verification/:orderNumber une fois le paiement tenté, quel
+        // qu'en soit le résultat.
         window.location.href = res.data.paymentUrl
+        return
+      }
+
+      if (paymentMethod !== 'cash') {
+        // Paiement en ligne demandé mais AUCUN lien généré — passerelle
+        // indisponible à cet instant (voir orderPaymentUrl, backend). La
+        // commande existe quand même (dégradation délibérée), mais rien
+        // n'a été payé : jamais afficher "succès" ici, direction la fiche
+        // commande où /pay permet de régénérer un lien dès que possible.
+        navigate(`/commandes/${res.data.orderNumber}?paiement=indisponible`)
         return
       }
 

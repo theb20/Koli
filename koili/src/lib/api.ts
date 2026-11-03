@@ -452,6 +452,21 @@ export async function verifyOrderPayment(id: string, token?: string | null) {
   )
 }
 
+/**
+ * (Re)génère un lien de paiement pour une commande en ligne déjà créée
+ * mais pas encore payée — couvre le cas où le paiement a été "sauté" à la
+ * commande (passerelle momentanément indisponible, lien jamais ouvert...).
+ * Idempotent côté serveur : rappeler cette route pour la même commande
+ * renvoie le même lien tant qu'il est encore valide.
+ */
+export async function payOrder(id: string, token?: string | null) {
+  return apiFetch<ApiResponse<{ paymentUrl: string }>>(
+    `/api/orders/${encodeURIComponent(id)}/pay`,
+    token,
+    { method: 'POST' },
+  )
+}
+
 export async function fetchMyOrders(token: string, page = 1) {
   return apiFetch<ApiResponse<{ orders: ApiOrder[]; pagination: PaginationMeta }>>(
     `/api/orders?page=${page}`,
