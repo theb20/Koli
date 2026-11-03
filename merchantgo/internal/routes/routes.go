@@ -22,6 +22,7 @@ func Setup(
 	walletHandler *handlers.WalletHandler,
 	planHandler *handlers.SubscriptionPlanHandler,
 	paymentHandler *handlers.PaymentHandler,
+	settlementHandler *handlers.SettlementHandler,
 	idempotency gin.HandlerFunc,
 	logger *zap.Logger,
 ) *gin.Engine {
@@ -85,10 +86,14 @@ func Setup(
 		merchant := v1.Group("/merchant")
 		merchant.Use(middleware.RequireAuth(cfg, logger), idempotency)
 		{
+			// Lecture seule : le marchand voit son modèle économique mais ne
+			// peut plus le changer lui-même — réservé à l'équipe Skignas, voir
+			// adminBillingBulk.PUT("/:userId", billingHandler.AdminSet) plus bas.
+			// PUT retiré délibérément (anciennement billingHandler.Choose).
 			merchant.GET("/billing", billingHandler.GetMine)
-			merchant.PUT("/billing", billingHandler.Choose)
 			merchant.GET("/wallet/balance", walletHandler.Balance)
 			merchant.GET("/wallet/transactions", walletHandler.ListTransactions)
+			merchant.GET("/settlements", settlementHandler.ListMine)
 		}
 
 		// Catalogue de plans, lecture publique (koli-business/koli-marchand
@@ -111,6 +116,8 @@ func Setup(
 		{
 			internal.POST("/orders/paid", walletHandler.RecordSale)
 			internal.POST("/orders/refunded", walletHandler.RecordRefund)
+			internal.POST("/settlements/generate", settlementHandler.Generate)
+			internal.POST("/settlements/:id/mark-sent", settlementHandler.MarkSent)
 			// LEGACY — pas de /payments/winipayer/create : plus aucune
 			// nouvelle transaction WiniPayer ne doit être créée (voir
 			// payment_service.CreatePayment). /refresh reste monté pour

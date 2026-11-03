@@ -1,13 +1,11 @@
 import { useState } from 'react'
-import { Wallet, Percent, CalendarClock, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Wallet, Percent, CalendarClock, ChevronLeft, ChevronRight, Lock } from 'lucide-react'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable'
 import { fmtDateTime, fmtFcfa } from '@/lib/format'
-import type { MerchantgoError, WalletTransaction } from '@/lib/merchantgo'
-import { useBilling, useChooseBilling, useSubscriptionPlans, useWalletBalance, useWalletTransactions } from './api/useBilling'
-import { ChangeBillingModal } from './components/ChangeBillingModal'
+import type { WalletTransaction } from '@/lib/merchantgo'
+import { useBilling, useWalletBalance, useWalletTransactions } from './api/useBilling'
 
 const columns: DataTableColumn<WalletTransaction>[] = [
   { key: 'order', header: 'Commande', render: (t) => <span className="font-semibold text-[#0a0a0b]">{t.order_number}</span> },
@@ -24,13 +22,10 @@ const columns: DataTableColumn<WalletTransaction>[] = [
 
 export default function BillingPage() {
   const [page, setPage] = useState(1)
-  const [modalOpen, setModalOpen] = useState(false)
 
   const { data: billing, isLoading: billingLoading } = useBilling()
-  const { data: plans } = useSubscriptionPlans()
   const { data: balance, isLoading: balanceLoading } = useWalletBalance()
   const { data: txPage, isLoading: txLoading } = useWalletTransactions(page)
-  const chooseBilling = useChooseBilling()
 
   const planName = billing?.mode === 'subscription' ? billing.subscription_plan?.name : undefined
   const totalPages = txPage ? Math.max(1, Math.ceil(txPage.total / txPage.limit)) : 1
@@ -61,9 +56,9 @@ export default function BillingPage() {
               <p className="mt-1.5 text-2xl font-extrabold text-[#0a0a0b] tracking-tight">
                 {billingLoading ? '…' : billing?.mode === 'subscription' ? planName ?? 'Abonnement' : `Commission ${billing?.commission_rate.toFixed(1)}%`}
               </p>
-              <Button variant="secondary" className="mt-4" onClick={() => setModalOpen(true)} disabled={billingLoading}>
-                Changer
-              </Button>
+              <p className="mt-4 flex items-center gap-1.5 text-xs text-[#6b6b68]">
+                <Lock size={12} /> Géré par l'équipe Skignas
+              </p>
             </div>
             <div className="p-3 rounded-xl bg-[#1E90FF]/10 text-[#1E90FF] shrink-0">
               <Percent size={20} />
@@ -120,20 +115,6 @@ export default function BillingPage() {
         emptyMessage="Aucune commission enregistrée pour le moment."
       />
 
-      {modalOpen && billing && (
-        <ChangeBillingModal
-          plans={plans ?? []}
-          currentMode={billing.mode}
-          currentPlanId={billing.subscription_plan_id}
-          onClose={() => {
-            setModalOpen(false)
-            chooseBilling.reset()
-          }}
-          isSubmitting={chooseBilling.isPending}
-          error={chooseBilling.error as MerchantgoError | null}
-          onSubmit={(input) => chooseBilling.mutate(input, { onSuccess: () => setModalOpen(false) })}
-        />
-      )}
     </div>
   )
 }

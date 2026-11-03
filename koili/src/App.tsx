@@ -10,6 +10,7 @@ import { CookieBanner } from './components/ui/CookieBanner'
 import { CompareBar } from './components/ui/CompareBar'
 import { PrivateRoute } from './components/auth/PrivateRoute'
 import { RouteLoader } from './components/ui/RouteLoader'
+import { ScrollToTop } from './components/ui/ScrollToTop'
 
 /* ── Pages en code-splitting — chaque route ne charge que son propre JS ── */
 const HomePage            = lazy(() => import('./pages/HomePage').then(m => ({ default: m.HomePage })))
@@ -70,6 +71,7 @@ function App() {
         <CompareBar />
 
         <BrowserRouter>
+          <ScrollToTop />
           <Suspense fallback={<RouteLoader />}>
           <Routes>
             <Route element={<MainLayout />}>

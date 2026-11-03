@@ -77,6 +77,10 @@ func main() {
 	walletService := services.NewWalletService(walletRepo, billingService, logger)
 	walletHandler := handlers.NewWalletHandler(walletService, logger)
 
+	settlementRepo := repository.NewSettlementRepository(db)
+	settlementService := services.NewSettlementService(settlementRepo, logger)
+	settlementHandler := handlers.NewSettlementHandler(settlementService, logger)
+
 	if !cfg.GeniusPayConfigured() {
 		logger.Warn("clés GeniusPay absentes pour l'environnement actif — paiement en ligne indisponible", zap.String("env", cfg.GeniusPayEnv))
 	}
@@ -95,7 +99,7 @@ func main() {
 
 	// Idempotence des écritures (en-tête Idempotency-Key) — voir middleware/idempotency.go
 	idempotency := middleware.Idempotency(repository.NewIdempotencyRepository(db), logger, middleware.IdempotencyOptions{})
-	router := routes.Setup(cfg, appHandler, adminHandler, kycWebhookHandler, billingHandler, walletHandler, planHandler, paymentHandler, idempotency, logger)
+	router := routes.Setup(cfg, appHandler, adminHandler, kycWebhookHandler, billingHandler, walletHandler, planHandler, paymentHandler, settlementHandler, idempotency, logger)
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.Port,

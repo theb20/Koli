@@ -58,6 +58,7 @@ import merchantOnboardingRouter from './routes/merchant-onboarding'
 import merchantApplicationsRouter from './routes/merchant-applications'
 import subscriptionPlansRouter    from './routes/subscription-plans'
 import adminSellersRouter          from './routes/admin-sellers'
+import adminMessagesRouter         from './routes/admin-messages'
 import adminProductDeletionRequestsRouter from './routes/admin-product-deletion-requests'
 import adminSecurityEmailsRouter from './routes/admin-security-emails'
 import internalRouter              from './routes/internal'
@@ -248,6 +249,7 @@ app.use('/api/merchant-onboarding', merchantOnboardingRouter)
 app.use('/api/admin/merchant-applications', merchantApplicationsRouter)
 app.use('/api/admin/subscription-plans', subscriptionPlansRouter)
 app.use('/api/admin/sellers', adminSellersRouter)
+app.use('/api/admin/messages', adminMessagesRouter)
 app.use('/api/admin/product-deletion-requests', adminProductDeletionRequestsRouter)
 app.use('/api/admin/security-emails', adminSecurityEmailsRouter)
 app.use('/api/products',      publicDataLimiter, productsRouter)

@@ -2,11 +2,11 @@
 import {
   House, BarChart3, Bell, Package, Layers, Zap, PackageSearch, Star,
   ShoppingCart, RotateCcw, Tag, Percent, Store, Building2, Briefcase, CreditCard,
-  Users, Gift, Megaphone, BookOpen, Send, MessageSquare, Settings, Truck, Search, Trash2, ShieldAlert, type LucideIcon,
+  Users, Gift, Megaphone, BookOpen, Send, MessageSquare, MessageCircle, Settings, Truck, Search, Trash2, ShieldAlert, type LucideIcon,
 } from 'lucide-react'
 
 /** Clé du compteur affiché en pastille (voir useAdminCounters). */
-export type CounterKey = 'pendingOrders' | 'requestedReturns' | 'newProductRequests' | 'unreadContacts' | 'unreadNotifications' | 'pendingApplications' | 'pendingProductDeletions'
+export type CounterKey = 'pendingOrders' | 'requestedReturns' | 'newProductRequests' | 'unreadContacts' | 'unreadNotifications' | 'pendingApplications' | 'pendingProductDeletions' | 'unreadMerchantMessages'
 
 export type NavItem = { to: string; label: string; icon: LucideIcon; counter?: CounterKey; keywords?: string }
 export type NavGroup = { title: string; items: NavItem[] }
@@ -38,6 +38,7 @@ export const NAV_GROUPS: NavGroup[] = [
     { to: '/merchants',             label: 'Marchands',    icon: Building2, keywords: 'vendeurs' },
     { to: '/merchant-applications', label: 'Candidatures', icon: Briefcase, counter: 'pendingApplications' },
     { to: '/plans',                 label: 'Abonnements',  icon: CreditCard, keywords: 'plans offres' },
+    { to: '/messages',              label: 'Messages',     icon: MessageCircle, counter: 'unreadMerchantMessages', keywords: 'messagerie chat marchand boutique' },
   ] },
   { title: 'Clients & Marketing', items: [
     { to: '/users',         label: 'Utilisateurs',   icon: Users, keywords: 'clients comptes' },

@@ -146,11 +146,39 @@ model SellerStore {
   user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   deletionRequests ProductDeletionRequest[]
   deliveryZones    DeliveryZone[]
+  messages         MerchantMessage[]
   /// Seuil d'alerte de stock bas — en dessous (inclus), un e-mail est
   /// envoyé au marchand (voir lib/lowStockAlert.ts). null = pas d'alerte.
   lowStockThreshold Int?
 
   @@map("seller_stores")
+}
+
+/// Messagerie privée entre UNE boutique et l'équipe Skignas (pas un admin
+/// en particulier — n'importe quel admin peut répondre, voir
+/// routes/admin-messages.ts) — un seul fil par boutique, jamais une
+/// conversation par admin. readByXAt distinct de isRead (Notification) :
+/// sert à calculer un badge "non lu" côté marchand ET côté admin sur LE
+/// MÊME message, pas deux lignes dupliquées.
+model MerchantMessage {
+  id          String      @id @default(cuid())
+  storeId     Int
+  store       SellerStore @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  /// "merchant" | "admin" — qui a écrit CE message.
+  senderRole  String
+  /// userId de l'auteur (marchand connecté ou admin) — affichage/audit
+  /// seulement, jamais l'autorisation (storeId + rôle suffisent).
+  senderId    String
+  body        String
+  /// Image jointe, ré-hébergée sur stockgo comme les photos de retour —
+  /// jamais un lien externe accepté tel quel.
+  attachmentUrl String?
+  readByMerchantAt DateTime?
+  readByAdminAt    DateTime?
+  createdAt   DateTime    @default(now())
+
+  @@index([storeId, createdAt])
+  @@map("merchant_messages")
 }
 
 /// Zone de livraison définie par un marchand (commune, "Intérieur du pays"…)

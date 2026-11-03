@@ -24,6 +24,9 @@ export {
   sendSecurityUpdateEmail,
   sendSecurityAlertEmail,
   sendLowStockAlertEmail,
+  sendMonthlySettlementEmail,
+  sendNewMerchantMessageEmail,
+  sendNewAdminMessageEmail,
 } from './email'
 
 export type { OrderItem, OrderConfirmationPayload, NewOrderAdminPayload, NewProductRequestAdminPayload, NewReturnAdminPayload } from './email'

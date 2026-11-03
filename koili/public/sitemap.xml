@@ -194,6 +194,16 @@
   </url>
 
   <url>
+    <loc>https://skignas.com/catalogue/219</loc>
+    <lastmod>2026-11-03</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://koli-production-a314.up.railway.app/api/v1/files/01a19ede-d4db-70cb-a202-22ff138f6a14</image:loc>
+    </image:image>
+  </url>
+
+  <url>
     <loc>https://skignas.com/catalogue/113</loc>
     <lastmod>2026-11-03</lastmod>
     <changefreq>weekly</changefreq>
@@ -210,16 +220,6 @@
     <priority>0.7</priority>
     <image:image>
       <image:loc>https://m.media-amazon.com/images/I/61dB1oxSpUL._AC_SL1500_.jpg</image:loc>
-    </image:image>
-  </url>
-
-  <url>
-    <loc>https://skignas.com/catalogue/219</loc>
-    <lastmod>2026-11-03</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-    <image:image>
-      <image:loc>https://koli-production-a314.up.railway.app/api/v1/files/01a19ede-d4db-70cb-a202-22ff138f6a14</image:loc>
     </image:image>
   </url>
 
@@ -294,12 +294,12 @@
   </url>
 
   <url>
-    <loc>https://skignas.com/catalogue/5</loc>
+    <loc>https://skignas.com/catalogue/132</loc>
     <lastmod>2026-11-03</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image>
-      <image:loc>https://asset.action.com/image/upload/t_digital_product_image/w_1920/3202088_8712879165972-111_01_fvju7m.webp</image:loc>
+      <image:loc>https://koli-production-a314.up.railway.app/api/v1/files/019f89d5-7f4f-7679-b751-f7cc9f92d3d8</image:loc>
     </image:image>
   </url>
 
@@ -354,22 +354,22 @@
   </url>
 
   <url>
-    <loc>https://skignas.com/catalogue/132</loc>
-    <lastmod>2026-11-03</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-    <image:image>
-      <image:loc>https://koli-production-a314.up.railway.app/api/v1/files/019f89d5-7f4f-7679-b751-f7cc9f92d3d8</image:loc>
-    </image:image>
-  </url>
-
-  <url>
     <loc>https://skignas.com/catalogue/126</loc>
     <lastmod>2026-11-03</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image>
       <image:loc>https://koli-production-a314.up.railway.app/api/v1/files/019f89d5-8440-7751-95ae-6289fd8ee5b4</image:loc>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://skignas.com/catalogue/5</loc>
+    <lastmod>2026-11-03</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://asset.action.com/image/upload/t_digital_product_image/w_1920/3202088_8712879165972-111_01_fvju7m.webp</image:loc>
     </image:image>
   </url>
 

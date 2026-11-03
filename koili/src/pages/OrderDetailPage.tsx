@@ -157,8 +157,12 @@ function OrderTimeline({ status }: { status: OrderStatus }) {
 
       <div className="space-y-0">
         {TIMELINE_STEPS.map((step, i) => {
-          const done   = i < currentIdx
-          const active = i === currentIdx
+          // "Livrée" est une étape TERMINALE, pas "en cours" : sans ce cas
+          // particulier, elle recevait le même style bleu pulsant que les
+          // étapes intermédiaires (ex: "Expédiée") alors que la commande est
+          // déjà achevée — rendu "fait" (vert, coché), jamais "actif".
+          const done   = i < currentIdx || (i === currentIdx && status === 'delivered')
+          const active = i === currentIdx && status !== 'delivered'
 
           return (
             <motion.div

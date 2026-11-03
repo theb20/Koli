@@ -256,6 +256,20 @@ export interface MerchantReturn {
   items: MerchantReturnItem[]
 }
 
+/* ── Messagerie privée avec l'équipe Skignas ────────────────── */
+
+export interface MerchantMessage {
+  id: string
+  storeId: number
+  senderRole: 'merchant' | 'admin'
+  senderId: string
+  body: string
+  attachmentUrl: string | null
+  readByMerchantAt: string | null
+  readByAdminAt: string | null
+  createdAt: string
+}
+
 /* ── Pagination générique ─────────────────────────────────── */
 
 export interface Paginated<T> {

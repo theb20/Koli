@@ -82,15 +82,11 @@ export interface WalletTransactionsPage {
   limit: number
 }
 
+// Lecture seule — le changement de modèle économique est réservé à
+// l'équipe Skignas (koli-admin → merchantgo PUT /api/v1/admin/billing/:userId),
+// aucun endpoint self-service côté marchand.
 export function getBilling() {
   return merchantgoRequest<MerchantBilling>('/api/v1/merchant/billing')
-}
-
-export function chooseBilling(input: { mode: BillingMode; commissionRate?: number; subscriptionPlanId?: string }) {
-  return merchantgoRequest<MerchantBilling>('/api/v1/merchant/billing', {
-    method: 'PUT',
-    body: JSON.stringify(input),
-  })
 }
 
 export function getWalletBalance() {
@@ -103,4 +99,31 @@ export function getWalletTransactions(page = 1, limit = 20) {
 
 export function getSubscriptionPlans() {
   return merchantgoRequest<SubscriptionPlan[]>('/api/v1/subscription-plans')
+}
+
+export interface MonthlySettlement {
+  id: string
+  user_id: string
+  period_start: string
+  period_end: string
+  gross_amount: number
+  commission_amount: number
+  net_amount: number
+  transaction_count: number
+  status: 'finalized' | 'sent'
+  sent_at?: string | null
+  created_at: string
+}
+
+export interface SettlementsPage {
+  settlements: MonthlySettlement[]
+  total: number
+  page: number
+  limit: number
+}
+
+// Relevés mensuels — générés et ENVOYÉS par Skignas (jamais l'inverse),
+// voir backend/src/lib/settlements.ts. Lecture seule ici aussi.
+export function getSettlements(page = 1, limit = 20) {
+  return merchantgoRequest<SettlementsPage>(`/api/v1/merchant/settlements?page=${page}&limit=${limit}`)
 }

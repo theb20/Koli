@@ -101,13 +101,41 @@ function StepBar({ current }: { current: Step }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   Indicateur "prix de livraison pas encore connu" — ville pas encore
+   saisie, impossible de calculer un tarif réel. Icône cliquable (pas de
+   hover fiable sur mobile) plutôt qu'un faux montant (1500 FCFA) qui
+   laisserait croire que c'est le prix réel.
+═══════════════════════════════════════════════════════════════ */
+function ShippingUnknownNotice() {
+  const [open, setOpen] = useState(false)
+  return (
+    <span className="relative inline-flex items-center gap-1">
+      <span className="text-gray-500 font-medium">Non défini</span>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        aria-label="Pourquoi le prix de livraison n'est pas encore connu"
+        className="text-amber-500 hover:text-amber-600 shrink-0"
+      >
+        <AlertCircle size={13} />
+      </button>
+      {open && (
+        <span className="absolute right-0 top-6 z-20 w-56 p-2.5 rounded-lg bg-gray-900 text-white text-[11px] leading-relaxed shadow-lg text-left normal-case font-normal">
+          Veuillez entrer votre ville dans la prochaine étape avant de voir le prix de la livraison.
+        </span>
+      )}
+    </span>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════
    ORDER SUMMARY SIDEBAR
 ═══════════════════════════════════════════════════════════════ */
 function SummarySidebar({
-  items, totalPrice, promoCode, promoDiscount, onPromoApply, shipping, deliverable,
+  items, totalPrice, promoCode, promoDiscount, onPromoApply, shipping, deliverable, villeKnown,
 }: {
   items: CartItem[]; totalPrice: number; promoCode: string
-  promoDiscount: number; onPromoApply: (code: string) => void; shipping: number; deliverable: boolean
+  promoDiscount: number; onPromoApply: (code: string) => void; shipping: number; deliverable: boolean; villeKnown: boolean
 }) {
   const [input,   setInput]   = useState('')
   const [error,   setError]   = useState('')
@@ -258,9 +286,11 @@ function SummarySidebar({
           <span className="flex items-center gap-1">
             <Truck size={11} /> Livraison
           </span>
-          <span className={!deliverable ? 'font-medium text-red-500' : shipping === 0 ? 'font-semibold text-emerald-600' : 'font-medium text-gray-700'}>
-            {!deliverable ? 'Non livrable' : shipping === 0 ? '🎉 Gratuite' : fmtCart(shipping)}
-          </span>
+          {!villeKnown ? <ShippingUnknownNotice /> : (
+            <span className={!deliverable ? 'font-medium text-red-500' : shipping === 0 ? 'font-semibold text-emerald-600' : 'font-medium text-gray-700'}>
+              {!deliverable ? 'Non livrable' : shipping === 0 ? '🎉 Gratuite' : fmtCart(shipping)}
+            </span>
+          )}
         </div>
 
         {/* TVA */}
@@ -314,9 +344,9 @@ function SummarySidebar({
 /* ═══════════════════════════════════════════════════════════════
    ÉTAPE 1 — PANIER
 ═══════════════════════════════════════════════════════════════ */
-function StepCart({ items, totalPrice, onNext, promoCode, promoDiscount, onPromoApply, shipping, deliverable, outOfStockIds }: {
+function StepCart({ items, totalPrice, onNext, promoCode, promoDiscount, onPromoApply, shipping, deliverable, villeKnown, outOfStockIds }: {
   items: CartItem[]; totalPrice: number; onNext: () => void
-  promoCode: string; promoDiscount: number; onPromoApply: (c: string) => void; shipping: number; deliverable: boolean
+  promoCode: string; promoDiscount: number; onPromoApply: (c: string) => void; shipping: number; deliverable: boolean; villeKnown: boolean
   outOfStockIds: Set<number>
 }) {
   const { removeItem, updateQty, setAssistance, totalAssistance } = useCart()
@@ -573,9 +603,11 @@ function StepCart({ items, totalPrice, onNext, promoCode, promoDiscount, onPromo
         )}
         <div className="flex justify-between text-sm text-gray-500">
           <span>Livraison</span>
-          <span className={!deliverable ? 'text-red-500 font-medium' : shipping === 0 ? 'text-emerald-600 font-semibold' : 'text-gray-700 font-medium'}>
-            {!deliverable ? 'Non livrable' : shipping === 0 ? '🎉 Gratuite' : fmtCart(shipping)}
-          </span>
+          {!villeKnown ? <ShippingUnknownNotice /> : (
+            <span className={!deliverable ? 'text-red-500 font-medium' : shipping === 0 ? 'text-emerald-600 font-semibold' : 'text-gray-700 font-medium'}>
+              {!deliverable ? 'Non livrable' : shipping === 0 ? '🎉 Gratuite' : fmtCart(shipping)}
+            </span>
+          )}
         </div>
         {taxRate > 0 && (
           <div className="flex justify-between text-sm text-gray-500">
@@ -1221,8 +1253,11 @@ function StepConfirmation({ items, delivery, paymentMethod, totalPrice, promoDis
         <button onClick={onConfirm} disabled={loading || !deliverable}
           className="flex-1 py-4 rounded-2xl bg-emerald-600 text-white font-bold text-sm flex items-center justify-center gap-2 hover:bg-emerald-700 active:scale-[0.98] transition-all disabled:opacity-60 shadow-lg shadow-emerald-600/20">
           {loading ? (
-            <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
-              className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full" />
+            <>
+              <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
+                className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full shrink-0" />
+              {paymentMethod !== 'cash' && <span>Création du paiement sécurisé…</span>}
+            </>
           ) : paymentMethod === 'cash' ? (
             <><CheckCircle2 size={17} /> Confirmer ma commande</>
           ) : (
@@ -1649,7 +1684,7 @@ export default function PanierPage() {
                   exit={{ opacity: 0, x: -16 }} transition={{ duration: 0.18 }}>
 
                   {step === 'cart' && (
-                    <StepCart items={items} totalPrice={totalPrice} shipping={shipping} deliverable={deliverable}
+                    <StepCart items={items} totalPrice={totalPrice} shipping={shipping} deliverable={deliverable} villeKnown={!!delivery.ville}
                       promoCode={promoCode} promoDiscount={promoDiscount} onPromoApply={handlePromoApply}
                       onNext={goNext} outOfStockIds={outOfStockIds} />
                   )}
@@ -1684,7 +1719,7 @@ export default function PanierPage() {
 
             {/* Sidebar desktop */}
             <div className="hidden lg:block sticky top-20">
-              <SummarySidebar items={items} totalPrice={totalPrice} shipping={shipping} deliverable={deliverable}
+              <SummarySidebar items={items} totalPrice={totalPrice} shipping={shipping} deliverable={deliverable} villeKnown={!!delivery.ville}
                 promoCode={promoCode} promoDiscount={promoDiscount} onPromoApply={handlePromoApply} />
             </div>
           </div>

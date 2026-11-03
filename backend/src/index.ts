@@ -4,6 +4,7 @@ import './instrument'
 import app from './app'
 import { prisma } from './lib/prisma'
 import { processDueDealAnnouncements } from './lib/dealAnnouncements'
+import { processDueMonthlySettlements } from './lib/settlements'
 import { logger } from './lib/logger'
 const PORT = parseInt(process.env.PORT ?? '4000')
 
@@ -29,6 +30,12 @@ async function main() {
 
   // Envoie les annonces de vente flash programmées dont l'heure est arrivée
   setInterval(() => { processDueDealAnnouncements().catch(err => logger.error('[deal-announcements poller]', err)) }, 60_000)
+
+  // Génère et envoie le relevé mensuel du mois précédent dès qu'il est
+  // disponible — idempotent (voir settlements.ts), vérifié toutes les 6h
+  // plutôt qu'un vrai cron pour rester cohérent avec le poller ci-dessus.
+  setInterval(() => { processDueMonthlySettlements().catch(err => logger.error('[settlements poller]', err)) }, 6 * 60 * 60_000)
+  processDueMonthlySettlements().catch(err => logger.error('[settlements poller]', err))
 }
 
 main().catch(err => {

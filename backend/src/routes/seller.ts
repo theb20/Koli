@@ -24,6 +24,7 @@ import { SELLER_METRICS, SELLER_ALERT_THRESHOLDS } from '../lib/sellerMetrics/di
 import { UPCOUNTRY_ZONE_NAME } from '../lib/delivery'
 import { syncProductStockFromVariants } from '../lib/productVariants'
 import { checkLowStockAndAlert } from '../lib/lowStockAlert'
+import { sendNewMerchantMessageEmail } from '../lib/mailer'
 
 const router = Router()
 
@@ -1499,6 +1500,102 @@ router.patch('/returns/:id/comment', requireSeller, async (req, res) => {
     if (err instanceof z.ZodError) { res.status(400).json({ success: false, message: 'Données invalides' }); return }
     logger.error('[seller/returns comment]', err)
     res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/* ── Messagerie privée avec l'équipe Skignas ──────────────────────────
+   Un seul fil par boutique (pas par admin) — n'importe quel admin peut
+   répondre, voir routes/admin-messages.ts. */
+router.get('/messages', requireSeller, async (req, res) => {
+  try {
+    const store = await requireMyStore(req.user!.userId)
+    if (!store) { res.status(404).json({ success: false, message: 'Boutique introuvable.' }); return }
+
+    const messages = await prisma.merchantMessage.findMany({
+      where: { storeId: store.id },
+      orderBy: { createdAt: 'asc' },
+    })
+
+    await prisma.merchantMessage.updateMany({
+      where: { storeId: store.id, senderRole: 'admin', readByMerchantAt: null },
+      data: { readByMerchantAt: new Date() },
+    })
+
+    res.json({ success: true, data: { messages } })
+  } catch (err) {
+    logger.error('[seller/messages list]', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+const sendMessageSchema = z.object({
+  body:          z.string().trim().min(1).max(4000),
+  attachmentUrl: z.string().url().optional(),
+})
+
+router.post('/messages', requireSeller, async (req, res) => {
+  try {
+    const store = await requireMyStore(req.user!.userId)
+    if (!store) { res.status(404).json({ success: false, message: 'Boutique introuvable.' }); return }
+
+    const body = sendMessageSchema.parse(req.body)
+
+    const message = await prisma.merchantMessage.create({
+      data: {
+        storeId: store.id,
+        senderRole: 'merchant',
+        senderId: req.user!.userId,
+        body: body.body,
+        attachmentUrl: body.attachmentUrl,
+        readByMerchantAt: new Date(),
+      },
+    })
+
+    const admins = await prisma.user.findMany({ where: { role: 'admin' }, select: { id: true } })
+    if (admins.length > 0) {
+      await prisma.notification.createMany({
+        data: admins.map(a => ({
+          userId: a.id,
+          type:   'message',
+          title:  `Nouveau message — ${store.name}`,
+          body:   body.body.slice(0, 140),
+          link:   `/messages/${store.id}`,
+        })),
+      })
+    }
+    const settings = await prisma.siteSettings.findUnique({ where: { id: 1 }, select: { orderNotifyEmails: true } })
+    const recipients = (settings?.orderNotifyEmails ?? '').split(',').map(e => e.trim()).filter(Boolean)
+    Promise.allSettled(recipients.map(email => sendNewMerchantMessageEmail(email, {
+      storeName: store.name,
+      body:      body.body,
+      storeId:   store.id,
+    }))).catch(() => {})
+
+    res.status(201).json({ success: true, data: message })
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ success: false, message: 'Message invalide' }); return }
+    logger.error('[seller/messages send]', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+router.post('/messages/upload-image', requireSeller, handleImageUpload, async (req, res) => {
+  try {
+    if (!req.file) { res.status(400).json({ success: false, message: "Champ 'file' manquant" }); return }
+
+    const scan = await scanBuffer(req.file.buffer, req.file.originalname)
+    if (!scan.clean) {
+      res.status(400).json({ success: false, message: 'Fichier rejeté par le scan antivirus' })
+      return
+    }
+
+    const webp = await toWebp(req.file.buffer)
+    const url = await uploadToStockgo(webp, `msg-${Date.now()}-${Math.random().toString(36).slice(2)}.webp`, 'image/webp', 'messages')
+
+    res.status(201).json({ success: true, data: { url } })
+  } catch (err) {
+    logger.error('[seller/messages upload-image] échec', err)
+    res.status(500).json({ success: false, message: "Échec de l'upload" })
   }
 })
 

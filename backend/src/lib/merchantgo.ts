@@ -90,6 +90,37 @@ export function recordMerchantRefund(input: { userId: string; orderId: string; o
   return merchantgoRequest(`/api/v1/internal/orders/refunded`, { method: 'POST', body: input })
 }
 
+export type MerchantSettlement = {
+  id: string
+  user_id: string
+  period_start: string
+  period_end: string
+  gross_amount: number
+  commission_amount: number
+  net_amount: number
+  transaction_count: number
+  status: 'finalized' | 'sent'
+  sent_at?: string | null
+}
+
+/**
+ * Calcule (idempotent par marchand+mois) le relevé mensuel de chaque
+ * marchand ayant eu une transaction sur le mois commençant à `periodStart`
+ * ("AAAA-MM-01") — appelé par lib/settlements.ts, jamais directement par
+ * une route HTTP. Voir order_payment_architecture : toute la logique
+ * financière vit dans merchantgo, backend/ ne fait qu'orchestrer l'envoi.
+ */
+export function generateSettlements(periodStart: string) {
+  return merchantgoRequest<{ success: boolean; data: MerchantSettlement[] }>(
+    `/api/v1/internal/settlements/generate`,
+    { method: 'POST', body: { periodStart } },
+  )
+}
+
+export function markSettlementSent(id: string) {
+  return merchantgoRequest(`/api/v1/internal/settlements/${encodeURIComponent(id)}/mark-sent`, { method: 'POST' })
+}
+
 /**
  * Crée un lien de paiement GeniusPay via merchantgo — remplace WiniPayer
  * comme passerelle de paiement en ligne (voir order_payment_architecture) :

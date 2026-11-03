@@ -62,36 +62,6 @@ type chooseBillingRequest struct {
 	SubscriptionPlanID *string  `json:"subscriptionPlanId"`
 }
 
-// Choose — PUT /api/v1/merchant/billing
-func (h *BillingHandler) Choose(c *gin.Context) {
-	var req chooseBillingRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		middleware.RespondError(c, h.logger, utils.ErrBadRequest("Requête invalide", err))
-		return
-	}
-
-	in := services.BillingChoiceInput{
-		Mode:           models.BillingMode(req.Mode),
-		CommissionRate: req.CommissionRate,
-	}
-	if req.SubscriptionPlanID != nil {
-		id, err := uuid.Parse(*req.SubscriptionPlanID)
-		if err != nil {
-			middleware.RespondError(c, h.logger, utils.ErrBadRequest("subscriptionPlanId invalide", err))
-			return
-		}
-		in.SubscriptionPlanID = &id
-	}
-
-	userID := middleware.UserID(c)
-	b, err := h.service.Choose(c.Request.Context(), userID, in, h.cfg.BillingLockDays)
-	if err != nil {
-		middleware.RespondError(c, h.logger, err)
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": b})
-}
-
 // AdminSet — PUT /api/v1/admin/billing/:userId — un admin peut changer le
 // modèle économique de n'importe quel marchand, y compris son taux de
 // commission personnalisé (jamais exposé au marchand lui-même — cf.

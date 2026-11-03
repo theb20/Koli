@@ -1,21 +1,10 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  chooseBilling, getBilling, getSubscriptionPlans, getWalletBalance, getWalletTransactions,
-  type BillingMode,
-} from '@/lib/merchantgo'
+import { useQuery } from '@tanstack/react-query'
+import { getBilling, getSubscriptionPlans, getWalletBalance, getWalletTransactions } from '@/lib/merchantgo'
 
 export function useBilling() {
   return useQuery({
     queryKey: ['billing'],
     queryFn: getBilling,
-  })
-}
-
-export function useChooseBilling() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (input: { mode: BillingMode; commissionRate?: number; subscriptionPlanId?: string }) => chooseBilling(input),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['billing'] }),
   })
 }
 

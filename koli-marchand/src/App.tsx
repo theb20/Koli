@@ -11,6 +11,8 @@ import OrdersPage from '@/features/orders/OrdersPage'
 import ReturnsPage from '@/features/returns/ReturnsPage'
 import PaymentsPage from '@/features/payouts/PaymentsPage'
 import BillingPage from '@/features/billing/BillingPage'
+import SettlementsPage from '@/features/settlements/SettlementsPage'
+import MessagesPage from '@/features/messages/MessagesPage'
 import CustomersPage from '@/features/customers/CustomersPage'
 import CustomerDetailPage from '@/features/customers/CustomerDetailPage'
 import PromotionsPage from '@/features/promotions/PromotionsPage'
@@ -44,6 +46,8 @@ export default function App() {
             <Route path="/livraison" element={<DeliveryPage />} />
             <Route path="/paiements" element={<PaymentsPage />} />
             <Route path="/facturation" element={<BillingPage />} />
+            <Route path="/releves" element={<SettlementsPage />} />
+            <Route path="/messages" element={<MessagesPage />} />
             <Route path="/clients" element={<CustomersPage />} />
             <Route path="/clients/:id" element={<CustomerDetailPage />} />
             <Route path="/promotions" element={<PromotionsPage />} />
