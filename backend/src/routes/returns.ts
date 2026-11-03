@@ -161,6 +161,57 @@ export async function computeMaxRefundable(returnId: string): Promise<number> {
   return refundableAmount(ret.items.map(it => ({ price: it.orderItem.price, quantity: it.quantity })), ret.order)
 }
 
+/**
+ * Moteur de décision (auto-approbation UNIQUEMENT) — appelé juste après la
+ * création d'une demande, encore au statut "requested".
+ *
+ * N'auto-approuve JAMAIS le remboursement lui-même : GeniusPay n'expose
+ * aucune API de remboursement (voir merchantgo/internal/geniuspay/client.go),
+ * l'argent part toujours d'une action admin manuelle avec preuve à l'appui
+ * (PUT /:id/status). Ce moteur ne fait que sauter l'attente "approved" pour
+ * les demandes à faible risque — l'admin garde la main sur réception et
+ * remboursement.
+ *
+ * Ne rejette JAMAIS automatiquement : un refus exige un motif (min. 3
+ * caractères, communiqué au client) qu'un algorithme ne peut pas justifier
+ * de façon fiable — laissé à l'admin dans tous les cas.
+ *
+ * Seuils configurables dans SiteSettings (koli-admin), jamais en dur —
+ * returnAutoApproveMaxAmount à null désactive entièrement le moteur.
+ */
+async function autoDecideReturn(returnId: string, userId: string): Promise<boolean> {
+  const settings = await prisma.siteSettings.findUnique({
+    where:  { id: 1 },
+    select: { returnAutoApproveMaxAmount: true, returnAutoApproveMaxRecentCount: true, returnAutoApproveRecentDays: true },
+  })
+  if (settings?.returnAutoApproveMaxAmount == null) return false
+
+  const maxRefundable = await computeMaxRefundable(returnId)
+  if (maxRefundable <= 0 || maxRefundable > settings.returnAutoApproveMaxAmount) return false
+
+  if (settings.returnAutoApproveMaxRecentCount != null) {
+    const since = new Date(Date.now() - settings.returnAutoApproveRecentDays * 24 * 60 * 60 * 1000)
+    // Compte CE retour-ci (déjà créé, "requested") + les autres non annulés
+    // sur la fenêtre — annulé exclu (le client s'est ravisé, pas un signal
+    // de risque), refusé inclus (un historique de refus EST un signal).
+    const recentCount = await prisma.orderReturn.count({
+      where: { userId, requestedAt: { gte: since }, status: { not: 'cancelled' } },
+    })
+    if (recentCount > settings.returnAutoApproveMaxRecentCount) return false
+  }
+
+  await prisma.orderReturn.update({
+    where: { id: returnId },
+    data: {
+      status:       'approved',
+      approvedAt:   new Date(),
+      refundAmount: maxRefundable,
+      adminNotes:   'Auto-approuvé par le moteur de décision (montant et historique sous les seuils configurés).',
+    },
+  })
+  return true
+}
+
 export const RETURN_INCLUDE = {
   items: { include: { orderItem: true } },
   order: { select: { orderNumber: true, clientEmail: true, clientPrenom: true, total: true, status: true } },
@@ -234,7 +285,7 @@ router.post('/', requireAuth, validate(createReturnSchema), async (req, res) => 
       }
     }
 
-    const created = await prisma.orderReturn.create({
+    let created = await prisma.orderReturn.create({
       data: {
         orderId: order.id,
         userId,
@@ -246,7 +297,12 @@ router.post('/', requireAuth, validate(createReturnSchema), async (req, res) => 
       include: RETURN_INCLUDE,
     })
 
-    sendReturnStatusEmail(order.clientEmail, order.clientPrenom, order.orderNumber, 'requested').catch(() => {})
+    const autoApproved = await autoDecideReturn(created.id, userId)
+    if (autoApproved) {
+      created = await prisma.orderReturn.findUniqueOrThrow({ where: { id: created.id }, include: RETURN_INCLUDE })
+    }
+
+    sendReturnStatusEmail(order.clientEmail, order.clientPrenom, order.orderNumber, created.status).catch(() => {})
 
     const admins = await prisma.user.findMany({ where: { role: 'admin' }, select: { id: true } })
     if (admins.length > 0) {
@@ -254,7 +310,7 @@ router.post('/', requireAuth, validate(createReturnSchema), async (req, res) => 
         data: admins.map(a => ({
           userId: a.id,
           type:   'return',
-          title:  'Nouvelle demande de retour',
+          title:  autoApproved ? 'Retour auto-approuvé — en attente de réception' : 'Nouvelle demande de retour',
           body:   `${order.clientPrenom} ${order.clientNom} · ${order.orderNumber}`,
           link:   `/returns/${created.id}`,
         })),

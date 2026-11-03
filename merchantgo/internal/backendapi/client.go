@@ -85,7 +85,7 @@ func (c *Client) MarkOrderCancelled(ctx context.Context, orderID, providerRef, r
 
 // MarkOrderRefunded appelle POST {backend}/api/internal/orders/:id/mark-refunded
 // — après confirmation d'un remboursement GeniusPay (webhook
-// "refund.completed", revérifié par payment_service.ConfirmRefund). Ne
+// "payment.refunded", revérifié par payment_service.ConfirmRefund). Ne
 // déclenche RIEN côté argent : GeniusPay n'expose aucune API de
 // remboursement (voir geniuspay/client.go), le virement a déjà été fait
 // manuellement par un humain sur son dashboard — cet appel ne fait que

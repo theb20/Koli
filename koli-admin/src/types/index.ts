@@ -104,7 +104,8 @@ export type DealAnnouncement = {
 }
 
 export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded'
-export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded'
+export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refund_pending' | 'refunded'
+export type RefundMethod = 'geniuspay_support' | 'manual_payout'
 
 export type Order = {
   id: string
@@ -140,6 +141,13 @@ export type Order = {
   merchants?: { id: number; name: string }[]
   deletedAt?: string | null
   deletedByName?: string | null
+  // Remboursement direct (POST /:id/refund — admin, sans retour physique,
+  // voir routes/returns.ts pour le flux OrderReturn distinct)
+  refundedAt?: string | null
+  refundAmount?: number | null
+  refundReason?: string | null
+  refundMethod?: RefundMethod | null
+  refundReference?: string | null
 }
 
 export type OrderItem = {

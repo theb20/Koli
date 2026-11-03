@@ -469,6 +469,27 @@ model Order {
   /// Verrouillé à la première transition vers "delivered" — base du calcul
   /// de la fenêtre d'éligibilité au retour (SiteSettings.returnWindowDays).
   deliveredAt     DateTime?
+  /// Remboursement direct d'une commande entière, déclenché par un admin
+  /// SANS passer par le flux OrderReturn (retour physique) — ex: erreur de
+  /// prix, annulation après paiement. Distinct de OrderReturn : celui-ci
+  /// sert aux retours produit avec réception/preuve, ceci sert à rembourser
+  /// une commande directement. Cycle de vie porté par `paymentStatus`
+  /// ("paid" → "refund_pending" → "refunded"), jamais par `status` (qui
+  /// reste la progression de LIVRAISON, indépendante). Voir routes/orders.ts,
+  /// POST /:id/refund et /:id/confirm-refund.
+  refundedAt      DateTime?
+  refundAmount    Int?
+  refundReason    String?
+  /// "geniuspay_support" (ticket support — paiement renvoyé manuellement par
+  /// GeniusPay, confirmé par leur webhook payment.refunded) ou
+  /// "manual_payout" (versement direct par l'équipe, ex: Mobile Money —
+  /// confirmé manuellement via /:id/confirm-refund). GeniusPay n'expose
+  /// aucune API pour déclencher un remboursement, voir merchantgo/internal/geniuspay.
+  refundMethod    String?
+  /// Référence du virement/payout (manuel) ou de la transaction GeniusPay
+  /// (webhook) — jamais générée par nous, toujours celle fournie par le
+  /// prestataire ou saisie par l'admin.
+  refundReference String?
   /// Lien personnel "Laisser un avis" (/avis/:reviewToken) — généré et
   /// envoyé au client (e-mail, SMS, notification) à la PREMIÈRE livraison.
   /// Fonctionne sans compte (commandes invité). Un seul envoi par commande.
@@ -1116,6 +1137,18 @@ model SiteSettings {
   /// Nombre de jours après livraison pendant lesquels un client peut demander
   /// un retour (voir eligibility check dans returns.ts).
   returnWindowDays        Int      @default(14)
+  /// Moteur de décision auto-approbation des retours (voir returns.ts,
+  /// autoDecideReturn) — n'auto-approuve JAMAIS le remboursement lui-même
+  /// (aucune API de remboursement chez GeniusPay, toujours une action
+  /// admin manuelle), seulement la demande (requested → approved), pour
+  /// accélérer les cas à faible risque. null = moteur désactivé, tout
+  /// repasse en revue manuelle comme avant.
+  returnAutoApproveMaxAmount       Int? @default(25000)
+  /// Nombre de retours maximum pour un même client sur la fenêtre glissante
+  /// ci-dessous — au-delà, revue manuelle même si le montant est sous le
+  /// seuil (signal de volume inhabituel).
+  returnAutoApproveMaxRecentCount  Int? @default(3)
+  returnAutoApproveRecentDays      Int  @default(30)
   /// Coupe-circuit global du programme de fidélité — quand false, plus aucun
   /// point n'est gagné (commandes, parrainage) ni utilisable (redeem), mais
   /// les soldes/historiques existants restent intacts et consultables.

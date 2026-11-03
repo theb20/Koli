@@ -18,11 +18,15 @@
 // derrière deux domaines) — pay.geniuspay.io, lui, ne résout même pas.
 // pay.genius.ci reste la valeur retenue (overridable sans redéploiement via
 // GeniusPayBaseURL si jamais elle cesse de fonctionner avec de vraies clés).
-// Le remboursement n'a PAS d'endpoint dans ce SDK (aucune méthode refund()
-// dans GeniusPayClient.php) — seul un événement webhook "refund.completed"
-// existe (WebhookController.php) : un remboursement est donc toujours
-// déclenché manuellement par un humain sur le dashboard GeniusPay, jamais
-// par cette intégration (voir ConfirmRefund dans services/payment_service.go).
+// Le remboursement n'a PAS d'endpoint dans ce SDK tiers (aucune méthode
+// refund() dans GeniusPayClient.php) — il y documente un événement webhook
+// nommé "refund.completed" (WebhookController.php), mais le dashboard
+// marchand RÉEL (vérifié directement dans l'écran de création de webhook,
+// 2026-11-03) nomme cet événement "payment.refunded" — nom RETENU, le SDK
+// tiers (désynchronisé de l'API réelle) ne fait pas foi ici. Dans tous les
+// cas : un remboursement est toujours déclenché manuellement par un humain
+// sur le dashboard GeniusPay, jamais par cette intégration (voir
+// ConfirmRefund dans services/payment_service.go).
 package geniuspay
 
 import (

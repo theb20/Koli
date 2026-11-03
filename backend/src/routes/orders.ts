@@ -9,7 +9,7 @@ import { sendNewOrderWhatsAppNotification } from '../lib/whatsapp/newOrderNotifi
 import { sendOrderStatusWhatsApp } from '../lib/whatsapp/orderStatusNotification'
 import { logger } from '../lib/logger'
 import { logAdminAction } from '../lib/auditLog'
-import { notifyMerchantsOrderPaid } from '../lib/merchantWallet'
+import { notifyMerchantsOrderPaid, notifyMerchantsOrderDirectRefund } from '../lib/merchantWallet'
 import { snapshotOrderFinancialsSafe } from '../lib/finance/snapshot'
 import { getVatRatePercent } from '../lib/finance/vat'
 import { requestOrderReview } from '../lib/orderReview'
@@ -1157,6 +1157,130 @@ router.patch('/:id/status', requireAdmin, validateParams(zCuidIdParam), async (r
     logAdminAction(req, { action: 'order.status.update', targetType: 'Order', targetId: req.params['id']!, metadata: { newStatus: status } })
     res.json({ success: true, data: { order } })
   } catch {
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/* ─────────────────────────────────────────────────────────────
+   POST /api/orders/:id/refund  [ADMIN]
+   POST /api/orders/:id/confirm-refund  [ADMIN]
+
+   Remboursement DIRECT d'une commande entière — distinct du flux
+   OrderReturn (retour produit avec réception/preuve, voir routes/returns.ts) :
+   sert aux cas sans retour physique (erreur de prix, annulation après
+   paiement...). Cycle de vie porté par Order.paymentStatus
+   ("paid" → "refund_pending" → "refunded"), JAMAIS par Order.status (qui
+   reste la progression de livraison, orthogonale).
+
+   GeniusPay n'expose aucune API pour déclencher un remboursement (voir
+   merchantgo/internal/geniuspay/client.go) : /refund n'initie que notre
+   côté (stock restitué, statut "en attente"), le virement réel se fait
+   hors API (ticket support GeniusPay, ou Payout manuel Mobile Money). La
+   confirmation finale arrive soit du webhook GeniusPay "payment.refunded"
+   (routes/internal.ts, mark-refunded), soit de /confirm-refund ci-dessous.
+───────────────────────────────────────────────────────────── */
+const refundOrderSchema = z.object({
+  amount: z.number().int().positive(),
+  reason: z.string().min(3).max(500),
+  method: z.enum(['geniuspay_support', 'manual_payout']),
+})
+
+router.post('/:id/refund', requireAdmin, validateParams(zCuidIdParam), validate(refundOrderSchema), async (req, res) => {
+  try {
+    const id = req.params['id']!
+    const { amount, reason, method } = req.body as z.infer<typeof refundOrderSchema>
+
+    const order = await prisma.order.findUnique({ where: { id }, include: { items: true } })
+    if (!order) {
+      res.status(404).json({ success: false, message: 'Commande introuvable' })
+      return
+    }
+    if (order.paymentStatus !== 'paid') {
+      res.status(409).json({ success: false, message: `Seule une commande payée peut être remboursée (statut actuel : "${order.paymentStatus}")` })
+      return
+    }
+    if (amount > order.total) {
+      res.status(400).json({ success: false, message: `Le montant ne peut pas dépasser ${order.total} FCFA (total payé)` })
+      return
+    }
+
+    // Stock restitué MAINTENANT (décision admin), pas à la confirmation
+    // finale — même doctrine que applyOrderStatusChange pour cancelled/
+    // refunded : l'inventaire repart en vente dès que la décision est prise,
+    // pas bloqué en attendant un virement qui peut prendre plusieurs jours.
+    await prisma.$transaction(async tx => {
+      for (const item of order.items) {
+        await tx.product.update({
+          where: { id: item.productId },
+          data:  { stock: { increment: item.qty }, sold: { decrement: item.qty } },
+        })
+      }
+      await tx.order.update({
+        where: { id },
+        data: { paymentStatus: 'refund_pending', refundAmount: amount, refundReason: reason, refundMethod: method },
+      })
+    })
+
+    logger.info('[orders] remboursement direct initié', id, order.orderNumber, req.user?.userId, amount, reason, method)
+    logAdminAction(req, { action: 'order.refund.initiate', targetType: 'Order', targetId: id, metadata: { amount, reason, method } })
+
+    // Débit du solde marchand MAINTENANT aussi — symétrique au crédit
+    // reçu lors du paiement, jamais attendre la confirmation finale pour
+    // ne pas laisser un marchand garder temporairement de l'argent déjà
+    // promis au client.
+    notifyMerchantsOrderDirectRefund(id, amount, order.total).catch(err => logger.error('[orders] échec débit remboursement marchand', id, err))
+
+    sendOrderStatusEmail(order.clientEmail, order.clientPrenom, order.orderNumber, 'refund_pending').catch(() => {})
+
+    res.json({ success: true, message: 'Remboursement initié — stock restitué, en attente de confirmation' })
+  } catch (err) {
+    logger.error('[orders] échec initiation remboursement', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+const confirmRefundSchema = z.object({
+  refundReference: z.string().min(1).max(150),
+})
+
+/**
+ * Confirmation manuelle — "Marquer comme remboursé" côté admin, pour les
+ * cas où le virement est fait hors de tout webhook (method=manual_payout,
+ * ex: Payout Mobile Money direct) ou en secours si le webhook GeniusPay
+ * n'arrive jamais pour un ticket support résolu de leur côté.
+ */
+router.post('/:id/confirm-refund', requireAdmin, validateParams(zCuidIdParam), validate(confirmRefundSchema), async (req, res) => {
+  try {
+    const id = req.params['id']!
+    const { refundReference } = req.body as z.infer<typeof confirmRefundSchema>
+
+    const order = await prisma.order.findUnique({ where: { id } })
+    if (!order) {
+      res.status(404).json({ success: false, message: 'Commande introuvable' })
+      return
+    }
+    if (order.paymentStatus === 'refunded') {
+      res.json({ success: true, message: 'Déjà confirmé' })
+      return
+    }
+    if (order.paymentStatus !== 'refund_pending') {
+      res.status(409).json({ success: false, message: `Aucun remboursement en attente pour cette commande (statut : "${order.paymentStatus}")` })
+      return
+    }
+
+    const updated = await prisma.order.update({
+      where: { id },
+      data: { paymentStatus: 'refunded', refundedAt: new Date(), refundReference },
+    })
+
+    logger.info('[orders] remboursement confirmé manuellement', id, order.orderNumber, req.user?.userId, refundReference)
+    logAdminAction(req, { action: 'order.refund.confirm', targetType: 'Order', targetId: id, metadata: { refundReference, source: 'manual' } })
+
+    sendOrderStatusEmail(updated.clientEmail, updated.clientPrenom, updated.orderNumber, 'refunded').catch(() => {})
+
+    res.json({ success: true, message: 'Remboursement confirmé' })
+  } catch (err) {
+    logger.error('[orders] échec confirmation remboursement', err)
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
 })

@@ -78,13 +78,15 @@ export function recordMerchantSale(input: { userId: string; orderId: string; ord
 }
 
 /**
- * Reprend la part d'un marchand sur les articles d'un retour remboursé —
- * symétrique de recordMerchantSale (débit au lieu d'un crédit, même
- * commission appliquée). `returnId` (pas seulement orderId) sert de clé
- * d'idempotence côté merchantgo : une même commande peut avoir plusieurs
- * retours distincts pour le même marchand. Voir lib/merchantWallet.ts.
+ * Reprend la part d'un marchand sur un montant remboursé — symétrique de
+ * recordMerchantSale (débit au lieu d'un crédit, même commission
+ * appliquée). `refId` (jamais orderId seul) sert de clé d'idempotence côté
+ * merchantgo : soit un OrderReturn.id (retour produit), soit
+ * "refund:<orderId>" (remboursement direct d'une commande entière, sans
+ * passer par le flux de retour) — une même commande peut avoir plusieurs
+ * remboursements distincts pour le même marchand. Voir lib/merchantWallet.ts.
  */
-export function recordMerchantRefund(input: { userId: string; orderId: string; orderNumber: string; returnId: string; grossAmount: number }) {
+export function recordMerchantRefund(input: { userId: string; orderId: string; orderNumber: string; refId: string; grossAmount: number }) {
   return merchantgoRequest(`/api/v1/internal/orders/refunded`, { method: 'POST', body: input })
 }
 

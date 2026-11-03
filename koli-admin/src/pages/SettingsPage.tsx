@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
-import { Save, Bell, Send, AlertTriangle, Phone, Mail, X, Plus, Download, Archive, Truck } from 'lucide-react'
+import { Save, Bell, Send, AlertTriangle, Phone, Mail, X, Plus, Download, Archive, Truck, RotateCcw } from 'lucide-react'
 import { api } from '../lib/api'
 import { AxiosError } from 'axios'
 import { useAuth } from '../hooks/useAuth'
@@ -35,6 +35,10 @@ type SiteSettings = {
   tiktokUrl?:     string
   orderNotifyEmails?: string
   codEnabled:     boolean
+  returnWindowDays: number
+  returnAutoApproveMaxAmount: number | null
+  returnAutoApproveMaxRecentCount: number | null
+  returnAutoApproveRecentDays: number
 }
 
 export default function SettingsPage() {
@@ -84,6 +88,39 @@ export default function SettingsPage() {
   const codMutation = useMutation({
     mutationFn: (body: { codEnabled: boolean }) => api.put('/api/settings', body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['site-settings-admin'] }),
+  })
+
+  /* Retours — délai client + moteur d'auto-approbation de la DEMANDE
+     (jamais du remboursement lui-même, toujours manuel — voir returns.ts) */
+  const [returnWindowDays, setReturnWindowDays]     = useState(14)
+  const [autoApproveEnabled, setAutoApproveEnabled] = useState(true)
+  const [maxAmount, setMaxAmount]                   = useState(25_000)
+  const [maxRecentCount, setMaxRecentCount]         = useState(3)
+  const [recentDays, setRecentDays]                 = useState(30)
+  useEffect(() => {
+    if (!siteSettings) return
+    setReturnWindowDays(siteSettings.returnWindowDays)
+    setAutoApproveEnabled(siteSettings.returnAutoApproveMaxAmount != null)
+    if (siteSettings.returnAutoApproveMaxAmount != null) setMaxAmount(siteSettings.returnAutoApproveMaxAmount)
+    if (siteSettings.returnAutoApproveMaxRecentCount != null) setMaxRecentCount(siteSettings.returnAutoApproveMaxRecentCount)
+    setRecentDays(siteSettings.returnAutoApproveRecentDays)
+  }, [siteSettings])
+  const returnEngineDirty = !!siteSettings && (
+    siteSettings.returnWindowDays !== returnWindowDays ||
+    (siteSettings.returnAutoApproveMaxAmount != null) !== autoApproveEnabled ||
+    (autoApproveEnabled && siteSettings.returnAutoApproveMaxAmount !== maxAmount) ||
+    siteSettings.returnAutoApproveMaxRecentCount !== maxRecentCount ||
+    siteSettings.returnAutoApproveRecentDays !== recentDays
+  )
+  const returnEngineMutation = useMutation({
+    mutationFn: (body: Partial<SiteSettings>) => api.put('/api/settings', body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['site-settings-admin'] }),
+  })
+  const saveReturnEngine = () => returnEngineMutation.mutate({
+    returnWindowDays,
+    returnAutoApproveMaxAmount: autoApproveEnabled ? maxAmount : null,
+    returnAutoApproveMaxRecentCount: maxRecentCount,
+    returnAutoApproveRecentDays: recentDays,
   })
 
   /* Destinataires des emails "nouvelle commande" */
@@ -257,6 +294,76 @@ export default function SettingsPage() {
         )}
         {codMutation.isSuccess && !codDirty && (
           <p className="text-green-600 text-xs mt-3">✓ Enregistré</p>
+        )}
+      </div>
+
+      {/* Retours — délai et moteur de décision */}
+      <div className={cardCls}>
+        <div className="flex items-center gap-2 mb-2">
+          <RotateCcw size={16} className="text-indigo-600" />
+          <h2 className="text-sm font-semibold text-slate-900">Retours — délai et auto-approbation</h2>
+        </div>
+        <p className="text-xs text-slate-500 mb-5 max-w-lg">
+          L'auto-approbation ne concerne que la DEMANDE de retour (passage direct en « approuvé »,
+          sans attente) — jamais le remboursement lui-même, qui reste toujours une action manuelle
+          avec preuve à l'appui. Au-dessus des seuils, ou désactivée, chaque demande repasse en
+          revue manuelle comme avant.
+        </p>
+        {loadingSite ? (
+          <div className="h-32 bg-slate-50 rounded-xl animate-pulse" />
+        ) : (
+          <div className="space-y-4">
+            <Input
+              label="Délai de retour après livraison (jours)"
+              type="number" min={1} max={365}
+              value={returnWindowDays}
+              onChange={e => setReturnWindowDays(Number(e.target.value))}
+            />
+
+            <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+              <p className="text-sm font-medium text-slate-900">Auto-approuver les demandes à faible risque</p>
+              <button
+                onClick={() => setAutoApproveEnabled(v => !v)}
+                role="switch"
+                aria-checked={autoApproveEnabled}
+                className={`shrink-0 relative w-12 h-7 rounded-full transition-colors ${autoApproveEnabled ? 'bg-green-500' : 'bg-slate-300'}`}
+              >
+                <span className={`absolute top-1 left-1 w-5 h-5 rounded-full bg-white shadow transition-transform ${autoApproveEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+              </button>
+            </div>
+
+            {autoApproveEnabled && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pl-0">
+                <Input
+                  label="Montant max (FCFA)"
+                  type="number" min={0} step={500}
+                  value={maxAmount}
+                  onChange={e => setMaxAmount(Number(e.target.value))}
+                />
+                <Input
+                  label="Retours max / client"
+                  type="number" min={1}
+                  value={maxRecentCount}
+                  onChange={e => setMaxRecentCount(Number(e.target.value))}
+                />
+                <Input
+                  label="Sur une fenêtre de (jours)"
+                  type="number" min={1} max={365}
+                  value={recentDays}
+                  onChange={e => setRecentDays(Number(e.target.value))}
+                />
+              </div>
+            )}
+
+            <div className="flex justify-end items-center gap-3 pt-2">
+              {returnEngineMutation.isSuccess && !returnEngineDirty && <p className="text-green-600 text-sm">✓ Enregistré</p>}
+              {returnEngineMutation.isError && <p className="text-red-600 text-sm">{apiErrorMessage(returnEngineMutation.error)}</p>}
+              <Button size="sm" loading={returnEngineMutation.isPending} disabled={!returnEngineDirty} icon={<Save size={13} />}
+                onClick={saveReturnEngine}>
+                Enregistrer
+              </Button>
+            </div>
+          </div>
         )}
       </div>
 

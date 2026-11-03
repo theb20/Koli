@@ -16,7 +16,7 @@ import { validate, validateParams, zCuidIdParam } from '../middleware/validate'
 import { logger } from '../lib/logger'
 import { notifyMerchantsOrderPaid } from '../lib/merchantWallet'
 import { snapshotOrderFinancialsSafe } from '../lib/finance/snapshot'
-import { sendOrderConfirmationEmail, sendReturnStatusEmail } from '../lib/mailer'
+import { sendOrderConfirmationEmail, sendReturnStatusEmail, sendOrderStatusEmail } from '../lib/mailer'
 import { applyOrderStatusChange } from './orders'
 import { sendSms } from '../lib/sms/zavu'
 import { normalizePhoneCI } from '../lib/phone'
@@ -166,13 +166,14 @@ const markRefundedSchema = z.object({
 
 /**
  * Appelée par merchantgo après confirmation d'un remboursement GeniusPay
- * (webhook "refund.completed", revérifié côté merchantgo auprès de
+ * (webhook "payment.refunded", revérifié côté merchantgo auprès de
  * GeniusPay). GeniusPay n'expose aucune API pour DÉCLENCHER un
  * remboursement (voir merchantgo/internal/geniuspay/client.go) : l'action
  * reste toujours faite manuellement par un humain sur son dashboard — cet
- * endpoint ne fait que réconcilier automatiquement le retour "received"
- * associé, à la place de l'admin qui devait jusqu'ici le marquer
- * "refunded" à la main après coup.
+ * endpoint ne fait que réconcilier automatiquement, selon ce qui est en
+ * attente pour cette commande : un retour "received" (flux OrderReturn),
+ * OU un remboursement direct "refund_pending" (POST /:id/refund, sans
+ * retour physique) — jamais les deux à la fois pour une même commande.
  */
 router.post('/orders/:id/mark-refunded', validateParams(zCuidIdParam), validate(markRefundedSchema), async (req, res) => {
   const { id } = req.params as unknown as { id: string }
@@ -199,7 +200,19 @@ router.post('/orders/:id/mark-refunded', validateParams(zCuidIdParam), validate(
     include: RETURN_INCLUDE,
   })
   if (candidates.length !== 1) {
-    logger.warn('[internal] mark-refunded : aucun retour "received" unique à réconcilier', id, candidates.length)
+    // Pas de retour produit en jeu — vérifie s'il s'agit d'un remboursement
+    // DIRECT de commande en attente (POST /:id/refund) avant d'abandonner.
+    if (order.paymentStatus === 'refund_pending') {
+      const updatedOrder = await prisma.order.update({
+        where: { id: order.id },
+        data: { paymentStatus: 'refunded', refundedAt: new Date(), refundReference: providerRef },
+      })
+      sendOrderStatusEmail(updatedOrder.clientEmail, updatedOrder.clientPrenom, updatedOrder.orderNumber, 'refunded').catch(() => {})
+      logger.info('[internal] remboursement direct de commande confirmé via webhook GeniusPay', id, providerRef)
+      res.json({ success: true, message: 'Remboursement direct confirmé' })
+      return
+    }
+    logger.warn('[internal] mark-refunded : aucun retour "received" unique ni remboursement direct en attente', id, candidates.length)
     res.json({ success: true, message: 'Remboursement confirmé, aucun retour à réconcilier automatiquement' })
     return
   }

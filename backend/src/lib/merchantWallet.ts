@@ -82,10 +82,49 @@ export async function notifyMerchantsOrderRefunded(returnId: string): Promise<vo
         .reduce((sum, i) => sum + i.orderItem.price * i.quantity, 0)
       if (gross <= 0) return Promise.resolve()
 
-      return recordMerchantRefund({ userId: store.userId, orderId: ret.order.id, orderNumber: ret.order.orderNumber, returnId, grossAmount: gross })
+      return recordMerchantRefund({ userId: store.userId, orderId: ret.order.id, orderNumber: ret.order.orderNumber, refId: returnId, grossAmount: gross })
         .catch(err => logger.error('[merchantWallet] échec débit remboursement', returnId, store.id, err))
     }))
   } catch (err) {
     logger.error('[merchantWallet] échec notifyMerchantsOrderRefunded', returnId, err)
+  }
+}
+
+/**
+ * Reprend au(x) marchand(s) concerné(s) leur part d'un remboursement
+ * DIRECT de commande (POST /api/orders/:id/refund — admin, sans passer par
+ * le flux OrderReturn) — prorata de chaque part marchand d'origine au
+ * ratio remboursé/total, puisqu'un remboursement direct n'est pas rattaché
+ * à des articles précis comme un retour. RefID = "refund:<orderId>",
+ * jamais orderId seul (collision garantie avec la ligne de vente d'origine,
+ * voir models.WalletTransaction côté merchantgo).
+ */
+export async function notifyMerchantsOrderDirectRefund(orderId: string, refundAmount: number, orderTotal: number): Promise<void> {
+  if (!isMerchantgoConfigured() || orderTotal <= 0) return
+
+  try {
+    const order = await prisma.order.findUnique({ where: { id: orderId }, select: { orderNumber: true } })
+    if (!order) return
+
+    const items = await prisma.orderItem.findMany({
+      where: { orderId },
+      select: { price: true, qty: true, product: { select: { storeId: true } } },
+    })
+    const storeIds = [...new Set(items.map(i => i.product.storeId).filter((id): id is number => id != null))]
+    if (storeIds.length === 0) return
+
+    const stores = await prisma.sellerStore.findMany({ where: { id: { in: storeIds } }, select: { id: true, userId: true } })
+    const ratio = Math.min(1, refundAmount / orderTotal)
+
+    await Promise.allSettled(stores.map(store => {
+      const storeGross = items.filter(i => i.product.storeId === store.id).reduce((sum, i) => sum + i.price * i.qty, 0)
+      const gross = Math.round(storeGross * ratio)
+      if (gross <= 0) return Promise.resolve()
+
+      return recordMerchantRefund({ userId: store.userId, orderId, orderNumber: order.orderNumber, refId: `refund:${orderId}`, grossAmount: gross })
+        .catch(err => logger.error('[merchantWallet] échec débit remboursement direct', orderId, store.id, err))
+    }))
+  } catch (err) {
+    logger.error('[merchantWallet] échec notifyMerchantsOrderDirectRefund', orderId, err)
   }
 }

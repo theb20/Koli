@@ -1,13 +1,19 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, MapPin, Phone, Mail, Package, CreditCard, Lock, AlertTriangle, Download, Loader2, Star } from 'lucide-react'
+import { ArrowLeft, MapPin, Phone, Mail, Package, CreditCard, Lock, AlertTriangle, Download, Loader2, Star, Banknote, CheckCircle2 } from 'lucide-react'
 import { useState } from 'react'
 import { api, fmt, fmtDateTime } from '../../lib/api'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
+import { Input, Textarea, Select } from '../../components/ui/Input'
 import { OrderFinanceCard } from './OrderFinanceCard'
 import type { Order, OrderStatus } from '../../types'
+
+const REFUND_METHODS = [
+  { value: 'geniuspay_support', label: 'Ticket support GeniusPay' },
+  { value: 'manual_payout',     label: 'Payout manuel (Mobile Money...)' },
+]
 
 const ALL_STATUSES: { value: OrderStatus; label: string }[] = [
   { value: 'pending', label: 'En attente' }, { value: 'confirmed', label: 'Confirmée' },
@@ -50,6 +56,30 @@ export default function OrderDetailPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['order', id] }),
   })
   const reviewRequestError = (reviewRequest.error as { response?: { data?: { message?: string } } })?.response?.data?.message
+
+  /* Remboursement direct (sans retour physique) — distinct du flux
+     OrderReturn, voir backend/src/routes/orders.ts, POST /:id/refund.
+     GeniusPay n'a pas d'API de remboursement : /refund initie seulement
+     notre côté (stock restitué), le virement réel est fait hors API puis
+     confirmé via webhook ou "Marquer comme remboursé" ci-dessous. */
+  const [showRefundForm, setShowRefundForm] = useState(false)
+  const [refundAmountInput, setRefundAmountInput] = useState('')
+  const [refundReason, setRefundReason]       = useState('')
+  const [refundMethod, setRefundMethod]       = useState('geniuspay_support')
+  const [showConfirmForm, setShowConfirmForm] = useState(false)
+  const [refundReferenceInput, setRefundReferenceInput] = useState('')
+
+  const refundMutation = useMutation({
+    mutationFn: (body: { amount: number; reason: string; method: string }) => api.post(`/api/orders/${id}/refund`, body),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['order', id] }); setShowRefundForm(false); setRefundReason('') },
+  })
+  const refundError = (refundMutation.error as { response?: { data?: { message?: string } } })?.response?.data?.message
+
+  const confirmRefundMutation = useMutation({
+    mutationFn: (body: { refundReference: string }) => api.post(`/api/orders/${id}/confirm-refund`, body),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['order', id] }); setShowConfirmForm(false) },
+  })
+  const confirmRefundError = (confirmRefundMutation.error as { response?: { data?: { message?: string } } })?.response?.data?.message
 
   const [downloadingInvoice, setDownloadingInvoice] = useState(false)
   const handleDownloadInvoice = async () => {
@@ -308,6 +338,113 @@ export default function OrderDetailPage() {
               </div>
             </div>
           </Card>
+
+          {/* Remboursement direct — sans retour physique (voir /returns pour
+              le flux avec réception produit). GeniusPay n'a pas d'API de
+              remboursement : le virement réel se fait hors API. */}
+          {(order.paymentStatus === 'paid' || order.paymentStatus === 'refund_pending' || order.refundAmount) && (
+            <Card className="p-5">
+              <h3 className="text-sm font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                <Banknote size={14} className="text-slate-400" /> Remboursement
+              </h3>
+
+              {order.paymentStatus === 'paid' && (
+                showRefundForm ? (
+                  <div className="space-y-3">
+                    <Input
+                      label={`Montant à rembourser (max ${fmt(order.total)})`}
+                      type="number" min={1} max={order.total}
+                      value={refundAmountInput}
+                      onChange={e => setRefundAmountInput(e.target.value)}
+                      placeholder={String(order.total)}
+                    />
+                    <Select
+                      label="Méthode"
+                      value={refundMethod}
+                      onChange={e => setRefundMethod(e.target.value)}
+                      options={REFUND_METHODS}
+                    />
+                    <Textarea
+                      label="Motif (communiqué en interne, pas au client)"
+                      value={refundReason}
+                      onChange={e => setRefundReason(e.target.value)}
+                      rows={2}
+                      placeholder="Ex : erreur de prix, annulation après paiement..."
+                    />
+                    <p className="text-xs text-amber-600 flex items-start gap-1.5">
+                      <AlertTriangle size={12} className="shrink-0 mt-0.5" />
+                      Le stock sera restitué immédiatement. Le virement réel au client reste à faire hors API
+                      (ticket support GeniusPay ou payout manuel), puis à confirmer ci-dessous.
+                    </p>
+                    {refundError && <p className="text-xs text-red-600">{refundError}</p>}
+                    <div className="flex justify-end gap-2 pt-1">
+                      <Button variant="secondary" size="sm" onClick={() => setShowRefundForm(false)}>Annuler</Button>
+                      <Button variant="danger" size="sm" icon={<Banknote size={13} />} loading={refundMutation.isPending}
+                        disabled={!refundAmountInput || Number(refundAmountInput) <= 0 || Number(refundAmountInput) > order.total || refundReason.trim().length < 3}
+                        onClick={() => {
+                          if (!window.confirm(`Confirmer le remboursement de ${fmt(Number(refundAmountInput))} pour la commande ${order.orderNumber} ?`)) return
+                          refundMutation.mutate({ amount: Number(refundAmountInput), reason: refundReason, method: refundMethod })
+                        }}>
+                        Lancer le remboursement
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button variant="danger" size="sm" icon={<Banknote size={13} />}
+                    onClick={() => { setRefundAmountInput(String(order.total)); setShowRefundForm(true) }}>
+                    Rembourser
+                  </Button>
+                )
+              )}
+
+              {order.paymentStatus === 'refund_pending' && (
+                <div className="space-y-3">
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-800">
+                    <p className="font-medium">{fmt(order.refundAmount ?? 0)} en attente de confirmation</p>
+                    {order.refundReason && <p className="text-xs mt-1">{order.refundReason}</p>}
+                    <p className="text-xs mt-1">
+                      Méthode : {REFUND_METHODS.find(m => m.value === order.refundMethod)?.label ?? order.refundMethod}
+                    </p>
+                  </div>
+                  {showConfirmForm ? (
+                    <div className="space-y-3">
+                      <Input
+                        label="Référence du virement / ticket GeniusPay"
+                        value={refundReferenceInput}
+                        onChange={e => setRefundReferenceInput(e.target.value)}
+                        placeholder="Ex : TICKET-4521 ou référence Mobile Money"
+                      />
+                      {confirmRefundError && <p className="text-xs text-red-600">{confirmRefundError}</p>}
+                      <div className="flex justify-end gap-2">
+                        <Button variant="secondary" size="sm" onClick={() => setShowConfirmForm(false)}>Annuler</Button>
+                        <Button variant="success" size="sm" icon={<CheckCircle2 size={13} />} loading={confirmRefundMutation.isPending}
+                          disabled={!refundReferenceInput.trim()}
+                          onClick={() => {
+                            if (!window.confirm('Confirmer que ce remboursement a bien été envoyé au client ?')) return
+                            confirmRefundMutation.mutate({ refundReference: refundReferenceInput })
+                          }}>
+                          Confirmer le remboursement
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <Button variant="success" size="sm" icon={<CheckCircle2 size={13} />} onClick={() => setShowConfirmForm(true)}>
+                      Marquer comme remboursé
+                    </Button>
+                  )}
+                </div>
+              )}
+
+              {order.paymentStatus === 'refunded' && order.refundAmount && (
+                <div className="text-sm text-slate-700 space-y-1">
+                  <p className="font-medium">{fmt(order.refundAmount)} remboursé</p>
+                  {order.refundReason && <p className="text-xs text-slate-500">{order.refundReason}</p>}
+                  {order.refundReference && <p className="text-xs text-slate-500">Référence : {order.refundReference}</p>}
+                  {order.refundedAt && <p className="text-xs text-slate-400">{fmtDateTime(order.refundedAt)}</p>}
+                </div>
+              )}
+            </Card>
+          )}
 
           <OrderFinanceCard orderId={order.id} />
 

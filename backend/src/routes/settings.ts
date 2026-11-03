@@ -41,6 +41,13 @@ const settingsSchema = z.object({
   loyaltyEnabled:   z.boolean(),
   loyaltyMinRedeem: z.number().int().positive().max(1_000_000),
   codEnabled:       z.boolean(),
+  returnWindowDays: z.number().int().positive().max(365),
+  // Moteur de décision retours (returns.ts, autoDecideReturn) — Max à null
+  // désactive entièrement l'auto-approbation, tout repasse en revue
+  // manuelle comme avant son introduction.
+  returnAutoApproveMaxAmount:      z.number().int().min(0).nullable(),
+  returnAutoApproveMaxRecentCount: z.number().int().min(1).nullable(),
+  returnAutoApproveRecentDays:     z.number().int().min(1).max(365),
 })
 
 /** Champs sûrs à exposer publiquement — orderNotifyEmails est un détail interne, jamais renvoyé ici */

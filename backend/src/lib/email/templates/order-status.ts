@@ -55,6 +55,14 @@ const ORDER_STATUS_MAP: Record<string, {
     accentBg: '#fee2e2',
     msg:      'Votre remboursement a été traité. Comptez 3 à 5 jours ouvrés pour voir les fonds sur votre moyen de paiement.',
   },
+  refund_pending: {
+    title:    'Remboursement en cours',
+    tag:      'En cours',
+    emoji:    '⏳',
+    accent:   '#d97706',
+    accentBg: '#fef3c7',
+    msg:      'Votre remboursement a été initié par notre équipe. Vous recevrez une confirmation dès que les fonds auront été envoyés.',
+  },
 }
 
 export async function sendOrderStatusEmail(

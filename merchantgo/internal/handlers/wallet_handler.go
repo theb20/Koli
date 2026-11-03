@@ -86,14 +86,17 @@ type recordRefundRequest struct {
 	UserID      string `json:"userId" binding:"required"`
 	OrderID     string `json:"orderId" binding:"required"`
 	OrderNumber string `json:"orderNumber" binding:"required"`
-	ReturnID    string `json:"returnId" binding:"required"`
+	RefID       string `json:"refId" binding:"required"`
 	GrossAmount int    `json:"grossAmount" binding:"required"`
 }
 
 // RecordRefund — POST /api/v1/internal/orders/refunded — appelé
-// serveur-à-serveur par backend/ dès qu'un retour (OrderReturn) passe
-// "refunded", une fois par marchand concerné. Symétrique de RecordSale :
-// reprend la part déjà créditée sur les articles retournés.
+// serveur-à-serveur par backend/ dès qu'un remboursement client est
+// confirmé, une fois par marchand concerné. Symétrique de RecordSale :
+// reprend la part déjà créditée. RefID est soit un OrderReturn.id (retour
+// produit), soit "refund:<orderId>" (remboursement direct d'une commande
+// entière, sans passage par le flux de retour) — jamais OrderID seul,
+// toujours distinct de la clé de la vente d'origine.
 func (h *WalletHandler) RecordRefund(c *gin.Context) {
 	var req recordRefundRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -102,7 +105,7 @@ func (h *WalletHandler) RecordRefund(c *gin.Context) {
 	}
 
 	tx, err := h.service.RecordRefund(c.Request.Context(), services.RecordRefundInput{
-		UserID: req.UserID, OrderID: req.OrderID, OrderNumber: req.OrderNumber, ReturnID: req.ReturnID, GrossAmount: req.GrossAmount,
+		UserID: req.UserID, OrderID: req.OrderID, OrderNumber: req.OrderNumber, RefID: req.RefID, GrossAmount: req.GrossAmount,
 	})
 	if err != nil {
 		middleware.RespondError(c, h.logger, err)

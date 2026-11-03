@@ -24,7 +24,7 @@ export function StatusPill({ tone, children, className }: { tone: PillTone; chil
 const STATUS: Record<string, [PillTone, string]> = {
   pending: ['yellow', 'En attente'], confirmed: ['lavender', 'Confirmée'], processing: ['lavender', 'En préparation'],
   shipped: ['blue', 'Expédiée'], delivered: ['green', 'Livrée'], cancelled: ['pink', 'Annulée'], refunded: ['gray', 'Remboursée'],
-  paid: ['green', 'Payé'], failed: ['pink', 'Échoué'],
+  paid: ['green', 'Payé'], failed: ['pink', 'Échoué'], refund_pending: ['yellow', 'Remb. en attente'],
   hot: ['pink', 'Hot'], new: ['blue', 'Nouveau'], sale: ['pink', 'Promo'], top: ['yellow', 'Top'],
   admin: ['lavender', 'Admin'], customer: ['gray', 'Client'], seller: ['blue', 'Marchand'],
   active: ['green', 'Actif'], inactive: ['gray', 'Inactif'], published: ['green', 'Publié'], draft: ['gray', 'Brouillon'],

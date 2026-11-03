@@ -22,8 +22,11 @@ type RecordRefundInput struct {
 	UserID      string
 	OrderID     string
 	OrderNumber string
-	ReturnID    string // clé d'idempotence — pas OrderID, voir models.WalletTransaction
-	GrossAmount int    // part de CE marchand sur les articles RETOURNÉS, pas toute la commande
+	// RefID — clé d'idempotence, jamais OrderID seul (voir models.WalletTransaction) :
+	// un OrderReturn.id pour un retour produit, ou "refund:<orderId>" pour un
+	// remboursement direct de commande entière (voir backend/lib/merchantWallet.ts).
+	RefID       string
+	GrossAmount int // part de CE marchand sur le montant RETOURNÉ, pas toute la commande
 }
 
 type WalletService interface {
@@ -33,9 +36,9 @@ type WalletService interface {
 	// wallet_repository.go, index unique).
 	RecordSale(ctx context.Context, in RecordSaleInput) (*models.WalletTransaction, error)
 	// RecordRefund reprend (NetAmount négatif, même commission que la vente
-	// d'origine) la part d'un marchand sur un retour remboursé — idempotent
-	// par (ReturnID, UserID), jamais OrderID seul (plusieurs retours
-	// possibles pour une même commande).
+	// d'origine) la part d'un marchand sur un montant remboursé — idempotent
+	// par (RefID, UserID), jamais OrderID seul (plusieurs remboursements
+	// possibles pour une même commande, voir RecordRefundInput.RefID).
 	RecordRefund(ctx context.Context, in RecordRefundInput) (*models.WalletTransaction, error)
 	Balance(ctx context.Context, userID string) (int64, error)
 	List(ctx context.Context, userID string, page, limit int) ([]models.WalletTransaction, int64, error)
@@ -121,13 +124,13 @@ func (s *walletService) RecordRefund(ctx context.Context, in RecordRefundInput) 
 		return nil, utils.ErrBadRequest("Montant invalide", nil)
 	}
 
-	existing, err := s.walletRepo.FindByRefAndUser(ctx, in.ReturnID, in.UserID)
+	existing, err := s.walletRepo.FindByRefAndUser(ctx, in.RefID, in.UserID)
 	if err != nil {
 		return nil, utils.ErrInternal(err)
 	}
 	if existing != nil {
 		s.logger.Info("remboursement déjà enregistré, appel idempotent ignoré",
-			zap.String("return_id", in.ReturnID), zap.String("user_id", in.UserID))
+			zap.String("ref_id", in.RefID), zap.String("user_id", in.UserID))
 		return existing, nil
 	}
 
@@ -150,7 +153,7 @@ func (s *walletService) RecordRefund(ctx context.Context, in RecordRefundInput) 
 	tx := &models.WalletTransaction{
 		UserID:           in.UserID,
 		Type:             models.TransactionRefund,
-		RefID:            in.ReturnID,
+		RefID:            in.RefID,
 		OrderID:          in.OrderID,
 		OrderNumber:      in.OrderNumber,
 		GrossAmount:      -in.GrossAmount,
@@ -161,7 +164,7 @@ func (s *walletService) RecordRefund(ctx context.Context, in RecordRefundInput) 
 	}
 
 	if err := s.walletRepo.Create(ctx, tx); err != nil {
-		if again, findErr := s.walletRepo.FindByRefAndUser(ctx, in.ReturnID, in.UserID); findErr == nil && again != nil {
+		if again, findErr := s.walletRepo.FindByRefAndUser(ctx, in.RefID, in.UserID); findErr == nil && again != nil {
 			return again, nil
 		}
 		return nil, utils.ErrInternal(err)

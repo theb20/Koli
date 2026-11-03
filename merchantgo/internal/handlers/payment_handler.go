@@ -105,11 +105,16 @@ func (h *PaymentHandler) GeniusPayWebhook(c *gin.Context) {
 		return
 	}
 
-	// "refund.completed" est le seul événement remboursement du SDK officiel
-	// (voir geniuspay/client.go) — traité à part car il ne représente jamais
-	// une confirmation de PAIEMENT (ConfirmPayment est un no-op idempotent
-	// sur un intent déjà "success", il ne ferait donc rien d'utile ici).
-	if payload.Event == "refund.completed" {
+	// "payment.refunded" — nom RÉEL de l'événement tel que configurable dans
+	// le dashboard marchand GeniusPay (vérifié directement dans l'écran de
+	// création de webhook, 2026-11-03). Le SDK Laravel tiers lu plus tôt
+	// (github.com/Genius-Groupsgit/geniuspay-laravel) documentait
+	// "refund.completed" — nom DIFFÉRENT, probablement une version du SDK
+	// désynchronisée de l'API réelle. Le dashboard fait foi, pas le SDK.
+	// Traité à part car il ne représente jamais une confirmation de PAIEMENT
+	// (ConfirmPayment est un no-op idempotent sur un intent déjà "success",
+	// il ne ferait donc rien d'utile ici).
+	if payload.Event == "payment.refunded" {
 		if _, err := h.service.ConfirmRefund(c.Request.Context(), payload.Data.Reference); err != nil {
 			middleware.RespondError(c, h.logger, err)
 			return

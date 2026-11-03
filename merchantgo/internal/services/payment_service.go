@@ -31,7 +31,7 @@ type PaymentService interface {
 	// via le seul contenu du webhook) et, si elle est effectivement payée,
 	// notifie backend/ une seule fois (idempotent via l'état stocké).
 	ConfirmPayment(ctx context.Context, providerRef string) (*models.PaymentIntent, error)
-	// ConfirmRefund traite l'événement webhook GeniusPay "refund.completed" —
+	// ConfirmRefund traite l'événement webhook GeniusPay "payment.refunded" —
 	// ne DÉCLENCHE jamais de remboursement (GeniusPay n'en expose pas
 	// l'API), enregistre seulement qu'un remboursement déjà fait côté
 	// GeniusPay (manuellement, par un humain sur leur dashboard) doit être
@@ -198,7 +198,7 @@ func (s *paymentService) ConfirmPayment(ctx context.Context, providerRef string)
 	return intent, nil
 }
 
-// ConfirmRefund traite l'événement webhook GeniusPay "refund.completed".
+// ConfirmRefund traite l'événement webhook GeniusPay "payment.refunded".
 // Contrairement à ConfirmPayment, il n'existe pas de valeur de statut
 // GeniusPay documentée pour "remboursé" sur GET /payments/:reference (SDK
 // officiel muet sur le sujet — voir geniuspay/client.go) : on ne peut donc
