@@ -77,8 +77,12 @@ func main() {
 	walletService := services.NewWalletService(walletRepo, billingService, logger)
 	walletHandler := handlers.NewWalletHandler(walletService, logger)
 
+	payoutMethodRepo := repository.NewPayoutMethodRepository(db)
+	payoutMethodService := services.NewPayoutMethodService(payoutMethodRepo)
+	payoutMethodHandler := handlers.NewPayoutMethodHandler(payoutMethodService, logger)
+
 	settlementRepo := repository.NewSettlementRepository(db)
-	settlementService := services.NewSettlementService(settlementRepo, logger)
+	settlementService := services.NewSettlementService(settlementRepo, payoutMethodRepo, cfg, logger)
 	settlementHandler := handlers.NewSettlementHandler(settlementService, logger)
 
 	if !cfg.GeniusPayConfigured() {
@@ -95,11 +99,31 @@ func main() {
 	}
 	paymentRepo := repository.NewPaymentRepository(db)
 	paymentService := services.NewPaymentService(paymentRepo, cfg, backendClient, logger)
-	paymentHandler := handlers.NewPaymentHandler(paymentService, cfg, logger)
+
+	subscriptionInvoiceRepo := repository.NewSubscriptionInvoiceRepository(db)
+	subscriptionBillingService := services.NewSubscriptionBillingService(subscriptionInvoiceRepo, billingRepo, cfg, backendClient, logger)
+	subscriptionInvoiceHandler := handlers.NewSubscriptionInvoiceHandler(subscriptionBillingService, logger)
+
+	paymentHandler := handlers.NewPaymentHandler(paymentService, subscriptionBillingService, cfg, logger)
 
 	// Idempotence des écritures (en-tête Idempotency-Key) — voir middleware/idempotency.go
 	idempotency := middleware.Idempotency(repository.NewIdempotencyRepository(db), logger, middleware.IdempotencyOptions{})
-	router := routes.Setup(cfg, appHandler, adminHandler, kycWebhookHandler, billingHandler, walletHandler, planHandler, paymentHandler, settlementHandler, idempotency, logger)
+	router := routes.Setup(cfg, appHandler, adminHandler, kycWebhookHandler, billingHandler, walletHandler, planHandler, paymentHandler, settlementHandler, payoutMethodHandler, subscriptionInvoiceHandler, idempotency, logger)
+
+	// Facturation d'abonnement — cycle AUTOMATIQUE (génération, relance des
+	// liens expirés, suspension après délai de grâce, réactivation au
+	// paiement), voir SubscriptionBillingService.RunCycle. Lancé une fois
+	// immédiatement (ne pas attendre 6h après un déploiement), puis toutes
+	// les 6h — même cadence que le poller de relevés mensuels côté backend/.
+	go func() {
+		ctx := context.Background()
+		subscriptionBillingService.RunCycle(ctx)
+		ticker := time.NewTicker(6 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			subscriptionBillingService.RunCycle(ctx)
+		}
+	}()
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.Port,

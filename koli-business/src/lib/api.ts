@@ -177,7 +177,6 @@ export type ApplicationPayload = Omit<
   | 'emailVerified'
   | 'photoProfil' | 'logoBoutique' | 'banniereBoutique'
   | 'documentIdentite' | 'selfie' | 'justificatifDomicile'
-  | 'billingMode' | 'subscriptionPlanId'
 >
 
 export function buildApplicationPayload(data: RegisterFormData): ApplicationPayload {
@@ -186,7 +185,6 @@ export function buildApplicationPayload(data: RegisterFormData): ApplicationPayl
     emailVerified: _emailVerified,
     photoProfil: _photoProfil, logoBoutique: _logoBoutique, banniereBoutique: _banniereBoutique,
     documentIdentite: _documentIdentite, selfie: _selfie, justificatifDomicile: _justificatifDomicile,
-    billingMode: _billingMode, subscriptionPlanId: _subscriptionPlanId,
     ...payload
   } = data
   return payload
@@ -229,9 +227,9 @@ export async function getMyApplication() {
 }
 
 /* ── Modèle économique (merchantgo) ──────────────────────────────
-   Choisi pendant l'inscription, avant même l'approbation KYC — le
-   marchand démarre directement avec le mode voulu au lieu du défaut
-   commission 5%. Reste modifiable plus tard dans koli-marchand. */
+   Choix retiré du parcours d'inscription (simplifié en 2 étapes) — un
+   marchand démarre en commission par défaut, l'équipe Skignas choisit le
+   modèle économique après coup (voir koli-admin, réservé à l'admin). */
 export type SubscriptionPlan = {
   id: string
   slug: string
@@ -256,12 +254,3 @@ export async function getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
   return body.data as SubscriptionPlan[]
 }
 
-export async function saveMerchantBilling(data: RegisterFormData) {
-  return merchantgoRequest('/api/v1/merchant/billing', {
-    method: 'PUT',
-    body: JSON.stringify({
-      mode: data.billingMode,
-      subscriptionPlanId: data.billingMode === 'subscription' ? data.subscriptionPlanId : undefined,
-    }),
-  })
-}

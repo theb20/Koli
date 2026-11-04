@@ -33,6 +33,17 @@ import { productOgImage } from '../lib/ogImage'
 
 const router = Router()
 
+/**
+ * Exclut du catalogue PUBLIC les produits d'une boutique suspendue pour
+ * facture d'abonnement impayée (voir SellerStore.suspendedAt, posé
+ * automatiquement par merchantgo) — jamais pour les produits du catalogue
+ * plateforme (storeId null, aucune boutique donc rien à suspendre) ni pour
+ * une vue admin (qui doit tout voir, suspension incluse, pour agir dessus).
+ */
+function visibleStoreFilter() {
+  return { OR: [{ storeId: null }, { store: { suspendedAt: null } }] }
+}
+
 /* ── Multer — import CSV/Excel en mémoire (petit fichier, pas besoin de disque) ── */
 const csvUpload = multer({
   storage: multer.memoryStorage(),
@@ -294,7 +305,7 @@ router.get('/', optionalAuth, cacheControl(30), memoryCache(30), async (req, res
     // Hors admin, un produit désactivé ne doit JAMAIS apparaître, quels que
     // soient les paramètres reçus — seul l'admin peut lever ce filtre
     // (retrouver un produit désactivé, voir koli-admin/ProductsPage).
-    if (!isAdmin) where['isActive'] = true
+    if (!isAdmin) { where['isActive'] = true; where['OR'] = visibleStoreFilter().OR }
     else if (status !== 'all') where['isActive'] = status === 'active'
 
     if (category) where['category'] = category
@@ -377,17 +388,17 @@ router.get('/featured', cacheControl(60), memoryCache(60), async (_req, res) => 
   try {
     const [hot, newItems, topRated] = await Promise.all([
       prisma.product.findMany({
-        where: { badge: 'hot', isActive: true },
+        where: { badge: 'hot', isActive: true, ...visibleStoreFilter() },
         take: 8, orderBy: { sold: 'desc' },
         include: { images: { take: 1, orderBy: { position: 'asc' } } },
       }),
       prisma.product.findMany({
-        where: { isNew: true, isActive: true },
+        where: { isNew: true, isActive: true, ...visibleStoreFilter() },
         take: 8, orderBy: { createdAt: 'desc' },
         include: { images: { take: 1, orderBy: { position: 'asc' } } },
       }),
       prisma.product.findMany({
-        where: { rating: { gte: 4.5 }, isActive: true },
+        where: { rating: { gte: 4.5 }, isActive: true, ...visibleStoreFilter() },
         take: 8, orderBy: { rating: 'desc' },
         include: { images: { take: 1, orderBy: { position: 'asc' } } },
       }),
@@ -513,7 +524,7 @@ router.get('/:id/og-image.jpg', validateParams(zIntIdParam), async (req, res) =>
   const id = Number(req.params['id'])
   try {
     const product = await prisma.product.findFirst({
-      where:  { id, isActive: true },
+      where:  { id, isActive: true, ...visibleStoreFilter() },
       select: { images: { orderBy: { position: 'asc' }, take: 1, select: { url: true } } },
     })
     const source = product?.images[0]?.url
@@ -541,7 +552,7 @@ router.get('/:id', optionalAuth, cacheControl(20), memoryCache(20, { varyByAuth:
     const isAdmin = req.user?.role === 'admin'
 
     const product = await prisma.product.findFirst({
-      where: isAdmin ? { id } : { id, isActive: true },
+      where: isAdmin ? { id } : { id, isActive: true, ...visibleStoreFilter() },
       include: {
         images:      { orderBy: { position: 'asc' } },
         specs:       { orderBy: { position: 'asc' } },
@@ -564,7 +575,7 @@ router.get('/:id', optionalAuth, cacheControl(20), memoryCache(20, { varyByAuth:
     // Produits similaires + statut wishlist — indépendants, en parallèle
     const [similar, wish] = await Promise.all([
       prisma.product.findMany({
-        where: { category: product.category, id: { not: product.id }, isActive: true },
+        where: { category: product.category, id: { not: product.id }, isActive: true, ...visibleStoreFilter() },
         take: 6, orderBy: { sold: 'desc' },
         include: { images: { take: 1, orderBy: { position: 'asc' } } },
       }),

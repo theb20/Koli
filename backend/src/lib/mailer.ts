@@ -27,6 +27,9 @@ export {
   sendMonthlySettlementEmail,
   sendNewMerchantMessageEmail,
   sendNewAdminMessageEmail,
+  sendSubscriptionInvoiceEmail,
+  sendStoreSuspendedEmail,
+  sendStoreReactivatedEmail,
 } from './email'
 
 export type { OrderItem, OrderConfirmationPayload, NewOrderAdminPayload, NewProductRequestAdminPayload, NewReturnAdminPayload } from './email'

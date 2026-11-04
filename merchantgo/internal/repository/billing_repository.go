@@ -14,6 +14,10 @@ type BillingRepository interface {
 	FindByUserID(ctx context.Context, userID string) (*models.MerchantBilling, error)
 	FindByUserIDs(ctx context.Context, userIDs []string) ([]models.MerchantBilling, error)
 	Save(ctx context.Context, b *models.MerchantBilling) error
+	// ListSubscriptionMode — tous les marchands en mode "subscription", avec
+	// leur plan préchargé (prix) — base de la facturation automatique, voir
+	// services/subscription_billing_service.go.
+	ListSubscriptionMode(ctx context.Context) ([]models.MerchantBilling, error)
 }
 
 type gormBillingRepository struct {
@@ -50,4 +54,13 @@ func (r *gormBillingRepository) FindByUserIDs(ctx context.Context, userIDs []str
 
 func (r *gormBillingRepository) Save(ctx context.Context, b *models.MerchantBilling) error {
 	return r.db.WithContext(ctx).Save(b).Error
+}
+
+func (r *gormBillingRepository) ListSubscriptionMode(ctx context.Context) ([]models.MerchantBilling, error) {
+	var bs []models.MerchantBilling
+	err := r.db.WithContext(ctx).Preload("SubscriptionPlan").Where("mode = ?", models.BillingModeSubscription).Find(&bs).Error
+	if err != nil {
+		return nil, err
+	}
+	return bs, nil
 }

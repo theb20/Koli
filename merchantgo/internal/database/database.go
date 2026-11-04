@@ -78,5 +78,6 @@ func Migrate(db *gorm.DB) error {
 		&models.Application{}, &models.StatusEvent{}, &models.DiditWebhookEvent{},
 		&models.SubscriptionPlan{}, &models.MerchantBilling{}, &models.WalletTransaction{},
 		&models.PaymentIntent{}, &models.IdempotencyKey{}, &models.MonthlySettlement{},
+		&models.SubscriptionInvoice{}, &models.MerchantPayoutMethod{},
 	)
 }

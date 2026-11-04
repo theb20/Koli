@@ -1,28 +1,16 @@
 import { useEffect, useState } from 'react'
 import { AuthLayout } from '../components/AuthLayout'
 import { initialRegisterFormData, type RegisterFormData } from './register/types'
-import { hasAccessToken, registerAccount, saveApplicationDraft, saveMerchantBilling, submitApplication, uploadFile, ApiError } from '../lib/api'
+import { saveApplicationDraft, submitApplication, uploadFile, ApiError } from '../lib/api'
 import { preloadRecaptcha } from '../lib/recaptcha'
-import { Step1Account } from './register/steps/Step1Account'
-import { Step2Verification } from './register/steps/Step2Verification'
-import { Step3Personal } from './register/steps/Step3Personal'
-import { Step4Business } from './register/steps/Step4Business'
-import { Step5Legal } from './register/steps/Step5Legal'
-import { Step6Address } from './register/steps/Step6Address'
-import { Step7Payment } from './register/steps/Step7Payment'
-import { StepBilling } from './register/steps/StepBilling'
-import { Step8Kyc } from './register/steps/Step8Kyc'
-import { Step9Delivery } from './register/steps/Step9Delivery'
-import { Step10Settings } from './register/steps/Step10Settings'
+import { StepAccount } from './register/steps/StepAccount'
+import { StepBoutique } from './register/steps/StepBoutique'
 import { Step11Confirmation } from './register/steps/Step11Confirmation'
 
-const STEP_TITLES = [
-  'Compte', 'Vérification', 'Profil', 'Boutique', 'Statut légal',
-  'Adresse', 'Paiement', 'Facturation', 'Identité', 'Livraison', 'Paramètres',
-]
+const STEP_TITLES = ['Compte', 'Boutique']
 
 export default function RegisterPage() {
-  const [step, setStep] = useState(0) // 0-9 : étapes de formulaire, 10 : confirmation
+  const [step, setStep] = useState(0) // 0 : Compte, 1 : Boutique, 2 : confirmation
   const [data, setData] = useState<RegisterFormData>(initialRegisterFormData)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -34,14 +22,20 @@ export default function RegisterPage() {
   const isLastFormStep = step === STEP_TITLES.length - 1
   const isConfirmation = step === STEP_TITLES.length
 
+  // Le compte lui-même (création + vérification e-mail) est entièrement géré
+  // à l'intérieur de StepAccount — canAdvance(0) ne fait qu'attendre le
+  // signal final (emailVerified), pas une action à déclencher ici.
   const canAdvance = (): boolean => {
     switch (step) {
-      case 0: return !!(data.prenom && data.nom && data.email && data.telephone && data.password && data.acceptedTerms)
-      case 1: return data.emailVerified
-      case 2: return !!(data.dateNaissance && data.paysResidence && data.villeResidence)
-      case 7: return data.billingMode === 'commission' || !!data.subscriptionPlanId
-      case 8: return !!(data.documentIdentite && data.selfie)
-      case 10: return data.cgv
+      case 0: return data.emailVerified
+      case 1: return !!(
+        data.nomBoutique && data.typeEntreprise &&
+        // numeroLegal (RCCM) n'est exigé que pour auto-entrepreneur/société —
+        // même règle que merchantgo, missingRequiredFields.
+        (data.typeEntreprise === 'individuel' || data.numeroLegal) &&
+        data.paysAdresse && data.villeAdresse && data.adresseComplete &&
+        data.documentIdentite && data.selfie && data.cgv
+      )
       default: return true
     }
   }
@@ -67,33 +61,23 @@ export default function RegisterPage() {
     try {
       const patch: Partial<RegisterFormData> = {}
 
-      if (step === 2 && !hasAccessToken()) {
-        await registerAccount(data)
-      }
-      if (step === 2) {
-        await ensureUploaded(data.photoProfil, data.photoProfilUrl, 'photo-profil', patch, 'photoProfilUrl')
-      }
-      if (step === 3) {
-        await ensureUploaded(data.logoBoutique, data.logoBoutiqueUrl, 'logo-boutique', patch, 'logoBoutiqueUrl')
-        await ensureUploaded(data.banniereBoutique, data.banniereBoutiqueUrl, 'banniere-boutique', patch, 'banniereBoutiqueUrl')
-      }
-      if (step === 8) {
+      if (step === 1) {
         await ensureUploaded(data.documentIdentite, data.documentIdentiteUrl, 'document-identite', patch, 'documentIdentiteUrl')
         await ensureUploaded(data.selfie, data.selfieUrl, 'selfie', patch, 'selfieUrl')
-        await ensureUploaded(data.justificatifDomicile, data.justificatifDomicileUrl, 'justificatif-domicile', patch, 'justificatifDomicileUrl')
       }
 
       const effectiveData = { ...data, ...patch }
       if (Object.keys(patch).length > 0) update(patch)
 
-      if (step === 7) {
-        await saveMerchantBilling(effectiveData)
-      }
-      if (step >= 2) {
+      // Rien à enregistrer côté Application en quittant l'étape Compte
+      // (prénom/nom/email/téléphone sont des champs User, déjà sauvés par
+      // registerAccount dans StepAccount) — seule l'étape Boutique alimente
+      // le dossier merchantgo.
+      if (step === 1) {
         await saveApplicationDraft(effectiveData)
-      }
-      if (isLastFormStep) {
-        await submitApplication()
+        if (isLastFormStep) {
+          await submitApplication()
+        }
       }
 
       setStep(s => s + 1)
@@ -109,10 +93,7 @@ export default function RegisterPage() {
     setStep(s => Math.max(0, s - 1))
   }
 
-  const steps = [
-    Step1Account, Step2Verification, Step3Personal, Step4Business, Step5Legal,
-    Step6Address, Step7Payment, StepBilling, Step8Kyc, Step9Delivery, Step10Settings,
-  ]
+  const steps = [StepAccount, StepBoutique]
   const CurrentStep = steps[step]
 
   return (
@@ -166,25 +147,33 @@ export default function RegisterPage() {
               </div>
             )}
 
-            <div className="flex gap-3 pt-1">
-              {step > 0 && (
+            {/* StepAccount gère elle-même ses propres boutons ("Créer mon
+                compte" puis "Vérifier") tant que l'e-mail n'est pas
+                confirmé — afficher EN PLUS le bouton générique "Continuer"
+                à ce moment-là serait redondant (il resterait désactivé de
+                toute façon). Il réapparaît dès que data.emailVerified
+                passe à vrai, pour faire avancer vers l'étape Boutique. */}
+            {!(step === 0 && !data.emailVerified) && (
+              <div className="flex gap-3 pt-1">
+                {step > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleBack}
+                    disabled={saving}
+                    className="border border-[#d6d6d6] hover:border-[#111] transition-colors rounded-lg px-6 py-3.5 text-[15px] font-semibold text-[#111] disabled:opacity-40"
+                  >
+                    Retour
+                  </button>
+                )}
                 <button
-                  type="button"
-                  onClick={handleBack}
-                  disabled={saving}
-                  className="border border-[#d6d6d6] hover:border-[#111] transition-colors rounded-lg px-6 py-3.5 text-[15px] font-semibold text-[#111] disabled:opacity-40"
+                  type="submit"
+                  disabled={!canAdvance() || saving}
+                  className="flex-1 bg-[#111] disabled:opacity-40 hover:bg-[#2c2c2c] transition-colors text-white rounded-lg py-3.5 text-[15px] font-bold"
                 >
-                  Retour
+                  {saving ? 'Enregistrement…' : isLastFormStep ? 'Envoyer mon dossier' : 'Continuer'}
                 </button>
-              )}
-              <button
-                type="submit"
-                disabled={!canAdvance() || saving}
-                className="flex-1 bg-[#111] disabled:opacity-40 hover:bg-[#2c2c2c] transition-colors text-white rounded-lg py-3.5 text-[15px] font-bold"
-              >
-                {saving ? 'Enregistrement…' : isLastFormStep ? 'Envoyer mon dossier' : 'Continuer'}
-              </button>
-            </div>
+              </div>
+            )}
           </form>
         </>
       )}

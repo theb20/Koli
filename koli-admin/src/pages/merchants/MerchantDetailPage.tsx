@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Store, Mail, Phone, MapPin, Package, ShoppingCart, TrendingUp, Ban, CheckCircle2, CreditCard, Pencil } from 'lucide-react'
+import { ArrowLeft, Store, Mail, Phone, MapPin, Package, ShoppingCart, TrendingUp, Ban, CheckCircle2, CreditCard, Pencil, AlertTriangle, FileText } from 'lucide-react'
 import { api, fmt, fmtDate, fmtDateTime } from '../../lib/api'
 import { Badge } from '../../components/ui/Badge'
 import { Card, StatCard } from '../../components/ui/Card'
@@ -15,16 +15,34 @@ interface BillingSummary {
   planId: string | null
 }
 
+interface SubscriptionInvoice {
+  id: string
+  period_start: string
+  amount: number
+  status: 'pending' | 'paid' | 'overdue'
+  checkout_url: string
+  due_at: string
+  paid_at: string | null
+}
+
 interface MerchantDetail {
   seller: {
     id: number; name: string; description: string | null; logo: string | null; banner: string | null
     phone: string | null; address: string | null; isApproved: boolean; createdAt: string
+    suspendedAt: string | null; suspensionReason: string | null
     owner: { id: string; prenom: string; nom: string; email: string; isBanned: boolean; createdAt: string }
     billing: BillingSummary | null
+    subscriptionInvoices: SubscriptionInvoice[]
   }
   stats: { productCount: number; orderCount: number; revenue: number; byStatus: Record<string, number> }
   recentOrders: { orderNumber: string; status: string; createdAt: string; client: string; total: number }[]
   recentProducts: { id: number; name: string; price: number; stock: number; isActive: boolean; image: string | null }[]
+}
+
+const MONTH_LABELS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
+function periodLabel(periodStart: string): string {
+  const d = new Date(periodStart)
+  return `${MONTH_LABELS[d.getUTCMonth()]} ${d.getUTCFullYear()}`
 }
 
 async function fetchMerchant(id: string) {
@@ -51,6 +69,20 @@ export default function MerchantDetailPage() {
       qc.invalidateQueries({ queryKey: ['admin-sellers'] })
       setConfirmToggle(false)
     },
+  })
+
+  /* Suspension pour facture d'abonnement impayée — AUTOMATIQUE par défaut
+     (voir merchantgo), ces mutations ne servent qu'à la dérogation
+     manuelle : marquer une facture payée (réactive automatiquement si
+     c'est elle qui avait suspendu le marchand), ou lever la suspension
+     sans paiement (geste commercial). */
+  const markInvoicePaid = useMutation({
+    mutationFn: (invoiceId: string) => api.put(`/api/admin/sellers/subscription-invoices/${invoiceId}/mark-paid`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-sellers', id] }),
+  })
+  const liftSuspension = useMutation({
+    mutationFn: () => api.post(`/api/admin/sellers/${id}/billing-unsuspend`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-sellers', id] }),
   })
 
   if (isLoading || !data) {
@@ -182,6 +214,74 @@ export default function MerchantDetailPage() {
           )}
         </Card>
       </div>
+
+      {seller.billing?.mode === 'subscription' && (
+        <Card className="p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-slate-900">Facturation abonnement</h2>
+            <span className="text-xs text-slate-400">Automatique — génération, relance et suspension sans action requise</span>
+          </div>
+
+          {seller.suspendedAt && (
+            <div className="flex items-start gap-3 p-3.5 rounded-xl bg-red-50 border border-red-100 mb-4">
+              <AlertTriangle size={16} className="text-red-500 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-red-700">Boutique suspendue (catalogue masqué)</p>
+                <p className="text-xs text-red-600 mt-0.5">{seller.suspensionReason}</p>
+              </div>
+              <button
+                onClick={() => liftSuspension.mutate()}
+                disabled={liftSuspension.isPending}
+                className="shrink-0 text-xs font-semibold text-red-700 underline underline-offset-2 hover:text-red-800 disabled:opacity-50"
+              >
+                Lever sans paiement
+              </button>
+            </div>
+          )}
+
+          {seller.subscriptionInvoices.length === 0 ? (
+            <p className="text-sm text-slate-400 py-6 text-center">Aucune facture pour l'instant</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-100">
+                    <th className="pb-2">Mois</th>
+                    <th className="pb-2 text-right">Montant</th>
+                    <th className="pb-2">Statut</th>
+                    <th className="pb-2">Échéance</th>
+                    <th className="pb-2"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {seller.subscriptionInvoices.map(inv => (
+                    <tr key={inv.id}>
+                      <td className="py-2.5 font-medium text-slate-900">{periodLabel(inv.period_start)}</td>
+                      <td className="py-2.5 text-right text-slate-700">{fmt(inv.amount)}</td>
+                      <td className="py-2.5">
+                        <Badge label={inv.status === 'paid' ? 'active' : inv.status === 'overdue' ? 'rejected' : 'inactive'}
+                          color={inv.status === 'paid' ? 'active' : inv.status === 'overdue' ? 'rejected' : 'inactive'} />
+                      </td>
+                      <td className="py-2.5 text-xs text-slate-400">{fmtDate(inv.due_at)}</td>
+                      <td className="py-2.5 text-right">
+                        {inv.status !== 'paid' && (
+                          <button
+                            onClick={() => markInvoicePaid.mutate(inv.id)}
+                            disabled={markInvoicePaid.isPending}
+                            className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 disabled:opacity-50 ml-auto"
+                          >
+                            <FileText size={12} /> Marquer payée
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      )}
 
       <Card className="p-5">
         <h2 className="text-sm font-semibold text-slate-900 mb-4">Produits récents</h2>

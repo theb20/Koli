@@ -150,6 +150,15 @@ model SellerStore {
   /// Seuil d'alerte de stock bas — en dessous (inclus), un e-mail est
   /// envoyé au marchand (voir lib/lowStockAlert.ts). null = pas d'alerte.
   lowStockThreshold Int?
+  /// Suspension AUTOMATIQUE pour facture d'abonnement impayée après le
+  /// délai de grâce (voir merchantgo, SubscriptionInvoice — jamais posé à
+  /// la main directement en base, toujours via POST
+  /// /api/internal/merchants/:userId/suspend, levée automatiquement au
+  /// paiement). Un admin peut lever/poser manuellement en dérogation, voir
+  /// routes/admin-sellers.ts. Catalogue masqué du site public tant que
+  /// non-null — jamais une suppression, toujours réversible.
+  suspendedAt      DateTime?
+  suspensionReason String?
 
   @@map("seller_stores")
 }

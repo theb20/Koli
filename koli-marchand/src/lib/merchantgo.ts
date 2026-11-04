@@ -127,3 +127,27 @@ export interface SettlementsPage {
 export function getSettlements(page = 1, limit = 20) {
   return merchantgoRequest<SettlementsPage>(`/api/v1/merchant/settlements?page=${page}&limit=${limit}`)
 }
+
+export interface SubscriptionInvoice {
+  id: string
+  period_start: string
+  amount: number
+  status: 'pending' | 'paid' | 'overdue'
+  checkout_url: string
+  due_at: string
+  paid_at?: string | null
+}
+
+export interface SubscriptionInvoicesPage {
+  invoices: SubscriptionInvoice[]
+  total: number
+  page: number
+  limit: number
+}
+
+// Facturation d'abonnement — générée, relancée et recouvrée AUTOMATIQUEMENT
+// (voir merchantgo, SubscriptionBillingService) : rien à déclencher ici,
+// seulement consulter et, si une facture est en attente, payer via son lien.
+export function getSubscriptionInvoices(page = 1, limit = 12) {
+  return merchantgoRequest<SubscriptionInvoicesPage>(`/api/v1/merchant/subscription-invoices?page=${page}&limit=${limit}`)
+}

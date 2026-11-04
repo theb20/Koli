@@ -7,9 +7,9 @@ import { CreditCard, Banknote } from 'lucide-react'
  * merchantgo : afficher un logo pour un moyen non fonctionnel trompe le client.
  */
 const METHODS = [
-  { label: 'Wave', bg: '#1DC9DC', fg: '#ffffff' },
-  { label: 'Orange Money', bg: '#FF7900', fg: '#ffffff' },
-  { label: 'MTN MoMo', bg: '#FFCC00', fg: '#111111' },
+  { label: 'Wave', bg: '#1DC9DC', fg: '#ffffff', img: '/icons/wave.png' },
+  { label: 'Orange Money', bg: '#FF7900', fg: '#ffffff', img: '/icons/orange.png' },
+  { label: 'MTN MoMo', bg: '#FFCC00', fg: '#111111', img: '/icons/mtn.png' },
 ]
 
 export function PaymentMethods({ codEnabled }: { codEnabled?: boolean }) {
@@ -23,15 +23,15 @@ export function PaymentMethods({ codEnabled }: { codEnabled?: boolean }) {
             className="h-6 px-2 rounded border border-border flex items-center text-[11px] font-semibold"
             style={{ background: m.bg, color: m.fg }}
           >
-            {m.label}
+            <img src={m.img} alt={m.label} className="h-4" />
           </span>
         ))}
         <span className="h-6 px-2 rounded border border-border flex items-center gap-1 text-[11px] font-semibold text-ink bg-surface">
-          <CreditCard size={12} /> Carte bancaire
+          <img src="/icons/cd.png" alt="cb" className="h-4" />
         </span>
         {codEnabled && (
           <span className="h-6 px-2 rounded border border-border flex items-center gap-1 text-[11px] font-semibold text-ink bg-surface">
-            <Banknote size={12} /> Paiement à la livraison
+            <img src="/icons/cod.png" alt="cod" className="h-4" />
           </span>
         )}
       </div>

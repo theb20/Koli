@@ -23,6 +23,8 @@ func Setup(
 	planHandler *handlers.SubscriptionPlanHandler,
 	paymentHandler *handlers.PaymentHandler,
 	settlementHandler *handlers.SettlementHandler,
+	payoutMethodHandler *handlers.PayoutMethodHandler,
+	subscriptionInvoiceHandler *handlers.SubscriptionInvoiceHandler,
 	idempotency gin.HandlerFunc,
 	logger *zap.Logger,
 ) *gin.Engine {
@@ -94,6 +96,12 @@ func Setup(
 			merchant.GET("/wallet/balance", walletHandler.Balance)
 			merchant.GET("/wallet/transactions", walletHandler.ListTransactions)
 			merchant.GET("/settlements", settlementHandler.ListMine)
+			merchant.GET("/subscription-invoices", subscriptionInvoiceHandler.ListMine)
+			// Méthode de versement Mobile Money — self-service, voir
+			// services.PayoutMethodService (pas réservé à l'équipe Skignas,
+			// contrairement au modèle économique).
+			merchant.GET("/payout-method", payoutMethodHandler.GetMine)
+			merchant.PUT("/payout-method", payoutMethodHandler.SetMine)
 		}
 
 		// Catalogue de plans, lecture publique (koli-business/koli-marchand
@@ -132,6 +140,21 @@ func Setup(
 		{
 			adminBillingBulk.POST("/bulk", billingHandler.GetBulk)
 			adminBillingBulk.PUT("/:userId", billingHandler.AdminSet)
+		}
+
+		// Dérogation manuelle à la facturation automatique — voir
+		// SubscriptionBillingService.AdminMarkPaid.
+		adminSubscriptionInvoices := v1.Group("/admin/subscription-invoices")
+		adminSubscriptionInvoices.Use(middleware.RequireAdmin(cfg, logger), idempotency)
+		{
+			adminSubscriptionInvoices.GET("/:userId", subscriptionInvoiceHandler.AdminListByUser)
+			adminSubscriptionInvoices.PUT("/:id/mark-paid", subscriptionInvoiceHandler.AdminMarkPaid)
+		}
+
+		adminSettlements := v1.Group("/admin/settlements")
+		adminSettlements.Use(middleware.RequireAdmin(cfg, logger), idempotency)
+		{
+			adminSettlements.PUT("/:id/retry-payout", settlementHandler.AdminRetryPayout)
 		}
 	}
 

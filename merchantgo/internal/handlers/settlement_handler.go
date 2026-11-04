@@ -93,3 +93,21 @@ func (h *SettlementHandler) MarkSent(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true})
 }
+
+// AdminRetryPayout — PUT /api/v1/admin/settlements/:id/retry-payout —
+// dérogation manuelle pour un relevé au statut "failed", après vérification
+// humaine côté dashboard GeniusPay qu'aucun double paiement n'est en jeu
+// (voir doctrine dans services.SettlementService.AdminRetryPayout).
+func (h *SettlementHandler) AdminRetryPayout(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		middleware.RespondError(c, h.logger, utils.ErrBadRequest("id invalide", err))
+		return
+	}
+	settlement, err := h.service.AdminRetryPayout(c.Request.Context(), id)
+	if err != nil {
+		middleware.RespondError(c, h.logger, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": settlement})
+}

@@ -16,7 +16,7 @@ import { validate, validateParams, zCuidIdParam } from '../middleware/validate'
 import { logger } from '../lib/logger'
 import { notifyMerchantsOrderPaid } from '../lib/merchantWallet'
 import { snapshotOrderFinancialsSafe } from '../lib/finance/snapshot'
-import { sendOrderConfirmationEmail, sendReturnStatusEmail, sendOrderStatusEmail } from '../lib/mailer'
+import { sendOrderConfirmationEmail, sendReturnStatusEmail, sendOrderStatusEmail, sendSubscriptionInvoiceEmail, sendStoreSuspendedEmail, sendStoreReactivatedEmail } from '../lib/mailer'
 import { applyOrderStatusChange } from './orders'
 import { sendSms } from '../lib/sms/zavu'
 import { normalizePhoneCI } from '../lib/phone'
@@ -237,6 +237,105 @@ router.post('/orders/:id/mark-refunded', validateParams(zCuidIdParam), validate(
   }).catch(() => {})
 
   res.json({ success: true, data: updated })
+})
+
+/* ─────────────────────────────────────────────────────────────
+   Facturation d'abonnement — appelée par merchantgo (SubscriptionInvoice),
+   jamais par un navigateur. merchantgo n'a pas de client email, tout
+   l'envoi réel vit ici. Voir order_payment_architecture : la DÉCISION
+   (générer, relancer, suspendre, réactiver) reste dans merchantgo, ce
+   fichier n'exécute que l'effet de bord "communiquer avec le marchand".
+───────────────────────────────────────────────────────────── */
+const subscriptionInvoiceSchema = z.object({
+  amount:      z.number().int().positive(),
+  checkoutUrl: z.string().url(),
+  dueAt:       z.string().datetime(),
+  periodStart: z.string(), // "AAAA-MM-01"
+})
+const MONTH_LABELS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
+
+router.post('/merchants/:id/subscription-invoice', validateParams(zCuidIdParam), validate(subscriptionInvoiceSchema), async (req, res) => {
+  const { id: userId } = req.params as unknown as { id: string }
+  const body = req.body as z.infer<typeof subscriptionInvoiceSchema>
+
+  const store = await prisma.sellerStore.findUnique({ where: { userId }, select: { user: { select: { email: true } } } })
+  if (!store) {
+    res.status(404).json({ success: false, message: 'Marchand introuvable' })
+    return
+  }
+
+  const periodStart = new Date(body.periodStart)
+  const periodLabel = `${MONTH_LABELS[periodStart.getUTCMonth()]} ${periodStart.getUTCFullYear()}`
+
+  sendSubscriptionInvoiceEmail(store.user.email, {
+    amount: body.amount, checkoutUrl: body.checkoutUrl, dueAt: new Date(body.dueAt), periodLabel,
+  }).catch(err => logger.error('[internal] échec email facture abonnement', userId, err))
+
+  await prisma.notification.create({
+    data: {
+      userId,
+      type: 'billing',
+      title: `Facture d'abonnement — ${periodLabel}`,
+      body: `${body.amount.toLocaleString('fr-FR')} FCFA à régler avant le ${new Date(body.dueAt).toLocaleDateString('fr-FR')}`,
+      link: '/facturation',
+    },
+  })
+
+  res.json({ success: true })
+})
+
+const suspendSchema = z.object({
+  reason:      z.string().min(1).max(500),
+  checkoutUrl: z.string().url().optional(),
+})
+
+router.post('/merchants/:id/suspend', validateParams(zCuidIdParam), validate(suspendSchema), async (req, res) => {
+  const { id: userId } = req.params as unknown as { id: string }
+  const body = req.body as z.infer<typeof suspendSchema>
+
+  const store = await prisma.sellerStore.findUnique({ where: { userId }, select: { id: true, suspendedAt: true, user: { select: { email: true } } } })
+  if (!store) {
+    res.status(404).json({ success: false, message: 'Marchand introuvable' })
+    return
+  }
+  // Idempotent — un rappel (webhook rejoué, cycle relancé) ne doit jamais
+  // réécraser suspendedAt ni renvoyer un deuxième email de suspension.
+  if (store.suspendedAt) {
+    res.json({ success: true, message: 'Déjà suspendu' })
+    return
+  }
+
+  await prisma.sellerStore.update({ where: { id: store.id }, data: { suspendedAt: new Date(), suspensionReason: body.reason } })
+  sendStoreSuspendedEmail(store.user.email, { reason: body.reason, checkoutUrl: body.checkoutUrl }).catch(err => logger.error('[internal] échec email suspension', userId, err))
+  await prisma.notification.create({
+    data: { userId, type: 'billing', title: 'Boutique suspendue', body: body.reason, link: '/facturation' },
+  })
+
+  logger.info('[internal] boutique suspendue automatiquement', userId, body.reason)
+  res.json({ success: true })
+})
+
+router.post('/merchants/:id/unsuspend', validateParams(zCuidIdParam), async (req, res) => {
+  const { id: userId } = req.params as unknown as { id: string }
+
+  const store = await prisma.sellerStore.findUnique({ where: { userId }, select: { id: true, suspendedAt: true, user: { select: { email: true } } } })
+  if (!store) {
+    res.status(404).json({ success: false, message: 'Marchand introuvable' })
+    return
+  }
+  if (!store.suspendedAt) {
+    res.json({ success: true, message: 'Déjà actif' })
+    return
+  }
+
+  await prisma.sellerStore.update({ where: { id: store.id }, data: { suspendedAt: null, suspensionReason: null } })
+  sendStoreReactivatedEmail(store.user.email).catch(err => logger.error('[internal] échec email réactivation', userId, err))
+  await prisma.notification.create({
+    data: { userId, type: 'billing', title: 'Boutique réactivée', body: 'Votre catalogue est de nouveau visible.', link: '/facturation' },
+  })
+
+  logger.info('[internal] boutique réactivée', userId)
+  res.json({ success: true })
 })
 
 export default router

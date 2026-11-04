@@ -41,8 +41,32 @@ type MonthlySettlement struct {
 	Status SettlementStatus `gorm:"type:varchar(20);not null;default:finalized" json:"status"`
 	SentAt *time.Time       `json:"sent_at,omitempty"`
 
+	// Versement automatique Mobile Money (voir geniuspay.RequestCashout,
+	// SettlementService.attemptPayout). "requested" ET "failed" sont tous
+	// deux DÉFINITIFS, jamais retentés automatiquement : GeniusPay ne
+	// documente aucun webhook de confirmation pour un cashout, donc on ne
+	// peut jamais distinguer avec certitude un échec réel d'une simple
+	// ambiguïté réseau (timeout après que l'argent est parti) — retenter
+	// à l'aveugle risquerait un double paiement. "failed" nécessite une
+	// vérification manuelle admin (voir AdminRetryPayout). Seuls
+	// "skipped_no_method" / "skipped_non_positive" sont retentés aux
+	// cycles suivants (le marchand peut configurer sa méthode entre-temps).
+	PayoutStatus    string     `gorm:"type:varchar(30);not null;default:none" json:"payout_status"`
+	PayoutReference string     `gorm:"type:varchar(150)" json:"payout_reference,omitempty"`
+	PayoutOperator  string     `gorm:"type:varchar(30)" json:"payout_operator,omitempty"`
+	PayoutPhone     string     `gorm:"type:varchar(30)" json:"payout_phone,omitempty"`
+	PaidOutAt       *time.Time `json:"paid_out_at,omitempty"`
+
 	CreatedAt time.Time `json:"created_at"`
 }
+
+const (
+	PayoutNone               = "none"
+	PayoutRequested          = "requested"
+	PayoutSkippedNoMethod    = "skipped_no_method"
+	PayoutSkippedNonPositive = "skipped_non_positive"
+	PayoutFailed             = "failed"
+)
 
 func (s *MonthlySettlement) BeforeCreate(tx *gorm.DB) error {
 	if s.ID == uuid.Nil {

@@ -1,5 +1,6 @@
 import { Navigate, Outlet } from 'react-router-dom'
 import { useAuthStore } from '@/features/auth/useAuthStore'
+import { SuspensionBanner } from '@/features/billing/components/SuspensionBanner'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
 
@@ -12,6 +13,7 @@ export function MerchantLayout() {
     <div className="min-h-screen bg-[#f5f5f3]">
       <Sidebar />
       <div className="lg:ml-64 flex flex-col min-h-screen">
+        <SuspensionBanner />
         <Topbar />
         <main className="flex-1 p-4 sm:p-6 max-w-[1400px] w-full mx-auto">
           <Outlet />

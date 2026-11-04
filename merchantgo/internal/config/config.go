@@ -21,6 +21,16 @@ type Config struct {
 	// Nombre de jours pendant lequel un marchand ne peut pas changer de
 	// modèle économique après un choix — voir models.MerchantBilling.CanChange.
 	BillingLockDays int
+	// Délai de grâce (jours après l'échéance) avant suspension AUTOMATIQUE
+	// d'un marchand pour facture d'abonnement impayée — voir
+	// services/subscription_billing_service.go, EscalateOverdue.
+	SubscriptionGraceDays int
+	// Délai (jours après le 1er du mois facturé) avant échéance d'une
+	// facture d'abonnement — voir generateForCurrentPeriod. Les deux valeurs
+	// par défaut (7 + 5) sont volontairement sur deux variables séparées
+	// plutôt qu'en dur : utile pour un test de bout en bout accéléré
+	// (passer les deux à 0 en env de test) sans toucher au code.
+	SubscriptionDueDays int
 
 	// URL publique de CE service, utilisée pour construire le callback_url
 	// transmis à WiniPayer à la création d'un paiement (WiniPayer doit
@@ -66,6 +76,12 @@ type Config struct {
 	// backend/.env.
 	BackendURL               string
 	MerchantgoCallbackSecret string
+
+	// URL publique de koli-marchand — utilisée comme success_url/error_url
+	// GeniusPay pour une facture d'abonnement (le navigateur du marchand y
+	// est redirigé après paiement, voir subscription_billing_service.go).
+	// Vide en dev : repli sur https://me.skignas.com codé en dur.
+	MerchantFrontendURL string
 }
 
 // WinipayerCredentials renvoie le triplet (merchant_apply, merchant_token,
@@ -133,6 +149,8 @@ func Load() (*Config, error) {
 	v.SetDefault("RATE_LIMIT_RPS", 5)
 	v.SetDefault("RATE_LIMIT_BURST", 15)
 	v.SetDefault("BILLING_LOCK_DAYS", 30)
+	v.SetDefault("SUBSCRIPTION_GRACE_DAYS", 5)
+	v.SetDefault("SUBSCRIPTION_DUE_DAYS", 7)
 	v.SetDefault("WINIPAYER_ENV", "test")
 	v.SetDefault("GENIUSPAY_ENV", "sandbox")
 	v.SetDefault("PUBLIC_URL", "http://localhost:8080")
@@ -142,15 +160,17 @@ func Load() (*Config, error) {
 	_ = v.ReadInConfig()
 
 	cfg := &Config{
-		Port:               v.GetString("PORT"),
-		Env:                v.GetString("ENV"),
-		DatabaseURL:        v.GetString("DATABASE_URL"),
-		JWTSecret:          v.GetString("JWT_SECRET"),
-		AdminAPIKey:        v.GetString("ADMIN_API_KEY"),
-		DiditWebhookSecret: v.GetString("DIDIT_WEBHOOK_SECRET"),
-		RateLimitRPS:       v.GetInt("RATE_LIMIT_RPS"),
-		RateLimitBurst:     v.GetInt("RATE_LIMIT_BURST"),
-		BillingLockDays:    v.GetInt("BILLING_LOCK_DAYS"),
+		Port:                  v.GetString("PORT"),
+		Env:                   v.GetString("ENV"),
+		DatabaseURL:           v.GetString("DATABASE_URL"),
+		JWTSecret:             v.GetString("JWT_SECRET"),
+		AdminAPIKey:           v.GetString("ADMIN_API_KEY"),
+		DiditWebhookSecret:    v.GetString("DIDIT_WEBHOOK_SECRET"),
+		RateLimitRPS:          v.GetInt("RATE_LIMIT_RPS"),
+		RateLimitBurst:        v.GetInt("RATE_LIMIT_BURST"),
+		BillingLockDays:       v.GetInt("BILLING_LOCK_DAYS"),
+		SubscriptionGraceDays: v.GetInt("SUBSCRIPTION_GRACE_DAYS"),
+		SubscriptionDueDays:   v.GetInt("SUBSCRIPTION_DUE_DAYS"),
 
 		PublicURL: v.GetString("PUBLIC_URL"),
 
@@ -172,6 +192,7 @@ func Load() (*Config, error) {
 
 		BackendURL:               v.GetString("KOLI_BACKEND_URL"),
 		MerchantgoCallbackSecret: v.GetString("MERCHANTGO_CALLBACK_SECRET"),
+		MerchantFrontendURL:      v.GetString("MERCHANT_FRONTEND_URL"),
 	}
 
 	if raw := v.GetString("ALLOWED_ORIGINS"); raw != "" {

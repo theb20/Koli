@@ -117,6 +117,9 @@ type paymentBody struct {
 	ExpiresAt   string `json:"expires_at"`
 	Gateway     string `json:"gateway"` // ex: "wave", "orange_money", "mtn_money", "card"
 	GatewayRef  string `json:"gateway_reference"`
+	// Amount — uniquement renseigné par /cashouts (voir RequestCashout),
+	// absent de la réponse paiement (déjà connu de l'appelant à la création).
+	Amount int `json:"amount"`
 }
 
 // envelope — la racine de la réponse peut être soit l'objet paiement
@@ -244,6 +247,45 @@ func (c *Client) CheckStatus(ctx context.Context, reference string) (*PaymentDet
 		return nil, err
 	}
 	return &PaymentDetail{Reference: result.Reference, Status: result.Status, Gateway: result.Gateway, GatewayRef: result.GatewayRef}, nil
+}
+
+type CashoutInput struct {
+	Amount    int    // FCFA, unité entière
+	Phone     string // numéro Mobile Money du destinataire
+	Method    string // orange_money | mtn_money | wave | moov_money
+	Reference string // optionnel — notre propre référence interne, voir SettlementService
+}
+
+type CashoutResult struct {
+	Reference string
+	Amount    int
+	Status    string // vu en pratique : "processing" — jamais "completed" en synchrone
+}
+
+// RequestCashout — POST /cashouts. Déclenche un virement RÉEL du solde
+// GeniusPay de Skignas vers le numéro Mobile Money fourni — jamais un
+// retrait vers un compte fixe, voir le commentaire de tête du fichier.
+// Contrairement à CreatePayment/CheckStatus, il n'existe PAS de webhook ni
+// de second appel de confirmation documenté pour un cashout dans le SDK
+// officiel : le statut "processing" renvoyé ici est la seule information
+// disponible au moment de l'appel — voir SettlementService pour la
+// doctrine appliquée (jamais re-tenté automatiquement une fois accepté,
+// pour ne jamais risquer un double paiement).
+func (c *Client) RequestCashout(ctx context.Context, in CashoutInput) (*CashoutResult, error) {
+	body := map[string]any{
+		"amount": in.Amount,
+		"phone":  in.Phone,
+		"method": in.Method,
+	}
+	if in.Reference != "" {
+		body["reference"] = in.Reference
+	}
+
+	var result paymentBody
+	if err := c.doRequest(ctx, http.MethodPost, "/cashouts", body, &result); err != nil {
+		return nil, err
+	}
+	return &CashoutResult{Reference: result.Reference, Amount: result.Amount, Status: result.Status}, nil
 }
 
 // VerifyWebhookSignature reproduit la vérification du SDK officiel

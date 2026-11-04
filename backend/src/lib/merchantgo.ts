@@ -223,3 +223,17 @@ export function getMerchantBillingBulk(userIds: string[]) {
 export function setMerchantBilling(userId: string, body: { mode: 'commission' | 'subscription'; commissionRate?: number; subscriptionPlanId?: string }) {
   return merchantgoRequest(`/api/v1/admin/billing/${userId}`, { method: 'PUT', body })
 }
+
+/**
+ * Dérogation manuelle à la facturation d'abonnement automatique — voir
+ * merchantgo SubscriptionBillingService.AdminMarkPaid. Réactive aussi le
+ * marchand s'il était suspendu pour CETTE facture, sans attendre le
+ * prochain passage du cycle automatique.
+ */
+export function adminMarkSubscriptionInvoicePaid(invoiceId: string) {
+  return merchantgoRequest(`/api/v1/admin/subscription-invoices/${invoiceId}/mark-paid`, { method: 'PUT' })
+}
+
+export function adminListSubscriptionInvoices(userId: string) {
+  return merchantgoRequest(`/api/v1/admin/subscription-invoices/${userId}?limit=12`)
+}

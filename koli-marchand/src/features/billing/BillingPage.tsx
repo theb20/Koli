@@ -1,11 +1,39 @@
 import { useState } from 'react'
-import { Wallet, Percent, CalendarClock, ChevronLeft, ChevronRight, Lock } from 'lucide-react'
+import { Wallet, Percent, CalendarClock, ChevronLeft, ChevronRight, Lock, CreditCard } from 'lucide-react'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable'
-import { fmtDateTime, fmtFcfa } from '@/lib/format'
-import type { WalletTransaction } from '@/lib/merchantgo'
-import { useBilling, useWalletBalance, useWalletTransactions } from './api/useBilling'
+import { fmtDate, fmtDateTime, fmtFcfa } from '@/lib/format'
+import type { WalletTransaction, SubscriptionInvoice } from '@/lib/merchantgo'
+import { useBilling, useWalletBalance, useWalletTransactions, useSubscriptionInvoices } from './api/useBilling'
+
+const MONTH_LABELS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
+function periodLabel(periodStart: string): string {
+  const d = new Date(periodStart)
+  return `${MONTH_LABELS[d.getUTCMonth()]} ${d.getUTCFullYear()}`
+}
+
+const invoiceColumns: DataTableColumn<SubscriptionInvoice>[] = [
+  { key: 'period', header: 'Mois', render: (i) => <span className="font-semibold text-[#0a0a0b]">{periodLabel(i.period_start)}</span> },
+  { key: 'amount', header: 'Montant', align: 'right', render: (i) => fmtFcfa(i.amount) },
+  {
+    key: 'status', header: 'Statut',
+    render: (i) => i.status === 'paid'
+      ? <span className="text-xs font-medium text-emerald-600">Payée{i.paid_at ? ` · ${fmtDate(i.paid_at)}` : ''}</span>
+      : i.status === 'overdue'
+        ? <span className="text-xs font-medium text-red-600">En retard</span>
+        : <span className="text-xs font-medium text-amber-600">En attente</span>,
+  },
+  {
+    key: 'action', header: '', align: 'right',
+    render: (i) => i.status !== 'paid' && (
+      <a href={i.checkout_url} target="_blank" rel="noopener noreferrer"
+        className="inline-flex items-center gap-1 text-xs font-semibold text-[#1E90FF] hover:text-[#0f7ae0]">
+        <CreditCard size={12} /> Payer
+      </a>
+    ),
+  },
+]
 
 const columns: DataTableColumn<WalletTransaction>[] = [
   { key: 'order', header: 'Commande', render: (t) => <span className="font-semibold text-[#0a0a0b]">{t.order_number}</span> },
@@ -26,6 +54,9 @@ export default function BillingPage() {
   const { data: billing, isLoading: billingLoading } = useBilling()
   const { data: balance, isLoading: balanceLoading } = useWalletBalance()
   const { data: txPage, isLoading: txLoading } = useWalletTransactions(page)
+  const { data: invoicesPage, isLoading: invoicesLoading } = useSubscriptionInvoices()
+
+  const pendingInvoice = invoicesPage?.invoices.find(i => i.status !== 'paid')
 
   const planName = billing?.mode === 'subscription' ? billing.subscription_plan?.name : undefined
   const totalPages = txPage ? Math.max(1, Math.ceil(txPage.total / txPage.limit)) : 1
@@ -82,6 +113,40 @@ export default function BillingPage() {
           </div>
         </Card>
       </div>
+
+      {billing?.mode === 'subscription' && (
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-bold text-[#0a0a0b]">Facturation abonnement</h2>
+            <span className="text-xs text-[#a3a3a1]">Génération et relance automatiques — rien à faire sauf payer</span>
+          </div>
+
+          {pendingInvoice && (
+            <div className={`flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-2xl mb-4 ${
+              pendingInvoice.status === 'overdue' ? 'bg-red-50 border border-red-200' : 'bg-amber-50 border border-amber-200'
+            }`}>
+              <div className="flex-1">
+                <p className={`text-sm font-semibold ${pendingInvoice.status === 'overdue' ? 'text-red-800' : 'text-amber-800'}`}>
+                  {periodLabel(pendingInvoice.period_start)} — {fmtFcfa(pendingInvoice.amount)}
+                  {pendingInvoice.status === 'overdue' ? ' (en retard, boutique suspendue)' : ` — à régler avant le ${fmtDate(pendingInvoice.due_at)}`}
+                </p>
+              </div>
+              <a href={pendingInvoice.checkout_url} target="_blank" rel="noopener noreferrer"
+                className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#0a0a0b] text-white text-sm font-semibold shrink-0">
+                <CreditCard size={14} /> Payer maintenant
+              </a>
+            </div>
+          )}
+
+          <DataTable
+            columns={invoiceColumns}
+            rows={invoicesPage?.invoices ?? []}
+            rowKey={(i) => i.id}
+            isLoading={invoicesLoading}
+            emptyMessage="Aucune facture pour l'instant."
+          />
+        </div>
+      )}
 
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-bold text-[#0a0a0b]">Historique des commissions</h2>

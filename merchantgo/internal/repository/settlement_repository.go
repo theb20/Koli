@@ -29,6 +29,8 @@ type SettlementRepository interface {
 	// (nil, nil) si aucun relevé n'existe encore pour ce couple.
 	FindByUserAndPeriod(ctx context.Context, userID string, periodStart time.Time) (*models.MonthlySettlement, error)
 	Create(ctx context.Context, s *models.MonthlySettlement) error
+	Update(ctx context.Context, s *models.MonthlySettlement) error
+	FindByID(ctx context.Context, id uuid.UUID) (*models.MonthlySettlement, error)
 	MarkSent(ctx context.Context, id uuid.UUID) error
 	ListByUser(ctx context.Context, userID string, page, limit int) ([]models.MonthlySettlement, int64, error)
 }
@@ -65,6 +67,22 @@ func (r *gormSettlementRepository) FindByUserAndPeriod(ctx context.Context, user
 
 func (r *gormSettlementRepository) Create(ctx context.Context, s *models.MonthlySettlement) error {
 	return r.db.WithContext(ctx).Create(s).Error
+}
+
+func (r *gormSettlementRepository) Update(ctx context.Context, s *models.MonthlySettlement) error {
+	return r.db.WithContext(ctx).Save(s).Error
+}
+
+func (r *gormSettlementRepository) FindByID(ctx context.Context, id uuid.UUID) (*models.MonthlySettlement, error) {
+	var s models.MonthlySettlement
+	err := r.db.WithContext(ctx).First(&s, "id = ?", id).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &s, nil
 }
 
 func (r *gormSettlementRepository) MarkSent(ctx context.Context, id uuid.UUID) error {

@@ -5,7 +5,7 @@ import { requireAdmin } from '../middleware/auth'
 import { logAdminAction } from '../lib/auditLog'
 import { logger } from '../lib/logger'
 import { validateQuery, validateParams, zIntIdParam, zPaginationQuery } from '../middleware/validate'
-import { getMerchantBillingBulk, isMerchantgoConfigured, setMerchantBilling, MerchantgoError } from '../lib/merchantgo'
+import { getMerchantBillingBulk, isMerchantgoConfigured, setMerchantBilling, adminMarkSubscriptionInvoicePaid, adminListSubscriptionInvoices, MerchantgoError } from '../lib/merchantgo'
 
 type MerchantgoBilling = {
   mode: 'commission' | 'subscription'
@@ -134,7 +134,7 @@ router.get('/:id', validateParams(zIntIdParam), async (req, res) => {
     })
     if (!store) { res.status(404).json({ success: false, message: 'Marchand introuvable' }); return }
 
-    const [productCount, orderItems, products, billingByUserId] = await Promise.all([
+    const [productCount, orderItems, products, billingByUserId, subscriptionInvoices] = await Promise.all([
       prisma.product.count({ where: { storeId: id } }),
       prisma.orderItem.findMany({
         where:  { product: { storeId: id } },
@@ -147,6 +147,11 @@ router.get('/:id', validateParams(zIntIdParam), async (req, res) => {
         select:  { id: true, name: true, price: true, stock: true, isActive: true, images: { take: 1, orderBy: { position: 'asc' }, select: { url: true } } },
       }),
       fetchBillingByUserId([store.user.id]),
+      // Non bloquant : merchantgo indisponible ne doit jamais faire échouer
+      // toute la fiche marchand pour un encart secondaire.
+      isMerchantgoConfigured()
+        ? adminListSubscriptionInvoices(store.user.id).catch(() => null)
+        : Promise.resolve(null),
     ])
 
     const byStatus: Record<string, number> = {}
@@ -177,8 +182,11 @@ router.get('/:id', validateParams(zIntIdParam), async (req, res) => {
           id: store.id, name: store.name, description: store.description, logo: store.logo,
           banner: store.banner, phone: store.phone, address: store.address,
           isApproved: store.isApproved, createdAt: store.createdAt.toISOString(),
+          suspendedAt: store.suspendedAt?.toISOString() ?? null,
+          suspensionReason: store.suspensionReason,
           owner: store.user,
           billing: billingByUserId[store.user.id] ?? null,
+          subscriptionInvoices: (subscriptionInvoices as { data?: { invoices?: unknown[] } } | null)?.data?.invoices ?? [],
         },
         stats: { productCount, orderCount: new Set(orderItems.map(i => i.order.id)).size, revenue, byStatus },
         recentOrders,
@@ -243,6 +251,63 @@ router.put('/:id/billing', validateParams(zIntIdParam), async (req, res) => {
     if (err instanceof z.ZodError) { res.status(400).json({ success: false, message: err.issues[0]?.message ?? 'Requête invalide' }); return }
     if (err instanceof MerchantgoError) { res.status(err.status).json({ success: false, message: err.message }); return }
     logger.error('[admin-sellers billing]', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/* ─────────────────────────────────────────────────────────────
+   Suspension pour facture d'abonnement impayée — AUTOMATIQUE par défaut
+   (voir merchantgo, SubscriptionInvoice, et routes/internal.ts), ces deux
+   routes ne servent qu'à la dérogation manuelle (ex: paiement reçu hors
+   GeniusPay, litige, geste commercial) — distinct de PATCH /:id/status
+   (isApproved) qui gère la modération, pas la facturation.
+───────────────────────────────────────────────────────────── */
+const billingSuspendSchema = z.object({ reason: z.string().min(1).max(500) })
+
+router.post('/:id/billing-suspend', validateParams(zIntIdParam), async (req, res) => {
+  try {
+    const id = Number(req.params.id)
+    const { reason } = billingSuspendSchema.parse(req.body)
+
+    const store = await prisma.sellerStore.update({ where: { id }, data: { suspendedAt: new Date(), suspensionReason: reason } })
+
+    logAdminAction(req, { action: 'seller.billing-suspend', targetType: 'SellerStore', targetId: String(id), metadata: { reason } })
+    res.json({ success: true, data: { seller: store } })
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ success: false, message: err.issues[0]?.message ?? 'Requête invalide' }); return }
+    logger.error('[admin-sellers billing-suspend]', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+router.post('/:id/billing-unsuspend', validateParams(zIntIdParam), async (req, res) => {
+  try {
+    const id = Number(req.params.id)
+    const store = await prisma.sellerStore.update({ where: { id }, data: { suspendedAt: null, suspensionReason: null } })
+
+    logAdminAction(req, { action: 'seller.billing-unsuspend', targetType: 'SellerStore', targetId: String(id) })
+    res.json({ success: true, data: { seller: store } })
+  } catch (err) {
+    logger.error('[admin-sellers billing-unsuspend]', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/*
+ * Dérogation manuelle à une facture d'abonnement — la facture vit dans
+ * merchantgo (SubscriptionInvoice), pas ici ; ce endpoint ne fait que
+ * relayer, comme PUT /:id/billing pour le modèle économique.
+ */
+router.put('/subscription-invoices/:invoiceId/mark-paid', async (req, res) => {
+  try {
+    const invoiceId = String(req.params.invoiceId)
+    const data = await adminMarkSubscriptionInvoicePaid(invoiceId)
+
+    logAdminAction(req, { action: 'seller.subscription-invoice.mark-paid', targetType: 'SubscriptionInvoice', targetId: invoiceId })
+    res.json({ success: true, data })
+  } catch (err) {
+    if (err instanceof MerchantgoError) { res.status(err.status).json({ success: false, message: err.message }); return }
+    logger.error('[admin-sellers subscription-invoice mark-paid]', err)
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
 })

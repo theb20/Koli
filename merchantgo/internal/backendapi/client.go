@@ -96,3 +96,36 @@ func (c *Client) MarkOrderRefunded(ctx context.Context, orderID, providerRef str
 		"providerRef": providerRef,
 	})
 }
+
+// SendSubscriptionInvoiceEmail demande à backend/ (seul service avec un
+// client email) de notifier un marchand qu'une facture d'abonnement est
+// prête — merchantgo ne fait qu'orchestrer la facturation, jamais l'envoi.
+func (c *Client) SendSubscriptionInvoiceEmail(ctx context.Context, userID string, amount int, checkoutURL string, dueAt time.Time, periodStart time.Time) error {
+	path := fmt.Sprintf("/api/internal/merchants/%s/subscription-invoice", userID)
+	return c.postJSON(ctx, path, map[string]any{
+		"amount":      amount,
+		"checkoutUrl": checkoutURL,
+		"dueAt":       dueAt.Format(time.RFC3339),
+		"periodStart": periodStart.Format("2006-01-02"),
+	})
+}
+
+// SuspendMerchant suspend automatiquement le catalogue d'un marchand côté
+// backend/ (SellerStore.suspendedAt) — appelé uniquement par
+// subscription_billing_service.EscalateOverdue, jamais directement.
+func (c *Client) SuspendMerchant(ctx context.Context, userID, reason, checkoutURL string) error {
+	path := fmt.Sprintf("/api/internal/merchants/%s/suspend", userID)
+	body := map[string]any{"reason": reason}
+	if checkoutURL != "" {
+		body["checkoutUrl"] = checkoutURL
+	}
+	return c.postJSON(ctx, path, body)
+}
+
+// UnsuspendMerchant réactive automatiquement un marchand suspendu pour
+// impayé — appelé uniquement au paiement confirmé d'une facture qui
+// l'avait suspendu (voir ConfirmPayment).
+func (c *Client) UnsuspendMerchant(ctx context.Context, userID string) error {
+	path := fmt.Sprintf("/api/internal/merchants/%s/unsuspend", userID)
+	return c.postJSON(ctx, path, map[string]any{})
+}

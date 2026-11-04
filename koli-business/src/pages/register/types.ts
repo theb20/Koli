@@ -1,8 +1,6 @@
 export type BusinessType = 'individuel' | 'auto-entrepreneur' | 'societe'
 export type IdDocType = 'cni' | 'passeport' | 'permis'
 export type PaymentMethod = 'mobile_money' | 'virement_bancaire'
-export type BillingMode = 'commission' | 'subscription'
-
 export type RegisterFormData = {
   // 1. Création du compte
   prenom: string
@@ -82,12 +80,13 @@ export type RegisterFormData = {
   whatsapp: string
   politiqueRetour: string
   cgv: boolean
-
-  // 11. Facturation — enregistré séparément via merchantgo (PUT /merchant/billing),
-  // jamais envoyé à saveApplicationDraft (voir ApplicationPayload dans lib/api.ts)
-  billingMode: BillingMode
-  subscriptionPlanId: string
 }
+
+// Politique de retour unique pour toute la plateforme (14 jours après
+// livraison, cf. SiteSettings.returnWindowDays côté backend/) — jamais
+// éditable par le marchand, juste enregistrée telle quelle sur son dossier
+// pour traçabilité (voir merchantgo, Application.PolitiqueRetour).
+export const RETURN_POLICY = "Retours acceptés sous 14 jours après réception de la commande. Le produit doit être non utilisé, non endommagé et dans son emballage d'origine. Le remboursement est traité par Skignas selon les conditions générales de la plateforme."
 
 export const initialRegisterFormData: RegisterFormData = {
   prenom: '', nom: '', email: '', telephone: '', password: '', acceptedTerms: false,
@@ -99,8 +98,7 @@ export const initialRegisterFormData: RegisterFormData = {
   titulaireCompte: '', banque: '', iban: '', swift: '', mobileMoneyOperateur: '', mobileMoneyNumero: '', moyenPaiementPrefere: 'mobile_money',
   typeDocument: 'cni', documentIdentite: null, documentIdentiteUrl: '', selfie: null, selfieUrl: '', justificatifDomicile: null, justificatifDomicileUrl: '',
   zonesLivraison: '', modesLivraison: '', delaisLivraison: '', fraisLivraison: '', retraitMagasin: false,
-  domainePersonnalise: '', horairesOuverture: '', facebook: '', instagram: '', whatsapp: '', politiqueRetour: '', cgv: false,
-  billingMode: 'commission', subscriptionPlanId: '',
+  domainePersonnalise: '', horairesOuverture: '', facebook: '', instagram: '', whatsapp: '', politiqueRetour: RETURN_POLICY, cgv: false,
 }
 
 export type StepProps = {

@@ -17,13 +17,14 @@ import (
 )
 
 type PaymentHandler struct {
-	service services.PaymentService
-	cfg     *config.Config
-	logger  *zap.Logger
+	service             services.PaymentService
+	subscriptionService services.SubscriptionBillingService
+	cfg                 *config.Config
+	logger              *zap.Logger
 }
 
-func NewPaymentHandler(service services.PaymentService, cfg *config.Config, logger *zap.Logger) *PaymentHandler {
-	return &PaymentHandler{service: service, cfg: cfg, logger: logger}
+func NewPaymentHandler(service services.PaymentService, subscriptionService services.SubscriptionBillingService, cfg *config.Config, logger *zap.Logger) *PaymentHandler {
+	return &PaymentHandler{service: service, subscriptionService: subscriptionService, cfg: cfg, logger: logger}
 }
 
 // createPaymentRequest — commun aux deux passerelles (seul le chemin
@@ -119,6 +120,21 @@ func (h *PaymentHandler) GeniusPayWebhook(c *gin.Context) {
 			middleware.RespondError(c, h.logger, err)
 			return
 		}
+		c.JSON(http.StatusOK, gin.H{"success": true})
+		return
+	}
+
+	// Une référence de paiement peut appartenir à une commande (PaymentIntent)
+	// OU à une facture d'abonnement (SubscriptionInvoice) — deux domaines
+	// distincts partageant le même webhook GeniusPay. On tente d'abord
+	// l'abonnement (table plus petite, lookup bon marché) ; une facture
+	// trouvée = traitée, sinon on retombe sur le flux commande habituel.
+	subInvoice, err := h.subscriptionService.ConfirmPayment(c.Request.Context(), payload.Data.Reference)
+	if err != nil {
+		middleware.RespondError(c, h.logger, err)
+		return
+	}
+	if subInvoice != nil {
 		c.JSON(http.StatusOK, gin.H{"success": true})
 		return
 	}
