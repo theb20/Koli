@@ -1,5 +1,3 @@
-import { CreditCard, Banknote } from 'lucide-react'
-
 /**
  * Moyens de paiement réellement acceptés — reflète les gateways exposées par
  * GeniusPay côté merchantgo (wave / orange_money / mtn_money / card). Ne pas

@@ -112,6 +112,15 @@ export interface MonthlySettlement {
   transaction_count: number
   status: 'finalized' | 'sent'
   sent_at?: string | null
+  // Versement Mobile Money automatique — voir merchantgo,
+  // SettlementService.attemptPayout. "requested"/"failed" sont définitifs
+  // (jamais retentés automatiquement), "skipped_no_method" se résorbe dès
+  // que le marchand configure sa méthode de versement (voir BillingPage).
+  payout_status: 'none' | 'requested' | 'skipped_no_method' | 'skipped_non_positive' | 'failed'
+  payout_reference?: string | null
+  payout_operator?: string | null
+  payout_phone?: string | null
+  paid_out_at?: string | null
   created_at: string
 }
 

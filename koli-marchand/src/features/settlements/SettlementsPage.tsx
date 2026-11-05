@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { FileText, ChevronLeft, ChevronRight, Mail } from 'lucide-react'
+import { FileText, ChevronLeft, ChevronRight, Mail, CheckCircle2, AlertTriangle, Smartphone } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable'
 import { fmtDate, fmtFcfa } from '@/lib/format'
@@ -16,6 +17,33 @@ function periodLabel(periodStart: string): string {
   return `${MONTH_LABELS[d.getUTCMonth()]} ${d.getUTCFullYear()}`
 }
 
+function PayoutStatus({ s }: { s: MonthlySettlement }) {
+  switch (s.payout_status) {
+    case 'requested':
+      return (
+        <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">
+          <CheckCircle2 size={12} /> Versé{s.paid_out_at ? ` · ${fmtDate(s.paid_out_at)}` : ''}
+        </span>
+      )
+    case 'skipped_no_method':
+      return (
+        <Link to="/facturation" className="inline-flex items-center gap-1 text-xs text-amber-600 font-medium hover:underline">
+          <Smartphone size={12} /> Ajouter un numéro Mobile Money
+        </Link>
+      )
+    case 'failed':
+      return (
+        <span className="inline-flex items-center gap-1 text-xs text-red-600 font-medium">
+          <AlertTriangle size={12} /> Échec — vérification en cours
+        </span>
+      )
+    case 'skipped_non_positive':
+      return <span className="text-xs text-[#a3a3a1]">Net non positif</span>
+    default:
+      return <span className="text-xs text-[#a3a3a1]">—</span>
+  }
+}
+
 const columns: DataTableColumn<MonthlySettlement>[] = [
   { key: 'period', header: 'Mois', render: (s) => <span className="font-semibold text-[#0a0a0b]">{periodLabel(s.period_start)}</span> },
   { key: 'gross', header: 'Ventes brutes', align: 'right', render: (s) => fmtFcfa(s.gross_amount) },
@@ -25,6 +53,10 @@ const columns: DataTableColumn<MonthlySettlement>[] = [
     render: (s) => <span className="font-semibold text-emerald-700">{fmtFcfa(s.net_amount)}</span>,
   },
   { key: 'count', header: 'Transactions', align: 'right', render: (s) => s.transaction_count },
+  {
+    key: 'payout', header: 'Versement', align: 'right',
+    render: (s) => <PayoutStatus s={s} />,
+  },
   {
     key: 'status', header: 'Envoi', align: 'right',
     render: (s) => s.status === 'sent'
