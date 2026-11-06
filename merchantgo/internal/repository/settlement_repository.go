@@ -13,11 +13,12 @@ import (
 
 // SettlementPeriodTotal — un marchand, ses totaux agrégés sur une période.
 type SettlementPeriodTotal struct {
-	UserID           string
-	GrossAmount      int
-	CommissionAmount int
-	NetAmount        int
-	TransactionCount int
+	UserID             string
+	GrossAmount        int
+	CommissionAmount   int
+	NetAmount          int
+	TransactionCount   int
+	GeniusPayFeeAmount int
 }
 
 type SettlementRepository interface {
@@ -46,7 +47,7 @@ func NewSettlementRepository(db *gorm.DB) SettlementRepository {
 func (r *gormSettlementRepository) AggregateByUser(ctx context.Context, periodStart, periodEnd time.Time) ([]SettlementPeriodTotal, error) {
 	var totals []SettlementPeriodTotal
 	err := r.db.WithContext(ctx).Model(&models.WalletTransaction{}).
-		Select("user_id, COALESCE(SUM(gross_amount),0) as gross_amount, COALESCE(SUM(commission_amount),0) as commission_amount, COALESCE(SUM(net_amount),0) as net_amount, COUNT(*) as transaction_count").
+		Select("user_id, COALESCE(SUM(gross_amount),0) as gross_amount, COALESCE(SUM(commission_amount),0) as commission_amount, COALESCE(SUM(net_amount),0) as net_amount, COUNT(*) as transaction_count, COALESCE(SUM(geniuspay_fee_amount),0) as geniuspay_fee_amount").
 		Where("created_at >= ? AND created_at < ?", periodStart, periodEnd).
 		Group("user_id").
 		Scan(&totals).Error

@@ -213,7 +213,7 @@ export async function applyOrderStatusChange(orderId: string, status: OrderStatu
   // déjà mise à jour, un incident merchantgo ne doit jamais faire échouer
   // la transition de statut elle-même.
   if (result.becamePaid) {
-    notifyMerchantsOrderPaid(result.updated.id, result.updated.orderNumber).catch(() => {})
+    notifyMerchantsOrderPaid(result.updated.id, result.updated.orderNumber, result.updated.paymentMethod).catch(() => {})
     snapshotOrderFinancialsSafe(result.updated.id)
   }
 
@@ -958,6 +958,31 @@ router.post('/admin/:id/restore', requireAdmin, validateParams(zCuidIdParam), as
     res.json({ success: true, message: 'Commande restaurée' })
   } catch (err) {
     logger.error('[orders] échec restauration', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/* ─────────────────────────────────────────────────────────────
+   POST /api/orders/admin/archive-all  [ADMIN]
+   Variante de bulk-delete sans limite de 200 : archive TOUTES les
+   commandes non encore archivées en un seul appel (remise à zéro du
+   dashboard avant un vrai lancement — voir corbeille/restore pour annuler).
+   Mêmes garanties : suppression douce uniquement (deletedAt), les lignes
+   et tout l'historique financier côté merchantgo restent intacts, rien
+   n'est jamais recalculé ou annulé rétroactivement pour les marchands.
+───────────────────────────────────────────────────────────── */
+router.post('/admin/archive-all', requireAdmin, async (req, res) => {
+  try {
+    const result = await prisma.order.updateMany({
+      where: { deletedAt: null },
+      data: { deletedAt: new Date(), deletedBy: req.user!.userId },
+    })
+
+    logAdminAction(req, { action: 'order.archive_all', targetType: 'Order', targetId: 'bulk', metadata: { count: result.count } })
+
+    res.json({ success: true, message: `${result.count} commande(s) archivée(s)`, data: { archived: result.count } })
+  } catch (err) {
+    logger.error('[orders] échec archivage global', err)
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
 })

@@ -73,7 +73,7 @@ export function rejectMerchantApplication(id: string, adminId: string, reason: s
  * Idempotent côté merchantgo (order_id + user_id) : un appel répété pour
  * la même commande ne double-compte jamais.
  */
-export function recordMerchantSale(input: { userId: string; orderId: string; orderNumber: string; grossAmount: number }) {
+export function recordMerchantSale(input: { userId: string; orderId: string; orderNumber: string; grossAmount: number; onlinePayment: boolean }) {
   return merchantgoRequest(`/api/v1/internal/orders/paid`, { method: 'POST', body: input })
 }
 
@@ -101,6 +101,13 @@ export type MerchantSettlement = {
   transaction_count: number
   status: 'finalized' | 'sent'
   sent_at?: string | null
+  // Versement Mobile Money automatique — voir merchantgo,
+  // SettlementService.attemptPayout. "requested"/"failed" définitifs.
+  payout_status: 'none' | 'requested' | 'skipped_no_method' | 'skipped_non_positive' | 'failed'
+  payout_reference?: string | null
+  payout_operator?: string | null
+  payout_phone?: string | null
+  paid_out_at?: string | null
 }
 
 /**
@@ -119,6 +126,13 @@ export function generateSettlements(periodStart: string) {
 
 export function markSettlementSent(id: string) {
   return merchantgoRequest(`/api/v1/internal/settlements/${encodeURIComponent(id)}/mark-sent`, { method: 'POST' })
+}
+
+/** Un relevé précis, pour générer sa fiche PDF — voir routes/seller.ts /settlements/:id/fiche. */
+export function getSettlement(id: string) {
+  return merchantgoRequest<{ success: boolean; data: MerchantSettlement }>(
+    `/api/v1/internal/settlements/${encodeURIComponent(id)}`,
+  )
 }
 
 /**

@@ -65,6 +65,7 @@ export default function OrdersPage() {
   const [showTrash, setShowTrash] = useState(false)
   const [selected, setSelected]   = useState<Set<string>>(new Set())
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [confirmArchiveAll, setConfirmArchiveAll] = useState(false)
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const debouncedSearch = useDebouncedValue(search, 300)
 
@@ -104,6 +105,14 @@ export default function OrdersPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['orders'] }),
   })
 
+  const archiveAll = useMutation({
+    mutationFn: () => api.post('/api/orders/admin/archive-all'),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['orders'] })
+      setConfirmArchiveAll(false)
+    },
+  })
+
   const orders: Order[] = data?.orders ?? []
   const pagination      = data?.pagination
 
@@ -123,14 +132,24 @@ export default function OrdersPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
         <PageTitle title="Commandes" sub={`${pagination?.total ?? 0} commande${pagination?.total === 1 ? '' : 's'} ${showTrash ? 'dans la corbeille' : 'au total'}`} />
-        <button
-          onClick={() => { setShowTrash(v => !v); setSelected(new Set()); setPage(1) }}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all shrink-0 ${showTrash
-            ? 'bg-slate-900 text-white'
-            : 'bg-white border border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300'}`}
-        >
-          <Archive size={13} /> {showTrash ? 'Retour aux commandes' : 'Corbeille'}
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          {!showTrash && (pagination?.total ?? 0) > 0 && (
+            <button
+              onClick={() => setConfirmArchiveAll(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all bg-white border border-red-200 text-red-600 hover:bg-red-50"
+            >
+              <Trash2 size={13} /> Tout archiver
+            </button>
+          )}
+          <button
+            onClick={() => { setShowTrash(v => !v); setSelected(new Set()); setPage(1) }}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all ${showTrash
+              ? 'bg-slate-900 text-white'
+              : 'bg-white border border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300'}`}
+          >
+            <Archive size={13} /> {showTrash ? 'Retour aux commandes' : 'Corbeille'}
+          </button>
+        </div>
       </div>
 
       {!showTrash && (
@@ -322,6 +341,17 @@ export default function OrdersPage() {
         title={`Supprimer ${selected.size} commande${selected.size > 1 ? 's' : ''} ?`}
         message="Elles seront retirées de la liste mais conservées dans la corbeille — restaurables à tout moment."
         confirmLabel="Supprimer"
+      />
+
+      <Confirm
+        open={confirmArchiveAll}
+        onClose={() => setConfirmArchiveAll(false)}
+        onConfirm={() => archiveAll.mutate()}
+        loading={archiveAll.isPending}
+        title="Archiver TOUTES les commandes ?"
+        message="Ignore les filtres actifs — archive vraiment toute la base, y compris les commandes réelles, pas seulement les tests. Elles passent dans la corbeille (restaurables une par une) — rien n'est touché côté portefeuille/relevés marchand."
+        confirmLabel="Tout archiver"
+        confirmText="ARCHIVER TOUT"
       />
     </div>
   )

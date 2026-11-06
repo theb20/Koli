@@ -27,6 +27,11 @@ type SettlementService interface {
 	GenerateForPeriod(ctx context.Context, periodStart, periodEnd time.Time) ([]models.MonthlySettlement, error)
 	MarkSent(ctx context.Context, id uuid.UUID) error
 	ListMine(ctx context.Context, userID string, page, limit int) ([]models.MonthlySettlement, int64, error)
+	// GetByID — sert la génération de la fiche PDF côté backend/ (voir
+	// seller.ts /settlements/:id/fiche) : backend/ vérifie lui-même que
+	// user_id correspond bien au marchand authentifié avant de servir le
+	// PDF, merchantgo ne connaît ici que la clé de service appelante.
+	GetByID(ctx context.Context, id uuid.UUID) (*models.MonthlySettlement, error)
 	// AdminRetryPayout — dérogation manuelle pour un relevé au statut
 	// "failed" (voir doctrine dans models.MonthlySettlement : jamais
 	// retenté automatiquement). Un admin doit d'abord avoir vérifié
@@ -72,15 +77,16 @@ func (s *settlementService) GenerateForPeriod(ctx context.Context, periodStart, 
 			settlement = existing
 		} else {
 			settlement = &models.MonthlySettlement{
-				UserID:           t.UserID,
-				PeriodStart:      periodStart,
-				PeriodEnd:        periodEnd,
-				GrossAmount:      t.GrossAmount,
-				CommissionAmount: t.CommissionAmount,
-				NetAmount:        t.NetAmount,
-				TransactionCount: t.TransactionCount,
-				Status:           models.SettlementFinalized,
-				PayoutStatus:     models.PayoutNone,
+				UserID:             t.UserID,
+				PeriodStart:        periodStart,
+				PeriodEnd:          periodEnd,
+				GrossAmount:        t.GrossAmount,
+				CommissionAmount:   t.CommissionAmount,
+				NetAmount:          t.NetAmount,
+				TransactionCount:   t.TransactionCount,
+				GeniusPayFeeAmount: t.GeniusPayFeeAmount,
+				Status:             models.SettlementFinalized,
+				PayoutStatus:       models.PayoutNone,
 			}
 			if err := s.repo.Create(ctx, settlement); err != nil {
 				// Un marchand en échec ne doit jamais bloquer la génération des
@@ -160,6 +166,17 @@ func (s *settlementService) markPayoutSkip(ctx context.Context, settlement *mode
 	if err := s.repo.Update(ctx, settlement); err != nil {
 		s.logger.Error("mise à jour relevé (skip versement) échouée", zap.String("settlement_id", settlement.ID.String()), zap.Error(err))
 	}
+}
+
+func (s *settlementService) GetByID(ctx context.Context, id uuid.UUID) (*models.MonthlySettlement, error) {
+	settlement, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, utils.ErrInternal(err)
+	}
+	if settlement == nil {
+		return nil, utils.ErrNotFound("Relevé introuvable")
+	}
+	return settlement, nil
 }
 
 func (s *settlementService) MarkSent(ctx context.Context, id uuid.UUID) error {

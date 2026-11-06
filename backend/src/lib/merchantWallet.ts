@@ -9,8 +9,13 @@ import { prisma } from './prisma'
 import { logger } from './logger'
 import { isMerchantgoConfigured, recordMerchantSale, recordMerchantRefund } from './merchantgo'
 
-export async function notifyMerchantsOrderPaid(orderId: string, orderNumber: string): Promise<void> {
+export async function notifyMerchantsOrderPaid(orderId: string, orderNumber: string, paymentMethod: string): Promise<void> {
   if (!isMerchantgoConfigured()) return // dev sans merchantgo configuré — non bloquant
+
+  // Seul un paiement en ligne passe par GeniusPay (frais de passerelle
+  // associés, voir merchantgo config.GeniusPayFeeAmount) — le paiement à la
+  // livraison n'en a jamais.
+  const onlinePayment = paymentMethod !== 'cash'
 
   try {
     const items = await prisma.orderItem.findMany({
@@ -32,7 +37,7 @@ export async function notifyMerchantsOrderPaid(orderId: string, orderNumber: str
         .reduce((sum, i) => sum + i.price * i.qty, 0)
       if (gross <= 0) return Promise.resolve()
 
-      return recordMerchantSale({ userId: store.userId, orderId, orderNumber, grossAmount: gross })
+      return recordMerchantSale({ userId: store.userId, orderId, orderNumber, grossAmount: gross, onlinePayment })
         .catch(err => logger.error('[merchantWallet] échec enregistrement vente', orderId, store.id, err))
     }))
   } catch (err) {

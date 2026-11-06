@@ -60,7 +60,7 @@ router.post('/orders/:id/mark-paid', validateParams(zCuidIdParam), validate(mark
 
   if (order.paymentStatus !== 'paid') {
     await prisma.order.update({ where: { id }, data: { paymentStatus: 'paid', paidAt: new Date() } })
-    notifyMerchantsOrderPaid(order.id, order.orderNumber).catch(() => {})
+    notifyMerchantsOrderPaid(order.id, order.orderNumber, order.paymentMethod).catch(() => {})
     snapshotOrderFinancialsSafe(order.id)
 
     // Commande issue d'un devis de sourcing → la demande passe "payée" et

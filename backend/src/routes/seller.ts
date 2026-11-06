@@ -15,7 +15,8 @@ import { parseSpreadsheet } from '../lib/spreadsheet'
 import { extractExtension } from '../security/mimeValidator'
 import { verifySpreadsheetSignature } from '../security/fileSignature'
 import { searchProductIds, normalizeSearchQuery } from '../lib/search'
-import { buildMerchantOrderPdf } from '../lib/invoicePdf'
+import { buildMerchantOrderPdf, buildSettlementPdf } from '../lib/invoicePdf'
+import { getSettlement, MerchantgoError } from '../lib/merchantgo'
 import { applyOrderStatusChange } from './orders'
 import type { Prisma, Order, OrderItem } from '@prisma/client'
 import { sellerOverview } from '../lib/sellerMetrics/queries'
@@ -1376,6 +1377,47 @@ router.get('/orders/:id/invoice', requireSeller, async (req, res) => {
     doc.end()
   } catch (err) {
     logger.error('[seller/orders invoice]', err)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+/*
+ * Fiche PDF du relevé mensuel — les chiffres vivent dans merchantgo (voir
+ * order_payment_architecture), backend/ se contente de les récupérer via la
+ * clé de service puis de vérifier ici que le relevé appartient bien au
+ * marchand authentifié avant de générer le PDF (merchantgo ne connaît pas
+ * la session marchand sur cette route interne).
+ */
+router.get('/settlements/:id/fiche', requireSeller, async (req, res) => {
+  try {
+    const store = await requireMyStore(req.user!.userId)
+    if (!store) { res.status(404).json({ success: false, message: 'Boutique introuvable.' }); return }
+
+    let settlement
+    try {
+      const result = await getSettlement(req.params.id as string)
+      settlement = result.data
+    } catch (err) {
+      if (err instanceof MerchantgoError && err.status === 404) {
+        res.status(404).json({ success: false, message: 'Relevé introuvable.' })
+        return
+      }
+      throw err
+    }
+
+    if (!settlement || settlement.user_id !== req.user!.userId) {
+      res.status(404).json({ success: false, message: 'Relevé introuvable.' })
+      return
+    }
+
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="releve-${settlement.period_start.slice(0, 7)}.pdf"`)
+
+    const doc = buildSettlementPdf(settlement, store.name)
+    doc.pipe(res)
+    doc.end()
+  } catch (err) {
+    logger.error('[seller/settlements fiche]', err)
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
 })

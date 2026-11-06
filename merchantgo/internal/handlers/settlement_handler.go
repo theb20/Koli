@@ -94,6 +94,23 @@ func (h *SettlementHandler) MarkSent(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true})
 }
 
+// GetByID — GET /api/v1/internal/settlements/:id — appelé par backend/ pour
+// générer la fiche PDF téléchargée par le marchand (voir
+// seller.ts /settlements/:id/fiche).
+func (h *SettlementHandler) GetByID(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		middleware.RespondError(c, h.logger, utils.ErrBadRequest("id invalide", err))
+		return
+	}
+	settlement, err := h.service.GetByID(c.Request.Context(), id)
+	if err != nil {
+		middleware.RespondError(c, h.logger, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": settlement})
+}
+
 // AdminRetryPayout — PUT /api/v1/admin/settlements/:id/retry-payout —
 // dérogation manuelle pour un relevé au statut "failed", après vérification
 // humaine côté dashboard GeniusPay qu'aucun double paiement n'est en jeu

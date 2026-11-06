@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { FileText, ChevronLeft, ChevronRight, Mail, CheckCircle2, AlertTriangle, Smartphone } from 'lucide-react'
+import { FileText, ChevronLeft, ChevronRight, Mail, CheckCircle2, AlertTriangle, Smartphone, Download, Loader2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable'
 import { fmtDate, fmtFcfa } from '@/lib/format'
+import { api } from '@/lib/api'
 import type { MonthlySettlement } from '@/lib/merchantgo'
 import { useSettlements } from './api/useSettlements'
 
@@ -44,6 +45,36 @@ function PayoutStatus({ s }: { s: MonthlySettlement }) {
   }
 }
 
+function DownloadFicheButton({ settlement }: { settlement: MonthlySettlement }) {
+  const [downloading, setDownloading] = useState(false)
+
+  const handleDownload = async () => {
+    setDownloading(true)
+    try {
+      const res = await api.get(`/api/seller/settlements/${settlement.id}/fiche`, { responseType: 'blob' })
+      const url = URL.createObjectURL(res.data as Blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `releve-${settlement.period_start.slice(0, 7)}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  return (
+    <button
+      onClick={handleDownload}
+      disabled={downloading}
+      aria-label="Télécharger la fiche PDF"
+      className="inline-flex items-center gap-1 text-xs text-[#6b6b68] hover:text-[#0a0a0b] disabled:opacity-40"
+    >
+      {downloading ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />} PDF
+    </button>
+  )
+}
+
 const columns: DataTableColumn<MonthlySettlement>[] = [
   { key: 'period', header: 'Mois', render: (s) => <span className="font-semibold text-[#0a0a0b]">{periodLabel(s.period_start)}</span> },
   { key: 'gross', header: 'Ventes brutes', align: 'right', render: (s) => fmtFcfa(s.gross_amount) },
@@ -62,6 +93,10 @@ const columns: DataTableColumn<MonthlySettlement>[] = [
     render: (s) => s.status === 'sent'
       ? <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium"><Mail size={12} /> {s.sent_at ? fmtDate(s.sent_at) : 'Envoyé'}</span>
       : <span className="text-xs text-[#a3a3a1]">En préparation</span>,
+  },
+  {
+    key: 'fiche', header: 'Fiche', align: 'right',
+    render: (s) => <DownloadFicheButton settlement={s} />,
   },
 ]
 

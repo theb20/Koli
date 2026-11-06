@@ -1,6 +1,7 @@
 package config
 
 import (
+	"math"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -70,6 +71,16 @@ type Config struct {
 	GeniusPayWebhookSecret string
 	GeniusPayBaseURL       string
 
+	// Frais réels prélevés par GeniusPay sur chaque transaction encaissée
+	// (voir dashboard GeniusPay → Transactions, colonnes "Fr. Gateway" et
+	// "Fr. GeniusPay") : frais passerelle en %, frais GeniusPay fixe + en %.
+	// Configurables (pas codés en dur) car GeniusPay peut les faire évoluer
+	// sans prévenir — voir GeniusPayFeeAmount. Ne concernent QUE les ventes
+	// payées en ligne (jamais le paiement à la livraison).
+	GeniusPayGatewayFeeRate float64 // %, ex. 1.5
+	GeniusPayFixedFee       int     // FCFA, ex. 100
+	GeniusPayFeeRate        float64 // %, ex. 1.0
+
 	// Secret partagé avec backend/ pour le rappel "commande payée" —
 	// merchantgo → backend, sens inverse de ADMIN_API_KEY (backend →
 	// merchantgo). DOIT être identique à MERCHANTGO_CALLBACK_SECRET dans
@@ -118,6 +129,22 @@ func (c *Config) GeniusPayConfigured() bool {
 	return key != "" && secret != ""
 }
 
+// GeniusPayFeeAmount calcule les frais réels que GeniusPay prélève sur un
+// encaissement de `amount` FCFA — reproduit la formule observée dans le
+// dashboard GeniusPay (Transactions) : frais passerelle (%, arrondi), puis
+// frais GeniusPay (fixe + %, arrondi), les deux sommés. N'est JAMAIS déduit
+// du net versé au marchand (voir wallet_service.go) : sert uniquement à
+// calculer la marge RÉELLE de Skignas (commission − ces frais), puisque
+// GeniusPay prélève sa part avant même que Skignas ne touche l'argent.
+func (c *Config) GeniusPayFeeAmount(amount int) int {
+	if amount <= 0 {
+		return 0
+	}
+	gateway := math.Round(float64(amount) * c.GeniusPayGatewayFeeRate / 100)
+	geniuspay := math.Round(float64(amount)*c.GeniusPayFeeRate/100) + float64(c.GeniusPayFixedFee)
+	return int(gateway + geniuspay)
+}
+
 // defaultAllowedOrigins reprend exactement la liste de
 // backend/src/lib/allowedOrigins.ts — les deux services doivent rester
 // synchronisés puisque koli-business appelle l'un puis l'autre dans le
@@ -153,6 +180,9 @@ func Load() (*Config, error) {
 	v.SetDefault("SUBSCRIPTION_DUE_DAYS", 7)
 	v.SetDefault("WINIPAYER_ENV", "test")
 	v.SetDefault("GENIUSPAY_ENV", "sandbox")
+	v.SetDefault("GENIUSPAY_GATEWAY_FEE_RATE", 1.5)
+	v.SetDefault("GENIUSPAY_FIXED_FEE", 100)
+	v.SetDefault("GENIUSPAY_FEE_RATE", 1.0)
 	v.SetDefault("PUBLIC_URL", "http://localhost:8080")
 
 	// .env optionnel — en production (Railway), les variables sont déjà
@@ -189,6 +219,10 @@ func Load() (*Config, error) {
 		GeniusPaySecretLive:    v.GetString("GENIUSPAY_API_SECRET_LIVE"),
 		GeniusPayWebhookSecret: v.GetString("GENIUSPAY_WEBHOOK_SECRET"),
 		GeniusPayBaseURL:       v.GetString("GENIUSPAY_BASE_URL"),
+
+		GeniusPayGatewayFeeRate: v.GetFloat64("GENIUSPAY_GATEWAY_FEE_RATE"),
+		GeniusPayFixedFee:       v.GetInt("GENIUSPAY_FIXED_FEE"),
+		GeniusPayFeeRate:        v.GetFloat64("GENIUSPAY_FEE_RATE"),
 
 		BackendURL:               v.GetString("KOLI_BACKEND_URL"),
 		MerchantgoCallbackSecret: v.GetString("MERCHANTGO_CALLBACK_SECRET"),

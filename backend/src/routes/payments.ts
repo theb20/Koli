@@ -75,7 +75,7 @@ router.post('/paydunya/ipn', async (req, res) => {
         },
       })
       logger.info('[paydunya-ipn] commande marquée payée', order.orderNumber)
-      notifyMerchantsOrderPaid(order.id, order.orderNumber).catch(() => {})
+      notifyMerchantsOrderPaid(order.id, order.orderNumber, order.paymentMethod).catch(() => {})
       snapshotOrderFinancialsSafe(order.id)
     }
 

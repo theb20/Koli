@@ -48,6 +48,15 @@ type WalletTransaction struct {
 	NetAmount        int         `gorm:"not null" json:"net_amount"`
 	BillingMode      BillingMode `gorm:"type:varchar(20);not null" json:"billing_mode"`
 
+	// Frais réels prélevés par GeniusPay sur cet encaissement (voir
+	// config.GeniusPayFeeAmount) — 0 pour une vente payée à la livraison
+	// (jamais de frais passerelle dans ce cas). Information, PAS déduit de
+	// NetAmount : le marchand reçoit toujours gross − commission, Skignas
+	// absorbe ce coût. Sert à calculer la marge RÉELLE de Skignas
+	// (CommissionAmount − GeniusPayFeeAmount) dans les relevés/rapports
+	// internes — voir settlement_repository.go AggregateByUser.
+	GeniusPayFeeAmount int `gorm:"not null;default:0" json:"geniuspay_fee_amount"`
+
 	CreatedAt time.Time `json:"created_at"`
 }
 

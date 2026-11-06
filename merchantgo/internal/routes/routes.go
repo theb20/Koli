@@ -125,6 +125,7 @@ func Setup(
 			internal.POST("/orders/paid", walletHandler.RecordSale)
 			internal.POST("/orders/refunded", walletHandler.RecordRefund)
 			internal.POST("/settlements/generate", settlementHandler.Generate)
+			internal.GET("/settlements/:id", settlementHandler.GetByID)
 			internal.POST("/settlements/:id/mark-sent", settlementHandler.MarkSent)
 			// LEGACY — pas de /payments/winipayer/create : plus aucune
 			// nouvelle transaction WiniPayer ne doit être créée (voir

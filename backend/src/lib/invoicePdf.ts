@@ -29,6 +29,19 @@ const C = {
 
 const BAR_COLORS = ['#4285f4', '#ea4335', '#fbbc05', '#34a853']
 
+const MONTH_LABELS_FR = [
+  'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+  'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',
+]
+
+const PAYOUT_LABELS: Record<string, string> = {
+  none:                 'En attente de clôture',
+  requested:            'Versé automatiquement (Mobile Money)',
+  skipped_no_method:    'Non versé — aucun numéro Mobile Money configuré',
+  skipped_non_positive: 'Aucun versement — montant net non positif ce mois-ci',
+  failed:               'Échec du versement — vérification en cours par Skignas',
+}
+
 function fmt(n: number): string {
   // toLocaleString('fr-FR') insère un espace fine insécable (U+202F) comme séparateur
   // de milliers — la police par défaut de pdfkit ne le supporte pas et affiche un
@@ -237,6 +250,94 @@ export function buildMerchantOrderPdf(order: Order, items: OrderItem[], storeNam
   /* ── Pied de page ── */
   doc.font('Helvetica').fontSize(8).fillColor(C.textFaint)
     .text('Skignas, marketplace tech en Côte d\'Ivoire — récapitulatif à usage interne, ne constitue pas une facture.', 50, 760, { width: 495, align: 'center' })
+
+  return doc
+}
+
+type SettlementLike = {
+  period_start: string
+  gross_amount: number
+  commission_amount: number
+  net_amount: number
+  transaction_count: number
+  payout_status: string
+  payout_reference?: string | null
+  payout_operator?: string | null
+  payout_phone?: string | null
+  paid_out_at?: string | null
+}
+
+/**
+ * Fiche de relevé mensuel — le document que Skignas envoie chaque mois au
+ * marchand (ventes, commission, net ET statut du versement Mobile Money
+ * automatique, voir merchantgo SettlementService). Skignas → marchand
+ * uniquement, jamais l'inverse (voir order_payment_architecture).
+ */
+export function buildSettlementPdf(s: SettlementLike, storeName: string): PDFKit.PDFDocument {
+  const doc = new PDFDocument({ size: 'A4', margin: 50 })
+
+  const periodDate = new Date(s.period_start)
+  const monthLabel = MONTH_LABELS_FR[periodDate.getUTCMonth()]
+  const periodLabel = `${monthLabel!.charAt(0).toUpperCase()}${monthLabel!.slice(1)} ${periodDate.getUTCFullYear()}`
+
+  /* ── En-tête ── */
+  doc.font('Helvetica-Bold').fontSize(22).fillColor(C.text).text('Skignas', 50, 50)
+  doc.font('Helvetica').fontSize(9).fillColor(C.textSub).text('Marketplace tech en Côte d\'Ivoire', 50, 80)
+
+  doc.font('Helvetica-Bold').fontSize(18).fillColor(C.text)
+    .text('RELEVÉ MENSUEL', 300, 50, { width: 245, align: 'right' })
+  doc.font('Helvetica').fontSize(10).fillColor(C.textSub)
+    .text(periodLabel, 300, 76, { width: 245, align: 'right' })
+
+  drawBrandBar(doc, 50, 100, 495)
+
+  /* ── Boutique ── */
+  let y = 134
+  doc.font('Helvetica-Bold').fontSize(8).fillColor(C.textFaint).text('BOUTIQUE', 50, y)
+  doc.font('Helvetica-Bold').fontSize(12).fillColor(C.text).text(storeName, 50, y + 14, { width: 495 })
+
+  y += 50
+  doc.moveTo(50, y).lineTo(545, y).strokeColor(C.border).stroke()
+  y += 20
+
+  /* ── Détail du calcul ── */
+  const row = (label: string, value: string, opts: { bold?: boolean; color?: string } = {}) => {
+    doc.font(opts.bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(opts.bold ? 12 : 10)
+      .fillColor(opts.color ?? (opts.bold ? C.text : C.textSub))
+      .text(label, 50, y, { width: 300 })
+      .text(value, 350, y, { width: 195, align: 'right' })
+    y += opts.bold ? 22 : 18
+  }
+
+  row('Ventes brutes', fmt(s.gross_amount))
+  row('Commission Skignas', `-${fmt(s.commission_amount)}`)
+  row('Transactions', String(s.transaction_count))
+  y += 6
+  doc.moveTo(50, y).lineTo(545, y).strokeColor(C.border).stroke()
+  y += 14
+
+  // Pastille bleue pour le net, même traitement visuel que le total facture.
+  doc.roundedRect(345, y - 6, 200, 28, 8).fill(C.blueBg)
+  doc.font('Helvetica-Bold').fontSize(12).fillColor(C.blueDark)
+    .text('Net perçu', 358, y + 2, { width: 100 })
+    .text(fmt(s.net_amount), 460, y + 2, { width: 78, align: 'right' })
+  y += 46
+
+  /* ── Versement ── */
+  doc.roundedRect(50, y, 495, s.payout_status === 'requested' ? 54 : 40, 10).fill(C.bgLight)
+  doc.font('Helvetica-Bold').fontSize(8).fillColor(C.textFaint).text('VERSEMENT', 66, y + 10)
+  doc.font('Helvetica').fontSize(10).fillColor(C.text)
+    .text(PAYOUT_LABELS[s.payout_status] ?? s.payout_status, 66, y + 23, { width: 463 })
+  if (s.payout_status === 'requested' && s.payout_operator && s.payout_phone) {
+    const operatorLabel = s.payout_operator.replace(/_/g, ' ')
+    const dateLabel = s.paid_out_at ? ` · ${new Date(s.paid_out_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}` : ''
+    doc.font('Helvetica').fontSize(9).fillColor(C.textSub)
+      .text(`${operatorLabel} · ${s.payout_phone}${dateLabel}`, 66, y + 38)
+  }
+
+  /* ── Pied de page ── */
+  doc.font('Helvetica').fontSize(8).fillColor(C.textFaint)
+    .text('Document généré automatiquement par Skignas — à usage comptable interne.', 50, 760, { width: 495, align: 'center' })
 
   return doc
 }

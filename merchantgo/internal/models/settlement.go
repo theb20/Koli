@@ -38,6 +38,14 @@ type MonthlySettlement struct {
 	NetAmount        int `gorm:"not null" json:"net_amount"`
 	TransactionCount int `gorm:"not null" json:"transaction_count"`
 
+	// Frais GeniusPay réellement prélevés sur les encaissements en ligne de
+	// la période (voir config.GeniusPayFeeAmount, WalletTransaction) — ne
+	// change ni NetAmount ni ce que le marchand perçoit : sert uniquement à
+	// calculer la marge RÉELLE de Skignas (CommissionAmount −
+	// GeniusPayFeeAmount), puisque GeniusPay prélève sa part avant même que
+	// Skignas ne touche l'argent de la vente.
+	GeniusPayFeeAmount int `gorm:"not null;default:0" json:"geniuspay_fee_amount"`
+
 	Status SettlementStatus `gorm:"type:varchar(20);not null;default:finalized" json:"status"`
 	SentAt *time.Time       `json:"sent_at,omitempty"`
 

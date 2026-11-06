@@ -6,6 +6,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"merchantgo/internal/config"
 	"merchantgo/internal/models"
 	"merchantgo/internal/repository"
 	"merchantgo/internal/utils"
@@ -16,6 +17,10 @@ type RecordSaleInput struct {
 	OrderID     string
 	OrderNumber string
 	GrossAmount int // part de CE marchand dans la commande, pas le total
+	// OnlinePayment — true si la commande a été réglée via GeniusPay (faux
+	// pour un paiement à la livraison) : détermine si des frais GeniusPay
+	// s'appliquent à cette vente (voir config.GeniusPayFeeAmount).
+	OnlinePayment bool
 }
 
 type RecordRefundInput struct {
@@ -47,11 +52,12 @@ type WalletService interface {
 type walletService struct {
 	walletRepo repository.WalletRepository
 	billingSvc BillingService
+	cfg        *config.Config
 	logger     *zap.Logger
 }
 
-func NewWalletService(walletRepo repository.WalletRepository, billingSvc BillingService, logger *zap.Logger) WalletService {
-	return &walletService{walletRepo: walletRepo, billingSvc: billingSvc, logger: logger}
+func NewWalletService(walletRepo repository.WalletRepository, billingSvc BillingService, cfg *config.Config, logger *zap.Logger) WalletService {
+	return &walletService{walletRepo: walletRepo, billingSvc: billingSvc, cfg: cfg, logger: logger}
 }
 
 func (s *walletService) RecordSale(ctx context.Context, in RecordSaleInput) (*models.WalletTransaction, error) {
@@ -88,17 +94,23 @@ func (s *walletService) RecordSale(ctx context.Context, in RecordSaleInput) (*mo
 	commission := int(math.Round(float64(in.GrossAmount) * rate / 100))
 	net := in.GrossAmount - commission
 
+	var geniusPayFee int
+	if in.OnlinePayment {
+		geniusPayFee = s.cfg.GeniusPayFeeAmount(in.GrossAmount)
+	}
+
 	tx := &models.WalletTransaction{
-		UserID:           in.UserID,
-		Type:             models.TransactionSale,
-		RefID:            in.OrderID,
-		OrderID:          in.OrderID,
-		OrderNumber:      in.OrderNumber,
-		GrossAmount:      in.GrossAmount,
-		CommissionRate:   rate,
-		CommissionAmount: commission,
-		NetAmount:        net,
-		BillingMode:      billing.Mode,
+		UserID:             in.UserID,
+		Type:               models.TransactionSale,
+		RefID:              in.OrderID,
+		OrderID:            in.OrderID,
+		OrderNumber:        in.OrderNumber,
+		GrossAmount:        in.GrossAmount,
+		CommissionRate:     rate,
+		CommissionAmount:   commission,
+		NetAmount:          net,
+		BillingMode:        billing.Mode,
+		GeniusPayFeeAmount: geniusPayFee,
 	}
 
 	if err := s.walletRepo.Create(ctx, tx); err != nil {

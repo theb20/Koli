@@ -55,10 +55,11 @@ func (h *WalletHandler) ListTransactions(c *gin.Context) {
 }
 
 type recordSaleRequest struct {
-	UserID      string `json:"userId" binding:"required"`
-	OrderID     string `json:"orderId" binding:"required"`
-	OrderNumber string `json:"orderNumber" binding:"required"`
-	GrossAmount int    `json:"grossAmount" binding:"required"`
+	UserID        string `json:"userId" binding:"required"`
+	OrderID       string `json:"orderId" binding:"required"`
+	OrderNumber   string `json:"orderNumber" binding:"required"`
+	GrossAmount   int    `json:"grossAmount" binding:"required"`
+	OnlinePayment bool   `json:"onlinePayment"`
 }
 
 // RecordSale — POST /api/v1/internal/orders/paid — appelé serveur-à-serveur
@@ -74,6 +75,7 @@ func (h *WalletHandler) RecordSale(c *gin.Context) {
 
 	tx, err := h.service.RecordSale(c.Request.Context(), services.RecordSaleInput{
 		UserID: req.UserID, OrderID: req.OrderID, OrderNumber: req.OrderNumber, GrossAmount: req.GrossAmount,
+		OnlinePayment: req.OnlinePayment,
 	})
 	if err != nil {
 		middleware.RespondError(c, h.logger, err)

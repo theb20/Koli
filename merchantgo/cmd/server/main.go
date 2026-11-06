@@ -74,7 +74,7 @@ func main() {
 	billingHandler := handlers.NewBillingHandler(billingService, cfg, logger)
 
 	walletRepo := repository.NewWalletRepository(db)
-	walletService := services.NewWalletService(walletRepo, billingService, logger)
+	walletService := services.NewWalletService(walletRepo, billingService, cfg, logger)
 	walletHandler := handlers.NewWalletHandler(walletService, logger)
 
 	payoutMethodRepo := repository.NewPayoutMethodRepository(db)
