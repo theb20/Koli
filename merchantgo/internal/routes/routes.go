@@ -45,12 +45,24 @@ func Setup(
 	rateLimit := middleware.RateLimit(limiter, logger)
 
 	v1 := r.Group("/api/v1")
-	v1.Use(rateLimit)
 	{
+		// rateLimit (par IP) s'applique ICI à tout ce qui est accessible
+		// depuis un navigateur ou appelé par un tiers externe (webhooks) —
+		// jamais aux groupes /admin et /internal plus bas : ceux-ci sont
+		// déjà protégés par une clé de service statique (RequireAdmin),
+		// appelés depuis une seule IP fixe (backend/, server-to-server). Un
+		// rate-limit par IP n'y ajoute aucune sécurité réelle, et risquait au
+		// contraire de rejeter à tort des créations de paiement GeniusPay
+		// légitimes lors d'un pic de commandes simultanées (toutes vues
+		// comme venant de la même IP backend/) — voir
+		// payment_service_concurrency_test.go, qui prouve que CreatePayment
+		// gère correctement la concurrence : un rate-limit mal ciblé
+		// l'empêcherait d'être atteint.
+
 		// Authentifié par signature HMAC (X-Signature-V2), pas par
 		// RequireAuth/RequireAdmin — c'est Didit qui appelle cette route,
 		// pas un marchand ni koli-admin.
-		v1.POST("/webhooks/didit", kycWebhookHandler.Receive)
+		v1.POST("/webhooks/didit", rateLimit, kycWebhookHandler.Receive)
 
 		// LEGACY — sert les transactions WiniPayer déjà en attente au moment
 		// de la bascule vers GeniusPay (voir CreateGeniusPayPayment) ;
@@ -59,15 +71,15 @@ func Setup(
 		// transactions en attente résolues. Authentifié par hash (voir
 		// handlers.PaymentHandler.Webhook), pas par RequireAuth/RequireAdmin
 		// — c'est WiniPayer qui appelle.
-		v1.POST("/webhooks/winipayer", paymentHandler.Webhook)
+		v1.POST("/webhooks/winipayer", rateLimit, paymentHandler.Webhook)
 
 		// Authentifié par signature HMAC (voir
 		// handlers.PaymentHandler.GeniusPayWebhook), pas par
 		// RequireAuth/RequireAdmin — c'est GeniusPay qui appelle.
-		v1.POST("/webhooks/geniuspay", paymentHandler.GeniusPayWebhook)
+		v1.POST("/webhooks/geniuspay", rateLimit, paymentHandler.GeniusPayWebhook)
 
 		applications := v1.Group("/applications")
-		applications.Use(middleware.RequireAuth(cfg, logger), idempotency)
+		applications.Use(rateLimit, middleware.RequireAuth(cfg, logger), idempotency)
 		{
 			applications.PUT("/me", appHandler.SaveDraft)
 			applications.GET("/me", appHandler.GetMine)
@@ -86,7 +98,7 @@ func Setup(
 		// Modèle économique + portefeuille — authentifié par le même JWT
 		// backend/ que /applications (voir middleware.RequireAuth).
 		merchant := v1.Group("/merchant")
-		merchant.Use(middleware.RequireAuth(cfg, logger), idempotency)
+		merchant.Use(rateLimit, middleware.RequireAuth(cfg, logger), idempotency)
 		{
 			// Lecture seule : le marchand voit son modèle économique mais ne
 			// peut plus le changer lui-même — réservé à l'équipe Skignas, voir
@@ -106,7 +118,7 @@ func Setup(
 
 		// Catalogue de plans, lecture publique (koli-business/koli-marchand
 		// doivent pouvoir l'afficher avant même la création du compte).
-		v1.GET("/subscription-plans", planHandler.List)
+		v1.GET("/subscription-plans", rateLimit, planHandler.List)
 
 		adminBilling := v1.Group("/admin/subscription-plans")
 		adminBilling.Use(middleware.RequireAdmin(cfg, logger), idempotency)
